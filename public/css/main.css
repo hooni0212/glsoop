@@ -1,0 +1,268 @@
+/* ===== 네비게이션 높이 & 바디 기본 설정 ===== */
+.nav-height {
+  min-height: 110px;
+}
+
+body {
+  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  background-color: #f7f3e8; /* 아주 옅은 종이색 */
+  color: #222;
+  padding-top: 110px; /* fixed navbar와 겹치지 않도록 위에 여백 */
+}
+
+a {
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* ===== 네비게이션 바 ===== */
+.custom-navbar {
+  background: linear-gradient(90deg, #2e8b57, #3ca66c);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.navbar-brand {
+  font-family: 'Nanum Pen Script', cursive;
+  font-size: 1.9rem;
+  letter-spacing: 1px;
+}
+
+.navbar-nav .nav-link {
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.navbar-nav .nav-link:hover {
+  opacity: 1;
+}
+
+/* 로그인/회원가입 버튼들 살짝 둥글게 */
+.navbar .btn {
+  border-radius: 999px;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.9rem;
+}
+
+/* ===== 검색바 폼 (쓸 경우) ===== */
+.search-form {
+  width: 50%;
+  margin: 0;
+}
+
+.underline-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid #fff;
+  color: #fff;
+  font-size: 1rem;
+  padding: 0.3rem 0;
+}
+
+.underline-input::placeholder {
+  color: #bbb;
+}
+
+.underline-input:focus {
+  outline: none;
+  border-bottom: 2px solid #00d1b2;
+}
+
+/* ===== 공통 섹션 / 히어로 ===== */
+.page-section {
+  padding: 4rem 0;
+}
+
+.hero-section {
+  padding: 4rem 1rem 5rem;
+  text-align: center;
+}
+
+.hero-title {
+  font-size: 2.4rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.hero-subtitle {
+  font-size: 1.05rem;
+  color: #555;
+  margin-bottom: 1.5rem;
+}
+
+.hero-card {
+  max-width: 680px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  border-radius: 1.3rem;
+  padding: 2.3rem 2rem;
+  box-shadow: 0 18px 45px rgba(46, 139, 87, 0.08);
+}
+
+/* ===== 버튼 통일 ===== */
+.btn-primary,
+.btn-success {
+  border-radius: 999px;
+  padding: 0.55rem 1.4rem;
+  font-weight: 600;
+  border: none;
+}
+
+.btn-success {
+  background-color: #2e8b57;
+}
+.btn-success:hover {
+  background-color: #267349;
+}
+
+/* ===== 카드 스타일 (피드/마이페이지 공통) ===== */
+.card {
+  border: none;
+  border-radius: 1rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+}
+
+.card-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.card-body small.text-muted {
+  font-size: 0.8rem;
+}
+
+/* "내가 쓴 글" 카드 안의 내용 박스 */
+.post-content .border {
+  border-radius: 0.8rem !important;
+  background-color: #fbfbff;
+}
+
+/* ===== 마이페이지 ===== */
+#userInfo {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  padding: 1.2rem 1.5rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.04);
+}
+
+/* ===== 피드에서 글 내용 미리보기 (접힌 상태) ===== */
+.feed-post-content {
+  max-height: 30rem; /* 여기 값 키우면 '더보기' 나오기 전에 더 많이 보임 */
+  overflow: hidden;
+  position: relative;
+}
+
+/* 펼쳐진 상태 */
+.feed-post-content.expanded {
+  max-height: none;
+}
+
+/* ================== 인스타 감성 종이질감 글귀 카드 ================== */
+
+.quote-card {
+  /* 크기 & 비율 (세로가 더 긴 직사각형) */
+  width: min(80vw, 360px);
+  aspect-ratio: 1 / 1; /* 가로:세로 = 1:1 */
+  margin: 0 auto;
+  padding: 1.4rem;
+
+  /* 배경: 종이 텍스처 + 연한 베이지 */
+  background-color: #fdf8ea;
+  background-image: url('/img/paper-texture.png'); /* 텍스처 이미지 위치 */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+
+  /* 안의 글을 가로·세로 모두 중앙에 배치 */
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* 세로 중앙 */
+  align-items: center; /* 가로 중앙 */
+  text-align: center;
+
+  /* 글꼴 & 타이포 (명조체) — 실제 크기는 JS에서 길이에 따라 조정됨 */
+  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+  font-size: 1.6rem;
+  line-height: 1.9rem;
+  color: #333;
+  word-break: keep-all;
+}
+
+.quote-card > * {
+  margin: 0.2rem 0;
+}
+
+/* 모바일에서 조금 작게 */
+@media (max-width: 576px) {
+  .quote-card {
+    width: min(90vw, 320px);
+    padding: 1.2rem;
+    font-size: 1.4rem;
+  }
+}
+
+/* ===== 메인 피드 공감(하트) 버튼 ===== */
+
+.like-btn {
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.like-heart {
+  font-size: 1.3rem;
+  line-height: 1;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+/* 좋아요 된 상태일 때 빨간색 하트 */
+.like-btn.liked .like-heart {
+  color: #e53935;
+}
+
+/* 숫자 */
+.like-count {
+  font-size: 1rem;
+}
+
+/* ===== 마이페이지 공감 하트 ===== */
+
+.mypage-like-heart {
+  color: #e53935;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.mypage-like-count {
+  font-size: 1.1rem;
+}
+
+.mypage-like {
+  cursor: default;
+}
+
+/* 에디터 래퍼: 글자 수를 안쪽에 띄우기 위해 position 사용 */
+.editor-wrapper {
+  position: relative;
+}
+
+/* Quill 에디터 박스 살짝 배경 */
+.editor-box {
+  background-color: #ffffff;
+}
+
+/* 글자 수 표시: 에디터 오른쪽 아래 */
+.char-counter {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 0.8rem;
+  pointer-events: none; /* 클릭 방해 X */
+}

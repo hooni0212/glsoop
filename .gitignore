@@ -1,0 +1,18 @@
+# node modules (라이브러리 폴더)
+node_modules/
+
+# sqlite DB (개인정보 들어있음)
+users.db
+
+# 환경변수 파일 (나중에 쓰게 될 수도 있어서 미리 막기)
+.env
+*.env
+*.env.*
+
+# 기타
+npm-debug.log
+.DS_Store
+
+users.db
+*.sqlite
+*.db

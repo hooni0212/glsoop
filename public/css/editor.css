@@ -1,0 +1,97 @@
+/* 네비게이션바가 fixed-top 이므로 에디터가 가려지지 않도록 상단 패딩 */
+.editor-container-wrapper {
+    padding-top: 120px; /* 필요에 따라 조절 가능 */
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Quill 에디터 전체 박스 */
+#editor-container {
+    height: 500px;
+    background-color: #ffffff;
+    font-size: 18px;
+    border-radius: 10px;
+}
+
+/* 에디터 주변 여백 */
+.quill-wrapper {
+    margin-top: 20px;
+    margin-bottom: 40px;
+}
+
+/* Quill toolbar 스타일 좀 더 깔끔하게 */
+.ql-toolbar {
+    border-radius: 10px 10px 0 0;
+}
+
+/* Quill editor box */
+.ql-container {
+    border-radius: 0 0 10px 10px;
+}
+
+/* 글쓰기 제목 */
+.write-title-input {
+    width: 100%;
+    padding: 15px;
+    font-size: 24px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+/* 저장 버튼 */
+.save-btn {
+    display: inline-block;
+    padding: 10px 18px;
+    background-color: #343a40;
+    color: white;
+    border-radius: 8px;
+    border: none;
+    font-size: 18px;
+    margin-top: 20px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.save-btn:hover {
+    background-color: #495057;
+}
+
+/* editor 전용 약간의 스타일 */
+#editor {
+    background-color: #ffffff;
+    border-radius: 1rem;
+    border: 1px solid #e1e4f0;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+  }
+  
+  #toolbar {
+    border-radius: 0.8rem 0.8rem 0 0;
+    border: 1px solid #e1e4f0;
+    border-bottom: none;
+    background-color: #fafbff;
+  }
+  
+  #saveBtn {
+    border-radius: 999px;
+  }
+
+  /* Quill 툴바와 에디터 사이 여백 */
+.ql-toolbar.ql-snow {
+    margin-bottom: 10px; /* 원하는 만큼 숫자 조절 가능 (px) */
+  }
+  
+  /* 에디터 박스 모양 정리 (이미 있다면 이 부분은 취향대로 합치기) */
+  .ql-container.ql-snow {
+    border-radius: 1rem;
+    border: 1px solid #e1e4f0;
+    background-color: #ffffff;
+  }
+  
+  /* 실제 글 쓰는 영역 여백 */
+  .ql-editor {
+    min-height: 250px;
+    padding: 16px 20px;
+  }
+  
+  
