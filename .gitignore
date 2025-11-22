@@ -3,8 +3,10 @@ node_modules/
 
 # sqlite DB (개인정보 들어있음)
 users.db
+*.sqlite
+*.db
 
-# 환경변수 파일 (나중에 쓰게 될 수도 있어서 미리 막기)
+# 환경변수 파일
 .env
 *.env
 *.env.*
@@ -12,7 +14,3 @@ users.db
 # 기타
 npm-debug.log
 .DS_Store
-
-users.db
-*.sqlite
-*.db

@@ -1,4 +1,6 @@
 // server.js
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
@@ -9,21 +11,28 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
+console.log('GMAIL_USER =', process.env.GMAIL_USER);
+console.log(
+  'GMAIL_PASS length =',
+  process.env.GMAIL_PASS ? process.env.GMAIL_PASS.length : 0
+);
+
+
 const app = express();
 const PORT = 3000;
 
 // ================== 이메일 전송 설정 ==================
-// ⚠️ 여기 user / pass 는 실제 네 Gmail 주소와 앱 비밀번호로 바꿔야 메일이 정상 발송됨
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: "example1234@example.com", // ✅ 네 Gmail 주소
-    pass: '1234 1234 1234 1234',  // ✅ 구글 앱 비밀번호 (앱 비밀번호, 실제로는 공백 없이 16자리)
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
   },
 });
 
-// 실제 배포에서는 .env로 빼는 걸 추천
-const JWT_SECRET = 'CHANGE_THIS_SECRET_KEY';
+// .env로 빼두기 완료.
+const JWT_SECRET = process.env.JWT_SECRET || 'DEV_ONLY_FALLBACK_SECRET';
+
 
 // ================== 미들웨어 ==================
 app.use(bodyParser.json());
@@ -157,7 +166,7 @@ app.post('/api/signup', async (req, res) => {
 
         transporter.sendMail(
           {
-            from: '"글숲" <glsoop1752@gmail.com>', // ✅ 실제 발신 계정과 일치시키기
+            from: `"글숲" <${process.env.GMAIL_USER}>`, // ✅ 실제 발신 계정과 일치시키기
             to: email,
             subject: '[글숲] 이메일 인증을 완료해주세요',
             html: `
