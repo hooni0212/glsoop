@@ -72,7 +72,7 @@ async function loadMyPage() {
       return;
     }
 
-    // 5. 글 목록 카드로 렌더링 (제목 + 날짜 + 공감 수 + 내용 + 수정/삭제 버튼)
+    // 5. 카드 + 종이질감 quote-card + 공감수 + 수정/삭제 버튼
     const listHtml = posts
       .map((post) => {
         const dateStr = post.created_at
@@ -80,41 +80,45 @@ async function loadMyPage() {
           : '';
 
         const likeCount =
-          typeof post.like_count === 'number' ? post.like_count : 0;
+          post.like_count !== undefined && post.like_count !== null
+            ? Number(post.like_count)
+            : 0;
 
         return `
-          <div class="card mb-3" data-post-id="${post.id}">
-            <div class="card-body">
-              <h5 class="card-title mb-1">${escapeHtml(post.title)}</h5>
-
-              <div class="d-flex align-items-center mb-1">
-                <small class="text-muted me-2">
-                  ${dateStr}
-                </small>
-                <span class="mypage-like d-inline-flex align-items-center">
-                  <span class="mypage-like-heart">♥</span>
-                  <span class="mypage-like-count ms-1">${likeCount}</span>
-                </span>
-              </div>
-
-              <div class="post-content mt-2">
-                <div class="border rounded p-2">
+          <div class="card mb-3 mypost-card" data-post-id="${post.id}">
+            <div class="card-body d-flex flex-column align-items-center">
+              <div class="quote-card">
+                <div class="mb-3" style="width: 100%;">
+                  <div class="d-flex flex-column align-items-center">
+                    <div class="paper-title mb-1" style="font-size: 1rem; font-weight: 600;">
+                      ${escapeHtml(post.title)}
+                    </div>
+                    <div class="paper-meta" style="font-size: 0.8rem; color: #777;">
+                      ${dateStr}
+                      &nbsp;&nbsp;
+                      <span class="mypage-like">
+                        <span class="mypage-like-heart">♥</span>
+                        <span class="mypage-like-count">${likeCount}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div class="paper-content">
                   ${post.content}
                 </div>
               </div>
 
-              <div class="mt-3 d-flex gap-2">
+              <!-- 수정 / 삭제 버튼 줄 -->
+              <div class="d-flex justify-content-end w-100 mt-3 gap-2">
                 <button
                   type="button"
-                  class="btn btn-sm btn-outline-success edit-post-btn"
-                  data-post-id="${post.id}"
+                  class="btn btn-sm btn-outline-secondary edit-post-btn"
                 >
                   수정
                 </button>
                 <button
                   type="button"
                   class="btn btn-sm btn-outline-danger delete-post-btn"
-                  data-post-id="${post.id}"
                 >
                   삭제
                 </button>
@@ -127,50 +131,50 @@ async function loadMyPage() {
 
     postsBox.innerHTML = listHtml;
 
-    // 6. 수정 버튼 이벤트
-    const editButtons = postsBox.querySelectorAll('.edit-post-btn');
-    editButtons.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const postId = btn.getAttribute('data-post-id');
-        if (!postId) return;
-        // editor.html 수정 모드로 이동
-        window.location.href = `/html/editor.html?postId=${postId}`;
-      });
-    });
+    // 6. 수정 / 삭제 버튼 이벤트 (이벤트 위임)
+    postsBox.addEventListener('click', async (e) => {
+      const target = e.target;
 
-    // 7. 삭제 버튼 이벤트
-    const deleteButtons = postsBox.querySelectorAll('.delete-post-btn');
-    deleteButtons.forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const postId = btn.getAttribute('data-post-id');
-        if (!postId) return;
+      // 가장 가까운 카드 요소 찾기
+      const card = target.closest('.mypost-card');
+      if (!card) return;
 
-        const ok = window.confirm('정말 이 글을 삭제하시겠습니까?');
+      const postId = card.getAttribute('data-post-id');
+      if (!postId) return;
+
+      // 삭제 버튼
+      if (target.classList.contains('delete-post-btn')) {
+        const ok = confirm('정말 이 글을 삭제하시겠습니까?');
         if (!ok) return;
 
         try {
-          const res = await fetch(`/api/posts/${postId}`, {
+          const delRes = await fetch(`/api/posts/${postId}`, {
             method: 'DELETE',
           });
+          const delData = await delRes.json();
 
-          const data = await res.json();
-
-          if (!res.ok || !data.ok) {
-            alert(data.message || '글 삭제에 실패했습니다.');
+          if (!delRes.ok || !delData.ok) {
+            alert(delData.message || '글 삭제에 실패했습니다.');
             return;
           }
 
-          alert('글이 삭제되었습니다.');
-          // 카드 DOM에서 제거
-          const card = btn.closest('.card');
-          if (card) {
-            card.remove();
+          // DOM에서 카드 제거
+          card.remove();
+
+          if (!postsBox.querySelector('.mypost-card')) {
+            postsBox.innerHTML =
+              '<p class="text-muted">아직 작성한 글이 없습니다.</p>';
           }
-        } catch (e) {
-          console.error(e);
+        } catch (err) {
+          console.error(err);
           alert('글 삭제 중 오류가 발생했습니다.');
         }
-      });
+      }
+
+      // 수정 버튼 → 에디터 페이지로 이동 (쿼리스트링에 postId 전달)
+      if (target.classList.contains('edit-post-btn')) {
+        window.location.href = `/html/editor.html?postId=${postId}`;
+      }
     });
   } catch (e) {
     console.error(e);
