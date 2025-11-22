@@ -88,7 +88,7 @@ async function loadFeed() {
                 </button>
               </div>
 
-              <div class="post-content mt-2">
+              <div class="post-content mt-2 text-end">
                 <div class="feed-post-content">
                   <!-- 인스타 감성 글귀 카드 -->
                   <div class="quote-card">
@@ -263,3 +263,84 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// ===== 히어로 CTA 잎사귀 애니메이션 =====
+document.addEventListener('DOMContentLoaded', () => {
+  const LEAF_COUNT = 10;
+
+  const heroButtons = document.querySelectorAll('.hero-cta-btn');
+
+  heroButtons.forEach((btn) => {
+    const leavesContainer = btn.querySelector('.hero-cta-leaves');
+    if (!leavesContainer) return;
+
+    // 잎사귀 span 7개 생성 (요청2)
+    for (let i = 0; i < LEAF_COUNT; i++) {
+      const leaf = document.createElement('span');
+      leaf.className = 'hero-cta-leaf';
+      leaf.textContent = '🌿';
+      leavesContainer.appendChild(leaf);
+    }
+
+    const leaves = Array.from(
+      leavesContainer.querySelectorAll('.hero-cta-leaf')
+    );
+
+    // 호버 / 포커스 시 애니메이션
+    const triggerLeaves = () => {
+      // 🔹 버튼 위에 펼쳐질 "기본 위치 7개" (대략적인 배치)
+      const BASE_POSITIONS = [
+        { x: -70, y: -36 },
+        { x: -55, y: -30 },
+        { x: -40, y: -26 },
+        { x: -25, y: -34 },
+        { x: -10, y: -28 },
+        { x: 10,  y: -32 },
+        { x: 25,  y: -24 },
+        { x: 40,  y: -30 },
+        { x: 55,  y: -26 },
+        { x: 70,  y: -36 },
+      ];
+    
+      // 매번 패턴이 똑같지 않도록 슬롯 순서를 랜덤 셔플
+      const shuffled = BASE_POSITIONS.slice().sort(() => Math.random() - 0.5);
+    
+      leaves.forEach((leaf, idx) => {
+        const base = shuffled[idx % shuffled.length];
+    
+        // 🔹 각 슬롯 주변에서만 살짝 랜덤하게 (너무 멀리 안 나가게)
+        const jitterX = (Math.random() * 12) - 6;   // -6 ~ +6px
+        const jitterY = (Math.random() * 10) - 5;   // -5 ~ +5px
+    
+        const offsetX = base.x + jitterX;
+        const offsetY = base.y + jitterY;
+    
+        const scale = 0.85 + Math.random() * 0.5;      // 0.85 ~ 1.35
+        const rotate = -35 + Math.random() * 70;       // -35deg ~ +35deg
+    
+        leaf.style.setProperty('--leaf-tx', `${offsetX}px`);
+        leaf.style.setProperty('--leaf-ty', `${offsetY}px`);
+        leaf.style.setProperty('--leaf-scale', scale);
+        leaf.style.setProperty('--leaf-rot', `${rotate}deg`);
+    
+        // 애니메이션 재시작
+        leaf.classList.remove('leaf-show');
+        void leaf.offsetWidth;
+        leaf.classList.add('leaf-show');
+    
+        setTimeout(() => {
+          leaf.classList.remove('leaf-show');
+        }, 1000);
+      });
+    };
+    
+    
+
+    // 마우스를 "가까이" 가져갔을 때 (hover)
+    btn.addEventListener('mouseenter', triggerLeaves);
+
+    // 키보드로 포커스했을 때도 같은 효과
+    btn.addEventListener('focus', triggerLeaves);
+  });
+});
+

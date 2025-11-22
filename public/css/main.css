@@ -6,7 +6,7 @@
 body {
   font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
-  background-color: #f7f3e8; /* 아주 옅은 종이색 */
+  background-color: #f0f2e9; /* 아주 옅은 종이색 */
   color: #222;
   padding-top: 110px; /* fixed navbar와 겹치지 않도록 위에 여백 */
 }
@@ -150,15 +150,17 @@ a:hover {
 
 /* ===== 피드에서 글 내용 미리보기 (접힌 상태) ===== */
 .feed-post-content {
-  max-height: 30rem; /* 여기 값 키우면 '더보기' 나오기 전에 더 많이 보임 */
-  overflow: hidden;
   position: relative;
+  max-height: 26rem; /* 한 3~5줄 정도 느낌, 필요하면 수치 조절 가능 */
+  overflow: hidden;
 }
 
 /* 펼쳐진 상태 */
 .feed-post-content.expanded {
   max-height: none;
 }
+
+
 
 /* ================== 인스타 감성 종이질감 글귀 카드 ================== */
 
@@ -265,4 +267,146 @@ a:hover {
   bottom: 8px;
   font-size: 0.8rem;
   pointer-events: none; /* 클릭 방해 X */
+}
+
+/* ===== 더보기 버튼 (세련된 pill 스타일) ===== */
+
+  /* Bootstrap .btn-link 기본 스타일 덮어쓰기 */
+
+/* ===== 더보기 버튼 (텍스트 스타일, 밑줄 없음) ===== */
+.more-toggle {
+  border: none;
+  background: none;
+  padding: 0;
+  margin-top: 0.25rem;
+  margin-right: 0.25rem;
+
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #6b5b4b;
+
+  cursor: pointer;
+  text-decoration: none;
+
+  /* 여기 두 줄이 포인트 */
+  display: block;      /* 한 줄 전부 차지하게 만들고 */
+  margin-left: auto;   /* 오른쪽으로 붙이기 */
+
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.more-toggle:hover {
+  color: #4f4337;
+  opacity: 0.9;
+  text-decoration: none;
+}
+
+.more-toggle:active {
+  opacity: 0.7;
+  text-decoration: none;
+}
+
+/* ===== 메인 히어로 CTA 버튼 (바로 글 쓰러 가기) ===== */
+.hero-card .hero-cta-btn {
+  position: relative;
+  overflow: visible; /* 잎사귀가 바깥으로 튀어나오도록 */
+
+  border: none;
+  padding: 0.8rem 2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+
+  text-decoration: none; /* 밑줄 X */
+
+  /* 기본 상태 그림자도 살짝 더 진하게 */
+  box-shadow: 0 10px 24px rgba(46, 139, 87, 0.35);
+
+  transition:
+    transform 0.22s ease-out,
+    box-shadow 0.22s ease-out,
+    background-color 0.22s ease-out;
+}
+
+/* 호버/포커스 시: 버튼 앞으로 튀어나오기 + 그림자 더 깊게 (요청1) */
+.hero-card .hero-cta-btn:hover,
+.hero-card .hero-cta-btn:focus-visible {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 18px 42px rgba(46, 139, 87, 0.65);
+  background-color: #28794a;
+  text-decoration: none;
+}
+
+/* 포커스 링 (키보드 접근용) */
+.hero-card .hero-cta-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+}
+
+/* ===== 히어로 CTA 잎사귀 파티클 ===== */
+.hero-cta-leaves {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 개별 잎사귀 기본 상태 */
+/* 개별 잎사귀 기본 상태 */
+.hero-cta-leaf {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* 처음부터 최종 위치 주변에서만 등장하게 (글자 중앙을 안 가로지르게) */
+  transform:
+    translate(-50%, -50%)
+    translate(var(--leaf-tx, 0px), var(--leaf-ty, -16px))
+    scale(0.1)
+    rotate(var(--leaf-rot, 0deg));
+  transform-origin: center bottom;
+
+  opacity: 0;
+  font-size: 1.2rem;
+
+  pointer-events: none;
+
+  transition:
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.35s ease-out;
+}
+
+/* 애니메이션이 적용될 때 (살짝 커지고 선명해지는 정도만) */
+.hero-cta-leaf.leaf-show {
+  opacity: 1;
+  transform:
+    translate(-50%, -50%)
+    translate(var(--leaf-tx, 0px), var(--leaf-ty, -22px))
+    scale(var(--leaf-scale, 1))
+    rotate(var(--leaf-rot, 0deg));
+}
+
+
+/* ===== 모바일에서의 CTA 버튼 모양 ===== */
+@media (max-width: 576px) {
+  .hero-card .hero-cta-btn {
+    width: 100%;
+    padding: 0.9rem 1.3rem;
+    font-size: 1rem;
+    border-radius: 999px; /* 모바일에는 pill 형태가 안정감 있음 */
+  }
+
+  .hero-cta-leaf {
+    font-size: 1.3rem;
+  }
+}
+
+.hero-subtitle {
+  font-size: 1.05rem;
+  color: #555;
+  margin-bottom: 3rem; /* 이 값만 키워주면 됨 */
 }
