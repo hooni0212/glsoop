@@ -5,7 +5,9 @@ const FEED_LIMIT = 10;
 let feedOffset = 0;
 let feedLoading = false;
 let feedDone = false;
-let currentTag = null; // ✅ 현재 선택된 해시태그 (없으면 null)
+
+// ✅ 여러 개 태그를 AND 조건으로 사용
+let currentTags = []; // 예: ['힐링', '위로']
 
 document.addEventListener('DOMContentLoaded', () => {
   initFeed();
@@ -60,9 +62,9 @@ async function loadMoreFeed() {
       limit: String(FEED_LIMIT),
     });
 
-    // ✅ 현재 태그 필터가 있으면 함께 보내기
-    if (currentTag) {
-      params.set('tag', currentTag);
+    // ✅ 현재 태그 필터가 있으면 함께 보내기 (?tags=a,b,c)
+    if (currentTags.length > 0) {
+      params.set('tags', currentTags.join(','));
     }
 
     const res = await fetch('/api/posts/feed?' + params.toString());
@@ -92,10 +94,11 @@ async function loadMoreFeed() {
 
     // 첫 로드인데 글이 아예 없는 경우
     if (feedOffset === 0 && posts.length === 0) {
-      if (currentTag) {
-        feedBox.innerHTML = `<p class="text-muted">#${escapeHtml(
-          currentTag
-        )} 태그로 등록된 글이 아직 없습니다.</p>`;
+      if (currentTags.length > 0) {
+        const label = currentTags
+          .map((t) => `#${escapeHtml(t)}`)
+          .join(', ');
+        feedBox.innerHTML = `<p class="text-muted">${label} 태그를 모두 포함하는 글이 아직 없습니다.</p>`;
       } else {
         feedBox.innerHTML =
           '<p class="text-muted">아직 작성된 글이 없습니다.</p>';
@@ -320,7 +323,6 @@ function setupCardInteractions(card) {
             heartEl.style.transform = 'scale(1)';
           }, 160);
         }
-
       } catch (e) {
         console.error(e);
         alert('공감 처리 중 오류가 발생했습니다.');
@@ -328,30 +330,106 @@ function setupCardInteractions(card) {
     });
   }
 
-  // 4) 해시태그 뱃지 클릭 → 해당 태그 피드로 필터
+  // 4) 해시태그 뱃지 클릭 → 태그 필터 추가 (AND 조건)
   const tagButtons = card.querySelectorAll('.hashtag-pill');
   tagButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       const tag = btn.getAttribute('data-tag');
       if (!tag) return;
 
-      currentTag = tag;
-      feedOffset = 0;
-      feedDone = false;
-
-      const feedBox = document.getElementById('feedPosts');
-      if (feedBox) {
-        feedBox.dataset.initialized = '';
-        feedBox.innerHTML = `<p class="text-muted">#${escapeHtml(
-          tag
-        )} 태그 글을 불러오는 중입니다...</p>`;
-      }
-
-      // 맨 위로 올려서 해당 태그 피드를 다시 로드
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      loadMoreFeed();
+      applyTagFilter(tag);
     });
   });
+}
+
+// ✅ 태그 필터 적용 (여러 태그 AND 조건)
+function applyTagFilter(tag) {
+  if (!tag) return;
+
+  // 이미 있는 태그면 추가 안 함
+  if (!currentTags.includes(tag)) {
+    currentTags.push(tag);
+  }
+
+  feedOffset = 0;
+  feedDone = false;
+
+  const feedBox = document.getElementById('feedPosts');
+  if (feedBox) {
+    feedBox.dataset.initialized = '';
+    const label = currentTags.map((t) => `#${escapeHtml(t)}`).join(', ');
+    feedBox.innerHTML = `<p class="text-muted">${label} 태그를 포함한 글을 불러오는 중입니다...</p>`;
+  }
+
+  // 상단에 현재 필터 표시 바 갱신
+  renderTagFilterBar();
+
+  // 맨 위로 올려서 해당 태그 피드를 다시 로드
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  loadMoreFeed();
+}
+
+// ✅ 태그 필터 바 렌더링 (현재 선택된 태그 + 필터 지우기 버튼)
+function renderTagFilterBar() {
+  const feedBox = document.getElementById('feedPosts');
+  if (!feedBox) return;
+
+  let bar = document.getElementById('tagFilterBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'tagFilterBar';
+    bar.className = 'd-flex flex-wrap align-items-center gap-2 mb-3';
+    // feedBox 위에 삽입
+    feedBox.parentNode.insertBefore(bar, feedBox);
+  }
+
+  if (!currentTags.length) {
+    bar.innerHTML = '';
+    bar.style.display = 'none';
+    return;
+  }
+
+  bar.style.display = 'flex';
+
+  const tagsHtml = currentTags
+    .map(
+      (t) =>
+        `<span class="badge text-bg-success me-1">#${escapeHtml(t)}</span>`
+    )
+    .join('');
+
+  bar.innerHTML = `
+    <span class="me-1 small text-muted">적용 중인 태그:</span>
+    ${tagsHtml}
+    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="tagFilterClearBtn">
+      필터 지우기
+    </button>
+  `;
+
+  const clearBtn = bar.querySelector('#tagFilterClearBtn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      clearTagFilters();
+    });
+  }
+}
+
+// ✅ 태그 필터 전체 해제
+function clearTagFilters() {
+  currentTags = [];
+  feedOffset = 0;
+  feedDone = false;
+
+  const feedBox = document.getElementById('feedPosts');
+  if (feedBox) {
+    feedBox.dataset.initialized = '';
+    feedBox.innerHTML =
+      '<p class="text-muted">전체 글을 불러오는 중입니다...</p>';
+  }
+
+  renderTagFilterBar();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  loadMoreFeed();
 }
 
 // 글 길이에 따라 카드 안 글꼴 크기 자동 조절

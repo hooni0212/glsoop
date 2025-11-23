@@ -621,6 +621,18 @@ app.get('/api/posts/my', authRequired, (req, res) => {
  * - 특정 해시태그만 보고 싶으면:
  *   - ?tag=힐링 또는 ?tag=#힐링
  */
+/**
+ * 글 피드 조회 (무한스크롤 + 해시태그 필터 지원)
+ * GET /api/posts/feed
+ *
+ * - 로그인 필요 없음 (단, 로그인 되어 있으면 내가 공감 눌렀는지까지 포함)
+ * - 쿼리스트링으로 페이징:
+ *   - ?offset=0&limit=20
+ * - 특정 해시태그만 보고 싶으면 (단일):
+ *   - ?tag=힐링
+ * - 여러 해시태그 AND 조건 (모두 포함하는 글만):
+ *   - ?tags=힐링,위로,응원
+ */
 app.get('/api/posts/feed', (req, res) => {
   let userId = null;
 
@@ -637,8 +649,6 @@ app.get('/api/posts/feed', (req, res) => {
   // 🔹 페이징 파라미터
   let limit = parseInt(req.query.limit, 10);
   let offset = parseInt(req.query.offset, 10);
-  const rawTag = req.query.tag;
-  const tag = rawTag ? normalizeHashtagName(rawTag) : null;
 
   if (isNaN(limit) || limit <= 0 || limit > 50) {
     limit = 20; // 기본 20개
@@ -646,6 +656,20 @@ app.get('/api/posts/feed', (req, res) => {
   if (isNaN(offset) || offset < 0) {
     offset = 0; // 기본 0부터
   }
+
+  // 🔹 태그 필터 (여러 개 지원)
+  // 우선순위: ?tags=a,b,c  → 없으면 ?tag=a
+  let tags = [];
+  if (req.query.tags) {
+    tags = String(req.query.tags)
+      .split(',')
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t.length > 0);
+  } else if (req.query.tag) {
+    const t = String(req.query.tag).trim().toLowerCase();
+    if (t) tags = [t];
+  }
+  const tagCount = tags.length;
 
   const baseSelect = `
     SELECT
@@ -660,13 +684,26 @@ app.get('/api/posts/feed', (req, res) => {
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
   `;
 
+  const baseFromJoin = `
+    FROM posts p
+    JOIN users u ON p.user_id = u.id
+    LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+    LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+  `;
+
+  const baseOrder = `
+    GROUP BY p.id
+    ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
+
   let sql;
   let params = [];
 
   if (userId) {
-    // 로그인 한 경우
-    if (tag) {
-      // 특정 태그만 필터
+    // 🔹 로그인 한 경우
+    if (tagCount > 0) {
+      const placeholders = tags.map(() => '?').join(', ');
       sql = `
         ${baseSelect},
         CASE
@@ -676,23 +713,20 @@ app.get('/api/posts/feed', (req, res) => {
           ) THEN 1
           ELSE 0
         END AS user_liked
-        FROM posts p
-        JOIN users u ON p.user_id = u.id
-        LEFT JOIN post_hashtags ph ON ph.post_id = p.id
-        LEFT JOIN hashtags h ON h.id = ph.hashtag_id
-        WHERE EXISTS (
-          SELECT 1
+        ${baseFromJoin}
+        WHERE p.id IN (
+          SELECT ph2.post_id
           FROM post_hashtags ph2
           JOIN hashtags h2 ON h2.id = ph2.hashtag_id
-          WHERE ph2.post_id = p.id AND h2.name = ?
+          WHERE h2.name IN (${placeholders})
+          GROUP BY ph2.post_id
+          HAVING COUNT(DISTINCT h2.name) = ?
         )
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ? OFFSET ?
+        ${baseOrder}
       `;
-      params = [userId, tag, limit, offset];
+      params = [userId, ...tags, tagCount, limit, offset];
     } else {
-      // 전체 피드
+      // 태그 필터 없음
       sql = `
         ${baseSelect},
         CASE
@@ -702,48 +736,36 @@ app.get('/api/posts/feed', (req, res) => {
           ) THEN 1
           ELSE 0
         END AS user_liked
-        FROM posts p
-        JOIN users u ON p.user_id = u.id
-        LEFT JOIN post_hashtags ph ON ph.post_id = p.id
-        LEFT JOIN hashtags h ON h.id = ph.hashtag_id
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ? OFFSET ?
+        ${baseFromJoin}
+        ${baseOrder}
       `;
       params = [userId, limit, offset];
     }
   } else {
-    // 비로그인
-    if (tag) {
+    // 🔹 비로그인
+    if (tagCount > 0) {
+      const placeholders = tags.map(() => '?').join(', ');
       sql = `
         ${baseSelect},
         0 AS user_liked
-        FROM posts p
-        JOIN users u ON p.user_id = u.id
-        LEFT JOIN post_hashtags ph ON ph.post_id = p.id
-        LEFT JOIN hashtags h ON h.id = ph.hashtag_id
-        WHERE EXISTS (
-          SELECT 1
+        ${baseFromJoin}
+        WHERE p.id IN (
+          SELECT ph2.post_id
           FROM post_hashtags ph2
           JOIN hashtags h2 ON h2.id = ph2.hashtag_id
-          WHERE ph2.post_id = p.id AND h2.name = ?
+          WHERE h2.name IN (${placeholders})
+          GROUP BY ph2.post_id
+          HAVING COUNT(DISTINCT h2.name) = ?
         )
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ? OFFSET ?
+        ${baseOrder}
       `;
-      params = [tag, limit, offset];
+      params = [...tags, tagCount, limit, offset];
     } else {
       sql = `
         ${baseSelect},
         0 AS user_liked
-        FROM posts p
-        JOIN users u ON p.user_id = u.id
-        LEFT JOIN post_hashtags ph ON ph.post_id = p.id
-        LEFT JOIN hashtags h ON h.id = ph.hashtag_id
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-        LIMIT ? OFFSET ?
+        ${baseFromJoin}
+        ${baseOrder}
       `;
       params = [limit, offset];
     }
