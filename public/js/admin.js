@@ -325,16 +325,23 @@ function maskEmail(email) {
   if (!email) return '';
 
   const atIndex = email.indexOf('@');
+  // @ 앞부분만 사용
   const localPart = atIndex === -1 ? email : email.slice(0, atIndex);
+  const len = localPart.length;
 
-  if (localPart.length <= 1) {
-    return localPart + '***';
-  }
-  if (localPart.length === 2) {
-    return localPart[0] + '***';
-  }
-  return localPart.slice(0, 2) + '***';
+  if (len === 0) return '';
+
+  // 앞 최대 3글자까지만 그대로 노출
+  const visibleLen = Math.min(3, len);
+  const visible = localPart.slice(0, visibleLen);
+
+  // 나머지 글자 수만큼 * 붙이기 → 전체 길이 표시
+  const hiddenCount = len - visibleLen;
+  const stars = hiddenCount > 0 ? '*'.repeat(hiddenCount) : '';
+
+  return visible + stars;
 }
+
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
