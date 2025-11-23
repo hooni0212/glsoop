@@ -2,6 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   loadMyPage();
+  setupUserEditForm();
 });
 
 async function loadMyPage() {
@@ -39,11 +40,31 @@ async function loadMyPage() {
       return;
     }
 
-    // 2. 내 정보 출력
+    // 2. 내 정보 출력 + "내 정보 수정" 버튼 (모달 열기)
     userInfoBox.innerHTML = `
-      <p class="mb-1"><strong>안녕하세요, ${escapeHtml(meData.name)}님!</strong></p>
-      <p class="mb-1">이메일: ${escapeHtml(meData.email)}</p>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <p class="mb-1"><strong>안녕하세요, ${escapeHtml(
+            meData.name
+          )}님!</strong></p>
+          <p class="mb-1">이메일: ${escapeHtml(meData.email)}</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm"
+          data-bs-toggle="modal"
+          data-bs-target="#userEditModal"
+        >
+          내 정보 수정
+        </button>
+      </div>
     `;
+
+    // 2-1. 모달 내 닉네임 기본 값 채우기
+    const nicknameInput = document.getElementById('nicknameInput');
+    if (nicknameInput) {
+      nicknameInput.value = meData.nickname || '';
+    }
 
     // 3. 내가 쓴 글 목록 가져오기
     const postsRes = await fetch('/api/posts/my');
@@ -182,6 +203,121 @@ async function loadMyPage() {
       '<p class="text-danger">마이페이지를 불러오는 중 오류가 발생했습니다.</p>';
     postsBox.innerHTML = '';
   }
+}
+
+// 내 정보 수정 폼(닉네임 / 비밀번호 변경) 설정
+function setupUserEditForm() {
+  const form = document.getElementById('userEditForm');
+  const nicknameInput = document.getElementById('nicknameInput');
+  const currentPwInput = document.getElementById('currentPwInput');
+  const newPwInput = document.getElementById('newPwInput');
+  const newPwConfirmInput = document.getElementById('newPwConfirmInput');
+  const messageSpan = document.getElementById('userEditMessage');
+
+  if (!form) {
+    return; // 폼이 없으면 아무 것도 하지 않음
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const nickname = nicknameInput ? nicknameInput.value.trim() : '';
+    const currentPw = currentPwInput ? currentPwInput.value : '';
+    const newPw = newPwInput ? newPwInput.value : '';
+    const newPwConfirm = newPwConfirmInput ? newPwConfirmInput.value : '';
+
+    if (messageSpan) {
+      messageSpan.classList.remove('text-danger', 'text-success');
+      messageSpan.textContent = '';
+    }
+
+    // 비밀번호 변경 시 기본 검증
+    if (newPw || newPwConfirm) {
+      if (!newPw || !newPwConfirm) {
+        if (messageSpan) {
+          messageSpan.classList.add('text-danger');
+          messageSpan.textContent = '새 비밀번호와 확인을 모두 입력해주세요.';
+        }
+        return;
+      }
+
+      if (newPw !== newPwConfirm) {
+        if (messageSpan) {
+          messageSpan.classList.add('text-danger');
+          messageSpan.textContent = '새 비밀번호가 서로 일치하지 않습니다.';
+        }
+        return;
+      }
+
+      if (!currentPw) {
+        if (messageSpan) {
+          messageSpan.classList.add('text-danger');
+          messageSpan.textContent =
+            '비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.';
+        }
+        return;
+      }
+
+      if (newPw.length < 6) {
+        if (messageSpan) {
+          messageSpan.classList.add('text-danger');
+          messageSpan.textContent =
+            '비밀번호는 최소 6자 이상이 좋습니다.';
+        }
+        return;
+      }
+    }
+
+    // 변경할 내용이 하나도 없으면 막기
+    if (!nickname && !newPw) {
+      if (messageSpan) {
+        messageSpan.classList.add('text-danger');
+        messageSpan.textContent = '변경할 내용을 입력해주세요.';
+      }
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nickname: nickname || null,
+          currentPw: currentPw || null,
+          newPw: newPw || null,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        if (messageSpan) {
+          messageSpan.classList.add('text-danger');
+          messageSpan.textContent =
+            (data && data.message) || '정보 수정에 실패했습니다.';
+        }
+        return;
+      }
+
+      if (messageSpan) {
+        messageSpan.classList.add('text-success');
+        messageSpan.textContent =
+          data.message || '내 정보가 수정되었습니다.';
+      }
+
+      // 비밀번호 입력칸은 항상 비워주기
+      if (currentPwInput) currentPwInput.value = '';
+      if (newPwInput) newPwInput.value = '';
+      if (newPwConfirmInput) newPwConfirmInput.value = '';
+    } catch (err) {
+      console.error(err);
+      if (messageSpan) {
+        messageSpan.classList.add('text-danger');
+        messageSpan.textContent =
+          '정보 수정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      }
+    }
+  });
 }
 
 // 제목/이메일용 이스케이프 (content는 HTML 그대로 렌더링)

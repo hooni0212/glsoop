@@ -399,18 +399,45 @@ app.post('/api/logout', (req, res) => {
  * 내 정보 확인 (헤더 토글 / 마이페이지 / 관리자 페이지용)
  * GET /api/me
  */
+// ================== 사용자 정보 ==================
+
+/**
+ * 내 정보 확인 (헤더 토글 / 마이페이지 / 관리자 페이지용)
+ * GET /api/me
+ */
 app.get('/api/me', authRequired, (req, res) => {
-  const { id, name, email, isAdmin, isVerified, nickname } = req.user;
-  res.json({
-    ok: true,
-    id,
-    name,
-    nickname: nickname || null,
-    email,
-    isAdmin: !!isAdmin,
-    isVerified: !!isVerified,
-  });
+  const userId = req.user.id;
+
+  db.get(
+    'SELECT id, name, nickname, email, is_admin, is_verified FROM users WHERE id = ?',
+    [userId],
+    (err, row) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
+      }
+
+      if (!row) {
+        return res
+          .status(404)
+          .json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
+      }
+
+      res.json({
+        ok: true,
+        id: row.id,
+        name: row.name,
+        nickname: row.nickname,
+        email: row.email,
+        isAdmin: !!row.is_admin,
+        isVerified: !!row.is_verified,
+      });
+    }
+  );
 });
+
 
 // ================== 글 관련 API ==================
 

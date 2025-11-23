@@ -1,4 +1,8 @@
-/* ===== 네비게이션 높이 & 바디 기본 설정 ===== */
+/* =========================
+   기본 설정
+========================= */
+
+/* 네비게이션 높이 */
 .nav-height {
   min-height: 110px;
 }
@@ -6,7 +10,7 @@
 body {
   font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
-  background-color: #f0f2e9; /* 아주 옅은 종이색 */
+  background-color: #f0f2e9; /* 옅은 종이색 + 그레이 + 그린 */
   color: #222;
   padding-top: 110px; /* fixed navbar와 겹치지 않도록 위에 여백 */
 }
@@ -18,7 +22,11 @@ a:hover {
   text-decoration: underline;
 }
 
-/* ===== 네비게이션 바 ===== */
+
+/* =========================
+   네비게이션 바
+========================= */
+
 .custom-navbar {
   background: linear-gradient(90deg, #2e8b57, #3ca66c);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
@@ -46,7 +54,11 @@ a:hover {
   padding: 0.35rem 0.9rem;
 }
 
-/* ===== 검색바 폼 (쓸 경우) ===== */
+
+/* =========================
+   검색바 (사용 시)
+========================= */
+
 .search-form {
   width: 50%;
   margin: 0;
@@ -71,7 +83,11 @@ a:hover {
   border-bottom: 2px solid #00d1b2;
 }
 
-/* ===== 공통 섹션 / 히어로 ===== */
+
+/* =========================
+   섹션 / 히어로
+========================= */
+
 .page-section {
   padding: 4rem 0;
 }
@@ -90,7 +106,7 @@ a:hover {
 .hero-subtitle {
   font-size: 1.05rem;
   color: #555;
-  margin-bottom: 1.5rem;
+  margin-bottom: 3rem; /* 하단 여백 넉넉히 */
 }
 
 .hero-card {
@@ -102,7 +118,11 @@ a:hover {
   box-shadow: 0 18px 45px rgba(46, 139, 87, 0.08);
 }
 
-/* ===== 버튼 통일 ===== */
+
+/* =========================
+   버튼 기본 스타일
+========================= */
+
 .btn-primary,
 .btn-success {
   border-radius: 999px;
@@ -118,7 +138,11 @@ a:hover {
   background-color: #267349;
 }
 
-/* ===== 카드 스타일 (피드/마이페이지 공통) ===== */
+
+/* =========================
+   카드 / 글 목록 공통
+========================= */
+
 .card {
   border: none;
   border-radius: 1rem;
@@ -140,40 +164,33 @@ a:hover {
   background-color: #fbfbff;
 }
 
-/* ===== 마이페이지 ===== */
-#userInfo {
-  background-color: #ffffff;
-  border-radius: 1rem;
-  padding: 1.2rem 1.5rem;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.04);
-}
-
-/* ===== 피드에서 글 내용 미리보기 (접힌 상태) ===== */
+/* 피드에서 글 내용 미리보기 (접힌 상태) */
 .feed-post-content {
   position: relative;
-  max-height: 26rem; /* 한 3~5줄 정도 느낌, 필요하면 수치 조절 가능 */
+  max-height: 26rem;
   overflow: hidden;
 }
 
-/* 펼쳐진 상태 */
+/* 피드 내용 펼쳐진 상태 */
 .feed-post-content.expanded {
   max-height: none;
 }
 
 
-
-/* ================== 인스타 감성 종이질감 글귀 카드 ================== */
+/* =========================
+   인스타 감성 종이질감 카드
+========================= */
 
 .quote-card {
-  /* 크기 & 비율 (세로가 더 긴 직사각형) */
+  /* 크기 & 비율 */
   width: min(80vw, 360px);
-  aspect-ratio: 1 / 1; /* 가로:세로 = 1:1 */
+  aspect-ratio: 1 / 1;
   margin: 0 auto;
   padding: 1.4rem;
 
   /* 배경: 종이 텍스처 + 연한 베이지 */
   background-color: #fdf8ea;
-  background-image: url('/img/paper-texture.png'); /* 텍스처 이미지 위치 */
+  background-image: url('/img/paper-texture.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -181,14 +198,14 @@ a:hover {
   border-radius: 1.5rem;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
 
-  /* 안의 글을 가로·세로 모두 중앙에 배치 */
+  /* 안의 글 중앙 배치 */
   display: flex;
   flex-direction: column;
-  justify-content: center; /* 세로 중앙 */
-  align-items: center; /* 가로 중앙 */
+  justify-content: center;
+  align-items: center;
   text-align: center;
 
-  /* 글꼴 & 타이포 (명조체) — 실제 크기는 JS에서 길이에 따라 조정됨 */
+  /* 타이포 */
   font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
   font-size: 1.6rem;
   line-height: 1.9rem;
@@ -209,7 +226,11 @@ a:hover {
   }
 }
 
-/* ===== 메인 피드 공감(하트) 버튼 ===== */
+
+/* =========================
+   메인 피드 좋아요 버튼 (.like-*)
+   - 메인 피드 JS(index.js)에서 사용하는 클래스들
+========================= */
 
 .like-btn {
   text-decoration: none;
@@ -219,9 +240,14 @@ a:hover {
 }
 
 .like-heart {
-  font-size: 1.3rem;
+  display: inline-block;              /* transform 잘 보이도록 */
+  font-size: 1.5rem;
   line-height: 1;
-  transition: transform 0.15s ease, color 0.15s ease;
+  color: #222;                        /* 기본: 검은 테두리 하트(♡) 느낌 */
+  transform: scale(1);                /* 기본 크기 */
+  transition:
+    transform 0.22s ease-out,         /* 커졌다 작아지는 애니메이션 */
+    color 0.15s ease;
 }
 
 /* 좋아요 된 상태일 때 빨간색 하트 */
@@ -234,7 +260,15 @@ a:hover {
   font-size: 1rem;
 }
 
-/* ===== 마이페이지 공감 하트 ===== */
+/* 범프 상태: 확실히 눈에 띄게 */
+.like-heart.bump {
+  transform: scale(1.4);
+}
+
+
+/* =========================
+   마이페이지 공감 하트
+========================= */
 
 .mypage-like-heart {
   color: #e53935;
@@ -250,7 +284,23 @@ a:hover {
   cursor: default;
 }
 
-/* 에디터 래퍼: 글자 수를 안쪽에 띄우기 위해 position 사용 */
+
+/* =========================
+   마이페이지 박스 스타일
+========================= */
+
+#userInfo {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  padding: 1.2rem 1.5rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.04);
+}
+
+
+/* =========================
+   에디터 영역
+========================= */
+
 .editor-wrapper {
   position: relative;
 }
@@ -269,11 +319,11 @@ a:hover {
   pointer-events: none; /* 클릭 방해 X */
 }
 
-/* ===== 더보기 버튼 (세련된 pill 스타일) ===== */
 
-  /* Bootstrap .btn-link 기본 스타일 덮어쓰기 */
+/* =========================
+   더보기 버튼
+========================= */
 
-/* ===== 더보기 버튼 (텍스트 스타일, 밑줄 없음) ===== */
 .more-toggle {
   border: none;
   background: none;
@@ -288,7 +338,6 @@ a:hover {
   cursor: pointer;
   text-decoration: none;
 
-  /* 여기 두 줄이 포인트 */
   display: block;      /* 한 줄 전부 차지하게 만들고 */
   margin-left: auto;   /* 오른쪽으로 붙이기 */
 
@@ -308,7 +357,11 @@ a:hover {
   text-decoration: none;
 }
 
-/* ===== 메인 히어로 CTA 버튼 (바로 글 쓰러 가기) ===== */
+
+/* =========================
+   메인 히어로 CTA 버튼 (바로 글 쓰러 가기)
+========================= */
+
 .hero-card .hero-cta-btn {
   position: relative;
   overflow: visible; /* 잎사귀가 바깥으로 튀어나오도록 */
@@ -325,7 +378,7 @@ a:hover {
 
   text-decoration: none; /* 밑줄 X */
 
-  /* 기본 상태 그림자도 살짝 더 진하게 */
+  /* 기본 상태 그림자 */
   box-shadow: 0 10px 24px rgba(46, 139, 87, 0.35);
 
   transition:
@@ -334,7 +387,7 @@ a:hover {
     background-color 0.22s ease-out;
 }
 
-/* 호버/포커스 시: 버튼 앞으로 튀어나오기 + 그림자 더 깊게 (요청1) */
+/* 호버/포커스 시: 버튼 앞으로 튀어나오기 + 그림자 더 깊게 */
 .hero-card .hero-cta-btn:hover,
 .hero-card .hero-cta-btn:focus-visible {
   transform: translateY(-3px) scale(1.04);
@@ -349,7 +402,11 @@ a:hover {
   outline-offset: 2px;
 }
 
-/* ===== 히어로 CTA 잎사귀 파티클 ===== */
+
+/* =========================
+   히어로 CTA 잎사귀 파티클
+========================= */
+
 .hero-cta-leaves {
   position: absolute;
   inset: 0;
@@ -357,12 +414,12 @@ a:hover {
 }
 
 /* 개별 잎사귀 기본 상태 */
-/* 개별 잎사귀 기본 상태 */
 .hero-cta-leaf {
   position: absolute;
   left: 50%;
   top: 50%;
-  /* 처음부터 최종 위치 주변에서만 등장하게 (글자 중앙을 안 가로지르게) */
+
+  /* 처음부터 최종 위치 주변에서만 등장하게 */
   transform:
     translate(-50%, -50%)
     translate(var(--leaf-tx, 0px), var(--leaf-ty, -16px))
@@ -390,14 +447,13 @@ a:hover {
     rotate(var(--leaf-rot, 0deg));
 }
 
-
-/* ===== 모바일에서의 CTA 버튼 모양 ===== */
+/* 모바일에서의 CTA 버튼 모양 */
 @media (max-width: 576px) {
   .hero-card .hero-cta-btn {
     width: 100%;
     padding: 0.9rem 1.3rem;
     font-size: 1rem;
-    border-radius: 999px; /* 모바일에는 pill 형태가 안정감 있음 */
+    border-radius: 999px;
   }
 
   .hero-cta-leaf {
@@ -405,8 +461,55 @@ a:hover {
   }
 }
 
-.hero-subtitle {
-  font-size: 1.05rem;
-  color: #555;
-  margin-bottom: 3rem; /* 이 값만 키워주면 됨 */
+
+/* =========================
+   공통 푸터
+========================= */
+
+.custom-footer {
+  background: linear-gradient(90deg, #2e8b57, #3ca66c); /* 헤더와 같은 그라디언트 */
+  color: #fdfdfd;
+  margin-top: auto;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.footer-brand {
+  font-family: 'Nanum Pen Script', cursive;
+  font-size: 1.8rem;
+}
+
+.footer-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  margin-bottom: 0;
+}
+
+.footer-links a {
+  color: #fdfdfd;
+  text-decoration: none;
+  font-size: 0.9rem;
+  padding: 0 0.35rem;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
+}
+
+.footer-copy {
+  font-size: 0.8rem;
+  opacity: 0.9;
+  margin-bottom: 0.1rem;
+}
+
+.footer-small {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+/* 모바일에서 중앙 정렬 */
+@media (max-width: 576px) {
+  .custom-footer {
+    text-align: center;
+  }
 }

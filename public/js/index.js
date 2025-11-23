@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadFeed();
 });
 
+// 글귀 피드 불러오기
 async function loadFeed() {
   const feedBox = document.getElementById('feedPosts');
   if (!feedBox) {
@@ -42,23 +43,24 @@ async function loadFeed() {
         const dateStr = post.created_at
           ? String(post.created_at).replace('T', ' ').slice(0, 16)
           : '';
+
         // 닉네임 + (마스킹 이메일) 표시
         const nickname =
-        post.author_nickname && post.author_nickname.trim().length > 0
-          ? post.author_nickname.trim()
-          : '';
+          post.author_nickname && post.author_nickname.trim().length > 0
+            ? post.author_nickname.trim()
+            : '';
 
         const baseName =
-        nickname ||
-        (post.author_name && post.author_name.trim().length > 0
-          ? post.author_name.trim()
-          : '익명');
+          nickname ||
+          (post.author_name && post.author_name.trim().length > 0
+            ? post.author_name.trim()
+            : '익명');
 
-          // 이메일 마스킹
-          const maskedEmail = maskEmail(post.author_email);
+        // 이메일 마스킹
+        const maskedEmail = maskEmail(post.author_email);
 
-          // 최종 표시: 닉네임(마스킹된이메일) 형식
-          const author = maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
+        // 최종 표시: 닉네임 (마스킹된이메일) 형식
+        const author = maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
 
         const likeCount =
           typeof post.like_count === 'number' ? post.like_count : 0;
@@ -70,9 +72,9 @@ async function loadFeed() {
             <div class="card-body">
               <h5 class="card-title mb-1">${escapeHtml(post.title)}</h5>
               <p class="card-text mb-1">
-                <small class="text-muted">${escapeHtml(
-                  author
-                )} · ${dateStr}</small>
+                <small class="text-muted">
+                  ${escapeHtml(author)} · ${dateStr}
+                </small>
               </p>
 
               <!-- 공감(하트) 버튼 -->
@@ -137,72 +139,75 @@ async function loadFeed() {
 
       moreBtn.addEventListener('click', () => {
         const nowExpanded = contentBox.classList.toggle('expanded');
-        if (nowExpanded) {
-          moreBtn.textContent = '접기';
-        } else {
-          moreBtn.textContent = '더보기...';
-        }
+        moreBtn.textContent = nowExpanded ? '접기' : '더보기...';
       });
     });
+// 🔽 공감(하트) 버튼 클릭 처리 + bump 애니메이션
+const likeButtons = feedBox.querySelectorAll('.like-btn');
 
-    // 🔽 공감(하트) 버튼 클릭 처리 + JS 애니메이션
-    const likeButtons = feedBox.querySelectorAll('.like-btn');
+likeButtons.forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const postId = btn.getAttribute('data-post-id');
+    if (!postId) return;
 
-    likeButtons.forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const postId = btn.getAttribute('data-post-id');
-        if (!postId) return;
-
-        try {
-          const res = await fetch(`/api/posts/${postId}/toggle-like`, {
-            method: 'POST',
-          });
-
-          if (res.status === 401) {
-            alert('로그인 후 공감할 수 있습니다.');
-            window.location.href = '/html/login.html';
-            return;
-          }
-
-          const data = await res.json();
-
-          if (!res.ok || !data.ok) {
-            alert(data.message || '공감 처리 중 오류가 발생했습니다.');
-            return;
-          }
-
-          const liked = data.liked;
-          const likeCount = data.likeCount || 0;
-
-          btn.setAttribute('data-liked', liked ? '1' : '0');
-          const heartEl = btn.querySelector('.like-heart');
-          const countEl = btn.querySelector('.like-count');
-
-          if (heartEl) heartEl.textContent = liked ? '♥' : '♡';
-          if (countEl) countEl.textContent = likeCount;
-
-          // 좋아요 여부에 따른 색상 스타일
-          btn.classList.toggle('liked', liked);
-
-          // ✅ 하트 "톡" 애니메이션
-          if (heartEl) {
-            heartEl.style.transform = 'scale(1)';
-            // 강제 리플로우
-            // eslint-disable-next-line no-unused-expressions
-            heartEl.offsetWidth;
-
-            heartEl.style.transform = 'scale(1.4)';
-
-            setTimeout(() => {
-              heartEl.style.transform = 'scale(1)';
-            }, 150);
-          }
-        } catch (e) {
-          console.error(e);
-          alert('공감 처리 중 오류가 발생했습니다.');
-        }
+    try {
+      const res = await fetch(`/api/posts/${postId}/toggle-like`, {
+        method: 'POST',
       });
-    });
+
+      if (res.status === 401) {
+        alert('로그인 후 공감할 수 있습니다.');
+        window.location.href = '/html/login.html';
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        alert(data.message || '공감 처리 중 오류가 발생했습니다.');
+        return;
+      }
+
+      const liked = !!data.liked;
+      const likeCount = typeof data.likeCount === 'number'
+        ? data.likeCount
+        : 0;
+
+      btn.setAttribute('data-liked', liked ? '1' : '0');
+      const heartEl = btn.querySelector('.like-heart');
+      const countEl = btn.querySelector('.like-count');
+
+      if (heartEl) {
+        heartEl.textContent = liked ? '♥' : '♡';
+      }
+      if (countEl) {
+        countEl.textContent = likeCount;
+      }
+
+      // 좋아요 여부에 따른 색상 스타일
+      btn.classList.toggle('liked', liked);
+
+      // ✅ 좋아요를 "켜는 순간"에만 톡! 애니메이션
+      if (heartEl && liked) {
+        // 이전 애니메이션 리셋
+        heartEl.classList.remove('bump');
+        // 강제 리플로우로 상태 초기화
+        // eslint-disable-next-line no-unused-expressions
+        heartEl.offsetWidth;
+        // bump 클래스로 scale(1 -> 1.8) 애니메이션
+        heartEl.classList.add('bump');
+
+        // 애니메이션 끝날 때쯤 bump 제거 → 다시 scale(1)로 자연스럽게 복귀
+        setTimeout(() => {
+          heartEl.classList.remove('bump');
+        }, 220);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('공감 처리 중 오류가 발생했습니다.');
+    }
+  });
+});
   } catch (e) {
     console.error(e);
     feedBox.innerHTML =
@@ -237,23 +242,6 @@ function autoAdjustQuoteFont(el) {
   el.style.lineHeight = Math.min(fontSize + 0.4, 2.0);
 }
 
-function maskEmail(email) {
-  if (!email) return '';
-
-  const atIndex = email.indexOf('@');
-  const localPart = atIndex === -1 ? email : email.slice(0, atIndex); // @ 앞부분만 사용
-
-  if (localPart.length <= 1) {
-    return localPart + '***';
-  }
-  if (localPart.length === 2) {
-    return localPart[0] + '***';
-  }
-  // 3글자 이상이면 앞 2글자만 보이고 나머지는 ***
-  return localPart.slice(0, 2) + '***';
-}
-
-
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   return String(str)
@@ -264,7 +252,10 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-// ===== 히어로 CTA 잎사귀 애니메이션 =====
+/* ================================
+   히어로 CTA 잎사귀 애니메이션
+================================ */
+
 document.addEventListener('DOMContentLoaded', () => {
   const LEAF_COUNT = 10;
 
@@ -274,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const leavesContainer = btn.querySelector('.hero-cta-leaves');
     if (!leavesContainer) return;
 
-    // 잎사귀 span 7개 생성 (요청2)
+    // 잎사귀 span 생성
     for (let i = 0; i < LEAF_COUNT; i++) {
       const leaf = document.createElement('span');
       leaf.className = 'hero-cta-leaf';
@@ -286,61 +277,75 @@ document.addEventListener('DOMContentLoaded', () => {
       leavesContainer.querySelectorAll('.hero-cta-leaf')
     );
 
-    // 호버 / 포커스 시 애니메이션
     const triggerLeaves = () => {
-      // 🔹 버튼 위에 펼쳐질 "기본 위치 7개" (대략적인 배치)
       const BASE_POSITIONS = [
         { x: -70, y: -36 },
         { x: -55, y: -30 },
         { x: -40, y: -26 },
         { x: -25, y: -34 },
         { x: -10, y: -28 },
-        { x: 10,  y: -32 },
-        { x: 25,  y: -24 },
-        { x: 40,  y: -30 },
-        { x: 55,  y: -26 },
-        { x: 70,  y: -36 },
+        { x: 10, y: -32 },
+        { x: 25, y: -24 },
+        { x: 40, y: -30 },
+        { x: 55, y: -26 },
+        { x: 70, y: -36 },
       ];
-    
-      // 매번 패턴이 똑같지 않도록 슬롯 순서를 랜덤 셔플
+
       const shuffled = BASE_POSITIONS.slice().sort(() => Math.random() - 0.5);
-    
+
       leaves.forEach((leaf, idx) => {
         const base = shuffled[idx % shuffled.length];
-    
-        // 🔹 각 슬롯 주변에서만 살짝 랜덤하게 (너무 멀리 안 나가게)
-        const jitterX = (Math.random() * 12) - 6;   // -6 ~ +6px
-        const jitterY = (Math.random() * 10) - 5;   // -5 ~ +5px
-    
+
+        const jitterX = Math.random() * 12 - 6;
+        const jitterY = Math.random() * 10 - 5;
+
         const offsetX = base.x + jitterX;
         const offsetY = base.y + jitterY;
-    
-        const scale = 0.85 + Math.random() * 0.5;      // 0.85 ~ 1.35
-        const rotate = -35 + Math.random() * 70;       // -35deg ~ +35deg
-    
+
+        const scale = 0.85 + Math.random() * 0.5;
+        const rotate = -35 + Math.random() * 70;
+
         leaf.style.setProperty('--leaf-tx', `${offsetX}px`);
         leaf.style.setProperty('--leaf-ty', `${offsetY}px`);
         leaf.style.setProperty('--leaf-scale', scale);
         leaf.style.setProperty('--leaf-rot', `${rotate}deg`);
-    
-        // 애니메이션 재시작
+
         leaf.classList.remove('leaf-show');
-        void leaf.offsetWidth;
+        // 강제 리플로우
+        // eslint-disable-next-line no-unused-expressions
+        leaf.offsetWidth;
         leaf.classList.add('leaf-show');
-    
+
         setTimeout(() => {
           leaf.classList.remove('leaf-show');
         }, 1000);
       });
     };
-    
-    
 
-    // 마우스를 "가까이" 가져갔을 때 (hover)
     btn.addEventListener('mouseenter', triggerLeaves);
-
-    // 키보드로 포커스했을 때도 같은 효과
     btn.addEventListener('focus', triggerLeaves);
   });
 });
 
+/**
+ * 이메일 마스킹
+ * - @ 뒤 도메인은 사용하지 않음
+ * - @ 앞 자리수는 유지하면서 앞 1~2글자만 보이게
+ */
+function maskEmail(email) {
+  if (!email) return '';
+
+  const atIndex = email.indexOf('@');
+  const localPart = atIndex === -1 ? email : email.slice(0, atIndex); // @ 앞부분만 사용
+
+  if (!localPart) return '';
+
+  if (localPart.length === 1) {
+    return localPart; // 한 글자는 그대로
+  }
+
+  const visibleCount = Math.min(2, localPart.length - 1); // 최대 2글자까지만 보이게
+  const hiddenCount = localPart.length - visibleCount;
+
+  return localPart.slice(0, visibleCount) + '*'.repeat(hiddenCount);
+}
