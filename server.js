@@ -804,7 +804,7 @@ app.get('/api/posts/:id', authRequired, (req, res) => {
       p.title,
       p.content,
       p.created_at,
-      GROUP_CONCAT(DISTINCT h.name, ',') AS hashtags
+      GROUP_CONCAT(DISTINCT h.name) AS hashtags
     FROM posts p
     LEFT JOIN post_hashtags ph ON ph.post_id = p.id
     LEFT JOIN hashtags h ON h.id = ph.hashtag_id
