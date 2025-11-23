@@ -92,7 +92,7 @@
 
       <!-- 에디터 + 미리보기 영역 -->
       <div class="row g-4 align-items-start">
-        <!-- 📝 왼쪽: 제목 + 에디터 -->
+        <!-- 📝 왼쪽: 제목 + 폰트 선택 + 에디터 + 해시태그 -->
         <div class="col-12 col-lg-6">
           <!-- 제목 입력 -->
           <div class="mb-3">
@@ -103,6 +103,16 @@
               class="form-control"
               placeholder="오늘의 글 제목을 입력하세요"
             />
+          </div>
+
+          <!-- ✅ 폰트 선택 -->
+          <div class="mb-3" style="max-width: 220px;">
+            <label for="fontSelect" class="form-label">폰트</label>
+            <select id="fontSelect" class="form-select form-select-sm">
+              <option value="serif">감성 명조체 (기본)</option>
+              <option value="sans">담백한 고딕체</option>
+              <option value="hand">손글씨 느낌</option>
+            </select>
           </div>
 
           <!-- 에디터 + 글자수 카운터 (오른쪽 아래) -->
@@ -116,7 +126,7 @@
             </div>
           </div>
 
-          <!-- ✅ 해시태그 입력 (에디터 바로 아래, 최소 변경) -->
+          <!-- ✅ 해시태그 입력 (에디터 바로 아래) -->
           <div class="mb-3">
             <label for="postHashtags" class="form-label">해시태그</label>
             <input

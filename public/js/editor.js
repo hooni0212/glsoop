@@ -45,6 +45,50 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ✅ 남은 글자 수 표시 요소 (에디터 박스 오른쪽 아래)
   const charCounterEl = document.getElementById('charCounter');
 
+  // ✅ 폰트 선택 요소
+  const fontSelectEl = document.getElementById('fontSelect');
+
+  // 폰트 키 → 실제 font-family 매핑
+  const FONT_MAP = {
+    serif: "'Nanum Myeongjo','Noto Serif KR',serif",
+    sans: "'Noto Sans KR',system-ui,-apple-system,BlinkMacSystemFont,sans-serif",
+    hand: "'Nanum Pen Script',cursive",
+  };
+
+  // ✅ 에디터 + 미리보기 카드에 폰트 적용
+  function applyEditorFont(fontKey) {
+    const key = FONT_MAP[fontKey] ? fontKey : 'serif';
+    const fontFamily = FONT_MAP[key];
+
+    // 1) Quill 에디터 textarea 폰트
+    if (quill && quill.root) {
+      quill.root.style.fontFamily = fontFamily;
+    }
+
+    // 2) 미리보기 카드 폰트 (quote-card에 클래스 붙이기)
+    if (previewContentEl) {
+      previewContentEl.classList.remove(
+        'quote-font-serif',
+        'quote-font-sans',
+        'quote-font-hand'
+      );
+      previewContentEl.classList.add('quote-font-' + key);
+    }
+  }
+
+  // 폰트 선택 변경 시 적용
+  if (fontSelectEl) {
+    fontSelectEl.addEventListener('change', (e) => {
+      applyEditorFont(e.target.value);
+    });
+
+    // 페이지 처음 열릴 때 기본값 적용
+    applyEditorFont(fontSelectEl.value || 'serif');
+  } else {
+    // 혹시라도 요소 못 찾았을 때를 대비한 기본 적용
+    applyEditorFont('serif');
+  }
+
   if (!titleInput || !saveBtn) {
     console.error('postTitle 또는 saveBtn 요소를 찾을 수 없습니다.');
     return;
@@ -134,10 +178,31 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         const post = data.post;
         titleInput.value = post.title || '';
-        quill.root.innerHTML = post.content || '';
+
+        // ✅ 서버에서 가져온 content에서 폰트 메타(<!--FONT:...-->) 분리
+        const rawContent = post.content || '';
+        let initialFontKey = 'serif';
+        let cleanHtml = rawContent;
+
+        const metaMatch = rawContent.match(/^<!--FONT:(serif|sans|hand)-->/);
+        if (metaMatch) {
+          initialFontKey = metaMatch[1];
+          cleanHtml = rawContent.replace(metaMatch[0], '').trim();
+        }
+
+        // 에디터에 "메타 제거된" 내용만 넣기
+        quill.root.innerHTML = cleanHtml;
+
+        // 폰트 셀렉트 / 미리보기에 반영
+        if (fontSelectEl) {
+          fontSelectEl.value = initialFontKey;
+        }
+        applyEditorFont(initialFontKey);
 
         // 서버에서 hashtags를 내려줄 경우 인풋에 반영
         if (hashtagsInput) {
+          // post.hashtags가 배열이라면 보기 좋게 합쳐서 보여줄 수도 있음
+          // 여기서는 그냥 서버에서 준 값을 그대로 사용
           hashtagsInput.value = post.hashtags || '';
         }
 
@@ -216,6 +281,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // ✅ 현재 선택된 폰트 키를 메타로 저장 (<!--FONT:serif-->...)
+    let fontKey = 'serif';
+    if (fontSelectEl && fontSelectEl.value) {
+      const val = fontSelectEl.value;
+      if (['serif', 'sans', 'hand'].includes(val)) {
+        fontKey = val;
+      }
+    }
+    const contentToSave = `<!--FONT:${fontKey}-->` + contentHtml;
+
     try {
       let url = '/api/posts';
       let method = 'POST';
@@ -231,8 +306,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
-          content: contentHtml,
-          hashtags: hashtagsRaw, // ✅ 서버로 해시태그 함께 전송
+          content: contentToSave,   // 🔥 폰트 메타가 포함된 HTML 저장
+          hashtags: hashtagsRaw,    // ✅ 서버로 해시태그 함께 전송
         }),
       });
 

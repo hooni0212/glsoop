@@ -522,3 +522,21 @@ a:hover {
     text-align: center;
   }
 }
+
+/* =========================
+   피드 / 미리보기 카드 폰트 스타일 변형
+   - quote-font-* 클래스는 JS에서 동적으로 붙임
+========================= */
+
+.quote-card.quote-font-serif {
+  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+}
+
+.quote-card.quote-font-sans {
+  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+
+.quote-card.quote-font-hand {
+  font-family: 'Nanum Pen Script', cursive;
+}

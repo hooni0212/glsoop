@@ -169,6 +169,13 @@ function renderFeedPosts(posts) {
       // ✅ 해시태그 뱃지 HTML 생성
       const hashtagHtml = buildHashtagHtml(post);
 
+      // ✅ 폰트 메타(<!--FONT:...-->) 파싱
+      const { cleanHtml, fontKey } = extractFontFromContent(post.content);
+      const quoteFontClass =
+        fontKey === 'serif' || fontKey === 'sans' || fontKey === 'hand'
+          ? `quote-font-${fontKey}`
+          : '';
+
       return `
         <div class="card mb-3" data-post-id="${post.id}">
           <div class="card-body">
@@ -198,8 +205,8 @@ function renderFeedPosts(posts) {
             <div class="post-content mt-2 text-end">
               <div class="feed-post-content">
                 <!-- 인스타 감성 글귀 카드 -->
-                <div class="quote-card">
-                  ${post.content}
+                <div class="quote-card ${quoteFontClass}">
+                  ${cleanHtml}
                 </div>
               </div>
               <button
@@ -506,6 +513,25 @@ function buildHashtagHtml(post) {
     .join('');
 
   return `<div class="mt-2 text-start">${pills}</div>`;
+}
+
+// ==== 글 content에서 폰트 메타(<!--FONT:...-->) 분리 ====
+function extractFontFromContent(html) {
+  if (!html) {
+    return { cleanHtml: '', fontKey: null };
+  }
+
+  const str = String(html);
+
+  // 맨 앞에 <!--FONT:serif|sans|hand--> 가 있을 때만 인식
+  const m = str.match(/^<!--FONT:(serif|sans|hand)-->/);
+  if (!m) {
+    return { cleanHtml: str, fontKey: null };
+  }
+
+  const cleanHtml = str.replace(m[0], '').trim();
+  const fontKey = m[1];
+  return { cleanHtml, fontKey };
 }
 
 // ===== 히어로 CTA 잎사귀 애니메이션 =====
