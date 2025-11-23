@@ -540,3 +540,89 @@ a:hover {
 .quote-card.quote-font-hand {
   font-family: 'Nanum Pen Script', cursive;
 }
+
+/* =========================
+   16. 글쓰기 페이지 전용 레이아웃
+========================= */
+
+.editor-subtitle {
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+/* 좌우 카드 느낌 */
+.editor-left-card,
+.editor-right-card {
+  border-radius: 1.1rem;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.05);
+}
+
+/* 오른쪽 카드가 살짝 더 강조되도록 */
+.editor-right-card {
+  border: 1px solid rgba(46, 139, 87, 0.08);
+}
+
+/* 저장 버튼 바 (데스크탑에서 살짝 고정 느낌) */
+.editor-save-bar {
+  position: sticky;
+  bottom: 0;
+  padding-top: 1.5rem;
+  padding-bottom: 0.5rem;
+  background: linear-gradient(
+    to top,
+    rgba(240, 242, 233, 0.98),
+    rgba(240, 242, 233, 0)
+  );
+}
+
+/* 모바일에서는 일반 레이아웃 */
+@media (max-width: 576px) {
+  .editor-save-bar {
+    position: static;
+    padding-top: 1.5rem;
+    padding-bottom: 0;
+  }
+
+  .editor-save-bar #saveBtn {
+    width: 100%;
+    border-radius: 999px;
+  }
+}
+
+/* 미리보기 하단 메타 정보 */
+.preview-meta {
+  border-top: 1px dashed rgba(0, 0, 0, 0.05);
+  padding-top: 0.6rem;
+}
+
+/* 해시태그 칩 스타일 (작성용) */
+#hashtagChips {
+  margin-top: 0.45rem;
+}
+
+.hashtag-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  margin-right: 0.25rem;
+  margin-bottom: 0.25rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  background-color: #eaf6ef;
+  color: #2e8b57;
+}
+
+.hashtag-chip-remove {
+  border: none;
+  background: transparent;
+  padding: 0 0 0 0.2rem;
+  margin-left: 0.1rem;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #8c8c8c;
+}
+
+.hashtag-chip-remove:hover {
+  color: #555;
+}

@@ -94,4 +94,13 @@
     padding: 16px 20px;
   }
   
-  
+  /* 에디터 페이지: 좌/우 카드 높이 맞추기 */
+.editor-main-row {
+  align-items: stretch;  /* 양쪽 컬럼을 같은 높이로 */
+}
+
+/* 오른쪽 아래 미리보기 카드가 남은 공간을 꽉 채우도록 */
+.editor-preview-card {
+  display: flex;
+  flex-direction: column;
+}

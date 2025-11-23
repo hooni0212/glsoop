@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 🔢 본문 최대 글자 수
   const MAX_CONTENT_LENGTH = 200;
 
+  // 해시태그 칩용 내부 리스트
+  let hashtagList = [];
+
   // 1. 로그인 상태 확인
   try {
     const res = await fetch('/api/me');
@@ -41,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ✅ 미리보기 요소
   const previewTitleEl = document.getElementById('previewTitle');
   const previewContentEl = document.getElementById('previewContent');
+  const previewMetaEl = document.getElementById('previewMeta');
 
   // ✅ 남은 글자 수 표시 요소 (에디터 박스 오른쪽 아래)
   const charCounterEl = document.getElementById('charCounter');
@@ -48,11 +52,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ✅ 폰트 선택 요소
   const fontSelectEl = document.getElementById('fontSelect');
 
+  // 에디터 상단 에러 영역
+  const editorAlertEl = document.getElementById('editorAlert');
+
   // 폰트 키 → 실제 font-family 매핑
   const FONT_MAP = {
     serif: "'Nanum Myeongjo','Noto Serif KR',serif",
     sans: "'Noto Sans KR',system-ui,-apple-system,BlinkMacSystemFont,sans-serif",
     hand: "'Nanum Pen Script',cursive",
+  };
+
+  // 폰트 키 → 라벨
+  const FONT_LABEL_MAP = {
+    serif: '감성 명조체',
+    sans: '담백한 고딕체',
+    hand: '손글씨 느낌',
   };
 
   // ✅ 에디터 + 미리보기 카드에 폰트 적용
@@ -74,6 +88,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       );
       previewContentEl.classList.add('quote-font-' + key);
     }
+
+    // 미리보기 메타도 업데이트
+    updatePreviewMeta();
   }
 
   // 폰트 선택 변경 시 적용
@@ -92,6 +109,123 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!titleInput || !saveBtn) {
     console.error('postTitle 또는 saveBtn 요소를 찾을 수 없습니다.');
     return;
+  }
+
+  /* -----------------------
+     해시태그 칩 유틸 함수들
+  ------------------------ */
+
+  let hashtagChipContainer = null;
+  if (hashtagsInput) {
+    hashtagChipContainer = document.createElement('div');
+    hashtagChipContainer.id = 'hashtagChips';
+    hashtagChipContainer.className = 'd-flex flex-wrap';
+    // 인풋 바로 아래에 붙이기
+    hashtagsInput.insertAdjacentElement('afterend', hashtagChipContainer);
+  }
+
+  function normalizeTag(raw) {
+    if (!raw) return '';
+    let t = String(raw).trim();
+    if (!t) return '';
+    if (t.startsWith('#')) t = t.slice(1);
+    return t;
+  }
+
+  function syncHashtagInputFromList() {
+    if (!hashtagsInput) return;
+    if (!hashtagList.length) {
+      // 칩이 없으면 기존 값 그대로 유지
+      return;
+    }
+    const value = hashtagList.map((t) => '#' + t).join(' ');
+    hashtagsInput.value = value;
+  }
+
+  function renderHashtagChips() {
+    if (!hashtagChipContainer) return;
+
+    if (!hashtagList.length) {
+      hashtagChipContainer.innerHTML = '';
+      return;
+    }
+
+    hashtagChipContainer.innerHTML = hashtagList
+      .map(
+        (t) => `
+        <span class="hashtag-chip">
+          #${escapeHtml(t)}
+          <button type="button" class="hashtag-chip-remove" data-tag="${escapeHtml(
+            t
+          )}">×</button>
+        </span>
+      `
+      )
+      .join('');
+
+    // 삭제 버튼 이벤트
+    hashtagChipContainer
+      .querySelectorAll('.hashtag-chip-remove')
+      .forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const tag = btn.getAttribute('data-tag');
+          if (!tag) return;
+          hashtagList = hashtagList.filter((t) => t !== tag);
+          syncHashtagInputFromList();
+          renderHashtagChips();
+          updatePreviewMeta();
+        });
+      });
+  }
+
+  function addTag(raw) {
+    const t = normalizeTag(raw);
+    if (!t) return;
+    if (hashtagList.includes(t)) return;
+    hashtagList.push(t);
+    syncHashtagInputFromList();
+    renderHashtagChips();
+    updatePreviewMeta();
+  }
+
+  function parseHashtagInputToList() {
+    if (!hashtagsInput) return;
+    const raw = hashtagsInput.value || '';
+    if (!raw.trim()) {
+      hashtagList = [];
+      renderHashtagChips();
+      updatePreviewMeta();
+      return;
+    }
+
+    const tokens = raw
+      .split(/[,\s]+/)
+      .map(normalizeTag)
+      .filter((t) => t.length > 0);
+
+    hashtagList = Array.from(new Set(tokens));
+    syncHashtagInputFromList();
+    renderHashtagChips();
+    updatePreviewMeta();
+  }
+
+  // 인풋에서 Enter/쉼표/스페이스로 태그 추가
+  if (hashtagsInput) {
+    hashtagsInput.addEventListener('keydown', (e) => {
+      if (['Enter', ' ', ',', 'Tab'].includes(e.key)) {
+        const val = hashtagsInput.value;
+        const parts = val.split(/[,\s]+/);
+        const last = parts[parts.length - 1];
+        if (last && last.trim().length > 0) {
+          e.preventDefault();
+          addTag(last);
+        }
+      }
+    });
+
+    hashtagsInput.addEventListener('blur', () => {
+      parseHashtagInputToList();
+    });
   }
 
   // ✅ 글 길이에 따라 카드 안 글꼴 크기 자동 조절
@@ -139,6 +273,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // 미리보기 하단 폰트/태그 메타
+  function updatePreviewMeta() {
+    if (!previewMetaEl) return;
+
+    const fontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
+    const fontLabel = FONT_LABEL_MAP[fontKey] || '감성 명조체';
+
+    let tagsText = '';
+    if (hashtagList.length > 0) {
+      tagsText = hashtagList.map((t) => `#${t}`).join(' ');
+    } else if (hashtagsInput && hashtagsInput.value.trim()) {
+      tagsText = hashtagsInput.value.trim();
+    }
+
+    let html = `<span class="me-2">폰트: ${escapeHtml(fontLabel)}</span>`;
+    if (tagsText) {
+      html += `<span class="text-muted">태그: ${escapeHtml(tagsText)}</span>`;
+    }
+
+    previewMetaEl.innerHTML = html;
+  }
+
   // ✅ 미리보기 업데이트 함수
   function updatePreview() {
     const title = titleInput.value.trim();
@@ -146,7 +302,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const plainText = quill.getText().trim();
 
     if (previewTitleEl) {
-      previewTitleEl.textContent = title || '제목 미리보기';
+      previewTitleEl.textContent = title || '여기에 글 제목이 미리 보여요';
     }
 
     if (previewContentEl) {
@@ -159,6 +315,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       autoAdjustQuoteFont(previewContentEl);
     }
+
+    updatePreviewMeta();
   }
 
   // 3. 수정 모드인지 확인 (URL ?postId=...)
@@ -178,32 +336,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         const post = data.post;
         titleInput.value = post.title || '';
+        quill.root.innerHTML = post.content || '';
 
-        // ✅ 서버에서 가져온 content에서 폰트 메타(<!--FONT:...-->) 분리
-        const rawContent = post.content || '';
-        let initialFontKey = 'serif';
-        let cleanHtml = rawContent;
-
-        const metaMatch = rawContent.match(/^<!--FONT:(serif|sans|hand)-->/);
-        if (metaMatch) {
-          initialFontKey = metaMatch[1];
-          cleanHtml = rawContent.replace(metaMatch[0], '').trim();
-        }
-
-        // 에디터에 "메타 제거된" 내용만 넣기
-        quill.root.innerHTML = cleanHtml;
-
-        // 폰트 셀렉트 / 미리보기에 반영
-        if (fontSelectEl) {
-          fontSelectEl.value = initialFontKey;
-        }
-        applyEditorFont(initialFontKey);
-
-        // 서버에서 hashtags를 내려줄 경우 인풋에 반영
+        // 서버에서 hashtags를 내려줄 경우 인풋/칩에 반영
         if (hashtagsInput) {
-          // post.hashtags가 배열이라면 보기 좋게 합쳐서 보여줄 수도 있음
-          // 여기서는 그냥 서버에서 준 값을 그대로 사용
-          hashtagsInput.value = post.hashtags || '';
+          if (Array.isArray(post.hashtags)) {
+            hashtagList = post.hashtags
+              .map(normalizeTag)
+              .filter((t) => t.length > 0);
+            syncHashtagInputFromList();
+            renderHashtagChips();
+          } else if (post.hashtags) {
+            hashtagsInput.value = post.hashtags;
+            parseHashtagInputToList();
+          }
         }
 
         const plainText = quill.getText().trim();
@@ -264,32 +410,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     const contentHtml = quill.root.innerHTML.trim();
     const plainText = quill.getText().trim();
     const length = plainText.length;
-    const hashtagsRaw = hashtagsInput ? hashtagsInput.value.trim() : ''; // ✅ 해시태그 값
+
+    // 칩 → 인풋 동기화 한 번 더
+    syncHashtagInputFromList();
+    const hashtagsRaw = hashtagsInput ? hashtagsInput.value.trim() : '';
+
+    // 에러 영역 초기화
+    if (editorAlertEl) {
+      editorAlertEl.classList.add('d-none');
+      editorAlertEl.textContent = '';
+    }
 
     if (!title) {
-      alert('제목을 입력해주세요.');
+      showEditorError('제목을 입력해주세요.');
       return;
     }
 
     if (!plainText) {
-      alert('내용을 입력해주세요.');
+      showEditorError('내용을 입력해주세요.');
       return;
     }
 
     if (length > MAX_CONTENT_LENGTH) {
-      alert(`본문은 최대 ${MAX_CONTENT_LENGTH}자까지 입력할 수 있어요.`);
+      showEditorError(`본문은 최대 ${MAX_CONTENT_LENGTH}자까지 입력할 수 있어요.`);
       return;
     }
-
-    // ✅ 현재 선택된 폰트 키를 메타로 저장 (<!--FONT:serif-->...)
-    let fontKey = 'serif';
-    if (fontSelectEl && fontSelectEl.value) {
-      const val = fontSelectEl.value;
-      if (['serif', 'sans', 'hand'].includes(val)) {
-        fontKey = val;
-      }
-    }
-    const contentToSave = `<!--FONT:${fontKey}-->` + contentHtml;
 
     try {
       let url = '/api/posts';
@@ -306,15 +451,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
-          content: contentToSave,   // 🔥 폰트 메타가 포함된 HTML 저장
-          hashtags: hashtagsRaw,    // ✅ 서버로 해시태그 함께 전송
+          content: contentHtml,
+          hashtags: hashtagsRaw, // ✅ 서버로 해시태그 함께 전송
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
-        alert(data.message || '글 저장에 실패했습니다.');
+        showEditorError(data.message || '글 저장에 실패했습니다.');
         return;
       }
 
@@ -322,7 +467,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.location.href = '/html/mypage.html';
     } catch (e) {
       console.error(e);
-      alert('글 저장 중 오류가 발생했습니다.');
+      showEditorError('글 저장 중 오류가 발생했습니다.');
     }
   });
+
+  function showEditorError(msg) {
+    if (!editorAlertEl) {
+      alert(msg);
+      return;
+    }
+    editorAlertEl.textContent = msg;
+    editorAlertEl.classList.remove('d-none');
+    window.scrollTo({ top: editorAlertEl.offsetTop - 140, behavior: 'smooth' });
+  }
+
+  // editor.js 내부용 escapeHtml (index.js와 별도)
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 });

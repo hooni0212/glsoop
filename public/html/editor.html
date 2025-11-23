@@ -88,70 +88,102 @@
   <!-- 본문 -->
   <section class="py-5 mt-5">
     <div class="container" style="max-width: 1100px;">
-      <h2 class="mb-4">글쓰기</h2>
+
+      <!-- 제목 + 서브 타이틀 -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4">
+        <div>
+          <h2 class="mb-1">글쓰기</h2>
+          <p class="mb-0 text-muted small">
+            오늘의 문장을 남기고, 오른쪽 카드에서 바로 피드 모습을 확인해 보세요.
+          </p>
+        </div>
+      </div>
 
       <!-- 에디터 + 미리보기 영역 -->
-      <div class="row g-4 align-items-start">
+      <!-- ✅ align-items-stretch 추가 (좌우 컬럼 높이 맞추기) -->
+      <div class="row g-4 align-items-start align-items-stretch editor-main-row">
+
         <!-- 📝 왼쪽: 제목 + 폰트 선택 + 에디터 + 해시태그 -->
-        <div class="col-12 col-lg-6">
-          <!-- 제목 입력 -->
-          <div class="mb-3">
-            <label for="postTitle" class="form-label">제목</label>
-            <input
-              type="text"
-              id="postTitle"
-              class="form-control"
-              placeholder="오늘의 글 제목을 입력하세요"
-            />
-          </div>
+        <!-- ✅ d-flex flex-column 추가 (카드가 세로로 꽉 차도록) -->
+        <div class="col-12 col-lg-6 d-flex flex-column">
+          <div class="card h-100">
+            <div class="card-body">
 
-          <!-- ✅ 폰트 선택 -->
-          <div class="mb-3" style="max-width: 220px;">
-            <label for="fontSelect" class="form-label">폰트</label>
-            <select id="fontSelect" class="form-select form-select-sm">
-              <option value="serif">감성 명조체 (기본)</option>
-              <option value="sans">담백한 고딕체</option>
-              <option value="hand">손글씨 느낌</option>
-            </select>
-          </div>
+              <!-- 제목 + 폰트 선택 한 줄 정렬 (데스크톱) -->
+              <div class="row g-3 align-items-end mb-3">
+                <div class="col-12 col-md-8">
+                  <label for="postTitle" class="form-label">제목</label>
+                  <input
+                    type="text"
+                    id="postTitle"
+                    class="form-control"
+                    placeholder="오늘의 글 제목을 입력하세요"
+                  />
+                </div>
 
-          <!-- 에디터 + 글자수 카운터 (오른쪽 아래) -->
-          <div class="mb-2 editor-wrapper position-relative">
-            <label class="form-label">내용</label>
-            <div id="editor" class="editor-box" style="height: 260px;"></div>
+                <!-- ✅ 폰트 선택 -->
+                <div class="col-12 col-md-4">
+                  <label for="fontSelect" class="form-label">폰트</label>
+                  <select id="fontSelect" class="form-select form-select-sm">
+                    <option value="serif">감성 명조체 (기본)</option>
+                    <option value="sans">담백한 고딕체</option>
+                    <option value="hand">손글씨 느낌</option>
+                  </select>
+                </div>
+              </div>
 
-            <!-- ✅ 에디터 박스 안, 오른쪽 아래 글자수 -->
-            <div id="charCounter" class="char-counter text-muted">
-              200/200
-            </div>
-          </div>
+              <!-- 에디터 + 글자수 카운터 -->
+              <div class="mb-3 editor-wrapper position-relative">
+                <label class="form-label">내용</label>
+                <div id="editor" class="editor-box" style="height: 260px;"></div>
 
-          <!-- ✅ 해시태그 입력 (에디터 바로 아래) -->
-          <div class="mb-3">
-            <label for="postHashtags" class="form-label">해시태그</label>
-            <input
-              type="text"
-              id="postHashtags"
-              class="form-control"
-              placeholder="#힐링 #일상 처럼 써 주세요 (쉼표나 띄어쓰기로 구분)"
-            />
-            <div class="form-text">
-              예) <code>#힐링 #밤산책 #공부기록</code> — <code>#</code>은 써도 되고 안 써도 괜찮아요.
+                <!-- ✅ 에디터 박스 안, 오른쪽 아래 글자수 -->
+                <div id="charCounter" class="char-counter text-muted">
+                  200/200
+                </div>
+              </div>
+
+              <!-- ✅ 해시태그 입력 -->
+              <div class="mb-1">
+                <label for="postHashtags" class="form-label">해시태그</label>
+                <input
+                  type="text"
+                  id="postHashtags"
+                  class="form-control"
+                  placeholder="#힐링 #일상 처럼 써 주세요 (쉼표나 띄어쓰기로 구분)"
+                />
+                <div class="form-text">
+                  예) <code>#힐링 #밤산책 #공부기록</code> — <code>#</code>은 써도 되고 안 써도 괜찮아요.
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
 
         <!-- 👀 오른쪽: 미리보기 -->
-        <div class="col-12 col-lg-6">
-          <h4 class="mb-3">피드에서 보이는 모습 미리보기</h4>
-
-          <div class="card">
+        <div class="col-12 col-lg-6 d-flex flex-column">
+          <!-- 안내 카드 (윗 카드) -->
+          <div class="card mb-3">
             <div class="card-body">
-              <h5 id="previewTitle" class="card-title mb-2 text-muted">
+              <h4 class="card-title mb-2">피드에서 보이는 모습 미리보기</h4>
+              <p class="text-muted small mb-0">
+                홈 피드 카드에서 아래와 같이 보여요.
+              </p>
+            </div>
+          </div>
+
+          <!-- 실제 피드 미리보기 카드 (아랫 카드) -->
+          <div class="card editor-preview-card flex-grow-1">
+            <div class="card-body">
+              <!-- 라벨 -->
+              <p class="text-muted small mb-1"></p>
+              <!-- 실제 제목 미리보기 (JS에서 내용 교체됨) -->
+              <h5 id="previewTitle" class="mb-3">
                 제목 미리보기
               </h5>
 
-              <!-- 미리보기 카드 -->
+              <!-- 종이질감 카드 -->
               <div class="quote-card" id="previewContent">
                 여기에 오늘의 문장을 적어 보시면, 이 카드에서 바로 미리 볼 수 있어요.
               </div>
@@ -159,14 +191,16 @@
           </div>
         </div>
         <!-- 오른쪽 끝 -->
+
       </div>
 
-      <!-- ✅ 저장 버튼: 항상 맨 아래 -->
-      <div class="mt-4 text-end">
-        <button id="saveBtn" class="btn btn-success">
+      <!-- ✅ 저장 버튼: 하단 정렬 -->
+      <div class="mt-4 d-flex justify-content-end">
+        <button id="saveBtn" class="btn btn-success px-4">
           저장하기
         </button>
       </div>
+
     </div>
   </section>
 
