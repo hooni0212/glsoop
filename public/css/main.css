@@ -262,7 +262,7 @@ a:hover {
 
 /* 범프 상태: 확실히 눈에 띄게 */
 .like-heart.bump {
-  transform: scale(1.4);
+  transform: scale(1.4s);
 }
 
 
