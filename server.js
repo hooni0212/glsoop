@@ -48,7 +48,7 @@ db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     name      TEXT NOT NULL,
-    nickname  TEXT,                -- ✅ 닉네임 컬럼
+    nickname  TEXT,
     email     TEXT NOT NULL UNIQUE,
     pw        TEXT NOT NULL,
     is_admin  INTEGER DEFAULT 0,
@@ -79,6 +79,24 @@ db.run(`
     PRIMARY KEY (user_id, post_id),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (post_id) REFERENCES posts(id)
+  )
+`);
+
+// 해시태그 목록
+db.run(`
+  CREATE TABLE IF NOT EXISTS hashtags (
+    id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+  )
+`);
+
+// 게시글-해시태그 매핑
+db.run(`
+  CREATE TABLE IF NOT EXISTS post_hashtags (
+    post_id    INTEGER NOT NULL,
+    hashtag_id INTEGER NOT NULL,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (hashtag_id) REFERENCES hashtags(id) ON DELETE CASCADE
   )
 `);
 
@@ -174,7 +192,7 @@ app.post('/api/signup', async (req, res) => {
 
         transporter.sendMail(
           {
-            from: `"글숲" <${process.env.GMAIL_USER}>`, // ✅ 실제 발신 계정과 일치시키기
+            from: `"글숲" <${process.env.GMAIL_USER}>`,
             to: email,
             subject: '[글숲] 이메일 인증을 완료해주세요',
             html: `
@@ -358,10 +376,10 @@ app.post('/api/login', (req, res) => {
       {
         id: user.id,
         name: user.name,
-        nickname: user.nickname,     // ✅ 닉네임도 토큰에 포함
+        nickname: user.nickname,
         email: user.email,
-        isAdmin: !!user.is_admin,      // 관리자 여부
-        isVerified: !!user.is_verified // 토큰에도 인증 여부 포함
+        isAdmin: !!user.is_admin,
+        isVerified: !!user.is_verified,
       },
       JWT_SECRET,
       { expiresIn: '2h' }
@@ -393,12 +411,6 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true, message: '로그아웃되었습니다.' });
 });
 
-// ================== 사용자 정보 ==================
-
-/**
- * 내 정보 확인 (헤더 토글 / 마이페이지 / 관리자 페이지용)
- * GET /api/me
- */
 // ================== 사용자 정보 ==================
 
 /**
@@ -438,17 +450,16 @@ app.get('/api/me', authRequired, (req, res) => {
   );
 });
 
-
 // ================== 글 관련 API ==================
 
 /**
  * 글 작성 (저장)
  * POST /api/posts
- * body: { title, content }
+ * body: { title, content, hashtags }
  * 로그인 필요
  */
 app.post('/api/posts', authRequired, (req, res) => {
-  const { title, content } = req.body;
+  const { title, content, hashtags } = req.body;
   const userId = req.user.id;
 
   if (!title || !content) {
@@ -468,10 +479,25 @@ app.post('/api/posts', authRequired, (req, res) => {
           .json({ ok: false, message: '글 저장 중 DB 오류가 발생했습니다.' });
       }
 
-      return res.json({
-        ok: true,
-        message: '글이 저장되었습니다.',
-        postId: this.lastID,
+      const newPostId = this.lastID;
+
+      // ✅ 에디터에서 받은 해시태그 저장
+      saveHashtagsForPostFromInput(newPostId, hashtags, (tagErr) => {
+        if (tagErr) {
+          console.error('해시태그 저장 중 오류:', tagErr);
+          return res.json({
+            ok: true,
+            message:
+              '글은 저장되었지만, 해시태그 저장 중 오류가 발생했습니다.',
+            postId: newPostId,
+          });
+        }
+
+        return res.json({
+          ok: true,
+          message: '글이 저장되었습니다.',
+          postId: newPostId,
+        });
       });
     }
   );
@@ -480,11 +506,11 @@ app.post('/api/posts', authRequired, (req, res) => {
 /**
  * 글 수정 (작성자 또는 관리자)
  * PUT /api/posts/:id
- * body: { title, content }
+ * body: { title, content, hashtags }
  */
 app.put('/api/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
-  const { title, content } = req.body;
+  const { title, content, hashtags } = req.body;
   const userId = req.user.id;
   const isAdmin = !!req.user.isAdmin;
 
@@ -527,9 +553,21 @@ app.put('/api/posts/:id', authRequired, (req, res) => {
             .json({ ok: false, message: '글 수정 중 DB 오류가 발생했습니다.' });
         }
 
-        return res.json({
-          ok: true,
-          message: '글이 수정되었습니다.',
+        // ✅ 해시태그도 같이 갱신
+        saveHashtagsForPostFromInput(postId, hashtags, (tagErr) => {
+          if (tagErr) {
+            console.error('해시태그 갱신 중 오류:', tagErr);
+            return res.json({
+              ok: true,
+              message:
+                '글은 수정되었지만, 해시태그 저장 중 오류가 발생했습니다.',
+            });
+          }
+
+          return res.json({
+            ok: true,
+            message: '글이 수정되었습니다.',
+          });
         });
       }
     );
@@ -574,12 +612,14 @@ app.get('/api/posts/my', authRequired, (req, res) => {
 });
 
 /**
- * 글 피드 조회
+ * 글 피드 조회 (무한스크롤 + 해시태그 필터 지원)
  * GET /api/posts/feed
  *
  * - 로그인 필요 없음 (단, 로그인 되어 있으면 내가 공감 눌렀는지까지 포함)
  * - 쿼리스트링으로 페이징:
  *   - ?offset=0&limit=20
+ * - 특정 해시태그만 보고 싶으면:
+ *   - ?tag=힐링 또는 ?tag=#힐링
  */
 app.get('/api/posts/feed', (req, res) => {
   let userId = null;
@@ -597,6 +637,8 @@ app.get('/api/posts/feed', (req, res) => {
   // 🔹 페이징 파라미터
   let limit = parseInt(req.query.limit, 10);
   let offset = parseInt(req.query.offset, 10);
+  const rawTag = req.query.tag;
+  const tag = rawTag ? normalizeHashtagName(rawTag) : null;
 
   if (isNaN(limit) || limit <= 0 || limit > 50) {
     limit = 20; // 기본 20개
@@ -605,21 +647,28 @@ app.get('/api/posts/feed', (req, res) => {
     offset = 0; // 기본 0부터
   }
 
+  const baseSelect = `
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.created_at,
+      u.name     AS author_name,
+      u.nickname AS author_nickname,
+      u.email    AS author_email,
+      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+      GROUP_CONCAT(DISTINCT h.name) AS hashtags
+  `;
+
   let sql;
   let params = [];
 
   if (userId) {
-    // 🔹 로그인한 경우: 닉네임 + 이메일 + 내가 공감 눌렀는지까지
-    sql = `
-      SELECT
-        p.id,
-        p.title,
-        p.content,
-        p.created_at,
-        u.name     AS author_name,
-        u.nickname AS author_nickname,
-        u.email    AS author_email,
-        (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+    // 로그인 한 경우
+    if (tag) {
+      // 특정 태그만 필터
+      sql = `
+        ${baseSelect},
         CASE
           WHEN EXISTS (
             SELECT 1 FROM likes l2
@@ -627,31 +676,77 @@ app.get('/api/posts/feed', (req, res) => {
           ) THEN 1
           ELSE 0
         END AS user_liked
-      FROM posts p
-      JOIN users u ON p.user_id = u.id
-      ORDER BY p.created_at DESC
-      LIMIT ? OFFSET ?
-    `;
-    params = [userId, limit, offset];
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+        LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+        WHERE EXISTS (
+          SELECT 1
+          FROM post_hashtags ph2
+          JOIN hashtags h2 ON h2.id = ph2.hashtag_id
+          WHERE ph2.post_id = p.id AND h2.name = ?
+        )
+        GROUP BY p.id
+        ORDER BY p.created_at DESC
+        LIMIT ? OFFSET ?
+      `;
+      params = [userId, tag, limit, offset];
+    } else {
+      // 전체 피드
+      sql = `
+        ${baseSelect},
+        CASE
+          WHEN EXISTS (
+            SELECT 1 FROM likes l2
+            WHERE l2.post_id = p.id AND l2.user_id = ?
+          ) THEN 1
+          ELSE 0
+        END AS user_liked
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+        LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+        GROUP BY p.id
+        ORDER BY p.created_at DESC
+        LIMIT ? OFFSET ?
+      `;
+      params = [userId, limit, offset];
+    }
   } else {
-    // 🔹 비로그인: 공감 여부만 0으로
-    sql = `
-      SELECT
-        p.id,
-        p.title,
-        p.content,
-        p.created_at,
-        u.name     AS author_name,
-        u.nickname AS author_nickname,
-        u.email    AS author_email,
-        (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+    // 비로그인
+    if (tag) {
+      sql = `
+        ${baseSelect},
         0 AS user_liked
-      FROM posts p
-      JOIN users u ON p.user_id = u.id
-      ORDER BY p.created_at DESC
-      LIMIT ? OFFSET ?
-    `;
-    params = [limit, offset];
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+        LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+        WHERE EXISTS (
+          SELECT 1
+          FROM post_hashtags ph2
+          JOIN hashtags h2 ON h2.id = ph2.hashtag_id
+          WHERE ph2.post_id = p.id AND h2.name = ?
+        )
+        GROUP BY p.id
+        ORDER BY p.created_at DESC
+        LIMIT ? OFFSET ?
+      `;
+      params = [tag, limit, offset];
+    } else {
+      sql = `
+        ${baseSelect},
+        0 AS user_liked
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+        LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+        GROUP BY p.id
+        ORDER BY p.created_at DESC
+        LIMIT ? OFFSET ?
+      `;
+      params = [limit, offset];
+    }
   }
 
   db.all(sql, params, (err, rows) => {
@@ -665,16 +760,16 @@ app.get('/api/posts/feed', (req, res) => {
     return res.json({
       ok: true,
       posts: rows,
-      hasMore: rows.length === limit, // 프론트에서 써도 되고, 그냥 무시해도 됨
+      hasMore: rows.length === limit,
     });
   });
 });
 
-
 /**
- * 글 상세 조회
+ * 글 상세 조회 (편집용)
  * GET /api/posts/:id
- * 로그인 필요, 자기 글만 조회 가능 (편집용)
+ * 로그인 필요, 자기 글만 조회 가능
+ * → 해시태그 배열도 함께 반환
  */
 app.get('/api/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
@@ -682,9 +777,17 @@ app.get('/api/posts/:id', authRequired, (req, res) => {
 
   db.get(
     `
-    SELECT p.id, p.title, p.content, p.created_at
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.created_at,
+      GROUP_CONCAT(DISTINCT h.name, ',') AS hashtags
     FROM posts p
+    LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+    LEFT JOIN hashtags h ON h.id = ph.hashtag_id
     WHERE p.id = ? AND p.user_id = ?
+    GROUP BY p.id
     `,
     [postId, userId],
     (err, row) => {
@@ -701,9 +804,19 @@ app.get('/api/posts/:id', authRequired, (req, res) => {
           .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
       }
 
+      const tags = row.hashtags
+        ? row.hashtags.split(',').filter((t) => t && t.length > 0)
+        : [];
+
       return res.json({
         ok: true,
-        post: row,
+        post: {
+          id: row.id,
+          title: row.title,
+          content: row.content,
+          created_at: row.created_at,
+          hashtags: tags,
+        },
       });
     }
   );
@@ -902,9 +1015,6 @@ app.get('/api/admin/users', authRequired, adminRequired, (req, res) => {
 app.delete('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
   const targetUserId = req.params.id;
 
-  // 본인을 삭제하는 경우를 막고 싶으면 여기서 체크 가능 (원하면 추가)
-  // if (Number(targetUserId) === req.user.id) { ... }
-
   db.serialize(() => {
     // 1) 이 유저가 남긴 좋아요 삭제
     db.run(
@@ -979,6 +1089,124 @@ app.delete('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
     );
   });
 });
+
+// ===== 해시태그 유틸 (에디터 입력 기반) =====
+
+function normalizeHashtagName(raw) {
+  if (!raw) return null;
+  let t = String(raw).trim();
+  if (!t) return null;
+
+  // 앞에 # 붙어 있으면 제거
+  if (t[0] === '#') t = t.slice(1);
+  t = t.trim();
+  if (!t) return null;
+
+  // 너무 길면 자르기
+  if (t.length > 50) t = t.slice(0, 50);
+
+  // 영어는 소문자 통일
+  return t.toLowerCase();
+}
+
+/**
+ * 에디터에서 전달된 해시태그 문자열/배열을 기준으로
+ * 해당 post_id의 해시태그를 전부 다시 저장.
+ *
+ * - hashtagsInput: string("#힐링 #일상, 감사") 또는 ["힐링", "일상"]
+ */
+function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
+  let rawList = [];
+
+  if (Array.isArray(hashtagsInput)) {
+    rawList = hashtagsInput;
+  } else if (typeof hashtagsInput === 'string') {
+    // 공백, 쉼표 기준 분리
+    rawList = hashtagsInput.split(/[\s,]+/);
+  } else {
+    rawList = [];
+  }
+
+  const set = new Set();
+  rawList.forEach((raw) => {
+    const n = normalizeHashtagName(raw);
+    if (n) set.add(n);
+  });
+
+  const tags = Array.from(set);
+
+  // 태그가 하나도 없으면 매핑만 삭제
+  if (tags.length === 0) {
+    db.run(
+      'DELETE FROM post_hashtags WHERE post_id = ?',
+      [postId],
+      (err) => {
+        if (err) console.error('delete post_hashtags error:', err);
+        if (callback) callback(err);
+      }
+    );
+    return;
+  }
+
+  db.serialize(() => {
+    // 기존 매핑 삭제
+    db.run('DELETE FROM post_hashtags WHERE post_id = ?', [postId], (err) => {
+      if (err) {
+        console.error('delete post_hashtags error:', err);
+        if (callback) callback(err);
+        return;
+      }
+
+      const insertTagStmt = db.prepare(
+        'INSERT OR IGNORE INTO hashtags (name) VALUES (?)'
+      );
+      const selectTagStmt = db.prepare(
+        'SELECT id FROM hashtags WHERE name = ?'
+      );
+      const insertMapStmt = db.prepare(
+        'INSERT INTO post_hashtags (post_id, hashtag_id) VALUES (?, ?)'
+      );
+
+      let index = 0;
+
+      function processNext() {
+        if (index >= tags.length) {
+          insertTagStmt.finalize();
+          selectTagStmt.finalize();
+          insertMapStmt.finalize();
+          if (callback) callback(null);
+          return;
+        }
+
+        const tag = tags[index++];
+        insertTagStmt.run(tag, (err2) => {
+          if (err2) {
+            console.error('insert hashtag error:', err2);
+            processNext();
+            return;
+          }
+
+          selectTagStmt.get(tag, (err3, row) => {
+            if (err3 || !row) {
+              console.error('select hashtag error:', err3);
+              processNext();
+              return;
+            }
+
+            insertMapStmt.run(postId, row.id, (err4) => {
+              if (err4) {
+                console.error('insert post_hashtags error:', err4);
+              }
+              processNext();
+            });
+          });
+        });
+      }
+
+      processNext();
+    });
+  });
+}
 
 // ================== 루트 → index.html ==================
 app.get('/', (req, res) => {

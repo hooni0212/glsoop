@@ -5,12 +5,13 @@ const FEED_LIMIT = 10;
 let feedOffset = 0;
 let feedLoading = false;
 let feedDone = false;
+let currentTag = null; // ✅ 현재 선택된 해시태그 (없으면 null)
 
 document.addEventListener('DOMContentLoaded', () => {
   initFeed();
 });
 
-// 피드 초기화: 첫 20개 로드 + 스크롤 이벤트 등록
+// 피드 초기화: 첫 10개 로드 + 스크롤 이벤트 등록
 async function initFeed() {
   const feedBox = document.getElementById('feedPosts');
   if (!feedBox) {
@@ -59,6 +60,11 @@ async function loadMoreFeed() {
       limit: String(FEED_LIMIT),
     });
 
+    // ✅ 현재 태그 필터가 있으면 함께 보내기
+    if (currentTag) {
+      params.set('tag', currentTag);
+    }
+
     const res = await fetch('/api/posts/feed?' + params.toString());
 
     if (!res.ok) {
@@ -86,8 +92,14 @@ async function loadMoreFeed() {
 
     // 첫 로드인데 글이 아예 없는 경우
     if (feedOffset === 0 && posts.length === 0) {
-      feedBox.innerHTML =
-        '<p class="text-muted">아직 작성된 글이 없습니다.</p>';
+      if (currentTag) {
+        feedBox.innerHTML = `<p class="text-muted">#${escapeHtml(
+          currentTag
+        )} 태그로 등록된 글이 아직 없습니다.</p>`;
+      } else {
+        feedBox.innerHTML =
+          '<p class="text-muted">아직 작성된 글이 없습니다.</p>';
+      }
       feedDone = true;
       feedLoading = false;
       return;
@@ -151,6 +163,9 @@ function renderFeedPosts(posts) {
       const liked =
         post.user_liked === 1 || post.user_liked === true ? true : false;
 
+      // ✅ 해시태그 뱃지 HTML 생성
+      const hashtagHtml = buildHashtagHtml(post);
+
       return `
         <div class="card mb-3" data-post-id="${post.id}">
           <div class="card-body">
@@ -173,6 +188,9 @@ function renderFeedPosts(posts) {
                 <span class="like-count ms-1">${likeCount}</span>
               </button>
             </div>
+
+            <!-- 해시태그 뱃지들 -->
+            ${hashtagHtml}
 
             <div class="post-content mt-2 text-end">
               <div class="feed-post-content">
@@ -204,7 +222,7 @@ function renderFeedPosts(posts) {
   // 맨 아래에 추가
   feedBox.insertAdjacentHTML('beforeend', fragmentHtml);
 
-  // 새로 추가된 카드들에 대해 폰트/더보기/좋아요 설정
+  // 새로 추가된 카드들에 대해 폰트/더보기/좋아요/해시태그 클릭 설정
   posts.forEach((post) => {
     const card = feedBox.querySelector(`.card[data-post-id="${post.id}"]`);
     if (!card) return;
@@ -284,23 +302,56 @@ function setupCardInteractions(card) {
 
         likeBtn.classList.toggle('liked', liked);
 
-        // 좋아요 ON일 때만 "톡" 애니메이션
+        // ✅ 좋아요 ON일 때만 "톡" 애니메이션 (inline transform 방식)
         if (heartEl && liked) {
-          heartEl.classList.remove('bump');
-          // 강제 리플로우
-          void heartEl.offsetWidth;
-          heartEl.classList.add('bump');
+          // 매번 애니메이션용 트랜지션 설정
+          heartEl.style.transition = 'transform 0.16s ease-out';
 
+          // 1) 원래 크기로 초기화
+          heartEl.style.transform = 'scale(1)';
+          // 강제 리플로우로 상태 확정
+          void heartEl.offsetWidth;
+
+          // 2) 살짝 크게
+          heartEl.style.transform = 'scale(1.28)';
+
+          // 3) 다시 원래 크기로
           setTimeout(() => {
-            heartEl.classList.remove('bump');
-          }, 220);
+            heartEl.style.transform = 'scale(1)';
+          }, 160);
         }
+
       } catch (e) {
         console.error(e);
         alert('공감 처리 중 오류가 발생했습니다.');
       }
     });
   }
+
+  // 4) 해시태그 뱃지 클릭 → 해당 태그 피드로 필터
+  const tagButtons = card.querySelectorAll('.hashtag-pill');
+  tagButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tag = btn.getAttribute('data-tag');
+      if (!tag) return;
+
+      currentTag = tag;
+      feedOffset = 0;
+      feedDone = false;
+
+      const feedBox = document.getElementById('feedPosts');
+      if (feedBox) {
+        feedBox.dataset.initialized = '';
+        feedBox.innerHTML = `<p class="text-muted">#${escapeHtml(
+          tag
+        )} 태그 글을 불러오는 중입니다...</p>`;
+      }
+
+      // 맨 위로 올려서 해당 태그 피드를 다시 로드
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      loadMoreFeed();
+    });
+  });
 }
 
 // 글 길이에 따라 카드 안 글꼴 크기 자동 조절
@@ -354,6 +405,29 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// ✅ 서버에서 내려준 post.hashtags 문자열을 버튼들로 변환
+function buildHashtagHtml(post) {
+  if (!post.hashtags) return '';
+
+  const tags = String(post.hashtags)
+    .split(',')
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+
+  if (!tags.length) return '';
+
+  const pills = tags
+    .map(
+      (t) =>
+        `<button type="button"
+                  class="btn btn-sm btn-outline-success me-1 mb-1 hashtag-pill"
+                  data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`
+    )
+    .join('');
+
+  return `<div class="mt-2 text-start">${pills}</div>`;
 }
 
 // ===== 히어로 CTA 잎사귀 애니메이션 =====

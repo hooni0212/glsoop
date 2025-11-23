@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const titleInput = document.getElementById('postTitle');
   const saveBtn = document.getElementById('saveBtn');
+  const hashtagsInput = document.getElementById('postHashtags'); // ✅ 해시태그 입력
 
   // ✅ 미리보기 요소
   const previewTitleEl = document.getElementById('previewTitle');
@@ -135,6 +136,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         titleInput.value = post.title || '';
         quill.root.innerHTML = post.content || '';
 
+        // 서버에서 hashtags를 내려줄 경우 인풋에 반영
+        if (hashtagsInput) {
+          hashtagsInput.value = post.hashtags || '';
+        }
+
         const plainText = quill.getText().trim();
         updateCharCounter(plainText.length);
         updatePreview();
@@ -193,6 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const contentHtml = quill.root.innerHTML.trim();
     const plainText = quill.getText().trim();
     const length = plainText.length;
+    const hashtagsRaw = hashtagsInput ? hashtagsInput.value.trim() : ''; // ✅ 해시태그 값
 
     if (!title) {
       alert('제목을 입력해주세요.');
@@ -213,7 +220,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       let url = '/api/posts';
       let method = 'POST';
 
-      // 수정 모드라면 PUT /api/posts/:id (서버에 해당 라우터 있어야 함)
+      // 수정 모드라면 PUT /api/posts/:id
       if (isEditMode && postId) {
         url = `/api/posts/${postId}`;
         method = 'PUT';
@@ -225,6 +232,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({
           title,
           content: contentHtml,
+          hashtags: hashtagsRaw, // ✅ 서버로 해시태그 함께 전송
         }),
       });
 
