@@ -574,9 +574,12 @@ app.get('/api/posts/my', authRequired, (req, res) => {
 });
 
 /**
- * 공개 피드: 모든 사용자의 글을 최신순으로 반환
+ * 글 피드 조회
  * GET /api/posts/feed
- * 로그인 필요 없음 (단, 로그인 되어 있으면 내가 공감 눌렀는지까지 포함)
+ *
+ * - 로그인 필요 없음 (단, 로그인 되어 있으면 내가 공감 눌렀는지까지 포함)
+ * - 쿼리스트링으로 페이징:
+ *   - ?offset=0&limit=20
  */
 app.get('/api/posts/feed', (req, res) => {
   let userId = null;
@@ -591,11 +594,22 @@ app.get('/api/posts/feed', (req, res) => {
     }
   }
 
+  // 🔹 페이징 파라미터
+  let limit = parseInt(req.query.limit, 10);
+  let offset = parseInt(req.query.offset, 10);
+
+  if (isNaN(limit) || limit <= 0 || limit > 50) {
+    limit = 20; // 기본 20개
+  }
+  if (isNaN(offset) || offset < 0) {
+    offset = 0; // 기본 0부터
+  }
+
   let sql;
   let params = [];
 
   if (userId) {
-    // 🔹 로그인한 경우: 닉네임 + 이메일 + 좋아요 정보
+    // 🔹 로그인한 경우: 닉네임 + 이메일 + 내가 공감 눌렀는지까지
     sql = `
       SELECT
         p.id,
@@ -616,11 +630,11 @@ app.get('/api/posts/feed', (req, res) => {
       FROM posts p
       JOIN users u ON p.user_id = u.id
       ORDER BY p.created_at DESC
-      LIMIT 50
+      LIMIT ? OFFSET ?
     `;
-    params = [userId];
+    params = [userId, limit, offset];
   } else {
-    // 🔹 비로그인: 닉네임 + 이메일 + 좋아요 수만
+    // 🔹 비로그인: 공감 여부만 0으로
     sql = `
       SELECT
         p.id,
@@ -635,8 +649,9 @@ app.get('/api/posts/feed', (req, res) => {
       FROM posts p
       JOIN users u ON p.user_id = u.id
       ORDER BY p.created_at DESC
-      LIMIT 50
+      LIMIT ? OFFSET ?
     `;
+    params = [limit, offset];
   }
 
   db.all(sql, params, (err, rows) => {
@@ -650,9 +665,11 @@ app.get('/api/posts/feed', (req, res) => {
     return res.json({
       ok: true,
       posts: rows,
+      hasMore: rows.length === limit, // 프론트에서 써도 되고, 그냥 무시해도 됨
     });
   });
 });
+
 
 /**
  * 글 상세 조회
