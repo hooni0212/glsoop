@@ -17,7 +17,6 @@ console.log(
   process.env.GMAIL_PASS ? process.env.GMAIL_PASS.length : 0
 );
 
-
 const app = express();
 const PORT = 3000;
 
@@ -32,7 +31,6 @@ const transporter = nodemailer.createTransport({
 
 // .env로 빼두기 완료.
 const JWT_SECRET = process.env.JWT_SECRET || 'DEV_ONLY_FALLBACK_SECRET';
-
 
 // ================== 미들웨어 ==================
 app.use(bodyParser.json());
@@ -50,7 +48,7 @@ db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     name      TEXT NOT NULL,
-    nickname  TEXT,                -- ✅ 닉네임 컬럼 추가
+    nickname  TEXT,                -- ✅ 닉네임 컬럼
     email     TEXT NOT NULL UNIQUE,
     pw        TEXT NOT NULL,
     is_admin  INTEGER DEFAULT 0,
@@ -100,7 +98,7 @@ function authRequired(req, res, next) {
         message: '토큰이 만료되었거나 유효하지 않습니다.',
       });
     }
-    // decoded: { id, name, email, isAdmin, isVerified, iat, exp }
+    // decoded: { id, name, nickname, email, isAdmin, isVerified, iat, exp }
     req.user = decoded;
     next();
   });
@@ -121,16 +119,17 @@ function adminRequired(req, res, next) {
 /**
  * 회원가입
  * POST /api/signup
- * body: { name, email, pw }
+ * body: { name, nickname, email, pw }
  * → DB에 is_verified = 0 상태로 저장 후 인증 메일 발송
  */
 app.post('/api/signup', async (req, res) => {
-  const { name, email, pw } = req.body;
+  const { name, nickname, email, pw } = req.body;
 
-  if (!name || !email || !pw) {
-    return res
-      .status(400)
-      .json({ ok: false, message: '이름, 이메일, 비밀번호를 모두 입력하세요.' });
+  if (!name || !nickname || !email || !pw) {
+    return res.status(400).json({
+      ok: false,
+      message: '이름, 닉네임, 이메일, 비밀번호를 모두 입력하세요.',
+    });
   }
 
   try {
@@ -143,10 +142,19 @@ app.post('/api/signup', async (req, res) => {
 
     db.run(
       `
-      INSERT INTO users (name, email, pw, is_admin, is_verified, verification_token, verification_expires)
-      VALUES (?, ?, ?, 0, 0, ?, ?)
+      INSERT INTO users (
+        name,
+        nickname,
+        email,
+        pw,
+        is_admin,
+        is_verified,
+        verification_token,
+        verification_expires
+      )
+      VALUES (?, ?, ?, ?, 0, 0, ?, ?)
       `,
-      [name, email, hashed, token, expiresAt],
+      [name, nickname, email, hashed, token, expiresAt],
       function (err) {
         if (err) {
           if (err.message && err.message.includes('UNIQUE')) {
@@ -171,7 +179,7 @@ app.post('/api/signup', async (req, res) => {
             subject: '[글숲] 이메일 인증을 완료해주세요',
             html: `
               <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-                <p><strong>${name}님, 안녕하세요.</strong></p>
+                <p><strong>${nickname || name}님, 안녕하세요.</strong></p>
                 <p>글숲에 가입해 주셔서 감사합니다. 아래 버튼을 눌러 이메일 인증을 완료해주세요.</p>
                 <p style="margin: 24px 0;">
                   <a href="${verifyUrl}"
@@ -350,6 +358,7 @@ app.post('/api/login', (req, res) => {
       {
         id: user.id,
         name: user.name,
+        nickname: user.nickname,     // ✅ 닉네임도 토큰에 포함
         email: user.email,
         isAdmin: !!user.is_admin,      // 관리자 여부
         isVerified: !!user.is_verified // 토큰에도 인증 여부 포함
@@ -370,6 +379,7 @@ app.post('/api/login', (req, res) => {
       ok: true,
       message: `환영합니다, ${user.name}님!`,
       name: user.name,
+      nickname: user.nickname || null,
     });
   });
 });
@@ -390,11 +400,12 @@ app.post('/api/logout', (req, res) => {
  * GET /api/me
  */
 app.get('/api/me', authRequired, (req, res) => {
-  const { id, name, email, isAdmin, isVerified } = req.user;
+  const { id, name, email, isAdmin, isVerified, nickname } = req.user;
   res.json({
     ok: true,
     id,
     name,
+    nickname: nickname || null,
     email,
     isAdmin: !!isAdmin,
     isVerified: !!isVerified,
