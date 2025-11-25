@@ -10,8 +10,33 @@ let feedDone = false;
 let currentTags = []; // 예: ['힐링', '위로']
 
 document.addEventListener('DOMContentLoaded', () => {
+  // URL에서 ?tag=... 또는 ?tags=... 읽어오기
+  const params = new URLSearchParams(window.location.search);
+
+  // 1) 단일 태그 (?tag=힐링)
+  const singleTag = params.get('tag');
+
+  // 2) 여러 태그 (?tags=힐링,위로)
+  const multiTags = params.get('tags');
+
+  if (multiTags) {
+    currentTags = String(multiTags)
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+  } else if (singleTag) {
+    currentTags = [singleTag.trim()];
+  }
+
+  // 태그가 세팅된 상태로 피드 초기화
   initFeed();
+
+  // 만약 URL에 태그가 있었다면, 상단 필터 바도 바로 보여주기
+  if (currentTags.length > 0) {
+    renderTagFilterBar();
+  }
 });
+
 
 // 피드 초기화: 첫 10개 로드 + 스크롤 이벤트 등록
 async function initFeed() {
@@ -236,6 +261,8 @@ function renderFeedPosts(posts) {
   posts.forEach((post) => {
     const card = feedBox.querySelector(`.card[data-post-id="${post.id}"]`);
     if (!card) return;
+    // ✅ 작가 페이지 이동용
+    setupCardAuthorLink(card, post);
     setupCardInteractions(card);
   });
 }
@@ -346,6 +373,31 @@ function setupCardInteractions(card) {
 
       applyTagFilter(tag);
     });
+  });
+}
+
+// ✅ 작성자 영역 클릭 시 작가 페이지로 이동
+function setupCardAuthorLink(card, post) {
+  if (!post || !post.author_id) return;
+
+  // 작성자 + 날짜가 들어 있는 small 요소
+  const metaEl = card.querySelector('.card-text small.text-muted');
+  if (!metaEl) return;
+
+  // data-author-id 속성으로 저장
+  metaEl.setAttribute('data-author-id', post.author_id);
+
+  // 클릭 가능해 보이도록 커서 변경 (스타일 추가)
+  metaEl.style.cursor = 'pointer';
+
+  metaEl.addEventListener('click', () => {
+    const authorId = metaEl.getAttribute('data-author-id');
+    if (!authorId) return;
+
+    // ✅ 작가 공개 페이지로 이동 (나중에 author.html 구현 예정)
+    window.location.href = `/html/author.html?userId=${encodeURIComponent(
+      authorId
+    )}`;
   });
 }
 
@@ -486,7 +538,6 @@ function maskEmail(email) {
 
   return visible + stars;
 }
-
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';

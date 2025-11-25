@@ -450,6 +450,185 @@ app.get('/api/me', authRequired, (req, res) => {
   );
 });
 
+// ================== 작가(사용자) 공개 프로필 / 작가 글 목록 ==================
+
+/**
+ * 작가 공개 프로필 조회
+ * GET /api/users/:id/profile
+ * - 로그인 불필요
+ */
+app.get('/api/users/:id/profile', (req, res) => {
+  const authorId = req.params.id;
+
+  // 1) 유저 기본 정보 조회
+  db.get(
+    `
+    SELECT
+      id,
+      name,
+      nickname,
+      email
+    FROM users
+    WHERE id = ?
+    `,
+    [authorId],
+    (err, user) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ ok: false, message: '작가 정보 조회 중 DB 오류가 발생했습니다.' });
+      }
+
+      if (!user) {
+        return res
+          .status(404)
+          .json({ ok: false, message: '해당 작가를 찾을 수 없습니다.' });
+      }
+
+      // 2) 글 수 / 받은 공감 수 집계
+      db.get(
+        `
+        SELECT
+          COUNT(DISTINCT p.id) AS post_count,
+          COUNT(l.post_id)     AS total_likes
+        FROM posts p
+        LEFT JOIN likes l ON l.post_id = p.id
+        WHERE p.user_id = ?
+        `,
+        [authorId],
+        (err2, stats) => {
+          if (err2) {
+            console.error(err2);
+            return res.status(500).json({
+              ok: false,
+              message: '작가 통계 조회 중 DB 오류가 발생했습니다.',
+            });
+          }
+
+          return res.json({
+            ok: true,
+            user: {
+              id: user.id,
+              name: user.name,
+              nickname: user.nickname,
+              email: user.email,             // 프론트에서 마스킹 처리
+              postCount: stats?.post_count || 0,
+              totalLikes: stats?.total_likes || 0,
+            },
+          });
+        }
+      );
+    }
+  );
+});
+
+/**
+ * 특정 작가의 글 목록 조회
+ * GET /api/users/:id/posts?offset=0&limit=20
+ * - 로그인 불필요 (단, 로그인 상태면 user_liked 포함)
+ */
+app.get('/api/users/:id/posts', (req, res) => {
+  const authorId = req.params.id;
+
+  // 로그인 여부에 따라 userId 세팅 (피드와 동일한 방식)
+  let userId = null;
+  const token = req.cookies.token;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch (e) {
+      userId = null;
+    }
+  }
+
+  // 페이징 파라미터
+  let limit = parseInt(req.query.limit, 10);
+  let offset = parseInt(req.query.offset, 10);
+
+  if (isNaN(limit) || limit <= 0 || limit > 50) {
+    limit = 20;
+  }
+  if (isNaN(offset) || offset < 0) {
+    offset = 0;
+  }
+
+  const baseSelect = `
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.created_at,
+      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+      GROUP_CONCAT(DISTINCT h.name) AS hashtags
+  `;
+
+  const baseFromJoin = `
+    FROM posts p
+    LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+    LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+  `;
+
+  const baseWhere = `
+    WHERE p.user_id = ?
+  `;
+
+  const baseGroupOrder = `
+    GROUP BY p.id
+    ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
+
+  let sql;
+  let params = [];
+
+  if (userId) {
+    // 로그인한 상태: user_liked 필드 포함
+    sql = `
+      ${baseSelect},
+      CASE
+        WHEN EXISTS (
+          SELECT 1 FROM likes l2
+          WHERE l2.post_id = p.id AND l2.user_id = ?
+        ) THEN 1
+        ELSE 0
+      END AS user_liked
+      ${baseFromJoin}
+      ${baseWhere}
+      ${baseGroupOrder}
+    `;
+    params = [userId, authorId, limit, offset];
+  } else {
+    // 비로그인 상태: user_liked = 0 고정
+    sql = `
+      ${baseSelect},
+      0 AS user_liked
+      ${baseFromJoin}
+      ${baseWhere}
+      ${baseGroupOrder}
+    `;
+    params = [authorId, limit, offset];
+  }
+
+  db.all(sql, params, (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({
+        ok: false,
+        message: '작가 글 목록 조회 중 DB 오류가 발생했습니다.',
+      });
+    }
+
+    return res.json({
+      ok: true,
+      posts: rows || [],
+      hasMore: rows.length === limit,
+    });
+  });
+});
+
+
 // ================== 글 관련 API ==================
 
 /**
@@ -677,6 +856,7 @@ app.get('/api/posts/feed', (req, res) => {
       p.title,
       p.content,
       p.created_at,
+      u.id      AS author_id,
       u.name     AS author_name,
       u.nickname AS author_nickname,
       u.email    AS author_email,
