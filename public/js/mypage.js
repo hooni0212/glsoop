@@ -320,13 +320,3 @@ function setupUserEditForm() {
   });
 }
 
-// 제목/이메일용 이스케이프 (content는 HTML 그대로 렌더링)
-function escapeHtml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}

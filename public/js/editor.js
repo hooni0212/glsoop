@@ -242,33 +242,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // ✅ 글 길이에 따라 카드 안 글꼴 크기 자동 조절
-  function autoAdjustQuoteFont(el) {
-    if (!el) return;
-
-    const text = el.innerText.trim();
-    const len = text.length;
-
-    let fontSize = 1.6;
-
-    if (len > 140) {
-      fontSize = 1.1;
-    } else if (len > 100) {
-      fontSize = 1.2;
-    } else if (len > 70) {
-      fontSize = 1.3;
-    } else if (len > 40) {
-      fontSize = 1.4;
-    } else {
-      fontSize = 1.6;
-    }
-
-    if (fontSize < 1.1) fontSize = 1.1;
-
-    el.style.fontSize = fontSize + 'rem';
-    el.style.lineHeight = Math.min(fontSize + 0.4, 2.0);
-  }
-
   // ✅ 남은 글자 수 업데이트 함수
   // 표시 형식: (남은 글자수)/200
   function updateCharCounter(currentLength) {
@@ -495,13 +468,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.scrollTo({ top: editorAlertEl.offsetTop - 140, behavior: 'smooth' });
   }
 
-  // editor.js 내부용 escapeHtml (index.js와 별도)
-  function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
 });

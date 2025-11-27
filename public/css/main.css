@@ -187,7 +187,7 @@ a:hover {
 
 
 /* =========================
-   7. 인스타 감성 종이질감 카드
+7. 인스타 감성 종이질감 카드
 ========================= */
 
 .quote-card {
@@ -211,20 +211,20 @@ a:hover {
   flex-direction: column;
   justify-content: center;
   align-items: stretch;
-  text-align: left;   
+  text-align: left;
 
   /* 타이포 */
   font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
   font-size: 1.6rem;
   line-height: 1.9rem;
-  color: #5C5C5C;
+  color: #5c5c5c;
   word-break: keep-all;
 }
 
 /* 자식 요소들이 카드 폭 전체를 쓰도록 */
 .quote-card > * {
   margin: 0.2rem 0;
-  width: 100%;              /* ✅ 이 줄 추가 */
+  width: 100%;
 }
 
 /* 모바일에서 조금 작게 */
@@ -628,40 +628,28 @@ a:hover {
   color: #555;
 }
 
-/* ===== Quill 정렬 클래스를 실제 정렬로 반영 ===== */
 
-.ql-editor .ql-align-right {
-  text-align: right;
-}
+/* =========================
+   17. Quill 정렬 클래스 (에디터/피드/마이페이지 공통)
+========================= */
 
-.ql-editor .ql-align-justify {
-  text-align: justify;
-}
-
-.quote-card .ql-align-right {
-  text-align: right;
-}
-
-.quote-card .ql-align-justify {
-  text-align: justify;
-}
-
-
-/* ================== Quill 정렬 클래스 대응 ================== */
-/* 에디터 밖(미리보기 / 메인 피드 / 마이페이지)에서도 정렬이 보이도록 */
-
-.quote-card .ql-align-left { text-align: left; }
-
-.quote-card .ql-align-center {
+/* 에디터 + 피드 + 마이페이지에서 같은 정렬 클래스 사용 */
+.ql-editor .ql-align-center,
+.quote-card .ql-align-center,
+.paper-content .ql-align-center {
   text-align: center;
 }
 
-.quote-card .ql-align-right {
+.ql-editor .ql-align-right,
+.quote-card .ql-align-right,
+.paper-content .ql-align-right {
   text-align: right;
 }
 
-.quote-card .ql-align-justify {
+.ql-editor .ql-align-justify,
+.quote-card .ql-align-justify,
+.paper-content .ql-align-justify {
   text-align: justify;
 }
 
-
+/* 왼쪽 정렬은 기본값(text-align: left) 사용 */
