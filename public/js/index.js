@@ -37,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-
 // 피드 초기화: 첫 10개 로드 + 스크롤 이벤트 등록
 async function initFeed() {
   const feedBox = document.getElementById('feedPosts');
@@ -227,20 +226,24 @@ function renderFeedPosts(posts) {
             <!-- 해시태그 뱃지들 -->
             ${hashtagHtml}
 
-            <div class="post-content mt-2 text-end">
+            <!-- 🔁 정렬이 깨지지 않도록 text-end 제거 -->
+            <div class="post-content mt-2">
               <div class="feed-post-content">
                 <!-- 인스타 감성 글귀 카드 -->
                 <div class="quote-card ${quoteFontClass}">
                   ${cleanHtml}
                 </div>
               </div>
-              <button
-                class="btn btn-link p-0 mt-1 more-toggle"
-                type="button"
-                style="display:none;"
-              >
-                더보기...
-              </button>
+              <!-- 버튼만 오른쪽 정렬 -->
+              <div class="mt-1 text-end">
+                <button
+                  class="btn btn-link p-0 more-toggle"
+                  type="button"
+                  style="display:none;"
+                >
+                  더보기...
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -394,7 +397,7 @@ function setupCardAuthorLink(card, post) {
     const authorId = metaEl.getAttribute('data-author-id');
     if (!authorId) return;
 
-    // ✅ 작가 공개 페이지로 이동 (나중에 author.html 구현 예정)
+    // ✅ 작가 공개 페이지로 이동
     window.location.href = `/html/author.html?userId=${encodeURIComponent(
       authorId
     )}`;

@@ -104,3 +104,31 @@
   display: flex;
   flex-direction: column;
 }
+
+/* ===== Quill 정렬 클래스를 실제 정렬로 반영 ===== */
+
+/* 에디터 안 */
+.ql-editor .ql-align-center {
+  text-align: center;
+}
+
+.ql-editor .ql-align-right {
+  text-align: right;
+}
+
+.ql-editor .ql-align-justify {
+  text-align: justify;
+}
+
+/* 피드 / 작가 페이지 카드 안 (quote-card 재사용) */
+.quote-card .ql-align-center {
+  text-align: center;
+}
+
+.quote-card .ql-align-right {
+  text-align: right;
+}
+
+.quote-card .ql-align-justify {
+  text-align: justify;
+}

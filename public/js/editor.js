@@ -31,10 +31,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         [{ header: [1, 2, false] }],
         ['bold', 'italic', 'underline', 'strike'],
         [{ list: 'ordered' }, { list: 'bullet' }],
+        [{ align: '' }, { align: 'center' }, { align: 'right' }, { align: 'justify' }],
         ['link', 'blockquote'],
         ['clean'],
       ],
     },
+    // ✅ 정렬 정보도 포맷으로 저장되도록 formats 지정
+    formats: [
+      'header',
+      'bold',
+      'italic',
+      'underline',
+      'strike',
+      'list',
+      'bullet',
+      'link',
+      'blockquote',
+      'align', // ⬅ 이 줄 덕분에 ql-align-* 클래스가 실제 포맷으로 반영됨
+    ],
   });
 
   const titleInput = document.getElementById('postTitle');
@@ -487,7 +501,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }

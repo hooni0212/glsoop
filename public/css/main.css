@@ -207,12 +207,11 @@ a:hover {
   border-radius: 1.5rem;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
 
-  /* 안의 글 중앙 배치 */
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
-  text-align: center;
+  align-items: stretch;
+  text-align: left;   
 
   /* 타이포 */
   font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
@@ -222,8 +221,10 @@ a:hover {
   word-break: keep-all;
 }
 
+/* 자식 요소들이 카드 폭 전체를 쓰도록 */
 .quote-card > * {
   margin: 0.2rem 0;
+  width: 100%;              /* ✅ 이 줄 추가 */
 }
 
 /* 모바일에서 조금 작게 */
@@ -626,3 +627,41 @@ a:hover {
 .hashtag-chip-remove:hover {
   color: #555;
 }
+
+/* ===== Quill 정렬 클래스를 실제 정렬로 반영 ===== */
+
+.ql-editor .ql-align-right {
+  text-align: right;
+}
+
+.ql-editor .ql-align-justify {
+  text-align: justify;
+}
+
+.quote-card .ql-align-right {
+  text-align: right;
+}
+
+.quote-card .ql-align-justify {
+  text-align: justify;
+}
+
+
+/* ================== Quill 정렬 클래스 대응 ================== */
+/* 에디터 밖(미리보기 / 메인 피드 / 마이페이지)에서도 정렬이 보이도록 */
+
+.quote-card .ql-align-left { text-align: left; }
+
+.quote-card .ql-align-center {
+  text-align: center;
+}
+
+.quote-card .ql-align-right {
+  text-align: right;
+}
+
+.quote-card .ql-align-justify {
+  text-align: justify;
+}
+
+
