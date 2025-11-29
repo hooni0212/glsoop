@@ -175,9 +175,8 @@ Glsoop.FeedPage = (function () {
 
     const fragmentHtml = posts
       .map((post) => {
-        const dateStr = post.created_at
-          ? String(post.created_at).replace('T', ' ').slice(0, 16)
-          : '';
+        // ✅ UTC 문자열을 한국시간으로 변환
+        const dateStr = formatKoreanDateTime(post.created_at);
 
         // 닉네임 + (마스킹 이메일) 표시
         const nickname =

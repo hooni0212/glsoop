@@ -84,11 +84,39 @@
 
       <hr />
 
-      <!-- 내가 쓴 글 -->
+      <!-- 글 관리 헤더 + 탭 -->
+      <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+        <h4 class="mb-0">내 글 관리</h4>
+      </div>
+
+      <div class="btn-group mb-3" role="group" aria-label="마이페이지 글 탭">
+        <button
+          type="button"
+          class="btn btn-outline-success active"
+          id="tabMyPosts"
+        >
+          내가 쓴 글
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline-success"
+          id="tabLikedPosts"
+        >
+          내가 공감한 글
+        </button>
+      </div>
+
+      <!-- 내가 쓴 글 섹션 -->
       <div id="myPostsSection">
-        <h4 class="mb-3">내가 쓴 글</h4>
         <div id="myPosts">
           <p class="text-muted">글 목록을 불러오는 중입니다...</p>
+        </div>
+      </div>
+
+      <!-- 내가 공감한 글 섹션 (처음엔 숨김) -->
+      <div id="likedPostsSection" class="d-none">
+        <div id="likedPosts">
+          <p class="text-muted">공감한 글을 불러오는 중입니다...</p>
         </div>
       </div>
     </div>

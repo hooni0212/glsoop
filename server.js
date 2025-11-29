@@ -1071,6 +1071,44 @@ app.get('/api/posts/my', authRequired, (req, res) => {
 });
 
 /**
+ * 내가 공감한 글 목록 (마이페이지)
+ * GET /api/posts/liked
+ * 로그인 필요
+ */
+app.get('/api/posts/liked', authRequired, (req, res) => {
+  const userId = req.user.id;
+
+  db.all(
+    `
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.created_at,
+      (SELECT COUNT(*) FROM likes l2 WHERE l2.post_id = p.id) AS like_count
+    FROM posts p
+    INNER JOIN likes l ON l.post_id = p.id
+    WHERE l.user_id = ?
+    ORDER BY l.created_at DESC
+    `,
+    [userId],
+    (err, rows) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ ok: false, message: '공감한 글 목록 조회 중 DB 오류가 발생했습니다.' });
+      }
+
+      return res.json({
+        ok: true,
+        posts: rows,
+      });
+    }
+  );
+});
+
+/**
  * 글 피드 조회 (무한스크롤 + 해시태그 필터 지원)
  * GET /api/posts/feed
  *

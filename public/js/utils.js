@@ -64,6 +64,66 @@ function autoAdjustQuoteFont(el) {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
+
+  
+/**
+ * ISO 날짜 문자열(또는 Date 객체)을
+ * 브라우저 로컬 시간 기준 "YYYY-MM-DD HH:MM" 형식으로 바꿔주는 함수
+ * 한국에서 보면 자동으로 KST 기준으로 표시됨.
+ */
+/**
+ * DB/서버에서 온 날짜를 한국 시간 기준 "YYYY-MM-DD HH:MM"으로 포맷하는 함수
+ * - ISO 문자열(예: "2025-11-29T11:26:00.000Z")도 처리
+ * - SQLite CURRENT_TIMESTAMP ("2025-11-29 11:26:00")도 "UTC"라고 가정해서 처리
+ */
+function formatKoreanDateTime(value) {
+  if (!value) return '';
+
+  let date;
+
+  if (typeof value === 'string') {
+    // ISO 형식(대충 T 또는 Z가 들어간 경우)은 그냥 Date에 맡김
+    if (value.includes('T') || value.endsWith('Z') || value.match(/\dZ$/)) {
+      date = new Date(value);
+    } else {
+      // "YYYY-MM-DD HH:MM[:SS]" 형식 → UTC로 직접 파싱
+      const m = value.match(
+        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/
+      );
+      if (m) {
+        const year = Number(m[1]);
+        const month = Number(m[2]) - 1; // 0 기반
+        const day = Number(m[3]);
+        const hour = Number(m[4]);
+        const minute = Number(m[5]);
+        const second = m[6] ? Number(m[6]) : 0;
+
+        // ✅ UTC 타임스탬프로 생성
+        const utcMs = Date.UTC(year, month, day, hour, minute, second);
+        date = new Date(utcMs); // 이 Date에서 getHours() 등은 로컬(KST) 기준으로 나옴
+      } else {
+        // 형식이 애매하면 그냥 Date에 맡김
+        date = new Date(value);
+      }
+    }
+  } else {
+    // Date 객체나 숫자(timestamp)인 경우
+    date = new Date(value);
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+
+  return `${y}-${m}-${d} ${h}:${min}`;
+}
+
   
   /**
    * 글 content 맨 앞의 폰트 메타 <!--FONT:serif|sans|hand-->를 분리
