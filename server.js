@@ -328,6 +328,201 @@ app.get('/api/verify-email', (req, res) => {
 });
 
 /**
+ * 비밀번호 재설정 메일 요청
+ * POST /api/password-reset-request
+ * body: { email }
+ */
+app.post('/api/password-reset-request', (req, res) => {
+  const { email } = req.body || {};
+
+  if (!email) {
+    return res
+      .status(400)
+      .json({ ok: false, message: '이메일을 입력해주세요.' });
+  }
+
+  db.get(
+    'SELECT id, name, is_verified FROM users WHERE email = ?',
+    [email],
+    (err, user) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+      }
+
+      // 보안상 "존재/비존재"를 알려주지 않는 게 좋음
+      if (!user) {
+        return res.json({
+          ok: true,
+          message:
+            '입력하신 이메일이 등록되어 있다면, 비밀번호 재설정 메일이 발송됩니다.',
+        });
+      }
+
+      // (선택) 이메일 인증이 안 된 회원은 막을 수도 있음
+      // if (!user.is_verified) { ... }
+
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1시간 유효
+
+      db.run(
+        `
+        UPDATE users
+        SET reset_token = ?, reset_expires = ?
+        WHERE id = ?
+        `,
+        [token, expiresAt.toISOString(), user.id],
+        function (updateErr) {
+          if (updateErr) {
+            console.error(updateErr);
+            return res
+              .status(500)
+              .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+          }
+
+          const resetUrl = `${req.protocol}://${req.get(
+            'host'
+          )}/html/reset-password.html?token=${token}`;
+
+          transporter.sendMail(
+            {
+              from: `"글숲" <${process.env.GMAIL_USER}>`,
+              to: email,
+              subject: '[글숲] 비밀번호 재설정 안내',
+              html: `
+                <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
+                  <p><strong>${user.name}님, 안녕하세요.</strong></p>
+                  <p>아래 버튼을 눌러 비밀번호를 재설정해주세요.</p>
+                  <p style="margin: 24px 0;">
+                    <a href="${resetUrl}"
+                       style="display:inline-block;padding:10px 18px;background:#2e8b57;color:#fff;
+                              text-decoration:none;border-radius:6px;">
+                      비밀번호 재설정하기
+                    </a>
+                  </p>
+                  <p>만약 위 버튼이 동작하지 않으면 아래 링크를 복사해서 주소창에 붙여넣어 주세요.</p>
+                  <p style="font-size:0.9rem;word-break:break-all;">${resetUrl}</p>
+                  <p style="font-size:0.9rem;color:#888;">이 링크는 1시간 동안만 유효합니다.</p>
+                </div>
+              `,
+            },
+            (mailErr, info) => {
+              if (mailErr) {
+                console.error('비밀번호 재설정 메일 전송 오류:', mailErr);
+                return res.status(500).json({
+                  ok: false,
+                  message:
+                    '메일 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+                });
+              }
+
+              console.log('reset mail sent:', info.messageId);
+              return res.json({
+                ok: true,
+                message:
+                  '입력하신 이메일이 등록되어 있다면, 비밀번호 재설정 메일이 발송되었습니다.',
+              });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+/**
+ * 비밀번호 실제 재설정
+ * POST /api/password-reset
+ * body: { token, newPw }
+ */
+app.post('/api/password-reset', async (req, res) => {
+  const { token, newPw } = req.body || {};
+
+  if (!token || !newPw) {
+    return res
+      .status(400)
+      .json({ ok: false, message: '토큰과 새 비밀번호를 모두 입력해주세요.' });
+  }
+
+  if (newPw.length < 8) {
+    return res.status(400).json({
+      ok: false,
+      message: '비밀번호는 8자 이상으로 설정해주세요.',
+    });
+  }
+
+  db.get(
+    'SELECT id, reset_expires FROM users WHERE reset_token = ?',
+    [token],
+    async (err, user) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+      }
+
+      if (!user) {
+        return res
+          .status(400)
+          .json({ ok: false, message: '유효하지 않은 링크입니다.' });
+      }
+
+      if (!user.reset_expires) {
+        return res
+          .status(400)
+          .json({ ok: false, message: '유효하지 않은 링크입니다.' });
+      }
+
+      const now = Date.now();
+      const expiresTime = new Date(user.reset_expires).getTime();
+
+      if (isNaN(expiresTime) || expiresTime < now) {
+        return res.status(400).json({
+          ok: false,
+          message: '비밀번호 재설정 링크가 만료되었습니다. 다시 요청해주세요.',
+        });
+      }
+
+      try {
+        const hashedPw = await bcrypt.hash(newPw, 10);
+
+        db.run(
+          `
+          UPDATE users
+          SET pw = ?, reset_token = NULL, reset_expires = NULL
+          WHERE id = ?
+          `,
+          [hashedPw, user.id],
+          function (updateErr) {
+            if (updateErr) {
+              console.error(updateErr);
+              return res.status(500).json({
+                ok: false,
+                message: '비밀번호 변경 중 오류가 발생했습니다.',
+              });
+            }
+
+            return res.json({
+              ok: true,
+              message: '비밀번호가 변경되었습니다. 다시 로그인해주세요.',
+            });
+          }
+        );
+      } catch (hashErr) {
+        console.error(hashErr);
+        return res
+          .status(500)
+          .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+      }
+    }
+  );
+});
+
+
+/**
  * 로그인
  * POST /api/login
  * body: { email, pw }
@@ -419,6 +614,91 @@ app.post('/api/logout', (req, res) => {
  */
 app.get('/api/me', authRequired, (req, res) => {
   const userId = req.user.id;
+
+/**
+ * 내 정보 수정 (닉네임 / 비밀번호 변경)
+ * PUT /api/me
+ * body: { nickname?, currentPw?, newPw? }
+ */
+app.put('/api/me', authRequired, (req, res) => {
+  const userId = req.user.id;
+  const { nickname, currentPw, newPw } = req.body || {};
+
+  // 닉네임도 안 바꾸고, 새 비번도 없으면 막기
+  if (!nickname && !newPw) {
+    return res.status(400).json({
+      ok: false,
+      message: '변경할 내용을 입력하세요.',
+    });
+  }
+
+  // 현재 비밀번호 확인 + 새 비밀번호 해시
+  db.get('SELECT pw FROM users WHERE id = ?', [userId], async (err, user) => {
+    if (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
+    }
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    let newHashedPw = null;
+
+    // 새 비밀번호를 바꾸려는 경우에만 체크
+    if (newPw) {
+      // 현재 비번이 없으면 막기 (프론트에서도 막지만 서버도 한 번 더 체크)
+      if (!currentPw) {
+        return res.status(400).json({
+          ok: false,
+          message: '비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.',
+        });
+      }
+
+      const okPw = await bcrypt.compare(currentPw, user.pw);
+      if (!okPw) {
+        return res
+          .status(400)
+          .json({ ok: false, message: '현재 비밀번호가 일치하지 않습니다.' });
+      }
+
+      // 새 비밀번호 해시
+      newHashedPw = await bcrypt.hash(newPw, 10);
+    }
+
+    // 닉네임과 비밀번호 중 바뀌는 것만 업데이트
+    db.run(
+      `
+      UPDATE users
+      SET
+        nickname = COALESCE(?, nickname),
+        pw       = COALESCE(?, pw)
+      WHERE id = ?
+      `,
+      [nickname || null, newHashedPw, userId],
+      function (updateErr) {
+        if (updateErr) {
+          console.error(updateErr);
+          return res.status(500).json({
+            ok: false,
+            message: '내 정보 수정 중 오류가 발생했습니다.',
+          });
+        }
+
+        return res.json({
+          ok: true,
+          message: '정보가 성공적으로 수정되었습니다.',
+        });
+      }
+    );
+  });
+});
+
+
 
   db.get(
     'SELECT id, name, nickname, email, is_admin, is_verified FROM users WHERE id = ?',
