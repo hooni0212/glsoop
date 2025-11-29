@@ -1,5 +1,3 @@
-// public/js/author.js
-
 // === 작가 글 목록 무한 스크롤 상태 ===
 const AUTHOR_LIMIT = 10;
 let authorOffset = 0;
@@ -9,6 +7,7 @@ let currentAuthorId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   initAuthorPage();
+  setupAuthorProfileSticky();
 });
 
 async function initAuthorPage() {
@@ -48,6 +47,8 @@ async function loadAuthorProfile(authorId) {
 
     const nickname = (user.nickname && user.nickname.trim()) || '익명';
     const emailMasked = maskEmail(user.email || '');
+    const bio = (user.bio || '').trim();
+    const about = (user.about || '').trim();
 
     // 상단 타이틀
     const titleEl = document.getElementById('authorPageTitle');
@@ -61,12 +62,34 @@ async function loadAuthorProfile(authorId) {
       nickEl.textContent = nickname;
     }
 
-    // ✅ 실명은 전혀 노출하지 않고, 이메일도 마스킹만
+    // 이메일 (마스킹)
     const emailEl = document.getElementById('authorEmailDisplay');
     if (emailEl) {
       emailEl.textContent = emailMasked
         ? `이메일: ${emailMasked}`
         : '이메일: -';
+    }
+
+    // 🔽 프로필 문구: 한 줄 소개
+    const bioEl = document.getElementById('authorBio');
+    if (bioEl) {
+      if (bio) {
+        bioEl.textContent = `한 줄 소개: ${bio}`;
+      } else {
+        bioEl.textContent = '아직 한 줄 소개가 등록되지 않았습니다.';
+      }
+    }
+
+    // 🔽 프로필 문구: 자기소개 (여러 줄)
+    const aboutEl = document.getElementById('authorAbout');
+    if (aboutEl) {
+      if (about) {
+        aboutEl.textContent = about; // white-space: pre-line 이라 줄바꿈 유지
+        aboutEl.style.display = 'block';
+      } else {
+        aboutEl.textContent = '';
+        aboutEl.style.display = 'none';
+      }
     }
 
     // 통계
@@ -170,7 +193,7 @@ function renderAuthorPosts(posts) {
   const fragmentHtml = posts
     .map((post) => {
       const dateStr = post.created_at
-        ? String(post.created_at).replace('T', ' ').slice(0, 16)
+        ? formatKoreanDateTime(post.created_at)
         : '';
 
       const likeCount =
@@ -304,22 +327,18 @@ function setupAuthorPostInteractions(card) {
     });
   }
 
-  // 해시태그 클릭 시 홈 피드로 이동해서 필터 적용 (선택)
+  // 해시태그 클릭 시 홈 피드로 이동해서 필터 적용
   const tagButtons = card.querySelectorAll('.hashtag-pill');
   tagButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       const tag = btn.getAttribute('data-tag');
       if (!tag) return;
-      // 홈 피드로 이동하면서 태그 쿼리 넘기기
       window.location.href = `/index.html?tag=${encodeURIComponent(tag)}`;
     });
   });
 }
 
-/* ===== 공통 유틸 (index.js와 동일 스타일) ===== */
-
-
-// 해시태그 → 버튼 HTML
+/* ===== 해시태그 → 버튼 HTML ===== */
 function buildHashtagHtml(post) {
   if (!post.hashtags) return '';
 
@@ -354,12 +373,16 @@ function setupAuthorProfileSticky() {
 
   function captureBaseRect() {
     const rect = profileCard.getBoundingClientRect();
-    baseTop = rect.top + (window.pageYOffset ||
-      document.documentElement.scrollTop ||
-      0);
-    baseLeft = rect.left + (window.pageXOffset ||
-      document.documentElement.scrollLeft ||
-      0);
+    baseTop =
+      rect.top +
+      (window.pageYOffset ||
+        document.documentElement.scrollTop ||
+        0);
+    baseLeft =
+      rect.left +
+      (window.pageXOffset ||
+        document.documentElement.scrollLeft ||
+        0);
     baseWidth = rect.width;
   }
 
@@ -387,9 +410,8 @@ function setupAuthorProfileSticky() {
       0;
 
     // 네비게이션 높이 + 살짝 여백
-    const NAV_OFFSET = 140; // 필요하면 80~120 사이로 숫자만 조절해도 됨
+    const NAV_OFFSET = 140;
 
-    // 아직 기준값을 못 잡았으면 한 번 계산
     if (!baseWidth) {
       captureBaseRect();
     }
@@ -401,7 +423,6 @@ function setupAuthorProfileSticky() {
       profileCard.style.left = baseLeft + 'px';
       profileCard.style.width = baseWidth + 'px';
     } else {
-      // 원래 자리 위쪽일 때는 고정 해제
       resetProfileCardStyle();
     }
   }
@@ -420,8 +441,3 @@ function setupAuthorProfileSticky() {
   // 최초 한 번 실행
   handleStickyScroll();
 }
-
-// ✅ 기존 initAuthorPage와는 별도로, DOMContentLoaded에 한 번 더 등록
-document.addEventListener('DOMContentLoaded', () => {
-  setupAuthorProfileSticky();
-});

@@ -49,12 +49,16 @@ db.run(`
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     name      TEXT NOT NULL,
     nickname  TEXT,
+    bio       TEXT,
+    about     TEXT,
     email     TEXT NOT NULL UNIQUE,
     pw        TEXT NOT NULL,
     is_admin  INTEGER DEFAULT 0,
     is_verified INTEGER DEFAULT 0,
-    verification_token TEXT,
-    verification_expires DATETIME
+    verification_token   TEXT,
+    verification_expires DATETIME,
+    reset_token          TEXT,
+    reset_expires        DATETIME
   )
 `);
 
@@ -361,9 +365,6 @@ app.post('/api/password-reset-request', (req, res) => {
         });
       }
 
-      // (선택) 이메일 인증이 안 된 회원은 막을 수도 있음
-      // if (!user.is_verified) { ... }
-
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1시간 유효
 
@@ -521,7 +522,6 @@ app.post('/api/password-reset', async (req, res) => {
   );
 });
 
-
 /**
  * 로그인
  * POST /api/login
@@ -615,93 +615,20 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/me', authRequired, (req, res) => {
   const userId = req.user.id;
 
-/**
- * 내 정보 수정 (닉네임 / 비밀번호 변경)
- * PUT /api/me
- * body: { nickname?, currentPw?, newPw? }
- */
-app.put('/api/me', authRequired, (req, res) => {
-  const userId = req.user.id;
-  const { nickname, currentPw, newPw } = req.body || {};
-
-  // 닉네임도 안 바꾸고, 새 비번도 없으면 막기
-  if (!nickname && !newPw) {
-    return res.status(400).json({
-      ok: false,
-      message: '변경할 내용을 입력하세요.',
-    });
-  }
-
-  // 현재 비밀번호 확인 + 새 비밀번호 해시
-  db.get('SELECT pw FROM users WHERE id = ?', [userId], async (err, user) => {
-    if (err) {
-      console.error(err);
-      return res
-        .status(500)
-        .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
-    }
-
-    if (!user) {
-      return res
-        .status(404)
-        .json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
-    }
-
-    let newHashedPw = null;
-
-    // 새 비밀번호를 바꾸려는 경우에만 체크
-    if (newPw) {
-      // 현재 비번이 없으면 막기 (프론트에서도 막지만 서버도 한 번 더 체크)
-      if (!currentPw) {
-        return res.status(400).json({
-          ok: false,
-          message: '비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.',
-        });
-      }
-
-      const okPw = await bcrypt.compare(currentPw, user.pw);
-      if (!okPw) {
-        return res
-          .status(400)
-          .json({ ok: false, message: '현재 비밀번호가 일치하지 않습니다.' });
-      }
-
-      // 새 비밀번호 해시
-      newHashedPw = await bcrypt.hash(newPw, 10);
-    }
-
-    // 닉네임과 비밀번호 중 바뀌는 것만 업데이트
-    db.run(
-      `
-      UPDATE users
-      SET
-        nickname = COALESCE(?, nickname),
-        pw       = COALESCE(?, pw)
-      WHERE id = ?
-      `,
-      [nickname || null, newHashedPw, userId],
-      function (updateErr) {
-        if (updateErr) {
-          console.error(updateErr);
-          return res.status(500).json({
-            ok: false,
-            message: '내 정보 수정 중 오류가 발생했습니다.',
-          });
-        }
-
-        return res.json({
-          ok: true,
-          message: '정보가 성공적으로 수정되었습니다.',
-        });
-      }
-    );
-  });
-});
-
-
-
   db.get(
-    'SELECT id, name, nickname, email, is_admin, is_verified FROM users WHERE id = ?',
+    `
+    SELECT
+      id,
+      name,
+      nickname,
+      bio,
+      about,
+      email,
+      is_admin,
+      is_verified
+    FROM users
+    WHERE id = ?
+    `,
     [userId],
     (err, row) => {
       if (err) {
@@ -722,12 +649,156 @@ app.put('/api/me', authRequired, (req, res) => {
         id: row.id,
         name: row.name,
         nickname: row.nickname,
+        bio: row.bio || null,
+        about: row.about || null,
         email: row.email,
         isAdmin: !!row.is_admin,
         isVerified: !!row.is_verified,
       });
     }
   );
+});
+
+/**
+ * 내 정보 수정 (닉네임 / 비밀번호 / 프로필 변경)
+ * PUT /api/me
+ * body: { nickname?, currentPw?, newPw?, bio?, about? }
+ */
+app.put('/api/me', authRequired, (req, res) => {
+  const userId = req.user.id;
+  const { nickname, currentPw, newPw, bio, about } = req.body || {};
+
+  const fields = [];
+  const params = [];
+
+  // 닉네임 변경
+  if (nickname !== undefined && nickname !== null) {
+    fields.push('nickname = ?');
+    params.push(nickname);
+  }
+
+  // 한 줄 소개
+  if (bio !== undefined) {
+    fields.push('bio = ?');
+    params.push(bio);
+  }
+
+  // 자기소개
+  if (about !== undefined) {
+    fields.push('about = ?');
+    params.push(about);
+  }
+
+  const wantsPwChange = !!newPw;
+
+  // 비밀번호 변경이 없는 경우: 프로필 정보만 변경
+  if (!wantsPwChange) {
+    if (fields.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        message: '변경할 내용을 입력하세요.',
+      });
+    }
+
+    params.push(userId);
+
+    db.run(
+      `
+      UPDATE users
+      SET ${fields.join(', ')}
+      WHERE id = ?
+      `,
+      params,
+      function (updateErr) {
+        if (updateErr) {
+          console.error(updateErr);
+          return res.status(500).json({
+            ok: false,
+            message: '내 정보 수정 중 오류가 발생했습니다.',
+          });
+        }
+
+        return res.json({
+          ok: true,
+          message: '정보가 성공적으로 수정되었습니다.',
+        });
+      }
+    );
+    return;
+  }
+
+  // 비밀번호 변경이 있는 경우 → currentPw 검증 후 pw까지 함께 업데이트
+  if (!currentPw) {
+    return res.status(400).json({
+      ok: false,
+      message: '비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.',
+    });
+  }
+
+  db.get('SELECT pw FROM users WHERE id = ?', [userId], async (err, user) => {
+    if (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
+    }
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    const okPw = await bcrypt.compare(currentPw, user.pw);
+    if (!okPw) {
+      return res
+        .status(400)
+        .json({ ok: false, message: '현재 비밀번호가 일치하지 않습니다.' });
+    }
+
+    if (!newPw || newPw.length < 6) {
+      return res.status(400).json({
+        ok: false,
+        message: '새 비밀번호는 최소 6자 이상이어야 합니다.',
+      });
+    }
+
+    const newHashedPw = await bcrypt.hash(newPw, 10);
+    fields.push('pw = ?');
+    params.push(newHashedPw);
+
+    if (fields.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        message: '변경할 내용을 입력하세요.',
+      });
+    }
+
+    params.push(userId);
+
+    db.run(
+      `
+      UPDATE users
+      SET ${fields.join(', ')}
+      WHERE id = ?
+      `,
+      params,
+      function (updateErr) {
+        if (updateErr) {
+          console.error(updateErr);
+          return res.status(500).json({
+            ok: false,
+            message: '내 정보 수정 중 오류가 발생했습니다.',
+          });
+        }
+
+        return res.json({
+          ok: true,
+          message: '정보가 성공적으로 수정되었습니다.',
+        });
+      }
+    );
+  });
 });
 
 // ================== 작가(사용자) 공개 프로필 / 작가 글 목록 ==================
@@ -747,7 +818,9 @@ app.get('/api/users/:id/profile', (req, res) => {
       id,
       name,
       nickname,
-      email
+      email,
+      bio,
+      about
     FROM users
     WHERE id = ?
     `,
@@ -793,6 +866,8 @@ app.get('/api/users/:id/profile', (req, res) => {
               name: user.name,
               nickname: user.nickname,
               email: user.email,             // 프론트에서 마스킹 처리
+              bio: user.bio || null,
+              about: user.about || null,
               postCount: stats?.post_count || 0,
               totalLikes: stats?.total_likes || 0,
             },
@@ -1108,16 +1183,6 @@ app.get('/api/posts/liked', authRequired, (req, res) => {
   );
 });
 
-/**
- * 글 피드 조회 (무한스크롤 + 해시태그 필터 지원)
- * GET /api/posts/feed
- *
- * - 로그인 필요 없음 (단, 로그인 되어 있으면 내가 공감 눌렀는지까지 포함)
- * - 쿼리스트링으로 페이징:
- *   - ?offset=0&limit=20
- * - 특정 해시태그만 보고 싶으면:
- *   - ?tag=힐링 또는 ?tag=#힐링
- */
 /**
  * 글 피드 조회 (무한스크롤 + 해시태그 필터 지원)
  * GET /api/posts/feed

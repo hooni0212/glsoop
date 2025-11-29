@@ -5,8 +5,8 @@ let likedPostsLoaded = false;
 
 document.addEventListener('DOMContentLoaded', () => {
   setupMyPageTabs();
-  loadMyPage();          // 내 정보 + 기본 탭(내가 쓴 글) 로드
-  setupUserEditForm();   // 내 정보 수정 모달
+  loadMyPage();            // 내 정보 + 기본 탭(내가 쓴 글) 로드
+  setupUserEditForm();     // 내 정보 수정 모달
   setupMyPostCardEvents(); // 수정/삭제 버튼 이벤트
 });
 
@@ -49,13 +49,32 @@ async function loadMyPage() {
     }
 
     // 2. 내 정보 출력 + "내 정보 수정" 버튼 (모달 열기)
+    const displayName =
+      meData.nickname && meData.nickname.trim().length > 0
+        ? meData.nickname
+        : meData.name;
+
+    const bioHtml = meData.bio
+      ? `<p class="mb-1 text-muted small">한 줄 소개: ${escapeHtml(
+          meData.bio
+        )}</p>`
+      : '';
+
+    const aboutHtml = meData.about
+      ? `<p class="mb-0 small" style="white-space: pre-line;">${escapeHtml(
+          meData.about
+        )}</p>`
+      : '';
+
     userInfoBox.innerHTML = `
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
           <p class="mb-1"><strong>안녕하세요, ${escapeHtml(
-            meData.name
+            displayName
           )}님!</strong></p>
           <p class="mb-1">이메일: ${escapeHtml(meData.email)}</p>
+          ${bioHtml}
+          ${aboutHtml}
         </div>
         <button
           type="button"
@@ -68,10 +87,19 @@ async function loadMyPage() {
       </div>
     `;
 
-    // 2-1. 모달 내 닉네임 기본 값 채우기
+    // 2-1. 모달 내 닉네임 / 프로필 기본 값 채우기
     const nicknameInput = document.getElementById('nicknameInput');
+    const bioInput = document.getElementById('bioInput');
+    const aboutInput = document.getElementById('aboutInput');
+
     if (nicknameInput) {
       nicknameInput.value = meData.nickname || '';
+    }
+    if (bioInput) {
+      bioInput.value = meData.bio || '';
+    }
+    if (aboutInput) {
+      aboutInput.value = meData.about || '';
     }
 
     // 기본 탭: 내가 쓴 글
@@ -80,11 +108,16 @@ async function loadMyPage() {
     console.error(e);
     userInfoBox.innerHTML =
       '<p class="text-danger">마이페이지를 불러오는 중 오류가 발생했습니다.</p>';
-    const myPostsBox = document.getElementById('myPosts');
-    const likedBox = document.getElementById('likedPosts');
-    if (myPostsBox) myPostsBox.innerHTML = '';
-    if (likedBox) likedBox.innerHTML =
-      '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
+    const myPostsBox2 = document.getElementById('myPosts');
+    const likedBox2 = document.getElementById('likedPosts');
+    if (myPostsBox2) {
+      myPostsBox2.innerHTML =
+        '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
+    }
+    if (likedBox2) {
+      likedBox2.innerHTML =
+        '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
+    }
   }
 }
 
@@ -357,6 +390,8 @@ function setupMyPostCardEvents() {
 function setupUserEditForm() {
   const form = document.getElementById('userEditForm');
   const nicknameInput = document.getElementById('nicknameInput');
+  const bioInput = document.getElementById('bioInput');
+  const aboutInput = document.getElementById('aboutInput');
   const currentPwInput = document.getElementById('currentPwInput');
   const newPwInput = document.getElementById('newPwInput');
   const newPwConfirmInput = document.getElementById('newPwConfirmInput');
@@ -370,6 +405,8 @@ function setupUserEditForm() {
     e.preventDefault();
 
     const nickname = nicknameInput ? nicknameInput.value.trim() : '';
+    const bio = bioInput ? bioInput.value.trim() : '';
+    const about = aboutInput ? aboutInput.value : '';
     const currentPw = currentPwInput ? currentPwInput.value : '';
     const newPw = newPwInput ? newPwInput.value : '';
     const newPwConfirm = newPwConfirmInput ? newPwConfirmInput.value : '';
@@ -416,8 +453,8 @@ function setupUserEditForm() {
       }
     }
 
-    // 변경할 내용이 하나도 없으면 막기
-    if (!nickname && !newPw) {
+    // 변경할 내용이 하나도 없으면 막기 (닉네임/소개/비번 모두 비어있을 때)
+    if (!nickname && !bio && !about && !newPw) {
       if (messageSpan) {
         messageSpan.classList.add('text-danger');
         messageSpan.textContent = '변경할 내용을 입력해주세요.';
@@ -430,9 +467,11 @@ function setupUserEditForm() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nickname: nickname || null,
+          nickname: nickname || null, // 비우면 null로 저장 → 이름 표시
           currentPw: currentPw || null,
           newPw: newPw || null,
+          bio: bio,
+          about: about,
         }),
       });
 
@@ -457,6 +496,9 @@ function setupUserEditForm() {
       if (currentPwInput) currentPwInput.value = '';
       if (newPwInput) newPwInput.value = '';
       if (newPwConfirmInput) newPwConfirmInput.value = '';
+
+      // 상단 프로필 영역도 바로 갱신
+      await loadMyPage();
     } catch (err) {
       console.error(err);
       if (messageSpan) {
