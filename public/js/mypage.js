@@ -497,6 +497,15 @@ function setupUserEditForm() {
       if (newPwInput) newPwInput.value = '';
       if (newPwConfirmInput) newPwConfirmInput.value = '';
 
+      // ✅ 모달 닫기
+      const modalEl = document.getElementById('userEditModal');
+      if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+        const modalInstance =
+          window.bootstrap.Modal.getInstance(modalEl) ||
+          new window.bootstrap.Modal(modalEl);
+        modalInstance.hide();
+      }
+
       // 상단 프로필 영역도 바로 갱신
       await loadMyPage();
     } catch (err) {
