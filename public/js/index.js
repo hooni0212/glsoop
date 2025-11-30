@@ -161,7 +161,7 @@ Glsoop.FeedPage = (function () {
       console.error(e);
       if (feedOffset === 0) {
         feedBox.innerHTML =
-          '<p class="text-danger">피드를 불러오는 중 오류가 발생했습니다.</p>';
+          '<p class="text-danger">피드를 불러오는 중 오류가 발생했습니다。</p>';
       }
     } finally {
       feedLoading = false;
@@ -270,17 +270,17 @@ Glsoop.FeedPage = (function () {
     // 맨 아래에 추가
     feedBox.insertAdjacentHTML('beforeend', fragmentHtml);
 
-    // 새로 추가된 카드들에 대해 폰트/더보기/좋아요/해시태그/작성자 링크 설정
+    // 새로 추가된 카드들에 대해 폰트/더보기/좋아요/해시태그/작성자 링크/상세보기 설정
     posts.forEach((post) => {
       const card = feedBox.querySelector(`.card[data-post-id="${post.id}"]`);
       if (!card) return;
       setupCardAuthorLink(card, post);
-      setupCardInteractions(card);
+      setupCardInteractions(card, post); // 🔥 post도 함께 넘김
     });
   }
 
   // === 개별 카드에 대한 인터랙션 세팅 ===
-  function setupCardInteractions(card) {
+  function setupCardInteractions(card, post) {
     // 1) 글귀 폰트 자동 조절 (utils.js)
     const quoteCard = card.querySelector('.quote-card');
     if (quoteCard) {
@@ -301,7 +301,9 @@ Glsoop.FeedPage = (function () {
         moreBtn.style.display = 'inline-block';
         moreBtn.textContent = '더보기...';
 
-        moreBtn.addEventListener('click', () => {
+        moreBtn.addEventListener('click', (e) => {
+          // 카드 전체 클릭으로 버블링되지 않게
+          e.stopPropagation();
           const nowExpanded = contentBox.classList.toggle('expanded');
           moreBtn.textContent = nowExpanded ? '접기' : '더보기...';
         });
@@ -311,17 +313,56 @@ Glsoop.FeedPage = (function () {
     // 3) 좋아요(공감) 버튼
     const likeBtn = card.querySelector('.like-btn');
     if (likeBtn) {
-      likeBtn.addEventListener('click', () => handleLikeClick(likeBtn));
+      likeBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // 카드 클릭 막기
+        handleLikeClick(likeBtn);
+      });
     }
 
     // 4) 해시태그 뱃지 클릭 → 태그 필터 추가 (AND 조건)
     const tagButtons = card.querySelectorAll('.hashtag-pill');
     tagButtons.forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation(); // 카드 클릭 막기
         const tag = btn.getAttribute('data-tag');
         if (!tag) return;
         applyTagFilter(tag);
       });
+    });
+
+    // 5) 카드 전체 클릭 → 글 상세 페이지(트위터 형식)로 이동
+    card.addEventListener('click', () => {
+      const postId =
+        card.getAttribute('data-post-id') || (post && post.id);
+      if (!postId) return;
+
+      // localStorage에 글 데이터 저장 (post.html에서 사용)
+      if (post) {
+        try {
+          const detailData = {
+            id: post.id,
+            title: post.title,
+            content: post.content,
+            created_at: post.created_at,
+            hashtags: post.hashtags,
+            author_nickname:
+              (post.author_nickname && post.author_nickname.trim()) ||
+              (post.author_name && post.author_name.trim()) ||
+              null,
+            author_email: post.author_email || null,
+          };
+          localStorage.setItem(
+            'glsoop_lastPost',
+            JSON.stringify(detailData)
+          );
+        } catch (err) {
+          console.error('failed to cache post detail', err);
+        }
+      }
+
+      window.location.href = `/html/post.html?postId=${encodeURIComponent(
+        postId
+      )}`;
     });
   }
 
@@ -392,7 +433,9 @@ Glsoop.FeedPage = (function () {
     metaEl.setAttribute('data-author-id', post.author_id);
     metaEl.style.cursor = 'pointer';
 
-    metaEl.addEventListener('click', () => {
+    metaEl.addEventListener('click', (e) => {
+      // 카드 전체 클릭(상세 페이지 이동)과 분리
+      e.stopPropagation();
       const authorId = metaEl.getAttribute('data-author-id');
       if (!authorId) return;
       window.location.href = `/html/author.html?userId=${encodeURIComponent(
