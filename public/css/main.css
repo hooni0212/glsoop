@@ -27,13 +27,14 @@ body {
 a {
   text-decoration: none;
 }
+
 a:hover {
   text-decoration: underline;
 }
 
 
 /* =========================
-   2. 네비게이션 바
+   2. 네비게이션 바 (상단 헤더)
 ========================= */
 
 /* 상단 네비 전체 배경 */
@@ -49,7 +50,7 @@ a:hover {
   letter-spacing: 0.08em;
   line-height: 1;
 
-  /* 🟢 거의 흰색에 가까운 연초록 그라디언트 */
+  /* 거의 흰색에 가까운 연초록 그라디언트 */
   background: linear-gradient(120deg, #f8fff9, #ecfff4);
   -webkit-background-clip: text;
   background-clip: text;
@@ -59,8 +60,7 @@ a:hover {
   display: inline-block;
 }
 
-/* 호버 기능 일단 주석처리 */
-/*
+/* 호버 기능 (현재는 비활성화 상태로 주석 처리)
 .custom-navbar .navbar-brand:hover {
   background: linear-gradient(120deg, #f3fff6, #e2ffe9);
   -webkit-background-clip: text;
@@ -68,7 +68,7 @@ a:hover {
   color: transparent;
   text-shadow: 0 0 4px rgba(226, 255, 233, 0.6);
 }
-/*
+*/
 
 /* 모바일에서 로고 크기 약간 축소 */
 @media (max-width: 576px) {
@@ -98,7 +98,7 @@ a:hover {
 
 
 /* =========================
-   3. 검색바 (사용 시)
+   3. 검색바 (헤더 검색 폼)
 ========================= */
 
 .search-form {
@@ -176,13 +176,14 @@ a:hover {
 .btn-success {
   background-color: #2e8b57;
 }
+
 .btn-success:hover {
   background-color: #267349;
 }
 
 
 /* =========================
-   6. 카드 / 글 목록 공통
+   6. 카드 / 글 목록 공통 스타일
 ========================= */
 
 .card {
@@ -220,7 +221,7 @@ a:hover {
 
 
 /* =========================
-7. 인스타 감성 종이질감 카드
+   7. 인스타 감성 종이질감 카드 (quote-card)
 ========================= */
 
 .quote-card {
@@ -246,7 +247,7 @@ a:hover {
   align-items: stretch;
   text-align: left;
 
-  /* 타이포 */
+  /* 타이포 기본값 */
   font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
   font-size: 1.6rem;
   line-height: 1.9rem;
@@ -260,6 +261,17 @@ a:hover {
   width: 100%;
 }
 
+/* 🔒 텍스트 영역 지정(드래그) 방지 - 종이 카드 & 내부 텍스트 */
+.quote-card,
+.quote-card * {
+  -webkit-user-select: none; /* 크롬/사파리 */
+  -moz-user-select: none;    /* 파이어폭스 */
+  -ms-user-select: none;     /* 예전 IE/Edge */
+  user-select: none;         /* 표준 */
+
+  -webkit-touch-callout: none; /* 모바일에서 길게 눌렀을 때 메뉴 최소화 */
+}
+
 /* 모바일에서 조금 작게 */
 @media (max-width: 576px) {
   .quote-card {
@@ -267,6 +279,20 @@ a:hover {
     padding: 1.2rem;
     font-size: 1.4rem;
   }
+}
+
+/* quote-card 폰트 스타일 변형 (에디터에서 FONT 메타에 따라) */
+.quote-card.quote-font-serif {
+  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+}
+
+.quote-card.quote-font-sans {
+  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+
+.quote-card.quote-font-hand {
+  font-family: 'Nanum Pen Script', cursive;
 }
 
 
@@ -303,7 +329,7 @@ a:hover {
   font-size: 1rem;
 }
 
-/* 범프 상태: 확실히 눈에 띄게 (★ 여기 s 빼는 게 중요!) */
+/* 범프 상태: 확실히 눈에 띄게 */
 .like-heart.bump {
   transform: scale(1.4);
 }
@@ -329,7 +355,7 @@ a:hover {
 
 
 /* =========================
-   10. 마이페이지 박스 스타일
+   10. 마이페이지 상단 정보 박스
 ========================= */
 
 #userInfo {
@@ -341,7 +367,7 @@ a:hover {
 
 
 /* =========================
-   11. 에디터 영역 (글쓰기 페이지)
+   11. 에디터 영역 (글쓰기 페이지 공통)
 ========================= */
 
 .editor-wrapper {
@@ -557,23 +583,6 @@ a:hover {
   }
 }
 
-/* =========================
-   피드 / 미리보기 카드 폰트 스타일 변형
-   - quote-font-* 클래스는 JS에서 동적으로 붙임
-========================= */
-
-.quote-card.quote-font-serif {
-  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
-}
-
-.quote-card.quote-font-sans {
-  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
-    sans-serif;
-}
-
-.quote-card.quote-font-hand {
-  font-family: 'Nanum Pen Script', cursive;
-}
 
 /* =========================
    16. 글쓰기 페이지 전용 레이아웃
