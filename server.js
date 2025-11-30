@@ -225,8 +225,8 @@ app.post('/api/signup', async (req, res) => {
             `,
           },
           (mailErr) => {
+            // ❗ 응답은 이미 보냈으므로 여기서는 로그만
             if (mailErr) {
-              // ❗ 여기서는 res에 아무것도 하지 말고, 로그만 남긴다
               console.error('인증 메일 발송 오류:', mailErr);
             }
           }
@@ -1258,6 +1258,156 @@ app.get('/api/posts/feed', (req, res) => {
       hasMore: rows.length === limit,
     });
   });
+});
+
+/**
+ * 관련 글 추천
+ * GET /api/posts/:id/related?limit=6
+ *
+ * - 현재 글을 기준으로:
+ *   · 최근 글들 중에서
+ *   · 태그 겹치는 정도 + 같은 작가 여부 + 좋아요 수 + 최신 정도
+ *   를 점수로 계산해 상위 N개 반환
+ */
+app.get('/api/posts/:id/related', (req, res) => {
+  const postId = parseInt(req.params.id, 10);
+  if (!postId) {
+    return res
+      .status(400)
+      .json({ ok: false, message: '잘못된 글 ID입니다.' });
+  }
+
+  const limit = parseInt(req.query.limit, 10) || 6;
+
+  // 1) 기준이 되는 현재 글 정보 (작성자 + 해시태그) 가져오기
+  db.get(
+    `
+    SELECT
+      p.id,
+      p.user_id AS author_id,
+      p.created_at,
+      GROUP_CONCAT(DISTINCT h.name) AS hashtags
+    FROM posts p
+    LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+    LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+    WHERE p.id = ?
+    GROUP BY p.id
+    `,
+    [postId],
+    (err, current) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ ok: false, message: '기준 글 조회 중 DB 오류가 발생했습니다.' });
+      }
+
+      if (!current) {
+        return res
+          .status(404)
+          .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+      }
+
+      const currentTags = current.hashtags
+        ? current.hashtags
+            .split(',')
+            .map((t) => t.trim().toLowerCase())
+            .filter(Boolean)
+        : [];
+
+      // 2) 후보 글들: 최근 글 100개 (현재 글 제외)
+      const CANDIDATE_LIMIT = 100;
+
+      db.all(
+        `
+        SELECT
+          p.id,
+          p.title,
+          p.content,
+          p.created_at,
+          u.id      AS author_id,
+          u.name     AS author_name,
+          u.nickname AS author_nickname,
+          u.email    AS author_email,
+          IFNULL(l.like_count, 0) AS like_count,
+          GROUP_CONCAT(DISTINCT h.name) AS hashtags
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN (
+          SELECT post_id, COUNT(*) AS like_count
+          FROM likes
+          GROUP BY post_id
+        ) l ON l.post_id = p.id
+        LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+        LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+        WHERE p.id != ?
+        GROUP BY p.id
+        ORDER BY p.created_at DESC
+        LIMIT ?
+        `,
+        [postId, CANDIDATE_LIMIT],
+        (err2, rows) => {
+          if (err2) {
+            console.error(err2);
+            return res.status(500).json({
+              ok: false,
+              message: '관련 글을 불러오는 중 DB 오류가 발생했습니다.',
+            });
+          }
+
+          if (!rows || rows.length === 0) {
+            return res.json({ ok: true, posts: [] });
+          }
+
+          const now = Date.now();
+          const ONE_DAY = 1000 * 60 * 60 * 24;
+
+          const scored = rows.map((p) => {
+            const tagStr = p.hashtags || '';
+            const postTags = tagStr
+              .split(',')
+              .map((t) => t.trim().toLowerCase())
+              .filter(Boolean);
+
+            const overlapCount = postTags.filter((t) =>
+              currentTags.includes(t)
+            ).length;
+
+            const sameAuthor = p.author_id === current.author_id ? 1 : 0;
+
+            const createdTime = new Date(p.created_at).getTime();
+            let recencyScore = 0;
+            if (!isNaN(createdTime)) {
+              const daysAgo = (now - createdTime) / ONE_DAY;
+              // 0일 전이면 7점, 7일 지나면 0점 정도로 감쇠
+              recencyScore = Math.max(0, 7 - daysAgo);
+            }
+
+            const likeCount = p.like_count || 0;
+
+            const score =
+              overlapCount * 3 + // 태그 겹치는 정도
+              sameAuthor * 2 + // 같은 작가 보너스
+              likeCount * 1 + // 좋아요
+              recencyScore * 1; // 최신 정도
+
+            return { ...p, _score: score };
+          });
+
+          // 점수 내림차순 정렬
+          scored.sort((a, b) => b._score - a._score);
+
+          const finalPosts = scored.slice(0, limit).map((p) => {
+            const copy = { ...p };
+            delete copy._score;
+            return copy;
+          });
+
+          return res.json({ ok: true, posts: finalPosts });
+        }
+      );
+    }
+  );
 });
 
 /**
