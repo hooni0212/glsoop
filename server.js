@@ -143,7 +143,7 @@ function adminRequired(req, res, next) {
  * POST /api/signup
  * body: { name, nickname, email, pw }
  * → DB에 is_verified = 0 상태로 저장 후 인증 메일 발송
- */
+**/
 app.post('/api/signup', async (req, res) => {
   const { name, nickname, email, pw } = req.body;
 
@@ -155,13 +155,14 @@ app.post('/api/signup', async (req, res) => {
   }
 
   try {
-    // 비밀번호 해시
+    // 1) 비밀번호 해시
     const hashed = await bcrypt.hash(pw, 10);
 
-    // 인증 토큰 & 만료 시간 생성 (1시간 유효)
+    // 2) 인증 토큰 & 만료 시간 생성 (1시간 유효)
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString();
 
+    // 3) DB INSERT
     db.run(
       `
       INSERT INTO users (
@@ -176,7 +177,7 @@ app.post('/api/signup', async (req, res) => {
       )
       VALUES (?, ?, ?, ?, 0, 0, ?, ?)
       `,
-      [name, nickname, email, hashed, token, expiresAt],
+      [name, nickname, email.trim().toLowerCase(), hashed, token, expiresAt],
       function (err) {
         if (err) {
           if (err.message && err.message.includes('UNIQUE')) {
@@ -190,10 +191,17 @@ app.post('/api/signup', async (req, res) => {
             .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
         }
 
-        // 가입은 DB에 저장됐고, 이제 인증 메일 발송
+        // 4) 여기서 바로 클라이언트에 성공 응답 보내기
         const verifyUrl =
           `${req.protocol}://${req.get('host')}/api/verify-email?token=${token}`;
 
+        res.json({
+          ok: true,
+          message:
+            '입력하신 이메일로 인증 링크를 보냈어요. 메일에서 인증을 완료한 뒤 로그인해 주세요.',
+        });
+
+        // 5) 인증 메일은 응답 보낸 뒤 "백그라운드"로 발송
         transporter.sendMail(
           {
             from: `"글숲" <${process.env.GMAIL_USER}>`,
@@ -218,19 +226,9 @@ app.post('/api/signup', async (req, res) => {
           },
           (mailErr) => {
             if (mailErr) {
-              console.error(mailErr);
-              return res.status(500).json({
-                ok: false,
-                message:
-                  '회원 정보는 생성되었지만, 인증 메일 발송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
-              });
+              // ❗ 여기서는 res에 아무것도 하지 말고, 로그만 남긴다
+              console.error('인증 메일 발송 오류:', mailErr);
             }
-
-            return res.json({
-              ok: true,
-              message:
-                '입력하신 이메일로 인증 링크를 보냈어요. 메일에서 인증을 완료한 뒤 로그인해 주세요.',
-            });
           }
         );
       }
@@ -241,94 +239,6 @@ app.post('/api/signup', async (req, res) => {
       .status(500)
       .json({ ok: false, message: '서버 오류가 발생했습니다.' });
   }
-});
-
-/**
- * 이메일 인증
- * GET /api/verify-email?token=...
- * → 토큰 확인 후 is_verified = 1로 업데이트
- */
-app.get('/api/verify-email', (req, res) => {
-  const { token } = req.query;
-
-  if (!token) {
-    return res
-      .status(400)
-      .send('<h3>잘못된 요청입니다. 토큰이 없습니다.</h3>');
-  }
-
-  db.get(
-    'SELECT * FROM users WHERE verification_token = ?',
-    [token],
-    (err, user) => {
-      if (err) {
-        console.error(err);
-        return res
-          .status(500)
-          .send('<h3>서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.</h3>');
-      }
-
-      if (!user) {
-        return res
-          .status(400)
-          .send('<h3>유효하지 않은 토큰입니다. 이미 인증이 완료되었거나, 잘못된 링크입니다.</h3>');
-      }
-
-      // 만료 시간 체크
-      if (user.verification_expires) {
-        const now = Date.now();
-        const expiresTime = new Date(user.verification_expires).getTime();
-        if (expiresTime < now) {
-          return res
-            .status(400)
-            .send('<h3>인증 링크가 만료되었습니다. 다시 회원가입을 진행해주세요.</h3>');
-        }
-      }
-
-      db.run(
-        `
-        UPDATE users
-        SET is_verified = 1,
-            verification_token = NULL,
-            verification_expires = NULL
-        WHERE id = ?
-        `,
-        [user.id],
-        function (updateErr) {
-          if (updateErr) {
-            console.error(updateErr);
-            return res
-              .status(500)
-              .send('<h3>인증 처리 중 오류가 발생했습니다.</h3>');
-          }
-
-          // 간단한 완료 페이지 응답
-          return res.send(`
-            <html lang="ko">
-              <head>
-                <meta charset="UTF-8" />
-                <title>이메일 인증 완료 | 글숲</title>
-              </head>
-              <body style="font-family: -apple-system,BlinkMacSystemFont,'Noto Sans KR',sans-serif;">
-                <div style="max-width:480px;margin:60px auto;text-align:center;">
-                  <h2>이메일 인증이 완료되었습니다 ✅</h2>
-                  <p>이제 로그인하실 수 있어요.</p>
-                  <p style="margin-top:24px;">
-                    <a href="/html/login.html"
-                       style="display:inline-block;padding:10px 18px;
-                              background:#2e8b57;color:#fff;
-                              text-decoration:none;border-radius:6px;">
-                      로그인 하러 가기
-                    </a>
-                  </p>
-                </div>
-              </body>
-            </html>
-          `);
-        }
-      );
-    }
-  );
 });
 
 /**
