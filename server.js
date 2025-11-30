@@ -1,4 +1,8 @@
 // server.js
+
+// --------------------------------------------------
+// 1. 환경 변수 및 필수 모듈 로드
+// --------------------------------------------------
 require('dotenv').config();
 
 const express = require('express');
@@ -20,7 +24,9 @@ console.log(
 const app = express();
 const PORT = 3000;
 
-// ================== 이메일 전송 설정 ==================
+// --------------------------------------------------
+// 2. 이메일 발송 설정 (Gmail SMTP 사용)
+// --------------------------------------------------
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -29,21 +35,26 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// .env로 빼두기 완료.
+// JWT 서명에 사용할 비밀키 (배포 시에는 .env에서 관리)
 const JWT_SECRET = process.env.JWT_SECRET || 'DEV_ONLY_FALLBACK_SECRET';
 
-// ================== 미들웨어 ==================
+// --------------------------------------------------
+// 3. 공통 미들웨어 설정
+// --------------------------------------------------
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // 정적 파일 제공 (public 폴더)
+//  - HTML, CSS, JS, 이미지 등 클라이언트 파일
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ================== DB 연결 및 테이블 생성 ==================
+// --------------------------------------------------
+// 4. DB 연결 및 스키마 정의 (SQLite)
+// --------------------------------------------------
 const db = new sqlite3.Database('users.db');
 
-// users 테이블
+// 4-1) 사용자 정보 테이블
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,7 +73,7 @@ db.run(`
   )
 `);
 
-// posts 테이블
+// 4-2) 글(포스트) 테이블
 db.run(`
   CREATE TABLE IF NOT EXISTS posts (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +85,7 @@ db.run(`
   )
 `);
 
-// likes 테이블 (user별로 한 번만 공감 가능)
+// 4-3) 좋아요 테이블 (사용자-게시글 쌍당 1회만 허용)
 db.run(`
   CREATE TABLE IF NOT EXISTS likes (
     user_id    INTEGER NOT NULL,
@@ -86,7 +97,7 @@ db.run(`
   )
 `);
 
-// 해시태그 목록
+// 4-4) 해시태그 목록
 db.run(`
   CREATE TABLE IF NOT EXISTS hashtags (
     id   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,7 +105,7 @@ db.run(`
   )
 `);
 
-// 게시글-해시태그 매핑
+// 4-5) 게시글-해시태그 매핑 테이블
 db.run(`
   CREATE TABLE IF NOT EXISTS post_hashtags (
     post_id    INTEGER NOT NULL,
@@ -104,7 +115,11 @@ db.run(`
   )
 `);
 
-// ================== JWT 인증 미들웨어 ==================
+// --------------------------------------------------
+// 5. 인증/권한 관련 미들웨어
+// --------------------------------------------------
+
+// 5-1) 로그인 필수 라우트용 미들웨어
 function authRequired(req, res, next) {
   const token = req.cookies.token;
   if (!token) {
@@ -120,13 +135,12 @@ function authRequired(req, res, next) {
         message: '토큰이 만료되었거나 유효하지 않습니다.',
       });
     }
-    // decoded: { id, name, nickname, email, isAdmin, isVerified, iat, exp }
-    req.user = decoded;
+    req.user = decoded; // { id, name, nickname, email, isAdmin, isVerified, ... }
     next();
   });
 }
 
-// 관리자 전용 체크 미들웨어
+// 5-2) 관리자 전용 라우트용 미들웨어
 function adminRequired(req, res, next) {
   if (!req.user || !req.user.isAdmin) {
     return res
@@ -136,14 +150,11 @@ function adminRequired(req, res, next) {
   next();
 }
 
-// ================== 회원가입 / 이메일 인증 / 로그인 / 로그아웃 ==================
+// --------------------------------------------------
+// 6. 인증 / 계정 관련 라우트 (회원가입·로그인·비번재설정 등)
+// --------------------------------------------------
 
-/**
- * 회원가입
- * POST /api/signup
- * body: { name, nickname, email, pw }
- * → DB에 is_verified = 0 상태로 저장 후 인증 메일 발송
-**/
+// 6-1) 회원가입: 기본 정보 저장 후 이메일 인증 링크 전송
 app.post('/api/signup', async (req, res) => {
   const { name, nickname, email, pw } = req.body;
 
@@ -155,14 +166,11 @@ app.post('/api/signup', async (req, res) => {
   }
 
   try {
-    // 1) 비밀번호 해시
     const hashed = await bcrypt.hash(pw, 10);
 
-    // 2) 인증 토큰 & 만료 시간 생성 (1시간 유효)
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString();
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString(); // 1시간
 
-    // 3) DB INSERT
     db.run(
       `
       INSERT INTO users (
@@ -191,17 +199,17 @@ app.post('/api/signup', async (req, res) => {
             .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
         }
 
-        // 4) 여기서 바로 클라이언트에 성공 응답 보내기
         const verifyUrl =
           `${req.protocol}://${req.get('host')}/api/verify-email?token=${token}`;
 
+        // 먼저 클라이언트에 성공 응답
         res.json({
           ok: true,
           message:
             '입력하신 이메일로 인증 링크를 보냈어요. 메일에서 인증을 완료한 뒤 로그인해 주세요.',
         });
 
-        // 5) 인증 메일은 응답 보낸 뒤 "백그라운드"로 발송
+        // 응답 후 백그라운드에서 이메일 발송
         transporter.sendMail(
           {
             from: `"글숲" <${process.env.GMAIL_USER}>`,
@@ -225,7 +233,6 @@ app.post('/api/signup', async (req, res) => {
             `,
           },
           (mailErr) => {
-            // ❗ 응답은 이미 보냈으므로 여기서는 로그만
             if (mailErr) {
               console.error('인증 메일 발송 오류:', mailErr);
             }
@@ -241,11 +248,7 @@ app.post('/api/signup', async (req, res) => {
   }
 });
 
-/**
- * 비밀번호 재설정 메일 요청
- * POST /api/password-reset-request
- * body: { email }
- */
+// 6-2) 비밀번호 재설정 메일 요청
 app.post('/api/password-reset-request', (req, res) => {
   const { email } = req.body || {};
 
@@ -266,7 +269,7 @@ app.post('/api/password-reset-request', (req, res) => {
           .json({ ok: false, message: '서버 오류가 발생했습니다.' });
       }
 
-      // 보안상 "존재/비존재"를 알려주지 않는 게 좋음
+      // 존재 여부를 직접 알려주지 않고 항상 같은 응답
       if (!user) {
         return res.json({
           ok: true,
@@ -276,7 +279,7 @@ app.post('/api/password-reset-request', (req, res) => {
       }
 
       const token = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1시간 유효
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1시간
 
       db.run(
         `
@@ -343,11 +346,7 @@ app.post('/api/password-reset-request', (req, res) => {
   );
 });
 
-/**
- * 비밀번호 실제 재설정
- * POST /api/password-reset
- * body: { token, newPw }
- */
+// 6-3) 비밀번호 실제 변경 처리
 app.post('/api/password-reset', async (req, res) => {
   const { token, newPw } = req.body || {};
 
@@ -375,13 +374,7 @@ app.post('/api/password-reset', async (req, res) => {
           .json({ ok: false, message: '서버 오류가 발생했습니다.' });
       }
 
-      if (!user) {
-        return res
-          .status(400)
-          .json({ ok: false, message: '유효하지 않은 링크입니다.' });
-      }
-
-      if (!user.reset_expires) {
+      if (!user || !user.reset_expires) {
         return res
           .status(400)
           .json({ ok: false, message: '유효하지 않은 링크입니다.' });
@@ -432,12 +425,7 @@ app.post('/api/password-reset', async (req, res) => {
   );
 });
 
-/**
- * 로그인
- * POST /api/login
- * body: { email, pw }
- * 성공 시 httpOnly 쿠키에 JWT 저장
- */
+// 6-4) 로그인: 이메일/비밀번호 확인 후 JWT 쿠키 발급
 app.post('/api/login', (req, res) => {
   const { email, pw } = req.body;
 
@@ -468,7 +456,6 @@ app.post('/api/login', (req, res) => {
         .json({ ok: false, message: '비밀번호가 틀렸습니다.' });
     }
 
-    // ✅ 이메일 인증 여부 체크
     if (!user.is_verified) {
       return res.status(403).json({
         ok: false,
@@ -490,11 +477,10 @@ app.post('/api/login', (req, res) => {
       { expiresIn: '2h' }
     );
 
-    // httpOnly 쿠키에 JWT 저장
     res.cookie('token', token, {
       httpOnly: true,
       sameSite: 'lax',
-      // secure: true, // HTTPS 환경에서만 사용할 경우
+      // secure: true, // HTTPS 사용 시 활성화
       path: '/',
     });
 
@@ -507,21 +493,17 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-/**
- * 로그아웃
- * POST /api/logout
- */
+// 6-5) 로그아웃: JWT 쿠키 삭제
 app.post('/api/logout', (req, res) => {
   res.clearCookie('token', { path: '/' });
   res.json({ ok: true, message: '로그아웃되었습니다.' });
 });
 
-// ================== 사용자 정보 ==================
+// --------------------------------------------------
+// 7. 내 정보 조회/수정 (마이페이지용)
+// --------------------------------------------------
 
-/**
- * 내 정보 확인 (헤더 토글 / 마이페이지 / 관리자 페이지용)
- * GET /api/me
- */
+// 7-1) 내 계정 정보 조회
 app.get('/api/me', authRequired, (req, res) => {
   const userId = req.user.id;
 
@@ -569,11 +551,7 @@ app.get('/api/me', authRequired, (req, res) => {
   );
 });
 
-/**
- * 내 정보 수정 (닉네임 / 비밀번호 / 프로필 변경)
- * PUT /api/me
- * body: { nickname?, currentPw?, newPw?, bio?, about? }
- */
+// 7-2) 내 계정 정보 수정 (닉네임/소개/비밀번호 등)
 app.put('/api/me', authRequired, (req, res) => {
   const userId = req.user.id;
   const { nickname, currentPw, newPw, bio, about } = req.body || {};
@@ -581,19 +559,16 @@ app.put('/api/me', authRequired, (req, res) => {
   const fields = [];
   const params = [];
 
-  // 닉네임 변경
   if (nickname !== undefined && nickname !== null) {
     fields.push('nickname = ?');
     params.push(nickname);
   }
 
-  // 한 줄 소개
   if (bio !== undefined) {
     fields.push('bio = ?');
     params.push(bio);
   }
 
-  // 자기소개
   if (about !== undefined) {
     fields.push('about = ?');
     params.push(about);
@@ -601,7 +576,7 @@ app.put('/api/me', authRequired, (req, res) => {
 
   const wantsPwChange = !!newPw;
 
-  // 비밀번호 변경이 없는 경우: 프로필 정보만 변경
+  // 비밀번호 변경 없이 기본 프로필만 수정하는 경우
   if (!wantsPwChange) {
     if (fields.length === 0) {
       return res.status(400).json({
@@ -637,7 +612,7 @@ app.put('/api/me', authRequired, (req, res) => {
     return;
   }
 
-  // 비밀번호 변경이 있는 경우 → currentPw 검증 후 pw까지 함께 업데이트
+  // 비밀번호 변경이 포함된 경우
   if (!currentPw) {
     return res.status(400).json({
       ok: false,
@@ -711,17 +686,14 @@ app.put('/api/me', authRequired, (req, res) => {
   });
 });
 
-// ================== 작가(사용자) 공개 프로필 / 작가 글 목록 ==================
+// --------------------------------------------------
+// 8. 작가 프로필 / 특정 작가 글 목록
+// --------------------------------------------------
 
-/**
- * 작가 공개 프로필 조회
- * GET /api/users/:id/profile
- * - 로그인 불필요
- */
+// 8-1) 작가 공개 프로필 조회
 app.get('/api/users/:id/profile', (req, res) => {
   const authorId = req.params.id;
 
-  // 1) 유저 기본 정보 조회
   db.get(
     `
     SELECT
@@ -749,7 +721,6 @@ app.get('/api/users/:id/profile', (req, res) => {
           .json({ ok: false, message: '해당 작가를 찾을 수 없습니다.' });
       }
 
-      // 2) 글 수 / 받은 공감 수 집계
       db.get(
         `
         SELECT
@@ -775,7 +746,7 @@ app.get('/api/users/:id/profile', (req, res) => {
               id: user.id,
               name: user.name,
               nickname: user.nickname,
-              email: user.email,             // 프론트에서 마스킹 처리
+              email: user.email,
               bio: user.bio || null,
               about: user.about || null,
               postCount: stats?.post_count || 0,
@@ -788,15 +759,10 @@ app.get('/api/users/:id/profile', (req, res) => {
   );
 });
 
-/**
- * 특정 작가의 글 목록 조회
- * GET /api/users/:id/posts?offset=0&limit=20
- * - 로그인 불필요 (단, 로그인 상태면 user_liked 포함)
- */
+// 8-2) 특정 작가의 글 목록 (무한스크롤용)
 app.get('/api/users/:id/posts', (req, res) => {
   const authorId = req.params.id;
 
-  // 로그인 여부에 따라 userId 세팅 (피드와 동일한 방식)
   let userId = null;
   const token = req.cookies.token;
   if (token) {
@@ -808,7 +774,6 @@ app.get('/api/users/:id/posts', (req, res) => {
     }
   }
 
-  // 페이징 파라미터
   let limit = parseInt(req.query.limit, 10);
   let offset = parseInt(req.query.offset, 10);
 
@@ -849,7 +814,6 @@ app.get('/api/users/:id/posts', (req, res) => {
   let params = [];
 
   if (userId) {
-    // 로그인한 상태: user_liked 필드 포함
     sql = `
       ${baseSelect},
       CASE
@@ -865,7 +829,6 @@ app.get('/api/users/:id/posts', (req, res) => {
     `;
     params = [userId, authorId, limit, offset];
   } else {
-    // 비로그인 상태: user_liked = 0 고정
     sql = `
       ${baseSelect},
       0 AS user_liked
@@ -893,15 +856,11 @@ app.get('/api/users/:id/posts', (req, res) => {
   });
 });
 
+// --------------------------------------------------
+// 9. 글 작성/수정/삭제/피드/좋아요/추천 등 포스트 관련 API
+// --------------------------------------------------
 
-// ================== 글 관련 API ==================
-
-/**
- * 글 작성 (저장)
- * POST /api/posts
- * body: { title, content, hashtags }
- * 로그인 필요
- */
+// 9-1) 글 작성
 app.post('/api/posts', authRequired, (req, res) => {
   const { title, content, hashtags } = req.body;
   const userId = req.user.id;
@@ -925,7 +884,6 @@ app.post('/api/posts', authRequired, (req, res) => {
 
       const newPostId = this.lastID;
 
-      // ✅ 에디터에서 받은 해시태그 저장
       saveHashtagsForPostFromInput(newPostId, hashtags, (tagErr) => {
         if (tagErr) {
           console.error('해시태그 저장 중 오류:', tagErr);
@@ -947,11 +905,7 @@ app.post('/api/posts', authRequired, (req, res) => {
   );
 });
 
-/**
- * 글 수정 (작성자 또는 관리자)
- * PUT /api/posts/:id
- * body: { title, content, hashtags }
- */
+// 9-2) 글 수정 (작성자 또는 관리자)
 app.put('/api/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
   const { title, content, hashtags } = req.body;
@@ -964,7 +918,6 @@ app.put('/api/posts/:id', authRequired, (req, res) => {
       .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
   }
 
-  // 먼저 글의 작성자 확인
   db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (err, row) => {
     if (err) {
       console.error(err);
@@ -979,7 +932,6 @@ app.put('/api/posts/:id', authRequired, (req, res) => {
         .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
     }
 
-    // 작성자 본인 또는 관리자만 수정 허용
     if (!isAdmin && row.user_id !== userId) {
       return res
         .status(403)
@@ -997,7 +949,6 @@ app.put('/api/posts/:id', authRequired, (req, res) => {
             .json({ ok: false, message: '글 수정 중 DB 오류가 발생했습니다.' });
         }
 
-        // ✅ 해시태그도 같이 갱신
         saveHashtagsForPostFromInput(postId, hashtags, (tagErr) => {
           if (tagErr) {
             console.error('해시태그 갱신 중 오류:', tagErr);
@@ -1018,11 +969,7 @@ app.put('/api/posts/:id', authRequired, (req, res) => {
   });
 });
 
-/**
- * 내가 쓴 글 목록 (마이페이지)
- * GET /api/posts/my
- * 로그인 필요
- */
+// 9-3) 내가 쓴 글 목록 (마이페이지)
 app.get('/api/posts/my', authRequired, (req, res) => {
   const userId = req.user.id;
 
@@ -1055,11 +1002,7 @@ app.get('/api/posts/my', authRequired, (req, res) => {
   );
 });
 
-/**
- * 내가 공감한 글 목록 (마이페이지)
- * GET /api/posts/liked
- * 로그인 필요
- */
+// 9-4) 내가 공감한 글 목록 (마이페이지)
 app.get('/api/posts/liked', authRequired, (req, res) => {
   const userId = req.user.id;
 
@@ -1093,18 +1036,7 @@ app.get('/api/posts/liked', authRequired, (req, res) => {
   );
 });
 
-/**
- * 글 피드 조회 (무한스크롤 + 해시태그 필터 지원)
- * GET /api/posts/feed
- *
- * - 로그인 필요 없음 (단, 로그인 되어 있으면 내가 공감 눌렀는지까지 포함)
- * - 쿼리스트링으로 페이징:
- *   - ?offset=0&limit=20
- * - 특정 해시태그만 보고 싶으면 (단일):
- *   - ?tag=힐링
- * - 여러 해시태그 AND 조건 (모두 포함하는 글만):
- *   - ?tags=힐링,위로,응원
- */
+// 9-5) 피드 조회 (전체 글 + 해시태그 필터 + 로그인 시 좋아요 여부 포함)
 app.get('/api/posts/feed', (req, res) => {
   let userId = null;
 
@@ -1118,19 +1050,16 @@ app.get('/api/posts/feed', (req, res) => {
     }
   }
 
-  // 🔹 페이징 파라미터
   let limit = parseInt(req.query.limit, 10);
   let offset = parseInt(req.query.offset, 10);
 
   if (isNaN(limit) || limit <= 0 || limit > 50) {
-    limit = 20; // 기본 20개
+    limit = 20;
   }
   if (isNaN(offset) || offset < 0) {
-    offset = 0; // 기본 0부터
+    offset = 0;
   }
 
-  // 🔹 태그 필터 (여러 개 지원)
-  // 우선순위: ?tags=a,b,c  → 없으면 ?tag=a
   let tags = [];
   if (req.query.tags) {
     tags = String(req.query.tags)
@@ -1174,7 +1103,6 @@ app.get('/api/posts/feed', (req, res) => {
   let params = [];
 
   if (userId) {
-    // 🔹 로그인 한 경우
     if (tagCount > 0) {
       const placeholders = tags.map(() => '?').join(', ');
       sql = `
@@ -1199,7 +1127,6 @@ app.get('/api/posts/feed', (req, res) => {
       `;
       params = [userId, ...tags, tagCount, limit, offset];
     } else {
-      // 태그 필터 없음
       sql = `
         ${baseSelect},
         CASE
@@ -1215,7 +1142,6 @@ app.get('/api/posts/feed', (req, res) => {
       params = [userId, limit, offset];
     }
   } else {
-    // 🔹 비로그인
     if (tagCount > 0) {
       const placeholders = tags.map(() => '?').join(', ');
       sql = `
@@ -1260,15 +1186,7 @@ app.get('/api/posts/feed', (req, res) => {
   });
 });
 
-/**
- * 관련 글 추천
- * GET /api/posts/:id/related?limit=6
- *
- * - 현재 글을 기준으로:
- *   · 최근 글들 중에서
- *   · 태그 겹치는 정도 + 같은 작가 여부 + 좋아요 수 + 최신 정도
- *   를 점수로 계산해 상위 N개 반환
- */
+// 9-6) 관련 글 추천 (단일 글 기준 유사 글 목록)
 app.get('/api/posts/:id/related', (req, res) => {
   const postId = parseInt(req.params.id, 10);
   if (!postId) {
@@ -1279,7 +1197,6 @@ app.get('/api/posts/:id/related', (req, res) => {
 
   const limit = parseInt(req.query.limit, 10) || 6;
 
-  // 1) 기준이 되는 현재 글 정보 (작성자 + 해시태그) 가져오기
   db.get(
     `
     SELECT
@@ -1315,7 +1232,6 @@ app.get('/api/posts/:id/related', (req, res) => {
             .filter(Boolean)
         : [];
 
-      // 2) 후보 글들: 최근 글 100개 (현재 글 제외)
       const CANDIDATE_LIMIT = 100;
 
       db.all(
@@ -1363,8 +1279,7 @@ app.get('/api/posts/:id/related', (req, res) => {
           const ONE_DAY = 1000 * 60 * 60 * 24;
 
           const scored = rows.map((p) => {
-            const tagStr = p.hashtags || '';
-            const postTags = tagStr
+            const postTags = (p.hashtags || '')
               .split(',')
               .map((t) => t.trim().toLowerCase())
               .filter(Boolean);
@@ -1379,22 +1294,20 @@ app.get('/api/posts/:id/related', (req, res) => {
             let recencyScore = 0;
             if (!isNaN(createdTime)) {
               const daysAgo = (now - createdTime) / ONE_DAY;
-              // 0일 전이면 7점, 7일 지나면 0점 정도로 감쇠
               recencyScore = Math.max(0, 7 - daysAgo);
             }
 
             const likeCount = p.like_count || 0;
 
             const score =
-              overlapCount * 3 + // 태그 겹치는 정도
-              sameAuthor * 2 + // 같은 작가 보너스
-              likeCount * 1 + // 좋아요
-              recencyScore * 1; // 최신 정도
+              overlapCount * 3 +
+              sameAuthor * 2 +
+              likeCount * 1 +
+              recencyScore * 1;
 
             return { ...p, _score: score };
           });
 
-          // 점수 내림차순 정렬
           scored.sort((a, b) => b._score - a._score);
 
           const finalPosts = scored.slice(0, limit).map((p) => {
@@ -1410,12 +1323,7 @@ app.get('/api/posts/:id/related', (req, res) => {
   );
 });
 
-/**
- * 글 상세 조회 (편집용)
- * GET /api/posts/:id
- * 로그인 필요, 자기 글만 조회 가능
- * → 해시태그 배열도 함께 반환
- */
+// 9-7) 글 상세 조회 (편집을 위한 본인 글 조회)
 app.get('/api/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
   const userId = req.user.id;
@@ -1467,16 +1375,12 @@ app.get('/api/posts/:id', authRequired, (req, res) => {
   );
 });
 
-/**
- * 글 삭제 (작성자 또는 관리자)
- * DELETE /api/posts/:id
- */
+// 9-8) 글 삭제 (작성자 또는 관리자)
 app.delete('/api/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
   const userId = req.user.id;
   const isAdmin = !!req.user.isAdmin;
 
-  // 먼저 글의 작성자 확인
   db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (err, row) => {
     if (err) {
       console.error(err);
@@ -1491,7 +1395,6 @@ app.delete('/api/posts/:id', authRequired, (req, res) => {
         .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
     }
 
-    // 작성자 본인 또는 관리자만 삭제 허용
     if (!isAdmin && row.user_id !== userId) {
       return res
         .status(403)
@@ -1517,16 +1420,11 @@ app.delete('/api/posts/:id', authRequired, (req, res) => {
   });
 });
 
-/**
- * 공감 토글 (좋아요/좋아요 취소)
- * POST /api/posts/:id/toggle-like
- * 로그인 필요
- */
+// 9-9) 좋아요 토글 (추가/취소)
 app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
   const postId = req.params.id;
   const userId = req.user.id;
 
-  // 1. 이미 좋아요 했는지 확인
   db.get(
     'SELECT 1 FROM likes WHERE user_id = ? AND post_id = ?',
     [userId, postId],
@@ -1540,7 +1438,6 @@ app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
       }
 
       if (row) {
-        // 이미 좋아요 되어 있으면 → 좋아요 취소
         db.run(
           'DELETE FROM likes WHERE user_id = ? AND post_id = ?',
           [userId, postId],
@@ -1553,7 +1450,6 @@ app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
               });
             }
 
-            // 최신 좋아요 수 다시 조회
             db.get(
               'SELECT COUNT(*) AS cnt FROM likes WHERE post_id = ?',
               [postId],
@@ -1576,7 +1472,6 @@ app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
           }
         );
       } else {
-        // 아직 좋아요 안 되어 있으면 → 좋아요 추가
         db.run(
           'INSERT INTO likes (user_id, post_id) VALUES (?, ?)',
           [userId, postId],
@@ -1589,7 +1484,6 @@ app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
               });
             }
 
-            // 최신 좋아요 수 다시 조회
             db.get(
               'SELECT COUNT(*) AS cnt FROM likes WHERE post_id = ?',
               [postId],
@@ -1616,11 +1510,11 @@ app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
   );
 });
 
-/**
- * 관리자용: 회원 목록 조회
- * GET /api/admin/users
- * (관리자만 접근 가능)
- */
+// --------------------------------------------------
+// 10. 관리자 기능 (회원 조회/삭제)
+// --------------------------------------------------
+
+// 10-1) 관리자: 전체 회원 목록
 app.get('/api/admin/users', authRequired, adminRequired, (req, res) => {
   db.all(
     `
@@ -1651,122 +1545,117 @@ app.get('/api/admin/users', authRequired, adminRequired, (req, res) => {
   );
 });
 
-/**
- * 관리자용: 회원 삭제
- * DELETE /api/admin/users/:id
- * (관리자만 접근 가능)
- * - 해당 회원의 좋아요 + 게시글 + 계정 삭제
- */
-app.delete('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
-  const targetUserId = req.params.id;
+// 10-2) 관리자: 특정 회원과 관련 데이터 모두 삭제
+app.delete(
+  '/api/admin/users/:id',
+  authRequired,
+  adminRequired,
+  (req, res) => {
+    const targetUserId = req.params.id;
 
-  db.serialize(() => {
-    // 1) 이 유저가 남긴 좋아요 삭제
-    db.run(
-      'DELETE FROM likes WHERE user_id = ?',
-      [targetUserId],
-      function (err1) {
-        if (err1) {
-          console.error(err1);
-          return res
-            .status(500)
-            .json({ ok: false, message: '회원 좋아요 삭제 중 오류가 발생했습니다.' });
-        }
+    db.serialize(() => {
+      db.run(
+        'DELETE FROM likes WHERE user_id = ?',
+        [targetUserId],
+        function (err1) {
+          if (err1) {
+            console.error(err1);
+            return res.status(500).json({
+              ok: false,
+              message: '회원 좋아요 삭제 중 오류가 발생했습니다.',
+            });
+          }
 
-        // 2) 이 유저의 글에 달린 좋아요 삭제
-        db.run(
-          `
-          DELETE FROM likes
-          WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?)
-          `,
-          [targetUserId],
-          function (err2) {
-            if (err2) {
-              console.error(err2);
-              return res.status(500).json({
-                ok: false,
-                message: '회원 게시글의 좋아요 삭제 중 오류가 발생했습니다.',
-              });
-            }
+          db.run(
+            `
+            DELETE FROM likes
+            WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?)
+            `,
+            [targetUserId],
+            function (err2) {
+              if (err2) {
+                console.error(err2);
+                return res.status(500).json({
+                  ok: false,
+                  message:
+                    '회원 게시글의 좋아요 삭제 중 오류가 발생했습니다.',
+                });
+              }
 
-            // 3) 이 유저의 게시글 삭제
-            db.run(
-              'DELETE FROM posts WHERE user_id = ?',
-              [targetUserId],
-              function (err3) {
-                if (err3) {
-                  console.error(err3);
-                  return res
-                    .status(500)
-                    .json({ ok: false, message: '회원 게시글 삭제 중 오류가 발생했습니다.' });
-                }
-
-                // 4) 마지막으로 유저 계정 삭제
-                db.run(
-                  'DELETE FROM users WHERE id = ?',
-                  [targetUserId],
-                  function (err4) {
-                    if (err4) {
-                      console.error(err4);
-                      return res
-                        .status(500)
-                        .json({ ok: false, message: '회원 삭제 중 DB 오류가 발생했습니다.' });
-                    }
-
-                    if (this.changes === 0) {
-                      return res.status(404).json({
-                        ok: false,
-                        message: '해당 회원을 찾을 수 없습니다.',
-                      });
-                    }
-
-                    return res.json({
-                      ok: true,
-                      message: '회원 및 관련 데이터가 모두 삭제되었습니다.',
+              db.run(
+                'DELETE FROM posts WHERE user_id = ?',
+                [targetUserId],
+                function (err3) {
+                  if (err3) {
+                    console.error(err3);
+                    return res.status(500).json({
+                      ok: false,
+                      message: '회원 게시글 삭제 중 오류가 발생했습니다.',
                     });
                   }
-                );
-              }
-            );
-          }
-        );
-      }
-    );
-  });
-});
 
-// ===== 해시태그 유틸 (에디터 입력 기반) =====
+                  db.run(
+                    'DELETE FROM users WHERE id = ?',
+                    [targetUserId],
+                    function (err4) {
+                      if (err4) {
+                        console.error(err4);
+                        return res.status(500).json({
+                          ok: false,
+                          message: '회원 삭제 중 DB 오류가 발생했습니다.',
+                        });
+                      }
 
+                      if (this.changes === 0) {
+                        return res.status(404).json({
+                          ok: false,
+                          message: '해당 회원을 찾을 수 없습니다.',
+                        });
+                      }
+
+                      return res.json({
+                        ok: true,
+                        message: '회원 및 관련 데이터가 모두 삭제되었습니다.',
+                      });
+                    }
+                  );
+                }
+              );
+            }
+          );
+        }
+      );
+    });
+  }
+);
+
+// --------------------------------------------------
+// 11. 해시태그 유틸 함수 (공통 사용)
+// --------------------------------------------------
+
+// 해시태그 문자열 정리: 공백/앞의 # 제거, 길이 제한, 영어 소문자 통일
 function normalizeHashtagName(raw) {
   if (!raw) return null;
   let t = String(raw).trim();
   if (!t) return null;
 
-  // 앞에 # 붙어 있으면 제거
   if (t[0] === '#') t = t.slice(1);
   t = t.trim();
   if (!t) return null;
 
-  // 너무 길면 자르기
   if (t.length > 50) t = t.slice(0, 50);
 
-  // 영어는 소문자 통일
   return t.toLowerCase();
 }
 
-/**
- * 에디터에서 전달된 해시태그 문자열/배열을 기준으로
- * 해당 post_id의 해시태그를 전부 다시 저장.
- *
- * - hashtagsInput: string("#힐링 #일상, 감사") 또는 ["힐링", "일상"]
- */
+// 에디터에서 들어온 해시태그 입력을 기반으로
+// 해당 게시글의 해시태그 매핑을 모두 재저장
 function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
   let rawList = [];
 
   if (Array.isArray(hashtagsInput)) {
     rawList = hashtagsInput;
   } else if (typeof hashtagsInput === 'string') {
-    // 공백, 쉼표 기준 분리
     rawList = hashtagsInput.split(/[\s,]+/);
   } else {
     rawList = [];
@@ -1780,7 +1669,6 @@ function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
 
   const tags = Array.from(set);
 
-  // 태그가 하나도 없으면 매핑만 삭제
   if (tags.length === 0) {
     db.run(
       'DELETE FROM post_hashtags WHERE post_id = ?',
@@ -1794,7 +1682,6 @@ function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
   }
 
   db.serialize(() => {
-    // 기존 매핑 삭제
     db.run('DELETE FROM post_hashtags WHERE post_id = ?', [postId], (err) => {
       if (err) {
         console.error('delete post_hashtags error:', err);
@@ -1853,12 +1740,16 @@ function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
   });
 }
 
-// ================== 루트 → index.html ==================
+// --------------------------------------------------
+// 12. 기본 라우트 및 서버 시작
+// --------------------------------------------------
+
+// 루트 요청은 index.html 반환
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ================== 서버 시작 ==================
+// 서버 실행
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
