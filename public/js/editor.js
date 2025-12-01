@@ -1,16 +1,24 @@
 // public/js/editor.js
+// 글쓰기(에디터) 페이지 스크립트
+// - 로그인 확인
+// - Quill 에디터 초기화 + 글자 수 제한(200자)
+// - 해시태그 입력 → 칩(Chip) UI 관리
+// - 미리보기 카드(제목/본문/폰트/태그) 실시간 반영
+// - 새 글 작성 / 기존 글 수정(POST / PUT) 처리
 
 document.addEventListener('DOMContentLoaded', async () => {
   // 🔢 본문 최대 글자 수
   const MAX_CONTENT_LENGTH = 200;
 
   // 해시태그 칩용 내부 리스트
+  // ex) ['힐링', '위로']
   let hashtagList = [];
 
   // 1. 로그인 상태 확인
   try {
     const res = await fetch('/api/me');
     if (!res.ok) {
+      // 401 등 에러 → 로그인 안 된 상태로 간주
       alert('로그인이 필요한 기능입니다.');
       window.location.href = '/html/login.html';
       return;
@@ -27,11 +35,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     theme: 'snow',
     placeholder: '여기에 오늘의 문장을 적어 보세요.', // 에디터 안 안내 문구
     modules: {
+      // 툴바 구성
       toolbar: [
         [{ header: [1, 2, false] }],
         ['bold', 'italic', 'underline', 'strike'],
         [{ list: 'ordered' }, { list: 'bullet' }],
-        [{ align: '' }, { align: 'center' }, { align: 'right' }, { align: 'justify' }],
+        [
+          { align: '' },
+          { align: 'center' },
+          { align: 'right' },
+          { align: 'justify' },
+        ],
         ['link', 'blockquote'],
         ['clean'],
       ],
@@ -51,22 +65,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     ],
   });
 
-  const titleInput = document.getElementById('postTitle');
-  const saveBtn = document.getElementById('saveBtn');
-  const hashtagsInput = document.getElementById('postHashtags'); // ✅ 해시태그 입력
+  // DOM 요소들 가져오기
+  const titleInput = document.getElementById('postTitle');      // 제목 입력
+  const saveBtn = document.getElementById('saveBtn');           // 저장 버튼
+  const hashtagsInput = document.getElementById('postHashtags'); // ✅ 해시태그 입력 인풋
 
   // ✅ 미리보기 요소
-  const previewTitleEl = document.getElementById('previewTitle');
-  const previewContentEl = document.getElementById('previewContent');
-  const previewMetaEl = document.getElementById('previewMeta');
+  const previewTitleEl = document.getElementById('previewTitle');     // 미리보기 제목
+  const previewContentEl = document.getElementById('previewContent'); // 미리보기 본문(quote-card)
+  const previewMetaEl = document.getElementById('previewMeta');       // 미리보기 하단 메타(폰트/태그)
 
   // ✅ 남은 글자 수 표시 요소 (에디터 박스 오른쪽 아래)
   const charCounterEl = document.getElementById('charCounter');
 
-  // ✅ 폰트 선택 요소
+  // ✅ 폰트 선택 요소 (select)
   const fontSelectEl = document.getElementById('fontSelect');
 
-  // 에디터 상단 에러 영역
+  // 에디터 상단 에러 영역 (Bootstrap alert 등)
   const editorAlertEl = document.getElementById('editorAlert');
 
   // 폰트 키 → 실제 font-family 매핑
@@ -76,19 +91,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     hand: "'Nanum Pen Script',cursive",
   };
 
-  // 폰트 키 → 라벨
+  // 폰트 키 → 사용자에게 보여줄 라벨
   const FONT_LABEL_MAP = {
     serif: '감성 명조체',
     sans: '담백한 고딕체',
     hand: '손글씨 느낌',
   };
 
-  // ✅ 에디터 + 미리보기 카드에 폰트 적용
+  /**
+   * ✅ 에디터 + 미리보기 카드에 폰트 적용
+   * - select에서 폰트 변경 시 호출
+   * - quill.root와 미리보기 quote-card의 클래스에 반영
+   */
   function applyEditorFont(fontKey) {
     const key = FONT_MAP[fontKey] ? fontKey : 'serif';
     const fontFamily = FONT_MAP[key];
 
-    // 1) Quill 에디터 textarea 폰트
+    // 1) Quill 에디터 내부 텍스트 폰트 변경
     if (quill && quill.root) {
       quill.root.style.fontFamily = fontFamily;
     }
@@ -103,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       previewContentEl.classList.add('quote-font-' + key);
     }
 
-    // 미리보기 메타도 업데이트
+    // 폰트 라벨 등 미리보기 메타도 갱신
     updatePreviewMeta();
   }
 
@@ -113,13 +132,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       applyEditorFont(e.target.value);
     });
 
-    // 페이지 처음 열릴 때 기본값 적용
+    // 페이지 처음 열릴 때 select의 기본값대로 폰트 적용
     applyEditorFont(fontSelectEl.value || 'serif');
   } else {
     // 혹시라도 요소 못 찾았을 때를 대비한 기본 적용
     applyEditorFont('serif');
   }
 
+  // 필수 요소 확인
   if (!titleInput || !saveBtn) {
     console.error('postTitle 또는 saveBtn 요소를 찾을 수 없습니다.');
     return;
@@ -129,6 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
      해시태그 칩 유틸 함수들
   ------------------------ */
 
+  // 해시태그 칩들을 담을 컨테이너 (인풋 아래에 붙임)
   let hashtagChipContainer = null;
   if (hashtagsInput) {
     hashtagChipContainer = document.createElement('div');
@@ -138,6 +159,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     hashtagsInput.insertAdjacentElement('afterend', hashtagChipContainer);
   }
 
+  /**
+   * 입력된 태그 문자열을 정규화
+   * - 앞뒤 공백 제거
+   * - '#'으로 시작하면 '#' 제거
+   * - 빈 문자열이면 ''
+   */
   function normalizeTag(raw) {
     if (!raw) return '';
     let t = String(raw).trim();
@@ -146,16 +173,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     return t;
   }
 
+  /**
+   * 내부 리스트(hashtagList)를 기반으로
+   * 해시태그 입력 인풋의 값을 동기화
+   * - "#힐링 #위로" 형식으로 채워줌
+   */
   function syncHashtagInputFromList() {
     if (!hashtagsInput) return;
     if (!hashtagList.length) {
-      // 칩이 없으면 기존 값 그대로 유지
+      // 칩이 없으면 기존 값 그대로 유지 (사용자가 직접 쓴 것 남겨두기)
       return;
     }
     const value = hashtagList.map((t) => '#' + t).join(' ');
     hashtagsInput.value = value;
   }
 
+  /**
+   * hashtagList를 기반으로 칩 UI 렌더링
+   * - 각 태그마다 "칩 + X 버튼" 추가
+   */
   function renderHashtagChips() {
     if (!hashtagChipContainer) return;
 
@@ -177,13 +213,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       )
       .join('');
 
-    // 삭제 버튼 이벤트
+    // 각 칩의 X 버튼(삭제 버튼)에 이벤트 등록
     hashtagChipContainer
       .querySelectorAll('.hashtag-chip-remove')
       .forEach((btn) => {
         btn.addEventListener('click', () => {
           const tag = btn.getAttribute('data-tag');
           if (!tag) return;
+          // 리스트에서 해당 태그 제거
           hashtagList = hashtagList.filter((t) => t !== tag);
           syncHashtagInputFromList();
           renderHashtagChips();
@@ -192,16 +229,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
   }
 
+  /**
+   * 새 태그 추가
+   * - 정규화하고, 중복 아니면 리스트에 push
+   * - 인풋 및 칩 UI 동기화
+   */
   function addTag(raw) {
     const t = normalizeTag(raw);
     if (!t) return;
-    if (hashtagList.includes(t)) return;
+    if (hashtagList.includes(t)) return; // 중복 태그 방지
     hashtagList.push(t);
     syncHashtagInputFromList();
     renderHashtagChips();
     updatePreviewMeta();
   }
 
+  /**
+   * 해시태그 인풋의 텍스트를 hashtagList로 파싱
+   * - 공백/쉼표 기준으로 split
+   * - normalizeTag 후 중복 제거
+   */
   function parseHashtagInputToList() {
     if (!hashtagsInput) return;
     const raw = hashtagsInput.value || '';
@@ -217,13 +264,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       .map(normalizeTag)
       .filter((t) => t.length > 0);
 
+    // 중복 제거를 위해 Set 사용
     hashtagList = Array.from(new Set(tokens));
     syncHashtagInputFromList();
     renderHashtagChips();
     updatePreviewMeta();
   }
 
-  // 인풋에서 Enter/쉼표/스페이스로 태그 추가
+  // 인풋에서 Enter/스페이스/쉼표/Tab을 누를 때 태그 추가 시도
   if (hashtagsInput) {
     hashtagsInput.addEventListener('keydown', (e) => {
       if (['Enter', ' ', ',', 'Tab'].includes(e.key)) {
@@ -231,19 +279,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         const parts = val.split(/[,\s]+/);
         const last = parts[parts.length - 1];
         if (last && last.trim().length > 0) {
-          e.preventDefault();
+          e.preventDefault(); // 기본 줄바꿈 등 막기
           addTag(last);
         }
       }
     });
 
+    // 포커스를 잃을 때 인풋 전체를 파싱해서 리스트/칩 반영
     hashtagsInput.addEventListener('blur', () => {
       parseHashtagInputToList();
     });
   }
 
-  // ✅ 남은 글자 수 업데이트 함수
-  // 표시 형식: (남은 글자수)/200
+  /**
+   * ✅ 남은 글자 수 업데이트 함수
+   * - 형식: (남은 글자수)/200
+   * - 30자 이하 남았을 때는 빨간색으로 경고
+   */
   function updateCharCounter(currentLength) {
     if (!charCounterEl) return;
 
@@ -260,7 +312,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 미리보기 하단 폰트/태그 메타
+  /**
+   * 미리보기 하단 폰트/태그 메타 영역 업데이트
+   * - 폰트 셀렉트 값 기준으로 폰트 라벨 표시
+   * - hashtagList 또는 인풋값을 기반으로 태그 표시
+   */
   function updatePreviewMeta() {
     if (!previewMetaEl) return;
 
@@ -282,34 +338,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     previewMetaEl.innerHTML = html;
   }
 
-  // ✅ 미리보기 업데이트 함수
+  /**
+   * ✅ 미리보기 전체 업데이트
+   * - 제목, 본문, 폰트, 태그 모두 반영
+   */
   function updatePreview() {
     const title = titleInput.value.trim();
     const contentHtml = quill.root.innerHTML.trim();
     const plainText = quill.getText().trim();
 
+    // 제목 미리보기
     if (previewTitleEl) {
       previewTitleEl.textContent = title || '여기에 글 제목이 미리 보여요';
     }
 
+    // 본문 미리보기
     if (previewContentEl) {
       if (!plainText) {
+        // 아무 내용도 없으면 안내 문구
         previewContentEl.innerHTML =
           '여기에 오늘의 문장을 적어 보시면, 이 카드에서 바로 미리 볼 수 있어요.';
       } else {
+        // 사용자가 작성한 HTML(Quill output) 반영
         previewContentEl.innerHTML = contentHtml;
       }
 
+      // 내용 길이에 따라 폰트 크기 자동 조절
       autoAdjustQuoteFont(previewContentEl);
     }
 
+    // 하단 메타 갱신
     updatePreviewMeta();
   }
 
   // 3. 수정 모드인지 확인 (URL ?postId=...)
   const params = new URLSearchParams(window.location.search);
-  const postId = params.get('postId');
-  let isEditMode = !!postId;
+  const postId = params.get('postId');      // 수정할 글 ID
+  let isEditMode = !!postId;               // postId가 있으면 수정 모드
 
   if (isEditMode) {
     // 수정 모드 → 기존 글 내용 불러오기
@@ -319,26 +384,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (!res.ok || !data.ok) {
         alert(data.message || '글 정보를 불러오지 못했습니다.');
-        isEditMode = false;
+        isEditMode = false; // 실패 시 새 글 모드로 전환
       } else {
         const post = data.post;
+        // 제목/본문 세팅
         titleInput.value = post.title || '';
         quill.root.innerHTML = post.content || '';
 
-        // 서버에서 hashtags를 내려줄 경우 인풋/칩에 반영
+        // 서버에서 hashtags를 내려줄 경우, 인풋/칩에 반영
         if (hashtagsInput) {
           if (Array.isArray(post.hashtags)) {
+            // 배열이면 그대로 normalize해서 리스트에 넣기
             hashtagList = post.hashtags
               .map(normalizeTag)
               .filter((t) => t.length > 0);
             syncHashtagInputFromList();
             renderHashtagChips();
           } else if (post.hashtags) {
+            // 문자열이면 인풋에 넣고, 파싱해서 칩 생성
             hashtagsInput.value = post.hashtags;
             parseHashtagInputToList();
           }
         }
 
+        // 글자 수/미리보기 초기 상태 갱신
         const plainText = quill.getText().trim();
         updateCharCounter(plainText.length);
         updatePreview();
@@ -354,11 +423,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     updatePreview();
   }
 
-  // ✅ 제목 입력 시 미리보기 갱신
+  // ✅ 제목 입력 시마다 미리보기 갱신
   titleInput.addEventListener('input', updatePreview);
 
   // ✅ 본문 입력 제한 + 미리보기/글자 수 갱신
-  let isAdjusting = false;
+  let isAdjusting = false; // 프로그램적 수정 중인지 플래그
   quill.on('text-change', (delta, oldDelta, source) => {
     if (isAdjusting) return;
 
@@ -373,6 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const plainText = quill.getText().trim();
     const length = plainText.length;
 
+    // 최대 글자 수 초과 시 롤백
     if (length > MAX_CONTENT_LENGTH) {
       alert(`본문은 최대 ${MAX_CONTENT_LENGTH}자까지 입력할 수 있어요.`);
 
@@ -387,18 +457,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // 정상 범위면 그냥 카운터/미리보기 갱신
     updateCharCounter(length);
     updatePreview();
   });
 
   // 4. 저장 버튼 클릭 시
   saveBtn.addEventListener('click', async () => {
-    const title = titleInput.value.trim();
-    const contentHtml = quill.root.innerHTML.trim();
-    const plainText = quill.getText().trim();
+    const title = titleInput.value.trim();         // 제목(텍스트)
+    const contentHtml = quill.root.innerHTML.trim(); // 본문(HTML)
+    const plainText = quill.getText().trim();      // 본문(plain text)
     const length = plainText.length;
 
-    // 칩 → 인풋 동기화 한 번 더
+    // 칩 → 인풋 동기화 한 번 더 (혹시 남아있는 텍스트 반영)
     syncHashtagInputFromList();
     const hashtagsRaw = hashtagsInput ? hashtagsInput.value.trim() : '';
 
@@ -408,6 +479,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       editorAlertEl.textContent = '';
     }
 
+    // 간단한 검증들
     if (!title) {
       showEditorError('제목을 입력해주세요.');
       return;
@@ -427,7 +499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       let url = '/api/posts';
       let method = 'POST';
 
-      // 수정 모드라면 PUT /api/posts/:id
+      // 수정 모드라면 PUT /api/posts/:id로 전송
       if (isEditMode && postId) {
         url = `/api/posts/${postId}`;
         method = 'PUT';
@@ -439,7 +511,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({
           title,
           content: contentHtml,
-          hashtags: hashtagsRaw, // ✅ 서버로 해시태그 함께 전송
+          hashtags: hashtagsRaw, // ✅ 서버로 해시태그 문자열 함께 전송
         }),
       });
 
@@ -450,6 +522,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
+      // 성공 알림 후 마이페이지로 이동
       alert(isEditMode ? '글이 수정되었습니다!' : '글이 저장되었습니다!');
       window.location.href = '/html/mypage.html';
     } catch (e) {
@@ -458,6 +531,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  /**
+   * 에디터 상단 에러 표시 함수
+   * - editorAlertEl이 있으면 거기에 보여주고
+   * - 없으면 단순 alert로 대체
+   */
   function showEditorError(msg) {
     if (!editorAlertEl) {
       alert(msg);
@@ -465,7 +543,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     editorAlertEl.textContent = msg;
     editorAlertEl.classList.remove('d-none');
+
+    // 에러 영역이 보이도록 살짝 위로 스크롤
     window.scrollTo({ top: editorAlertEl.offsetTop - 140, behavior: 'smooth' });
   }
-
 });

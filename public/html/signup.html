@@ -5,27 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>회원가입 | 글숲</title>
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts: 글숲 공통 폰트 -->
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
 
-  <!-- Bootstrap CSS -->
+  <!-- Bootstrap CSS: 기본 레이아웃/폼 스타일용 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-  <!-- Custom CSS -->
+  <!-- Custom CSS: 글숲 공통 스타일 -->
   <link rel="stylesheet" href="../css/main.css">
 </head>
 <body>
-  <!-- 헤더 -->
+  <!-- 헤더(네비게이션 바) 영역 -->
   <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
     <div class="container">
+      <!-- 로고: 클릭 시 메인 페이지로 이동 -->
       <a class="navbar-brand" href="/index.html">글숲</a>
+
+      <!-- 모바일에서 메뉴를 접었다 펼치는 토글 버튼 -->
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
 
+      <!-- 실제 네비게이션 메뉴 -->
       <div class="collapse navbar-collapse" id="navbarNav">
-        <!-- 로그인 전 -->
+        <!-- 로그인 전 메뉴 (header.js에서 /api/me 결과로 보이도록 제어) -->
         <ul class="navbar-nav ms-auto before-login">
           <li class="nav-item">
             <a class="nav-link" href="/html/login.html">로그인</a>
@@ -35,11 +39,13 @@
           </li>
         </ul>
 
-        <!-- 로그인 후 -->
+        <!-- 로그인 후 메뉴 (기본 숨김, header.js에서 토글) -->
         <ul class="navbar-nav ms-auto after-login" style="display: none;">
+          <!-- 로그인한 사용자 이름 -->
           <li class="nav-item">
             <span class="nav-link" id="navUserName"></span>
           </li>
+          <!-- 마이페이지 / 글쓰기 / 로그아웃 -->
           <li class="nav-item">
             <a class="nav-link" href="/html/mypage.html">마이페이지</a>
           </li>
@@ -54,25 +60,30 @@
     </div>
   </nav>
 
-  <!-- 회원가입 섹션 -->
+  <!-- 회원가입 섹션: 상단 여백(py-5) + fixed-top 네비게이션 높이만큼 mt-5 -->
   <section class="py-5 mt-5">
     <div class="container">
+      <!-- 페이지 제목 -->
       <h2 class="text-center mb-4">회원가입</h2>
 
+      <!-- 회원가입 폼 -->
       <form id="signupForm" class="mx-auto" style="max-width: 420px;">
 
-        <!-- ✅ 약관 / 개인정보 동의 영역 (제목 바로 아래로 이동) -->
+        <!-- ✅ 약관 / 개인정보 동의 영역 (제목 바로 아래에 위치) -->
         <div class="mb-4 p-3 border rounded bg-white">
-          <!-- 전체 동의 -->
+          <!-- 전체 동의 체크박스: 모든 하위 항목을 한 번에 토글 -->
           <div class="form-check mb-2">
             <input class="form-check-input" type="checkbox" id="agreeAll">
             <label class="form-check-label fw-bold" for="agreeAll">
               전체 동의하기
             </label>
           </div>
+
+          <!-- 전체 동의와 개별 동의를 구분하기 위한 구분선 -->
           <hr class="my-2">
 
-          <!-- 만 14세 이상 -->
+          <!-- [필수] 만 14세 이상 -->
+          <!-- .agree-required 클래스로 JS에서 필수 항목으로 묶어서 처리 -->
           <div class="form-check mb-2">
             <input class="form-check-input agree-required" type="checkbox" id="agreeAge" required>
             <label class="form-check-label" for="agreeAge">
@@ -80,25 +91,28 @@
             </label>
           </div>
 
-          <!-- 이용약관 동의 -->
+          <!-- [필수] 서비스 이용약관 동의 -->
           <div class="form-check mb-2">
             <input class="form-check-input agree-required" type="checkbox" id="agreeTerms" required>
             <label class="form-check-label" for="agreeTerms">
               [필수] 서비스 이용약관에 동의합니다.
+              <!-- 약관 상세 페이지 새 창에서 열기 -->
               <a href="/html/terms.html" target="_blank" class="ms-1">약관 보기</a>
             </label>
           </div>
 
-          <!-- 개인정보 수집·이용 동의 -->
+          <!-- [필수] 개인정보 수집·이용 동의 -->
           <div class="form-check mb-2">
             <input class="form-check-input agree-required" type="checkbox" id="agreePrivacy" required>
             <label class="form-check-label" for="agreePrivacy">
               [필수] 개인정보 수집 및 이용에 동의합니다.
+              <!-- 개인정보 처리 내용 상세 페이지 새 창에서 열기 -->
               <a href="/html/privacy.html" target="_blank" class="ms-1">자세히</a>
             </label>
           </div>
 
-          <!-- 마케팅 수신 동의 (선택) -->
+          <!-- [선택] 마케팅 이메일 수신 동의 -->
+          <!-- .agree-optional 클래스로 필수와 분리해서 관리 -->
           <div class="form-check mb-1">
             <input class="form-check-input agree-optional" type="checkbox" id="agreeMarketing">
             <label class="form-check-label" for="agreeMarketing">
@@ -106,47 +120,56 @@
             </label>
           </div>
 
+          <!-- 약관 안내 문구 -->
           <small class="text-muted d-block mt-2">
             필수 항목에 동의하지 않으시면 회원가입이 어렵습니다.
           </small>
         </div>
 
-        <!-- 기본 정보 -->
+        <!-- 기본 정보 입력 영역 -->
+
+        <!-- 이름 입력 -->
         <div class="mb-3">
           <label class="form-label">이름</label>
           <input type="text" name="name" class="form-control" required>
         </div>
 
         <!-- 닉네임 입력 -->
+        <!-- 서버에서는 이 닉네임을 author_nickname 등으로 활용 -->
         <div class="mb-3">
           <label class="form-label">닉네임</label>
           <input type="text" name="nickname" class="form-control" required>
         </div>
 
+        <!-- 이메일 입력 -->
         <div class="mb-3">
           <label class="form-label">이메일</label>
           <input type="email" name="email" class="form-control" required>
         </div>
 
+        <!-- 비밀번호 입력 -->
         <div class="mb-3">
           <label class="form-label">비밀번호</label>
           <input type="password" name="pw" class="form-control" required>
         </div>
 
+        <!-- 가입 버튼 -->
         <button type="submit" class="btn btn-success w-100 mt-2">가입하기</button>
       </form>
     </div>
   </section>
 
-  <!-- 글숲 푸터 -->
+  <!-- 글숲 푸터 (사이트 공통 하단 영역) -->
   <footer class="custom-footer">
     <div class="container py-4 py-md-5">
       <div class="row gy-3 align-items-center">
+        <!-- 왼쪽: 브랜드/슬로건 -->
         <div class="col-md-4 text-center text-md-start">
           <div class="footer-brand">글숲</div>
           <p class="footer-subtitle">마음을 나누는 작은 숲</p>
         </div>
 
+        <!-- 가운데: 주요 페이지 링크 -->
         <div class="col-md-4 text-center">
           <ul class="footer-links list-inline mb-0">
             <li class="list-inline-item"><a href="/index.html">홈</a></li>
@@ -155,6 +178,7 @@
           </ul>
         </div>
 
+        <!-- 오른쪽: 저작권/짧은 문구 -->
         <div class="col-md-4 text-center text-md-end">
           <p class="footer-copy">&copy; 2025 글숲. All rights reserved.</p>
           <p class="footer-small">조용히 머물다 가는 공간을 함께 가꿔요.</p>
@@ -163,33 +187,49 @@
     </div>
   </footer>
 
-  <!-- JS -->
+  <!-- JS 로드 순서 -->
+  <!-- 공통 유틸 (escapeHtml, maskEmail 등) -->
   <script src="/js/utils.js"></script>
+  <!-- Bootstrap JS 번들 (모달/드롭다운 등) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- 헤더 로그인 상태 제어 스크립트 (/api/me 호출해서 before/after-login 토글) -->
   <script src="../js/header.js"></script>
+  <!-- 회원가입 처리 로직 (폼 제출 → /api/signup POST) -->
   <script src="../js/signup.js"></script>
 
-  <!-- 전체 동의 스크립트 -->
+  <!-- 전체 동의 체크박스 기능 스크립트 -->
   <script>
     document.addEventListener('DOMContentLoaded', function () {
+      // "전체 동의" 체크박스
       var agreeAll = document.getElementById('agreeAll');
+      // [필수] 동의 항목들
       var requiredChecks = document.querySelectorAll('.agree-required');
+      // [선택] 동의 항목들
       var optionalChecks = document.querySelectorAll('.agree-optional');
 
       if (!agreeAll) return;
 
+      // 전체 동의 클릭 시 → 나머지 체크박스 상태를 모두 동일하게 맞춤
       agreeAll.addEventListener('change', function () {
         var checked = agreeAll.checked;
         requiredChecks.forEach(function (chk) { chk.checked = checked; });
         optionalChecks.forEach(function (chk) { chk.checked = checked; });
       });
 
+      // 개별 체크 상태에 따라 "전체 동의" 체크 여부를 갱신하는 함수
       function updateAgreeAll() {
+        // 필수 항목이 모두 체크됐는지 확인
         var allRequiredChecked = Array.from(requiredChecks).every(function (chk) { return chk.checked; });
-        var allOptionalChecked = Array.from(optionalChecks).every(function (chk) { return chk.checked; }) || optionalChecks.length === 0;
+        // 선택 항목이 모두 체크됐거나, 선택 항목 자체가 없을 때 true
+        var allOptionalChecked =
+          Array.from(optionalChecks).every(function (chk) { return chk.checked; }) ||
+          optionalChecks.length === 0;
+
+        // 필수 + 선택 모두 체크 상태일 때만 "전체 동의"를 체크
         agreeAll.checked = allRequiredChecked && allOptionalChecked;
       }
 
+      // 각 필수/선택 체크박스의 change 이벤트에서 전체 동의 상태 갱신
       requiredChecks.forEach(function (chk) {
         chk.addEventListener('change', updateAgreeAll);
       });

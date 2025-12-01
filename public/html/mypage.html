@@ -5,28 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>마이페이지 | 글숲</title>
 
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet" />
+  <!-- Google Fonts: 사이트 공통 폰트들 -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap"
+    rel="stylesheet"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap"
+    rel="stylesheet"
+  />
   <link
     href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap"
     rel="stylesheet"
   />
 
-  <!-- Bootstrap CSS -->
+  <!-- Bootstrap CSS: 레이아웃/컴포넌트 기본 스타일 -->
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
     rel="stylesheet"
   />
 
-  <!-- Custom CSS -->
+  <!-- Custom CSS: 글숲 공통 스타일 (header, footer, 카드 등) -->
   <link rel="stylesheet" href="../css/main.css" />
 </head>
 <body>
-  <!-- 헤더 -->
+  <!-- 헤더 네비게이션 바 -->
   <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
     <div class="container">
+      <!-- 브랜드 로고: 클릭 시 메인 페이지로 이동 -->
       <a class="navbar-brand" href="/index.html">글숲</a>
+
+      <!-- 모바일 메뉴 버튼 -->
       <button
         class="navbar-toggler"
         type="button"
@@ -36,8 +45,9 @@
         <span class="navbar-toggler-icon"></span>
       </button>
 
+      <!-- 네비게이션 메뉴 영역 -->
       <div class="collapse navbar-collapse" id="navbarNav">
-        <!-- 로그인 전 -->
+        <!-- 로그인 전: 로그인/회원가입만 보이는 영역 -->
         <ul class="navbar-nav ms-auto before-login">
           <li class="nav-item">
             <a class="nav-link" href="/html/login.html">로그인</a>
@@ -47,9 +57,11 @@
           </li>
         </ul>
 
-        <!-- 로그인 후 -->
+        <!-- 로그인 후: 유저 이름 / 마이페이지 / 글쓰기 / 로그아웃 -->
+        <!-- header.js 에서 /api/me 결과에 따라 before-login / after-login 토글 -->
         <ul class="navbar-nav ms-auto after-login" style="display: none;">
           <li class="nav-item">
+            <!-- 로그인한 사용자 이름 표시 (예: 홍길동님) -->
             <span class="nav-link" id="navUserName"></span>
           </li>
           <li class="nav-item">
@@ -59,6 +71,7 @@
             <a class="nav-link" href="/html/editor.html">글쓰기</a>
           </li>
           <li class="nav-item">
+            <!-- 로그아웃 버튼: header.js에서 클릭 이벤트 처리 -->
             <button
               class="btn btn-outline-light ms-2"
               id="logoutBtn"
@@ -72,23 +85,28 @@
     </div>
   </nav>
 
-  <!-- 마이페이지 내용 -->
+  <!-- 마이페이지 메인 내용 -->
+  <!-- fixed-top 네비와 겹치지 않게 py-5 + mt-5로 상단 여백 확보 -->
   <section class="py-5 mt-5">
     <div class="container" style="max-width: 900px;">
+      <!-- 페이지 타이틀 -->
       <h2 class="mb-4">마이페이지</h2>
 
-      <!-- 내 정보 (이름/이메일 + 수정 버튼) -->
+      <!-- 내 정보 박스 (이름/이메일/소개 + "내 정보 수정" 버튼) -->
+      <!-- mypage.js → loadMyPage() 에서 /api/me 호출 후 이 영역을 채움 -->
       <div id="userInfo" class="mb-4">
         <p class="text-muted">내 정보를 불러오는 중입니다...</p>
       </div>
 
       <hr />
 
-      <!-- 글 관리 헤더 + 탭 -->
+      <!-- 글 관리 헤더 + 탭 영역 -->
       <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
         <h4 class="mb-0">내 글 관리</h4>
       </div>
 
+      <!-- 탭 버튼: "내가 쓴 글" / "내가 공감한 글" -->
+      <!-- mypage.js → setupMyPageTabs() 에서 클릭 이벤트로 탭 전환 -->
       <div class="btn-group mb-3" role="group" aria-label="마이페이지 글 탭">
         <button
           type="button"
@@ -107,13 +125,15 @@
       </div>
 
       <!-- 내가 쓴 글 섹션 -->
+      <!-- mypage.js → loadMyPosts() 결과가 #myPosts 안에 렌더링 -->
       <div id="myPostsSection">
         <div id="myPosts">
           <p class="text-muted">글 목록을 불러오는 중입니다...</p>
         </div>
       </div>
 
-      <!-- 내가 공감한 글 섹션 (처음엔 숨김) -->
+      <!-- 내가 공감한 글 섹션 (초기에는 d-none으로 숨김) -->
+      <!-- mypage.js → loadLikedPosts() 결과가 #likedPosts 안에 렌더링 -->
       <div id="likedPostsSection" class="d-none">
         <div id="likedPosts">
           <p class="text-muted">공감한 글을 불러오는 중입니다...</p>
@@ -123,6 +143,8 @@
   </section>
 
   <!-- 내 정보 수정 모달 -->
+  <!-- "내 정보 수정" 버튼 클릭 시 나타나는 Bootstrap 모달 -->
+  <!-- mypage.js → setupUserEditForm() 에서 폼 submit 로직 처리 -->
   <div
     class="modal fade"
     id="userEditModal"
@@ -132,9 +154,11 @@
   >
     <div class="modal-dialog">
       <div class="modal-content">
+        <!-- 내 정보 수정 폼 -->
         <form id="userEditForm">
           <div class="modal-header">
             <h5 class="modal-title" id="userEditModalLabel">내 정보 수정</h5>
+            <!-- 모달 닫기 버튼 -->
             <button
               type="button"
               class="btn-close"
@@ -142,6 +166,7 @@
               aria-label="닫기"
             ></button>
           </div>
+
           <div class="modal-body">
             <!-- 닉네임 -->
             <div class="mb-3">
@@ -172,7 +197,7 @@
               </div>
             </div>
 
-            <!-- 자기소개 -->
+            <!-- 자기소개 / 작가 소개 (여러 줄) -->
             <div class="mb-3">
               <label for="aboutInput" class="form-label">자기소개 / 작가 소개</label>
               <textarea
@@ -188,8 +213,10 @@
 
             <hr class="my-3" />
 
-            <!-- 비밀번호 변경 -->
+            <!-- 비밀번호 변경 영역 -->
             <h6 class="mb-3">비밀번호 변경</h6>
+
+            <!-- 현재 비밀번호 -->
             <div class="mb-3">
               <label for="currentPwInput" class="form-label">현재 비밀번호</label>
               <input
@@ -199,6 +226,8 @@
                 autocomplete="current-password"
               />
             </div>
+
+            <!-- 새 비밀번호 -->
             <div class="mb-3">
               <label for="newPwInput" class="form-label">새 비밀번호</label>
               <input
@@ -208,6 +237,8 @@
                 autocomplete="new-password"
               />
             </div>
+
+            <!-- 새 비밀번호 확인 -->
             <div class="mb-3">
               <label for="newPwConfirmInput" class="form-label">새 비밀번호 확인</label>
               <input
@@ -218,8 +249,12 @@
               />
             </div>
           </div>
+
           <div class="modal-footer">
+            <!-- 서버 응답/에러 메시지 표시 영역 -->
             <small id="userEditMessage" class="me-auto text-muted"></small>
+
+            <!-- 모달 닫기 버튼 -->
             <button
               type="button"
               class="btn btn-secondary"
@@ -227,6 +262,9 @@
             >
               닫기
             </button>
+
+            <!-- 수정 내용 저장 버튼 -->
+            <!-- mypage.js → /api/me PUT 요청 보내고 성공 시 상단 프로필 재로딩 -->
             <button type="submit" class="btn btn-primary">저장하기</button>
           </div>
         </form>
@@ -234,15 +272,17 @@
     </div>
   </div>
 
-  <!-- 글숲 푸터 -->
+  <!-- 글숲 공통 푸터 -->
   <footer class="custom-footer">
     <div class="container py-4 py-md-5">
       <div class="row gy-3 align-items-center">
+        <!-- 좌측: 브랜드/슬로건 -->
         <div class="col-md-4 text-center text-md-start">
           <div class="footer-brand">글숲</div>
           <p class="footer-subtitle">마음을 나누는 작은 숲</p>
         </div>
 
+        <!-- 중앙: 퀵 링크 -->
         <div class="col-md-4 text-center">
           <ul class="footer-links list-inline mb-0">
             <li class="list-inline-item"><a href="/index.html">홈</a></li>
@@ -251,6 +291,7 @@
           </ul>
         </div>
 
+        <!-- 우측: 카피라이트 문구 -->
         <div class="col-md-4 text-center text-md-end">
           <p class="footer-copy">&copy; 2025 글숲. All rights reserved.</p>
           <p class="footer-small">조용히 머물다 가는 공간을 함께 가꿔요.</p>
@@ -259,10 +300,20 @@
     </div>
   </footer>
 
-  <!-- JS -->
+  <!-- JS 로딩 순서 -->
+  <!-- 1) 공통 유틸 함수 (escapeHtml, 날짜 포맷, quote-card 폰트 조정 등) -->
   <script src="/js/utils.js"></script>
+
+  <!-- 2) Bootstrap JS 번들 (모달, 드롭다운, 네비 토글 등) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- 3) 헤더 로그인 상태 처리 (/api/me → before/after-login 토글, 로그아웃 처리) -->
   <script src="../js/header.js"></script>
+
+  <!-- 4) 마이페이지 전용 스크립트
+         - loadMyPage(): 내 정보 + "내가 쓴 글" 초기 로딩
+         - 탭 전환 (내 글 / 공감한 글)
+         - 글 수정/삭제, 내 정보 수정 모달 처리 -->
   <script src="../js/mypage.js"></script>
 </body>
 </html>

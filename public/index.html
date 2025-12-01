@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>글숲 메인</title>
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts: 손글씨체 / 본문용 고딕 / 감성 명조체 -->
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
   <link
@@ -13,23 +13,31 @@
     rel="stylesheet"
   />
 
-  <!-- Bootstrap CSS -->
+  <!-- Bootstrap CSS (레이아웃 / 반응형 유틸) -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-  <!-- Custom CSS -->
+  <!-- Custom CSS
+       - index.html은 프로젝트 루트(/)에 있기 때문에 상대 경로 ./css/main.css 사용
+       - 공통 스타일(네비, 히어로, 카드, 푸터 등)은 모두 main.css에서 관리 -->
   <link rel="stylesheet" href="./css/main.css">
 </head>
 <body>
-  <!-- 헤더 -->
+  <!-- =========================
+       상단 네비게이션 / 헤더 영역
+       ========================= -->
   <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
     <div class="container">
+      <!-- 사이트 로고 / 브랜드 -->
       <a class="navbar-brand" href="/index.html">글숲</a>
+
+      <!-- 모바일에서 메뉴 토글 버튼 -->
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
 
+      <!-- 네비게이션 메뉴(로그인 전/후 상태에 따라 노출) -->
       <div class="collapse navbar-collapse" id="navbarNav">
-        <!-- 로그인 전 -->
+        <!-- 로그인 전: 로그인 / 회원가입 버튼 -->
         <ul class="navbar-nav ms-auto before-login">
           <li class="nav-item">
             <a class="nav-link" href="/html/login.html">로그인</a>
@@ -39,17 +47,26 @@
           </li>
         </ul>
 
-        <!-- 로그인 후 -->
+        <!-- 로그인 후: 유저 이름 + 마이페이지 / 글쓰기 / 로그아웃 버튼
+             - header.js의 updateHeader()에서 /api/me를 보고
+               .before-login / .after-login display를 토글 -->
         <ul class="navbar-nav ms-auto after-login" style="display: none;">
+          <!-- 로그인된 사용자 이름 텍스트 (예: "재원님") -->
           <li class="nav-item">
             <span class="nav-link" id="navUserName"></span>
           </li>
+
+          <!-- 마이페이지 이동 -->
           <li class="nav-item">
             <a class="nav-link" href="/html/mypage.html">마이페이지</a>
           </li>
+
+          <!-- 글쓰기 페이지 이동 -->
           <li class="nav-item">
             <a class="nav-link" href="/html/editor.html">글쓰기</a>
           </li>
+
+          <!-- 로그아웃 버튼 (header.js → handleLogout()) -->
           <li class="nav-item">
             <button class="btn btn-outline-light ms-2" id="logoutBtn" type="button">로그아웃</button>
           </li>
@@ -58,42 +75,60 @@
     </div>
   </nav>
 
-  <!-- 메인 내용 (히어로) -->
+  <!-- =========================
+       메인 히어로 섹션 (브랜드 소개)
+       ========================= -->
   <section class="hero-section">
     <div class="container">
+      <!-- 중앙 카드형 히어로 (main.css의 .hero-card 스타일 사용) -->
       <div class="hero-card">
         <h1 class="hero-title">글숲</h1>
         <p class="hero-subtitle">
           글을 쓰는 사람, 읽는 사람이 함께 머무는 작은 숲.<br />
           오늘의 생각, 감정을 천천히 적어 내려가 보세요.
         </p>
+
+        <!-- 글쓰기 CTA 버튼
+             - hover 시 잎사귀 애니메이션 (index.js → setupHeroCtaLeaves()) -->
         <a href="/html/editor.html" class="btn btn-success hero-cta-btn">
           <span class="hero-cta-text">바로 글 쓰러 가기</span>
+          <!-- 잎사귀 이모지들이 들어갈 컨테이너 (JS에서 span.hero-cta-leaf 여러 개 생성) -->
           <span class="hero-cta-leaves" aria-hidden="true"></span>
         </a>
       </div>
     </div>
   </section>
 
-  <!-- 피드 섹션: 모든 사용자의 글 -->
+  <!-- =========================
+       피드 섹션: 모든 사용자의 글 목록
+       ========================= -->
   <section class="page-section">
     <div class="container" style="max-width: 900px;">
       <h3 class="mb-3">최근 글</h3>
+
+      <!-- 홈 피드 카드들이 들어갈 영역
+           - 기본 상태: "피드를 불러오는 중입니다..." 안내 문구
+           - index.js(Glsoop.FeedPage)가 /api/posts/feed를 호출하여
+             카드들을 무한 스크롤 방식으로 추가 렌더링 -->
       <div id="feedPosts">
         <p class="text-muted">피드를 불러오는 중입니다...</p>
       </div>
     </div>
   </section>
 
-  <!-- 글숲 푸터 -->
+  <!-- =========================
+       하단 푸터 영역
+       ========================= -->
   <footer class="custom-footer">
     <div class="container py-4 py-md-5">
       <div class="row gy-3 align-items-center">
+        <!-- 좌측: 로고 + 서브 문구 -->
         <div class="col-md-4 text-center text-md-start">
           <div class="footer-brand">글숲</div>
           <p class="footer-subtitle">마음을 나누는 작은 숲</p>
         </div>
 
+        <!-- 중앙: 주요 링크들 -->
         <div class="col-md-4 text-center">
           <ul class="footer-links list-inline mb-0">
             <li class="list-inline-item"><a href="/index.html">홈</a></li>
@@ -102,6 +137,7 @@
           </ul>
         </div>
 
+        <!-- 우측: 카피라이트 / 짧은 문구 -->
         <div class="col-md-4 text-center text-md-end">
           <p class="footer-copy">&copy; 2025 글숲. All rights reserved.</p>
           <p class="footer-small">조용히 머물다 가는 공간을 함께 가꿔요.</p>
@@ -110,10 +146,22 @@
     </div>
   </footer>
 
-  <!-- JS -->
+  <!-- =========================
+       JS 스크립트 로드
+       ========================= -->
+
+  <!-- 공통 유틸 (escapeHtml, maskEmail, autoAdjustQuoteFont 등) -->
   <script src="/js/utils.js"></script>
+
+  <!-- Bootstrap JS 번들 (팝오버, 모달, 네비 토글 등) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- 헤더 로그인 상태 관리 (before-login / after-login 토글, 로그아웃 처리) -->
   <script src="./js/header.js"></script>
+
+  <!-- 메인 피드 로직
+       - Glsoop.FeedPage 모듈
+       - 무한 스크롤, 좋아요 토글, 태그 필터, 잎사귀 애니메이션 등 -->
   <script src="./js/index.js"></script>
 </body>
 </html>

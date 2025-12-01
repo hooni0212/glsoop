@@ -1,20 +1,38 @@
 // public/js/mypage.js
+// 마이페이지 화면 스크립트
+// - 상단 내 정보 표시
+// - 탭(내가 쓴 글 / 공감한 글) 전환
+// - 글 카드 렌더링 + 수정/삭제 기능
+// - 내 정보 수정 모달(닉네임, 한 줄 소개, 자기소개, 비밀번호 변경)
 
+/**
+ * 내가 쓴 글, 공감한 글이 이미 로드되었는지 여부
+ * - 탭 전환 시 매번 서버에 요청하지 않기 위한 플래그
+ */
 let myPostsLoaded = false;
 let likedPostsLoaded = false;
 
+// DOM이 완전히 로드되면 마이페이지 초기화
 document.addEventListener('DOMContentLoaded', () => {
-  setupMyPageTabs();
-  loadMyPage();            // 내 정보 + 기본 탭(내가 쓴 글) 로드
-  setupUserEditForm();     // 내 정보 수정 모달
-  setupMyPostCardEvents(); // 수정/삭제 버튼 이벤트
+  setupMyPageTabs();        // 탭 버튼(내가 쓴 글 / 공감한 글) 이벤트 설정
+  loadMyPage();             // 내 정보 + 기본 탭(내가 쓴 글) 데이터 로드
+  setupUserEditForm();      // 내 정보 수정 모달 폼 처리
+  setupMyPostCardEvents();  // 내가 쓴 글 카드에서 수정/삭제 버튼 처리
 });
 
+/**
+ * 마이페이지 전체 초기화
+ * - /api/me로 내 정보 불러오기 (로그인 확인도 겸함)
+ * - 상단 프로필 박스 렌더링
+ * - 모달 기본 값 채우기
+ * - 기본 탭(내가 쓴 글) 로딩
+ */
 async function loadMyPage() {
-  const userInfoBox = document.getElementById('userInfo');
-  const myPostsBox = document.getElementById('myPosts');
-  const likedBox = document.getElementById('likedPosts');
+  const userInfoBox = document.getElementById('userInfo');       // 상단 '내 정보' 영역
+  const myPostsBox = document.getElementById('myPosts');         // 내가 쓴 글 리스트 영역
+  const likedBox = document.getElementById('likedPosts');        // 공감한 글 리스트 영역
 
+  // 기본 컨테이너가 없으면 스크립트 중단 (레이아웃 깨진 경우 방어)
   if (!userInfoBox || !myPostsBox || !likedBox) {
     console.error('userInfo, myPosts, likedPosts 요소를 찾을 수 없습니다.');
     return;
@@ -22,8 +40,9 @@ async function loadMyPage() {
 
   try {
     // 1. 내 정보 가져오기 (로그인 확인 겸용)
-    const meRes = await fetch('/api/me');
+    const meRes = await fetch('/api/me'); // 로그인 상태 확인 + 사용자 정보
 
+    // HTTP 레벨에서 실패(401, 403 등)인 경우 → 로그인 필요 안내 후 로그인 페이지로 이동
     if (!meRes.ok) {
       userInfoBox.innerHTML =
         '<p class="text-danger">로그인이 필요합니다. 로그인 페이지로 이동합니다.</p>';
@@ -37,6 +56,7 @@ async function loadMyPage() {
 
     const meData = await meRes.json();
 
+    // API 응답에서 ok가 false인 경우도 로그인 실패로 처리
     if (!meData.ok) {
       userInfoBox.innerHTML =
         '<p class="text-danger">로그인이 필요합니다. 로그인 페이지로 이동합니다.</p>';
@@ -49,23 +69,28 @@ async function loadMyPage() {
     }
 
     // 2. 내 정보 출력 + "내 정보 수정" 버튼 (모달 열기)
+    // 표시 이름: 닉네임이 있으면 닉네임, 없으면 가입 시 이름 사용
     const displayName =
       meData.nickname && meData.nickname.trim().length > 0
         ? meData.nickname
         : meData.name;
 
+    // 한 줄 소개(bio)가 있는 경우에만 줄 추가
     const bioHtml = meData.bio
       ? `<p class="mb-1 text-muted small">한 줄 소개: ${escapeHtml(
           meData.bio
         )}</p>`
       : '';
 
+    // 자기소개(about)가 있는 경우에만 줄 추가
+    // - white-space: pre-line; → 줄바꿈(\n)을 실제 줄바꿈으로 보여줌
     const aboutHtml = meData.about
       ? `<p class="mb-0 small" style="white-space: pre-line;">${escapeHtml(
           meData.about
         )}</p>`
       : '';
 
+    // 상단 프로필 영역 HTML 구성
     userInfoBox.innerHTML = `
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
@@ -93,6 +118,7 @@ async function loadMyPage() {
     const aboutInput = document.getElementById('aboutInput');
 
     if (nicknameInput) {
+      // 기존 닉네임이 있으면 그대로, 없으면 빈 문자열
       nicknameInput.value = meData.nickname || '';
     }
     if (bioInput) {
@@ -102,12 +128,15 @@ async function loadMyPage() {
       aboutInput.value = meData.about || '';
     }
 
-    // 기본 탭: 내가 쓴 글
+    // 기본 탭: "내가 쓴 글" 목록 로드
     await loadMyPosts();
   } catch (e) {
+    // /api/me 요청 또는 JSON 파싱 도중 예외 발생 시
     console.error(e);
     userInfoBox.innerHTML =
       '<p class="text-danger">마이페이지를 불러오는 중 오류가 발생했습니다.</p>';
+
+    // 추가로 글 목록/공감한 글 영역에도 오류 메시지 출력
     const myPostsBox2 = document.getElementById('myPosts');
     const likedBox2 = document.getElementById('likedPosts');
     if (myPostsBox2) {
@@ -125,27 +154,39 @@ async function loadMyPage() {
  *  탭 전환 관련
  * ====================== */
 
+/**
+ * 마이페이지 상단 탭(내가 쓴 글 / 공감한 글)에 클릭 이벤트 설정
+ * - 각 탭을 클릭했을 때 switchMyPageTab으로 섹션 가시성 변경
+ * - 아직 로드되지 않은 섹션은 처음 클릭 시 데이터 로딩
+ */
 function setupMyPageTabs() {
-  const tabMy = document.getElementById('tabMyPosts');
-  const tabLiked = document.getElementById('tabLikedPosts');
+  const tabMy = document.getElementById('tabMyPosts');      // "내가 쓴 글" 탭 버튼
+  const tabLiked = document.getElementById('tabLikedPosts'); // "공감한 글" 탭 버튼
 
   if (!tabMy || !tabLiked) return;
 
+  // "내가 쓴 글" 탭 클릭 시
   tabMy.addEventListener('click', async () => {
-    switchMyPageTab('my');
+    switchMyPageTab('my');   // 탭/섹션 전환
     if (!myPostsLoaded) {
-      await loadMyPosts();
+      await loadMyPosts();   // 아직 로드 안 됐으면 서버에서 데이터 가져오기
     }
   });
 
+  // "공감한 글" 탭 클릭 시
   tabLiked.addEventListener('click', async () => {
     switchMyPageTab('liked');
     if (!likedPostsLoaded) {
-      await loadLikedPosts();
+      await loadLikedPosts(); // 아직 로드 안 됐으면 서버에서 데이터 가져오기
     }
   });
 }
 
+/**
+ * 실제 탭/섹션 전환
+ *
+ * @param {'my'|'liked'} target - 'my'면 내가 쓴 글, 'liked'면 공감한 글 탭/섹션 표시
+ */
 function switchMyPageTab(target) {
   const tabMy = document.getElementById('tabMyPosts');
   const tabLiked = document.getElementById('tabLikedPosts');
@@ -155,15 +196,17 @@ function switchMyPageTab(target) {
   if (!tabMy || !tabLiked || !mySection || !likedSection) return;
 
   if (target === 'my') {
+    // 내가 쓴 글 탭 활성화
     tabMy.classList.add('active');
     tabLiked.classList.remove('active');
-    mySection.classList.remove('d-none');
-    likedSection.classList.add('d-none');
+    mySection.classList.remove('d-none');   // 내가 쓴 글 영역 보이기
+    likedSection.classList.add('d-none');   // 공감한 글 영역 숨기기
   } else {
+    // 공감한 글 탭 활성화
     tabMy.classList.remove('active');
     tabLiked.classList.add('active');
-    mySection.classList.add('d-none');
-    likedSection.classList.remove('d-none');
+    mySection.classList.add('d-none');      // 내가 쓴 글 영역 숨기기
+    likedSection.classList.remove('d-none'); // 공감한 글 영역 보이기
   }
 }
 
@@ -171,25 +214,42 @@ function switchMyPageTab(target) {
  *  공통 카드 렌더링
  * ====================== */
 
+/**
+ * 마이페이지에서 사용하는 공통 글 카드 HTML 생성
+ * - 내가 쓴 글 / 공감한 글 둘 다 이 함수를 사용
+ * - showActions가 true이면 카드 아래에 수정/삭제 버튼 표시
+ *
+ * @param {Object} post
+ * @param {Object} options
+ * @param {boolean} options.showActions - 수정/삭제 버튼 표시 여부
+ * @returns {string} HTML 문자열
+ */
 function renderPostCard(post, options = {}) {
   const { showActions = false } = options;
 
+  // 글 작성 시간을 한국형 포맷 문자열로 변환
   const dateStr = formatKoreanDateTime(post.created_at);
 
+  // 공감 수(좋아요 수) 숫자 처리
   const likeCount =
     post.like_count !== undefined && post.like_count !== null
       ? Number(post.like_count)
       : 0;
 
+  // 카드 전체 HTML 템플릿
   return `
     <div class="card mb-3 mypage-post-card" data-post-id="${post.id}">
       <div class="card-body d-flex flex-column align-items-center">
+        <!-- 인스타 감성 종이 카드(마이페이지 버전) -->
         <div class="quote-card">
+          <!-- 카드 상단: 제목 + 날짜 + 공감 수 -->
           <div class="mb-3" style="width: 100%;">
             <div class="d-flex flex-column align-items-center">
+              <!-- 글 제목 -->
               <div class="paper-title mb-1" style="font-size: 1rem; font-weight: 600;">
                 ${escapeHtml(post.title)}
               </div>
+              <!-- 작성일 + 공감 수 -->
               <div class="paper-meta" style="font-size: 0.8rem; color: #777;">
                 ${dateStr}
                 &nbsp;&nbsp;
@@ -200,12 +260,14 @@ function renderPostCard(post, options = {}) {
               </div>
             </div>
           </div>
+          <!-- 카드 본문: 실제 글 내용 (에디터에서 작성된 HTML) -->
           <div class="paper-content">
             ${post.content}
           </div>
         </div>
 
         ${
+          // showActions가 true일 때만 수정/삭제 버튼 표시 (내가 쓴 글에서만)
           showActions
             ? `
         <div class="d-flex justify-content-end w-100 mt-3 gap-2">
@@ -234,16 +296,23 @@ function renderPostCard(post, options = {}) {
  *  내가 쓴 글 로딩
  * ====================== */
 
+/**
+ * "내가 쓴 글" 목록 로딩
+ * - GET /api/posts/my 호출
+ * - 글이 없으면 안내 문구, 있으면 renderPostCard로 카드 목록 렌더링
+ */
 async function loadMyPosts() {
   const postsBox = document.getElementById('myPosts');
   if (!postsBox) return;
 
+  // 로딩 중 안내 문구
   postsBox.innerHTML =
     '<p class="text-muted">글 목록을 불러오는 중입니다...</p>';
 
   try {
     const postsRes = await fetch('/api/posts/my');
 
+    // HTTP 레벨 오류 처리
     if (!postsRes.ok) {
       postsBox.innerHTML =
         '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
@@ -252,6 +321,7 @@ async function loadMyPosts() {
 
     const postsData = await postsRes.json();
 
+    // API 응답에서 ok가 false인 경우 오류 메시지 표시
     if (!postsData.ok) {
       postsBox.innerHTML = `<p class="text-danger">${
         postsData.message || '글 목록을 불러오지 못했습니다.'
@@ -261,6 +331,7 @@ async function loadMyPosts() {
 
     const posts = postsData.posts || [];
 
+    // 작성한 글이 하나도 없는 경우
     if (!posts.length) {
       postsBox.innerHTML =
         '<p class="text-muted">아직 작성한 글이 없습니다.</p>';
@@ -268,12 +339,13 @@ async function loadMyPosts() {
       return;
     }
 
+    // 글마다 공통 카드 렌더링 (수정/삭제 버튼 있음)
     const listHtml = posts
       .map((post) => renderPostCard(post, { showActions: true }))
       .join('');
 
     postsBox.innerHTML = listHtml;
-    myPostsLoaded = true;
+    myPostsLoaded = true; // 이후에는 다시 로드하지 않도록 플래그 설정
   } catch (err) {
     console.error(err);
     postsBox.innerHTML =
@@ -285,16 +357,23 @@ async function loadMyPosts() {
  *  내가 공감한 글 로딩
  * ====================== */
 
+/**
+ * "공감한 글" 목록 로딩
+ * - GET /api/posts/liked 호출
+ * - 글이 없으면 안내 문구, 있으면 renderPostCard로 카드 목록 렌더링
+ */
 async function loadLikedPosts() {
   const likedBox = document.getElementById('likedPosts');
   if (!likedBox) return;
 
+  // 로딩 중 안내 문구
   likedBox.innerHTML =
     '<p class="text-muted">공감한 글을 불러오는 중입니다...</p>';
 
   try {
     const likedRes = await fetch('/api/posts/liked');
 
+    // HTTP 레벨 오류
     if (!likedRes.ok) {
       likedBox.innerHTML =
         '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
@@ -303,6 +382,7 @@ async function loadLikedPosts() {
 
     const likedData = await likedRes.json();
 
+    // API 레벨 오류
     if (!likedData.ok) {
       likedBox.innerHTML = `<p class="text-danger">${
         likedData.message || '공감한 글을 불러오지 못했습니다.'
@@ -312,6 +392,7 @@ async function loadLikedPosts() {
 
     const likedPosts = likedData.posts || [];
 
+    // 공감한 글이 하나도 없는 경우
     if (!likedPosts.length) {
       likedBox.innerHTML =
         '<p class="text-muted">아직 공감한 글이 없습니다.</p>';
@@ -319,6 +400,7 @@ async function loadLikedPosts() {
       return;
     }
 
+    // 공감한 글은 읽기 전용이므로 showActions: false (수정/삭제 버튼 X)
     const likedHtml = likedPosts
       .map((post) => renderPostCard(post, { showActions: false }))
       .join('');
@@ -336,36 +418,46 @@ async function loadLikedPosts() {
  *  수정/삭제 버튼 이벤트
  * ====================== */
 
+/**
+ * "내가 쓴 글" 카드 영역에 이벤트 위임 설정
+ * - 카드 내부의 수정/삭제 버튼 클릭을 한 곳에서 처리
+ */
 function setupMyPostCardEvents() {
   const postsBox = document.getElementById('myPosts');
   if (!postsBox) return;
 
+  // myPosts 영역에 클릭 이벤트 리스너를 한 번만 등록
   postsBox.addEventListener('click', async (e) => {
     const target = e.target;
+    // 클릭된 요소에서 가장 가까운 .mypage-post-card(부모 카드) 찾기
     const card = target.closest('.mypage-post-card');
     if (!card) return;
 
     const postId = card.getAttribute('data-post-id');
     if (!postId) return;
 
-    // 삭제 버튼
+    // ===== 삭제 버튼 처리 =====
     if (target.classList.contains('delete-post-btn')) {
       const ok = confirm('정말 이 글을 삭제하시겠습니까?');
       if (!ok) return;
 
       try {
+        // DELETE /api/posts/:id 요청
         const delRes = await fetch(`/api/posts/${postId}`, {
           method: 'DELETE',
         });
         const delData = await delRes.json();
 
+        // HTTP 또는 응답 ok가 false이면 실패
         if (!delRes.ok || !delData.ok) {
           alert(delData.message || '글 삭제에 실패했습니다.');
           return;
         }
 
+        // DOM에서 해당 카드 제거
         card.remove();
 
+        // 더 이상 카드가 없으면 "아직 작성한 글이 없습니다" 문구 출력
         if (!postsBox.querySelector('.mypage-post-card')) {
           postsBox.innerHTML =
             '<p class="text-muted">아직 작성한 글이 없습니다.</p>';
@@ -376,8 +468,10 @@ function setupMyPostCardEvents() {
       }
     }
 
-    // 수정 버튼 → 에디터 페이지로 이동
+    // ===== 수정 버튼 처리 → 에디터 페이지로 이동 =====
     if (target.classList.contains('edit-post-btn')) {
+      // 글쓰기 페이지(editor.html)에 postId 쿼리로 넘김
+      // - 에디터 쪽에서 ?postId=...를 보고 수정 모드로 동작
       window.location.href = `/html/editor.html?postId=${postId}`;
     }
   });
@@ -387,23 +481,36 @@ function setupMyPostCardEvents() {
  *  내 정보 수정 폼
  * ====================== */
 
+/**
+ * 내 정보 수정 모달 폼 처리
+ * - 닉네임 / 한 줄 소개 / 자기소개 / 비밀번호 변경
+ * - 비밀번호 변경 시 간단한 클라이언트 검증
+ * - PUT /api/me 호출 후 성공 시 프로필 갱신 + 모달 닫기
+ */
 function setupUserEditForm() {
   const form = document.getElementById('userEditForm');
+
+  // 각 입력 필드
   const nicknameInput = document.getElementById('nicknameInput');
   const bioInput = document.getElementById('bioInput');
   const aboutInput = document.getElementById('aboutInput');
   const currentPwInput = document.getElementById('currentPwInput');
   const newPwInput = document.getElementById('newPwInput');
   const newPwConfirmInput = document.getElementById('newPwConfirmInput');
+
+  // 결과/에러 메시지 출력용 span
   const messageSpan = document.getElementById('userEditMessage');
 
+  // 폼이 없는 경우(레이아웃 변경 등)에는 아무 것도 하지 않음
   if (!form) {
-    return; // 폼이 없으면 아무 것도 하지 않음
+    return;
   }
 
+  // 폼 제출(submit) 이벤트 처리
   form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // 기본 폼 제출(페이지 새로고침) 막기
 
+    // 각 값을 읽어서 트리밍
     const nickname = nicknameInput ? nicknameInput.value.trim() : '';
     const bio = bioInput ? bioInput.value.trim() : '';
     const about = aboutInput ? aboutInput.value : '';
@@ -411,13 +518,16 @@ function setupUserEditForm() {
     const newPw = newPwInput ? newPwInput.value : '';
     const newPwConfirm = newPwConfirmInput ? newPwConfirmInput.value : '';
 
+    // 메시지 영역 초기화
     if (messageSpan) {
       messageSpan.classList.remove('text-danger', 'text-success');
       messageSpan.textContent = '';
     }
 
-    // 비밀번호 변경 시 기본 검증
+    // ===== 비밀번호 변경 관련 기본 검증 =====
+    // newPw 또는 newPwConfirm 중 하나라도 입력되어 있으면 "비밀번호 변경" 의도가 있다고 보고 검증
     if (newPw || newPwConfirm) {
+      // 둘 중 하나만 입력된 경우
       if (!newPw || !newPwConfirm) {
         if (messageSpan) {
           messageSpan.classList.add('text-danger');
@@ -426,6 +536,7 @@ function setupUserEditForm() {
         return;
       }
 
+      // 새 비밀번호와 확인이 일치하지 않을 때
       if (newPw !== newPwConfirm) {
         if (messageSpan) {
           messageSpan.classList.add('text-danger');
@@ -434,6 +545,7 @@ function setupUserEditForm() {
         return;
       }
 
+      // 현재 비밀번호를 입력하지 않은 경우
       if (!currentPw) {
         if (messageSpan) {
           messageSpan.classList.add('text-danger');
@@ -443,6 +555,7 @@ function setupUserEditForm() {
         return;
       }
 
+      // 새 비밀번호 길이 제한 (간단 검증)
       if (newPw.length < 6) {
         if (messageSpan) {
           messageSpan.classList.add('text-danger');
@@ -453,7 +566,8 @@ function setupUserEditForm() {
       }
     }
 
-    // 변경할 내용이 하나도 없으면 막기 (닉네임/소개/비번 모두 비어있을 때)
+    // ===== 변경할 내용이 하나도 없는 경우 막기 =====
+    // 닉네임, 한 줄 소개, 자기소개, 새 비밀번호 중 아무 것도 입력되지 않았으면 제출 X
     if (!nickname && !bio && !about && !newPw) {
       if (messageSpan) {
         messageSpan.classList.add('text-danger');
@@ -463,11 +577,12 @@ function setupUserEditForm() {
     }
 
     try {
+      // /api/me에 PUT으로 수정 요청
       const res = await fetch('/api/me', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nickname: nickname || null, // 비우면 null로 저장 → 이름 표시
+          nickname: nickname || null, // 닉네임을 비우면 null로 보내서 서버에서 이름 사용
           currentPw: currentPw || null,
           newPw: newPw || null,
           bio: bio,
@@ -475,8 +590,10 @@ function setupUserEditForm() {
         }),
       });
 
+      // 응답 JSON 파싱 (실패하면 {}로 대체)
       const data = await res.json().catch(() => ({}));
 
+      // HTTP 또는 data.ok 실패 시 에러 메시지 출력
       if (!res.ok || !data.ok) {
         if (messageSpan) {
           messageSpan.classList.add('text-danger');
@@ -486,27 +603,29 @@ function setupUserEditForm() {
         return;
       }
 
+      // 성공 메시지 출력
       if (messageSpan) {
         messageSpan.classList.add('text-success');
         messageSpan.textContent =
           data.message || '내 정보가 수정되었습니다.';
       }
 
-      // 비밀번호 입력칸은 항상 비워주기
+      // 비밀번호 입력칸은 항상 비워주기 (보안/UX)
       if (currentPwInput) currentPwInput.value = '';
       if (newPwInput) newPwInput.value = '';
       if (newPwConfirmInput) newPwConfirmInput.value = '';
 
-      // ✅ 모달 닫기
+      // ✅ 모달 닫기 (Bootstrap Modal 사용)
       const modalEl = document.getElementById('userEditModal');
       if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+        // 이미 생성된 인스턴스가 있으면 사용, 없으면 새로 생성
         const modalInstance =
           window.bootstrap.Modal.getInstance(modalEl) ||
           new window.bootstrap.Modal(modalEl);
         modalInstance.hide();
       }
 
-      // 상단 프로필 영역도 바로 갱신
+      // 상단 프로필 영역도 바로 갱신 (새 닉네임/소개 반영)
       await loadMyPage();
     } catch (err) {
       console.error(err);

@@ -5,29 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>로그인 | 글숲</title>
 
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
+  <!-- Google Fonts: 사이트 공통 폰트 -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap"
+    rel="stylesheet"
+  >
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap"
+    rel="stylesheet"
+  >
 
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap CSS: 레이아웃/폼/버튼 기본 스타일 -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
 
-  <!-- Custom CSS -->
+  <!-- Custom CSS: 글숲 공통 스타일 -->
   <link rel="stylesheet" href="../css/main.css">
 </head>
 
-<!-- 🔽 전체를 세로 플렉스 + 화면 높이 채우기 -->
+<!-- 🔽 전체를 세로 플렉스 + 화면 높이 채우기 (푸터를 항상 하단에 붙이기 위함) -->
 <body class="d-flex flex-column min-vh-100">
-  <!-- 헤더 -->
+  <!-- 헤더 네비게이션 바 -->
   <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
     <div class="container">
+      <!-- 로고: 클릭 시 메인 홈으로 이동 -->
       <a class="navbar-brand" href="/index.html">글숲</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+
+      <!-- 모바일 메뉴 토글 버튼 -->
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#navbarNav"
+      >
         <span class="navbar-toggler-icon"></span>
       </button>
 
       <div class="collapse navbar-collapse" id="navbarNav">
-        <!-- 로그인 전 -->
+        <!-- 로그인 전: 로그인 / 회원가입 메뉴 표시 -->
         <ul class="navbar-nav ms-auto before-login">
           <li class="nav-item">
             <a class="nav-link" href="/html/login.html">로그인</a>
@@ -37,9 +54,11 @@
           </li>
         </ul>
 
-        <!-- 로그인 후 -->
+        <!-- 로그인 후: 유저 이름 / 마이페이지 / 글쓰기 / 로그아웃 메뉴 표시 -->
+        <!-- header.js에서 /api/me 결과에 따라 before-login / after-login 토글 -->
         <ul class="navbar-nav ms-auto after-login" style="display: none;">
           <li class="nav-item">
+            <!-- 로그인한 유저 이름 표시 (예: 홍길동님) -->
             <span class="nav-link" id="navUserName"></span>
           </li>
           <li class="nav-item">
@@ -49,7 +68,14 @@
             <a class="nav-link" href="/html/editor.html">글쓰기</a>
           </li>
           <li class="nav-item">
-            <button class="btn btn-outline-light ms-2" id="logoutBtn" type="button">로그아웃</button>
+            <!-- 로그아웃 버튼: header.js에서 클릭 이벤트 처리 -->
+            <button
+              class="btn btn-outline-light ms-2"
+              id="logoutBtn"
+              type="button"
+            >
+              로그아웃
+            </button>
           </li>
         </ul>
       </div>
@@ -57,24 +83,48 @@
   </nav>
 
   <!-- 로그인 섹션 -->
+  <!-- fixed-top 헤더와 겹치지 않도록 py-5 + mt-5로 상단 여백 확보 -->
   <section class="py-5 mt-5">
     <div class="container">
+      <!-- 페이지 제목 -->
       <h2 class="text-center mb-4">로그인</h2>
 
+      <!-- 로그인 폼: 가운데 정렬 + 최대 너비 400px -->
       <form id="loginForm" class="mx-auto" style="max-width: 400px;">
+        <!-- 이메일 입력 -->
         <div class="mb-3">
           <label class="form-label">이메일</label>
-          <input type="email" name="email" class="form-control" required autofocus>
+          <input
+            type="email"
+            name="email"
+            class="form-control"
+            required
+            autofocus
+          >
         </div>
 
+        <!-- 비밀번호 입력 -->
         <div class="mb-3">
           <label class="form-label">비밀번호</label>
-          <input type="password" name="pw" class="form-control" required autocomplete="current-password">
+          <input
+            type="password"
+            name="pw"
+            class="form-control"
+            required
+            autocomplete="current-password"
+          >
         </div>
 
-        <button type="submit" class="btn btn-success w-100">로그인</button>
+        <!-- 로그인 버튼 -->
+        <!-- login.js에서 submit 이벤트를 잡아 /api/login 호출 -->
+        <button
+          type="submit"
+          class="btn btn-success w-100"
+        >
+          로그인
+        </button>
 
-        <!-- 🔽 추가: 비밀번호 찾기 링크 -->
+        <!-- 비밀번호 찾기 링크: forgot-password.html로 이동 -->
         <div class="text-end mt-2">
           <a href="/html/forgot-password.html" class="small text-muted">
             비밀번호를 잊으셨나요?
@@ -84,15 +134,18 @@
     </div>
   </section>
 
-  <!-- 글숲 푸터 -->
+  <!-- 글숲 공통 푸터 -->
+  <!-- body에 flex-column + min-vh-100, 푸터에 mt-auto → 화면 하단에 고정 느낌 -->
   <footer class="custom-footer mt-auto">
     <div class="container py-4 py-md-5">
       <div class="row gy-3 align-items-center">
+        <!-- 좌측: 브랜드/슬로건 -->
         <div class="col-md-4 text-center text-md-start">
           <div class="footer-brand">글숲</div>
           <p class="footer-subtitle">마음을 나누는 작은 숲</p>
         </div>
 
+        <!-- 중앙: 퀵 링크 -->
         <div class="col-md-4 text-center">
           <ul class="footer-links list-inline mb-0">
             <li class="list-inline-item"><a href="/index.html">홈</a></li>
@@ -101,6 +154,7 @@
           </ul>
         </div>
 
+        <!-- 우측: 카피라이트 문구 -->
         <div class="col-md-4 text-center text-md-end">
           <p class="footer-copy">&copy; 2025 글숲. All rights reserved.</p>
           <p class="footer-small">조용히 머물다 가는 공간을 함께 가꿔요.</p>
@@ -110,9 +164,17 @@
   </footer>
 
   <!-- JS -->
+
+  <!-- 유틸 함수 모음 (escapeHtml, maskEmail, 날짜 포맷, quote-card 폰트 조정 등) -->
   <script src="/js/utils.js"></script>
+
+  <!-- Bootstrap JS 번들 (네비 토글 등) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- 헤더 로그인 상태 처리 스크립트 (/api/me → before/after-login 토글, 로그아웃 처리) -->
   <script src="../js/header.js"></script>
+
+  <!-- 로그인 처리 스크립트 (폼 submit → /api/login POST, 성공 시 마이페이지로 이동) -->
   <script src="../js/login.js"></script>
 </body>
 </html>
