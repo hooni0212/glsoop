@@ -192,6 +192,18 @@ function renderPostDetail(container, post) {
 }
 
 /**
+ * HTML → 텍스트 변환 (미리보기용)
+ * - 태그 제거 + 공백 정리
+ */
+function stripHtml(html) {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const text = tmp.textContent || tmp.innerText || '';
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+/**
  * 현재 글 기준으로 서버에서 "관련 글" 추천 받기
  * - 백엔드 API: GET /api/posts/:id/related?limit=6
  * - 응답으로 받은 글들을 #relatedPosts 박스에 카드 형태로 렌더링
@@ -252,6 +264,109 @@ async function loadRelatedPosts(currentPost) {
 }
 
 /**
+ * 관련 글 카드 하나의 HTML 템플릿
+ * - 메인 피드 카드와 최대한 비슷한 구조로 구성
+ * - 상단: 작성자/날짜 + 작은 공감 버튼
+ * - 중간: 제목 + quote-card에 들어가는 미리보기 문구
+ * - 하단: 해시태그
+ */
+function buildRelatedPostCardHTML(post) {
+  if (!post) return '';
+
+  // 내용에서 FONT 메타 제거 + 순수 HTML
+  const { cleanHtml, fontKey } = extractFontFromContent(post.content || '');
+  const text = stripHtml(cleanHtml);
+
+  // 너무 길면 일부만 잘라서 미리보기로 사용
+  const maxLen = 120;
+  const preview =
+    text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+
+  const dateStr = formatKoreanDateTime(post.created_at);
+
+  // 닉네임 / 이름 / 이메일 마스킹 중 하나 선택
+  const nickname =
+    post.author_nickname && post.author_nickname.trim().length > 0
+      ? post.author_nickname.trim()
+      : '';
+
+  const baseName =
+    nickname ||
+    (post.author_name && post.author_name.trim().length > 0
+      ? post.author_name.trim()
+      : '익명');
+
+  const maskedEmail = maskEmail(post.author_email);
+  const author = maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
+
+  // 해시태그 배열/문자열 모두 처리
+  let tags = [];
+  if (Array.isArray(post.hashtags)) {
+    tags = post.hashtags;
+  } else if (typeof post.hashtags === 'string' && post.hashtags.trim() !== '') {
+    tags = post.hashtags.split(',').map((t) => t.trim()).filter(Boolean);
+  }
+
+  const hashtagHtml =
+    tags.length > 0
+      ? `
+        <div class="mt-2 text-muted small gls-card-hashtags">
+          ${tags.map((t) => `#${escapeHtml(t)}`).join(' ')}
+        </div>
+      `
+      : '';
+
+  const likeCount = post.like_count || 0;
+  // /api/posts/:id/related는 user_liked는 없으므로 기본은 '안 누른 상태'로 표시
+  const heart = '♡';
+  const likeBtnClass = 'btn-outline-success';
+
+  const fontClass =
+    fontKey === 'serif'
+      ? 'quote-font-serif'
+      : fontKey === 'hand'
+      ? 'quote-font-hand'
+      : 'quote-font-sans';
+
+  return `
+    <div class="card mb-3 related-card gls-post-card" data-post-id="${post.id}">
+      <div class="card-body">
+        <!-- 상단 메타 정보 (작성자, 날짜, 공감 버튼) -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-muted border gls-author-badge">
+              ${escapeHtml(author)}
+            </span>
+            <span class="text-muted small">${escapeHtml(dateStr)}</span>
+          </div>
+          <button
+            type="button"
+            class="btn btn-sm ${likeBtnClass} gls-like-btn"
+            data-post-id="${post.id}"
+          >
+            <span class="gls-like-heart">${heart}</span>
+            <span class="gls-like-count ms-1">${likeCount}</span>
+          </button>
+        </div>
+
+        <!-- 제목 -->
+        <h6 class="card-title mb-2">
+          ${escapeHtml(post.title || '')}
+        </h6>
+
+        <!-- 본문 미리보기: 인스타 감성 quote-card -->
+        <div class="quote-card ${fontClass}">
+          ${escapeHtml(preview || '')}
+        </div>
+
+        <!-- 해시태그 (있을 때만) -->
+        ${hashtagHtml}
+      </div>
+    </div>
+  `;
+}
+
+/**
  * 관련 글 카드 목록 렌더링
  * - 오른쪽/아래쪽에 작게 여러 개 표시되는 카드들
  * - 각 카드 클릭 시 해당 글 상세 페이지로 이동
@@ -262,92 +377,7 @@ async function loadRelatedPosts(currentPost) {
  */
 function renderRelatedPosts(box, posts, currentPostId) {
   // posts 배열을 각 카드 HTML 문자열로 변환 후 join
-  const cardsHtml = posts
-    .map((post) => {
-      // 작성일 포맷팅
-      const dateStr = formatKoreanDateTime(post.created_at);
-
-      // 닉네임/작성자 이름 처리 (현재 상세 카드와 비슷한 로직)
-      const nickname =
-        post.author_nickname && post.author_nickname.trim().length > 0
-          ? post.author_nickname.trim()
-          : '';
-
-      const baseName =
-        nickname ||
-        (post.author_name && post.author_name.trim().length > 0
-          ? post.author_name.trim()
-          : '익명');
-
-      const maskedEmail = maskEmail(post.author_email);
-      const author = maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
-
-      // 관련 글 내용에서도 FONT 메타 파싱
-      const { cleanHtml, fontKey } = extractFontFromContent(post.content);
-      const quoteFontClass =
-        fontKey === 'serif' || fontKey === 'sans' || fontKey === 'hand'
-          ? `quote-font-${fontKey}`
-          : '';
-
-      // 해시태그 표시 (간단 버전 - badge)
-      let tags = [];
-      if (Array.isArray(post.hashtags)) {
-        // 배열인 경우 그대로 사용
-        tags = post.hashtags;
-      } else if (
-        typeof post.hashtags === 'string' &&
-        post.hashtags.trim() !== ''
-      ) {
-        // 문자열인 경우 쉼표로 split 후 공백 제거
-        tags = post.hashtags.split(',').map((t) => t.trim()).filter(Boolean);
-      }
-
-      // 해시태그가 하나라도 있으면 badge HTML 생성
-      const hashtagHtml =
-        tags.length > 0
-          ? `
-            <div class="mt-1">
-              ${tags
-                .map(
-                  (t) =>
-                    `<span class="badge text-bg-light text-muted me-1">#${escapeHtml(
-                      t
-                    )}</span>`
-                )
-                .join('')}
-            </div>
-          `
-          : '';
-
-      // 개별 관련 글 카드 HTML
-      return `
-        <div class="card mb-2 related-card" data-post-id="${post.id}">
-          <!-- 관련 글은 살짝 컴팩트하게: py-1로 세로 여백 줄임 -->
-          <div class="card-body py-1">
-            <!-- 관련 글 제목 (조금 더 작은 h6) -->
-            <h6 class="card-title mb-1">${escapeHtml(post.title || '')}</h6>
-
-            <!-- 작성자 / 날짜 -->
-            <p class="card-text mb-1">
-              <small class="text-muted">
-                ${escapeHtml(author)} · ${dateStr}
-              </small>
-            </p>
-
-            <!-- 본문 미리보기: 작은 quote-card 사용 -->
-            <div class="related-content-preview">
-              <div class="quote-card small ${quoteFontClass}">
-                ${cleanHtml}
-              </div>
-            </div>
-
-            <!-- 해시태그 뱃지들 (있을 때만 표시) -->
-            ${hashtagHtml}
-          </div>
-        </div>
-      `;
-    })
-    .join('');
+  const cardsHtml = posts.map((post) => buildRelatedPostCardHTML(post)).join('');
 
   // 조립된 HTML을 컨테이너에 삽입
   box.innerHTML = cardsHtml;
@@ -357,6 +387,7 @@ function renderRelatedPosts(box, posts, currentPostId) {
   cards.forEach((card) => {
     const postId = card.getAttribute('data-post-id'); // 카드에 박아둔 data-post-id
     const quote = card.querySelector('.quote-card');
+    const likeBtn = card.querySelector('.gls-like-btn');
 
     // 작은 quote-card에도 내용 길이에 따라 폰트 조절
     if (quote) {
@@ -396,6 +427,16 @@ function renderRelatedPosts(box, posts, currentPostId) {
         post.id
       )}`;
     });
+
+    // 공감 버튼 클릭 시 좋아요 토글
+    if (likeBtn) {
+      likeBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // 카드 클릭(상세 페이지 이동)과 분리
+        const pid = likeBtn.getAttribute('data-post-id');
+        if (!pid) return;
+        toggleLike(pid, likeBtn);
+      });
+    }
   });
 }
 
@@ -431,4 +472,52 @@ function buildHashtagHtml(post) {
 
   // 버튼들을 감싸는 div 반환 (좌측 정렬)
   return `<div class="mt-2 text-start">${pills}</div>`;
+}
+
+/**
+ * 관련 글 카드에서 공감 버튼 클릭 시 좋아요 토글
+ * - 서버: POST /api/posts/:id/toggle-like
+ * - 응답에 따라 하트 모양 / 숫자 변경
+ */
+async function toggleLike(postId, btnEl) {
+  try {
+    const res = await fetch(`/api/posts/${encodeURIComponent(postId)}/toggle-like`, {
+      method: 'POST',
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        alert('공감을 누르려면 먼저 로그인해 주세요.');
+        return;
+      }
+      alert('공감 처리 중 오류가 발생했습니다.');
+      return;
+    }
+
+    const data = await res.json();
+    if (!data.ok) {
+      alert(data.message || '공감 처리 중 오류가 발생했습니다.');
+      return;
+    }
+
+    const heartSpan = btnEl.querySelector('.gls-like-heart');
+    const countSpan = btnEl.querySelector('.gls-like-count');
+
+    if (data.liked) {
+      btnEl.classList.remove('btn-outline-success');
+      btnEl.classList.add('btn-success');
+      if (heartSpan) heartSpan.textContent = '♥';
+    } else {
+      btnEl.classList.remove('btn-success');
+      btnEl.classList.add('btn-outline-success');
+      if (heartSpan) heartSpan.textContent = '♡';
+    }
+
+    if (countSpan) {
+      countSpan.textContent = data.likeCount != null ? data.likeCount : 0;
+    }
+  } catch (err) {
+    console.error(err);
+    alert('공감 처리 중 오류가 발생했습니다.');
+  }
 }
