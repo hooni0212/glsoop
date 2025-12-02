@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://alabama-defense-ken-tigers.trycloudflare.com"
+    }
+  ]
+}
