@@ -29,7 +29,7 @@ async function updateHeader() {
   const nameSpan = document.getElementById('navUserName'); // 상단에 "OOO님" 표시용
 
   try {
-    const res = await fetch('/api/me');
+    const res = await fetch('/api/me', { cache: 'no-store' });
 
     // HTTP 레벨에서 실패하면 "로그인 안 된 상태"로 처리
     if (!res.ok) {

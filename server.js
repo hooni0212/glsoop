@@ -45,12 +45,12 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// --------------------------------------------------
-// 3. 공통 미들웨어 설정
-// --------------------------------------------------
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cookieParser());
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
 
 // 3-1) 로그인 필요한 페이지용 미들웨어 (HTML 페이지용)
 function requireLoginPage(req, res, next) {
@@ -87,10 +87,6 @@ app.get('/html/editor.html', requireLoginPage, (req, res) => {
 //  - HTML, CSS, JS, 이미지 등 클라이언트 파일
 app.use(express.static(path.join(__dirname, 'public')));
 
-
-// 정적 파일 제공 (public 폴더)
-//  - HTML, CSS, JS, 이미지 등 클라이언트 파일
-app.use(express.static(path.join(__dirname, 'public')));
 
 // --------------------------------------------------
 // 4. DB 연결 및 스키마 정의 (SQLite)

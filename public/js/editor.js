@@ -14,21 +14,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ex) ['힐링', '위로']
   let hashtagList = [];
 
-  // 1. 로그인 상태 확인
-  try {
-    const res = await fetch('/api/me');
-    if (!res.ok) {
-      // 401 등 에러 → 로그인 안 된 상태로 간주
-      alert('로그인이 필요한 기능입니다.');
-      window.location.href = '/html/login.html';
-      return;
-    }
-  } catch (e) {
-    console.error(e);
-    alert('로그인 상태 확인 중 오류가 발생했습니다.');
+// 1. 로그인 상태 확인
+try {
+  // 브라우저 캐시 사용 금지: 304 방지
+  const res = await fetch('/api/me', { cache: 'no-store' });
+
+  // 진짜 로그아웃 상태
+  if (res.status === 401) {
+    alert('로그인이 필요한 기능입니다.');
     window.location.href = '/html/login.html';
     return;
   }
+
+  // 그 외의 이상한 상태(500, 304 등)도 일단 에러로 처리
+  if (!res.ok) {
+    console.error('로그인 확인 실패:', res.status, res.statusText);
+    alert('로그인 상태를 확인하는 중 오류가 발생했습니다.');
+    window.location.href = '/html/login.html';
+    return;
+  }
+
+  // 200이면 통과 (필요하면 여기서 사용자 정보 사용 가능)
+  // const me = await res.json();
+
+} catch (e) {
+  console.error(e);
+  alert('로그인 상태를 확인하는 중 오류가 발생했습니다.');
+  window.location.href = '/html/login.html';
+  return;
+}
+
 
   // 2. Quill 에디터 초기화
   const quill = new Quill('#editor', {
