@@ -53,7 +53,7 @@ app.use('/api', (req, res, next) => {
 });
 
 // 3-1) 로그인 필요한 페이지용 미들웨어 (HTML 페이지용)
-function requireLoginPage(req, res, next) {
+/*function requireLoginPage(req, res, next) {
   const token = req.cookies.token;
 
   // 토큰이 없으면 비로그인 상태 → 안내 페이지로
@@ -82,6 +82,7 @@ function requireLoginPage(req, res, next) {
 app.get('/html/editor.html', requireLoginPage, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'html', 'editor.html'));
 });
+*/
 
 // 정적 파일 제공 (public 폴더)
 //  - HTML, CSS, JS, 이미지 등 클라이언트 파일
