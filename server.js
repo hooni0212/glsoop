@@ -1,25 +1,20 @@
 // server.js
-<<<<<<< HEAD
 
 // --------------------------------------------------
 // 1. 환경 변수 및 필수 모듈 로드
 // --------------------------------------------------
-// .env 파일에 적어둔 값들(process.env.*)을 메모리에 로드
-=======
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
-const bcrypt = require('bcrypt'); // 비밀번호 해시(단방향 암호화)용
-const cookieParser = require('cookie-parser'); // 브라우저 쿠키 읽기/쓰기
-const jwt = require('jsonwebtoken'); // JWT 토큰 발급/검증
-const crypto = require('crypto'); // 랜덤 토큰(이메일 인증, 비번 재설정) 생성
-const nodemailer = require('nodemailer'); // 이메일 발송
+const bcrypt = require('bcrypt');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
-// 서버 시작 시, Gmail 설정이 제대로 불렸는지 확인용 로그
 console.log('GMAIL_USER =', process.env.GMAIL_USER);
 console.log(
   'GMAIL_PASS length =',
@@ -29,65 +24,37 @@ console.log(
 const app = express();
 const PORT = 3000;
 
-<<<<<<< HEAD
 // --------------------------------------------------
 // 2. 이메일 발송 설정 (Gmail SMTP 사용)
 // --------------------------------------------------
-// nodemailer가 Gmail SMTP 서버를 통해 메일을 보내게 하는 설정
-// 실제 서비스에서는 2단계 인증 + 앱 비밀번호 사용 권장
-=======
-// ================== 이메일 전송 설정 ==================
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.GMAIL_USER, // 보내는 이메일 계정
-    pass: process.env.GMAIL_PASS, // 앱 비밀번호 (또는 SMTP 비밀번호)
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
   },
 });
 
-<<<<<<< HEAD
-// JWT 서명에 사용할 비밀키
-// - 실제 배포환경: .env에서 반드시 난수로 관리
-// - 여기 fallback 값은 개발용
+// JWT 서명에 사용할 비밀키 (배포 시에는 .env에서 관리)
 const JWT_SECRET = process.env.JWT_SECRET || 'DEV_ONLY_FALLBACK_SECRET';
 
 // --------------------------------------------------
 // 3. 공통 미들웨어 설정
 // --------------------------------------------------
-// JSON, 폼 데이터 파싱
-=======
-// .env로 빼두기 완료.
-const JWT_SECRET = process.env.JWT_SECRET || 'DEV_ONLY_FALLBACK_SECRET';
-
-// ================== 미들웨어 ==================
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-// 쿠키 파싱
 app.use(cookieParser());
 
 // 정적 파일 제공 (public 폴더)
+//  - HTML, CSS, JS, 이미지 등 클라이언트 파일
 app.use(express.static(path.join(__dirname, 'public')));
 
-<<<<<<< HEAD
 // --------------------------------------------------
 // 4. DB 연결 및 스키마 정의 (SQLite)
 // --------------------------------------------------
-// users.db 파일을 사용 (없으면 자동 생성)
 const db = new sqlite3.Database('users.db');
 
 // 4-1) 사용자 정보 테이블
-// - is_admin: 관리자 여부
-// - is_verified: 이메일 인증 여부
-// - verification_token / verification_expires: 이메일 인증용 토큰 & 만료시간
-// - reset_token / reset_expires: 비밀번호 재설정용 토큰 & 만료시간
-=======
-// ================== DB 연결 및 테이블 생성 ==================
-const db = new sqlite3.Database('users.db');
-
-// users 테이블
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,13 +73,7 @@ db.run(`
   )
 `);
 
-<<<<<<< HEAD
 // 4-2) 글(포스트) 테이블
-// - user_id: 글쓴이
-// - created_at: 기본값으로 현재 시간
-=======
-// posts 테이블
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 db.run(`
   CREATE TABLE IF NOT EXISTS posts (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,12 +85,7 @@ db.run(`
   )
 `);
 
-<<<<<<< HEAD
 // 4-3) 좋아요 테이블 (사용자-게시글 쌍당 1회만 허용)
-// - PRIMARY KEY(user_id, post_id)로 중복 공감 방지
-=======
-// likes 테이블 (user별로 한 번만 공감 가능)
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 db.run(`
   CREATE TABLE IF NOT EXISTS likes (
     user_id    INTEGER NOT NULL,
@@ -141,12 +97,7 @@ db.run(`
   )
 `);
 
-<<<<<<< HEAD
 // 4-4) 해시태그 목록
-// - name UNIQUE: 같은 태그 문자열은 하나의 id만 사용
-=======
-// 해시태그 목록
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 db.run(`
   CREATE TABLE IF NOT EXISTS hashtags (
     id   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -154,13 +105,7 @@ db.run(`
   )
 `);
 
-<<<<<<< HEAD
 // 4-5) 게시글-해시태그 매핑 테이블
-// - N:M 관계 표현
-// - ON DELETE CASCADE: 글 또는 태그가 삭제되면 연결도 같이 삭제
-=======
-// 게시글-해시태그 매핑
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 db.run(`
   CREATE TABLE IF NOT EXISTS post_hashtags (
     post_id    INTEGER NOT NULL,
@@ -170,17 +115,11 @@ db.run(`
   )
 `);
 
-<<<<<<< HEAD
 // --------------------------------------------------
 // 5. 인증/권한 관련 미들웨어
 // --------------------------------------------------
 
 // 5-1) 로그인 필수 라우트용 미들웨어
-// - 쿠키에 있는 JWT 토큰을 검증
-// - 성공 시 req.user에 payload 정보 저장
-=======
-// ================== JWT 인증 미들웨어 ==================
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 function authRequired(req, res, next) {
   const token = req.cookies.token;
   if (!token) {
@@ -191,29 +130,19 @@ function authRequired(req, res, next) {
 
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) {
-      // 만료/위조 등
       return res.status(401).json({
         ok: false,
         message: '토큰이 만료되었거나 유효하지 않습니다.',
       });
     }
-<<<<<<< HEAD
-    // JWT 발급 시 넣어둔 유저 정보
+    // req.user 안에는 토큰에 넣어둔 최소한의 정보가 들어 있음
     // { id, name, nickname, email, isAdmin, isVerified, ... }
-=======
-    // decoded: { id, name, nickname, email, isAdmin, isVerified, iat, exp }
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
     req.user = decoded;
     next();
   });
 }
 
-<<<<<<< HEAD
 // 5-2) 관리자 전용 라우트용 미들웨어
-// - authRequired를 거친 후에만 실행되도록 라우트에서 순서 주의
-=======
-// 관리자 전용 체크 미들웨어
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 function adminRequired(req, res, next) {
   if (!req.user || !req.user.isAdmin) {
     return res
@@ -223,18 +152,14 @@ function adminRequired(req, res, next) {
   next();
 }
 
-// ================== 회원가입 / 이메일 인증 / 로그인 / 로그아웃 ==================
+// --------------------------------------------------
+// 6. 인증 / 계정 관련 라우트 (회원가입·로그인·비번재설정 등)
+// --------------------------------------------------
 
-/**
- * 회원가입
- * POST /api/signup
- * body: { name, nickname, email, pw }
- * → DB에 is_verified = 0 상태로 저장 후 인증 메일 발송
-**/
+// 6-1) 회원가입: 기본 정보 저장 후 이메일 인증 링크 전송
 app.post('/api/signup', async (req, res) => {
   const { name, nickname, email, pw } = req.body;
 
-  // 1) 필수값 체크
   if (!name || !nickname || !email || !pw) {
     return res.status(400).json({
       ok: false,
@@ -243,25 +168,15 @@ app.post('/api/signup', async (req, res) => {
   }
 
   try {
-<<<<<<< HEAD
-    // 2) 비밀번호 해시
     const hashed = await bcrypt.hash(pw, 10);
 
-    // 3) 이메일 인증용 랜덤 토큰 / 만료시간(1시간 후)
-=======
-    // 1) 비밀번호 해시
-    const hashed = await bcrypt.hash(pw, 10);
+    // 이메일은 항상 소문자 + trim 해서 저장
+    const normalizedEmail = email.trim().toLowerCase();
 
-    // 2) 인증 토큰 & 만료 시간 생성 (1시간 유효)
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+    // 이메일 인증용 토큰 및 만료 시간 (1시간 후)
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString();
 
-<<<<<<< HEAD
-    // 4) DB에 유저 정보 + 인증 토큰 저장
-=======
-    // 3) DB INSERT
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
     db.run(
       `
       INSERT INTO users (
@@ -276,10 +191,9 @@ app.post('/api/signup', async (req, res) => {
       )
       VALUES (?, ?, ?, ?, 0, 0, ?, ?)
       `,
-      [name, nickname, email.trim().toLowerCase(), hashed, token, expiresAt],
+      [name, nickname, normalizedEmail, hashed, token, expiresAt],
       function (err) {
         if (err) {
-          // UNIQUE(email) 제약 조건 위반 → 이미 가입된 이메일
           if (err.message && err.message.includes('UNIQUE')) {
             return res
               .status(400)
@@ -291,33 +205,22 @@ app.post('/api/signup', async (req, res) => {
             .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
         }
 
-<<<<<<< HEAD
-        // 5) 인증 링크 생성
+        // 인증 링크 (예: http://localhost:3000/api/verify-email?token=...)
         const verifyUrl =
           `${req.protocol}://${req.get('host')}/api/verify-email?token=${token}`;
 
-        // 6) 클라이언트에 먼저 성공 응답 (메일 전송은 그 뒤에 처리)
-=======
-        // 4) 여기서 바로 클라이언트에 성공 응답 보내기
-        const verifyUrl =
-          `${req.protocol}://${req.get('host')}/api/verify-email?token=${token}`;
-
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+        // 먼저 클라이언트에 성공 응답
         res.json({
           ok: true,
           message:
             '입력하신 이메일로 인증 링크를 보냈어요. 메일에서 인증을 완료한 뒤 로그인해 주세요.',
         });
 
-<<<<<<< HEAD
-        // 7) 백그라운드에서 인증 메일 발송
-=======
-        // 5) 인증 메일은 응답 보낸 뒤 "백그라운드"로 발송
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+        // 응답 후 백그라운드에서 이메일 발송
         transporter.sendMail(
           {
             from: `"글숲" <${process.env.GMAIL_USER}>`,
-            to: email,
+            to: normalizedEmail,
             subject: '[글숲] 이메일 인증을 완료해주세요',
             html: `
               <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
@@ -337,13 +240,10 @@ app.post('/api/signup', async (req, res) => {
             `,
           },
           (mailErr) => {
-<<<<<<< HEAD
-            // 메일 발송 실패해도 회원가입 자체는 완료된 상태
-=======
-            // ❗ 응답은 이미 보냈으므로 여기서는 로그만
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
             if (mailErr) {
               console.error('인증 메일 발송 오류:', mailErr);
+              // 여기서는 이미 회원가입 자체는 성공했으므로
+              // 추가적인 응답은 보내지 않고 서버 로그만 남김
             }
           }
         );
@@ -357,17 +257,138 @@ app.post('/api/signup', async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
-// 6-2) 비밀번호 재설정 메일 요청
-// - 이메일을 입력하면, 해당 계정에 reset_token을 발급하고 메일로 링크 전송
-// - 보안상 "존재하는 이메일인지"는 항상 같은 응답을 주어 숨김
-=======
-/**
- * 비밀번호 재설정 메일 요청
- * POST /api/password-reset-request
- * body: { email }
- */
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+// 6-2) 이메일 인증 링크 처리 (GET /api/verify-email?token=...)
+//      - 이메일로 받은 링크를 사용자가 클릭하면 이 라우트로 온다.
+//      - 토큰을 검증하고 is_verified = 1 로 업데이트
+app.get('/api/verify-email', (req, res) => {
+  const token = req.query.token;
+
+  // 쿼리스트링에 token이 없으면 잘못된 접근
+  if (!token) {
+    return res.status(400).send(`
+      <html>
+        <head><meta charset="UTF-8"><title>이메일 인증 오류</title></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;">
+          <h2>이메일 인증에 실패했습니다.</h2>
+          <p>유효하지 않은 인증 링크입니다.</p>
+          <p><a href="/index.html">메인으로 돌아가기</a></p>
+        </body>
+      </html>
+    `);
+  }
+
+  // 토큰으로 해당 유저 조회
+  db.get(
+    `
+    SELECT id, verification_expires, is_verified
+    FROM users
+    WHERE verification_token = ?
+    `,
+    [token],
+    (err, user) => {
+      if (err) {
+        console.error('이메일 인증 조회 중 DB 오류:', err);
+        return res.status(500).send(`
+          <html>
+            <head><meta charset="UTF-8"><title>이메일 인증 오류</title></head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;">
+              <h2>이메일 인증에 실패했습니다.</h2>
+              <p>서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</p>
+              <p><a href="/index.html">메인으로 돌아가기</a></p>
+            </body>
+          </html>
+        `);
+      }
+
+      // 해당 토큰의 사용자가 없거나, 만료 정보가 없는 경우
+      if (!user || !user.verification_expires) {
+        return res.status(400).send(`
+          <html>
+            <head><meta charset="UTF-8"><title>이메일 인증 오류</title></head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;">
+              <h2>이메일 인증에 실패했습니다.</h2>
+              <p>유효하지 않은 또는 이미 사용된 인증 링크입니다.</p>
+              <p><a href="/html/login.html">로그인 페이지로 가기</a></p>
+            </body>
+          </html>
+        `);
+      }
+
+      // 이미 인증된 계정이라면 안내만 보여주고 끝
+      if (user.is_verified) {
+        return res.send(`
+          <html>
+            <head><meta charset="UTF-8"><title>이미 이메일 인증 완료</title></head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif; text-align:center; padding-top:60px;">
+              <h2>이미 이메일 인증이 완료된 계정입니다.</h2>
+              <p>바로 로그인을 진행하실 수 있습니다.</p>
+              <p><a href="/html/login.html">로그인하러 가기</a></p>
+            </body>
+          </html>
+        `);
+      }
+
+      // 만료 시간 체크
+      const now = Date.now();
+      const expiresTime = new Date(user.verification_expires).getTime();
+
+      if (isNaN(expiresTime) || expiresTime < now) {
+        return res.status(400).send(`
+          <html>
+            <head><meta charset="UTF-8"><title>이메일 인증 만료</title></head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;">
+              <h2>이메일 인증 링크가 만료되었습니다.</h2>
+              <p>회원가입을 다시 진행해 주세요.</p>
+              <p><a href="/html/signup.html">회원가입 페이지로 가기</a></p>
+            </body>
+          </html>
+        `);
+      }
+
+      // 정상 토큰 → is_verified = 1 로 업데이트, 토큰/만료시간 초기화
+      db.run(
+        `
+        UPDATE users
+        SET
+          is_verified = 1,
+          verification_token = NULL,
+          verification_expires = NULL
+        WHERE id = ?
+        `,
+        [user.id],
+        function (updateErr) {
+          if (updateErr) {
+            console.error('이메일 인증 업데이트 오류:', updateErr);
+            return res.status(500).send(`
+              <html>
+                <head><meta charset="UTF-8"><title>이메일 인증 오류</title></head>
+                <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;">
+                  <h2>이메일 인증에 실패했습니다.</h2>
+                  <p>서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</p>
+                  <p><a href="/index.html">메인으로 돌아가기</a></p>
+                </body>
+              </html>
+            `);
+          }
+
+          // 성공 페이지: 로그인으로 유도
+          return res.send(`
+            <html>
+              <head><meta charset="UTF-8"><title>이메일 인증 완료</title></head>
+              <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif; text-align:center; padding-top:60px;">
+                <h2>이메일 인증이 완료되었습니다.</h2>
+                <p>이제 로그인하실 수 있습니다.</p>
+                <p><a href="/html/login.html">로그인하러 가기</a></p>
+              </body>
+            </html>
+          `);
+        }
+      );
+    }
+  );
+});
+
+// 6-3) 비밀번호 재설정 메일 요청
 app.post('/api/password-reset-request', (req, res) => {
   const { email } = req.body || {};
 
@@ -377,10 +398,11 @@ app.post('/api/password-reset-request', (req, res) => {
       .json({ ok: false, message: '이메일을 입력해주세요.' });
   }
 
-  // 1) 이메일로 사용자 검색
+  const normalizedEmail = email.trim().toLowerCase();
+
   db.get(
     'SELECT id, name, is_verified FROM users WHERE email = ?',
-    [email],
+    [normalizedEmail],
     (err, user) => {
       if (err) {
         console.error(err);
@@ -389,11 +411,7 @@ app.post('/api/password-reset-request', (req, res) => {
           .json({ ok: false, message: '서버 오류가 발생했습니다.' });
       }
 
-<<<<<<< HEAD
-      // 2) 존재하지 않아도 같은 메시지 리턴 (이메일 유추 방지)
-=======
-      // 보안상 "존재/비존재"를 알려주지 않는 게 좋음
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+      // 존재 여부를 직접 알려주지 않고 항상 같은 응답
       if (!user) {
         return res.json({
           ok: true,
@@ -402,11 +420,9 @@ app.post('/api/password-reset-request', (req, res) => {
         });
       }
 
-      // 3) reset_token / 만료시간 생성
       const token = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1시간 유효
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1시간
 
-      // 4) DB에 reset_token, reset_expires 업데이트
       db.run(
         `
         UPDATE users
@@ -422,16 +438,14 @@ app.post('/api/password-reset-request', (req, res) => {
               .json({ ok: false, message: '서버 오류가 발생했습니다.' });
           }
 
-          // 5) 비밀번호 재설정 페이지 링크 생성
           const resetUrl = `${req.protocol}://${req.get(
             'host'
           )}/html/reset-password.html?token=${token}`;
 
-          // 6) 재설정 메일 발송
           transporter.sendMail(
             {
               from: `"글숲" <${process.env.GMAIL_USER}>`,
-              to: email,
+              to: normalizedEmail,
               subject: '[글숲] 비밀번호 재설정 안내',
               html: `
                 <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
@@ -474,27 +488,16 @@ app.post('/api/password-reset-request', (req, res) => {
   );
 });
 
-<<<<<<< HEAD
-// 6-3) 비밀번호 실제 변경 처리
-// - reset-password 페이지에서 토큰 + 새 비밀번호를 받아 처리
-=======
-/**
- * 비밀번호 실제 재설정
- * POST /api/password-reset
- * body: { token, newPw }
- */
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+// 6-4) 비밀번호 실제 변경 처리
 app.post('/api/password-reset', async (req, res) => {
   const { token, newPw } = req.body || {};
 
-  // 1) 필수값 체크
   if (!token || !newPw) {
     return res
       .status(400)
       .json({ ok: false, message: '토큰과 새 비밀번호를 모두 입력해주세요.' });
   }
 
-  // 2) 비밀번호 최소 길이 정책
   if (newPw.length < 8) {
     return res.status(400).json({
       ok: false,
@@ -502,7 +505,6 @@ app.post('/api/password-reset', async (req, res) => {
     });
   }
 
-  // 3) 토큰으로 유저 조회
   db.get(
     'SELECT id, reset_expires FROM users WHERE reset_token = ?',
     [token],
@@ -514,13 +516,7 @@ app.post('/api/password-reset', async (req, res) => {
           .json({ ok: false, message: '서버 오류가 발생했습니다.' });
       }
 
-      if (!user) {
-        return res
-          .status(400)
-          .json({ ok: false, message: '유효하지 않은 링크입니다.' });
-      }
-
-      if (!user.reset_expires) {
+      if (!user || !user.reset_expires) {
         return res
           .status(400)
           .json({ ok: false, message: '유효하지 않은 링크입니다.' });
@@ -529,7 +525,6 @@ app.post('/api/password-reset', async (req, res) => {
       const now = Date.now();
       const expiresTime = new Date(user.reset_expires).getTime();
 
-      // 4) 토큰 만료 여부 확인
       if (isNaN(expiresTime) || expiresTime < now) {
         return res.status(400).json({
           ok: false,
@@ -538,10 +533,8 @@ app.post('/api/password-reset', async (req, res) => {
       }
 
       try {
-        // 5) 새 비밀번호 해시
         const hashedPw = await bcrypt.hash(newPw, 10);
 
-        // 6) pw 업데이트 + 토큰/만료시간 제거
         db.run(
           `
           UPDATE users
@@ -574,117 +567,91 @@ app.post('/api/password-reset', async (req, res) => {
   );
 });
 
-/**
- * 로그인
- * POST /api/login
- * body: { email, pw }
- * 성공 시 httpOnly 쿠키에 JWT 저장
- */
+// 6-5) 로그인: 이메일/비밀번호 확인 후 JWT 쿠키 발급
 app.post('/api/login', (req, res) => {
   const { email, pw } = req.body;
 
-  // 1) 입력 체크
   if (!email || !pw) {
     return res
       .status(400)
       .json({ ok: false, message: '이메일과 비밀번호를 입력하세요.' });
   }
 
-  // 2) 이메일로 유저 조회
-  db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-    if (err) {
-      console.error(err);
-      return res
-        .status(500)
-        .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
-    }
+  const normalizedEmail = email.trim().toLowerCase();
 
-    if (!user) {
-      return res
-        .status(400)
-        .json({ ok: false, message: '등록되지 않은 이메일입니다.' });
-    }
+  db.get(
+    'SELECT * FROM users WHERE email = ?',
+    [normalizedEmail],
+    async (err, user) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
+      }
 
-    // 3) 비밀번호 비교 (bcrypt 해시 비교)
-    const match = await bcrypt.compare(pw, user.pw);
-    if (!match) {
-      return res
-        .status(400)
-        .json({ ok: false, message: '비밀번호가 틀렸습니다.' });
-    }
+      if (!user) {
+        return res
+          .status(400)
+          .json({ ok: false, message: '등록되지 않은 이메일입니다.' });
+      }
 
-<<<<<<< HEAD
-    // 4) 이메일 인증 여부 확인
-=======
-    // ✅ 이메일 인증 여부 체크
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
-    if (!user.is_verified) {
-      return res.status(403).json({
-        ok: false,
-        message:
-          '이메일 인증이 완료되지 않았습니다. 메일함에서 인증 링크를 확인해주세요.',
+      const match = await bcrypt.compare(pw, user.pw);
+      if (!match) {
+        return res
+          .status(400)
+          .json({ ok: false, message: '비밀번호가 틀렸습니다.' });
+      }
+
+      if (!user.is_verified) {
+        return res.status(403).json({
+          ok: false,
+          message:
+            '이메일 인증이 완료되지 않았습니다. 메일함에서 인증 링크를 확인해주세요.',
+        });
+      }
+
+      const token = jwt.sign(
+        {
+          id: user.id,
+          name: user.name,
+          nickname: user.nickname,
+          email: user.email,
+          isAdmin: !!user.is_admin,
+          isVerified: !!user.is_verified,
+        },
+        JWT_SECRET,
+        { expiresIn: '2h' }
+      );
+
+      res.cookie('token', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        // secure: true, // HTTPS 사용 시 활성화
+        path: '/',
+      });
+
+      return res.json({
+        ok: true,
+        message: `환영합니다, ${user.name}님!`,
+        name: user.name,
+        nickname: user.nickname || null,
       });
     }
-
-    // 5) JWT 토큰 생성
-    const token = jwt.sign(
-      {
-        id: user.id,
-        name: user.name,
-        nickname: user.nickname,
-        email: user.email,
-        isAdmin: !!user.is_admin,
-        isVerified: !!user.is_verified,
-      },
-      JWT_SECRET,
-      { expiresIn: '2h' } // 토큰 유효기간: 2시간
-    );
-
-<<<<<<< HEAD
-    // 6) 쿠키에 토큰 저장 (httpOnly: JS에서 못 건드리게)
-    res.cookie('token', token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      // secure: true, // HTTPS 환경에서는 꼭 켜기
-=======
-    // httpOnly 쿠키에 JWT 저장
-    res.cookie('token', token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      // secure: true, // HTTPS 환경에서만 사용할 경우
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
-      path: '/',
-    });
-
-    return res.json({
-      ok: true,
-      message: `환영합니다, ${user.name}님!`,
-      name: user.name,
-      nickname: user.nickname || null,
-    });
-  });
+  );
 });
 
-/**
- * 로그아웃
- * POST /api/logout
- */
+// 6-6) 로그아웃: JWT 쿠키 삭제
 app.post('/api/logout', (req, res) => {
   res.clearCookie('token', { path: '/' });
   res.json({ ok: true, message: '로그아웃되었습니다.' });
 });
 
-// ================== 사용자 정보 ==================
+// --------------------------------------------------
+// 7. 내 정보 조회/수정 (마이페이지용)
+// --------------------------------------------------
 
-<<<<<<< HEAD
 // 7-1) 내 계정 정보 조회
-// - 헤더의 "OOO님" 영역, 마이페이지 상단 정보 등에 사용
-=======
-/**
- * 내 정보 확인 (헤더 토글 / 마이페이지 / 관리자 페이지용)
- * GET /api/me
- */
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 app.get('/api/me', authRequired, (req, res) => {
   const userId = req.user.id;
 
@@ -732,36 +699,24 @@ app.get('/api/me', authRequired, (req, res) => {
   );
 });
 
-/**
- * 내 정보 수정 (닉네임 / 비밀번호 / 프로필 변경)
- * PUT /api/me
- * body: { nickname?, currentPw?, newPw?, bio?, about? }
- */
+// 7-2) 내 계정 정보 수정 (닉네임/소개/비밀번호 등)
 app.put('/api/me', authRequired, (req, res) => {
   const userId = req.user.id;
   const { nickname, currentPw, newPw, bio, about } = req.body || {};
 
-  // 변경할 필드들을 동적으로 쌓는 구조
   const fields = [];
   const params = [];
 
-<<<<<<< HEAD
-  // 닉네임 업데이트
-=======
-  // 닉네임 변경
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   if (nickname !== undefined && nickname !== null) {
     fields.push('nickname = ?');
     params.push(nickname);
   }
 
-  // 한 줄 소개
   if (bio !== undefined) {
     fields.push('bio = ?');
     params.push(bio);
   }
 
-  // 자기소개
   if (about !== undefined) {
     fields.push('about = ?');
     params.push(about);
@@ -769,11 +724,7 @@ app.put('/api/me', authRequired, (req, res) => {
 
   const wantsPwChange = !!newPw;
 
-<<<<<<< HEAD
-  // (A) 비밀번호 변경 없이 프로필만 수정하는 경우
-=======
-  // 비밀번호 변경이 없는 경우: 프로필 정보만 변경
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+  // 비밀번호 변경 없이 기본 프로필만 수정하는 경우
   if (!wantsPwChange) {
     if (fields.length === 0) {
       return res.status(400).json({
@@ -809,12 +760,7 @@ app.put('/api/me', authRequired, (req, res) => {
     return;
   }
 
-<<<<<<< HEAD
-  // (B) 비밀번호 변경이 포함된 경우
-  // - currentPw 확인 필수
-=======
-  // 비밀번호 변경이 있는 경우 → currentPw 검증 후 pw까지 함께 업데이트
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+  // 비밀번호 변경이 포함된 경우
   if (!currentPw) {
     return res.status(400).json({
       ok: false,
@@ -822,7 +768,6 @@ app.put('/api/me', authRequired, (req, res) => {
     });
   }
 
-  // 1) 현재 비밀번호 검증
   db.get('SELECT pw FROM users WHERE id = ?', [userId], async (err, user) => {
     if (err) {
       console.error(err);
@@ -844,7 +789,6 @@ app.put('/api/me', authRequired, (req, res) => {
         .json({ ok: false, message: '현재 비밀번호가 일치하지 않습니다.' });
     }
 
-    // 2) 새 비밀번호 정책 확인
     if (!newPw || newPw.length < 6) {
       return res.status(400).json({
         ok: false,
@@ -852,7 +796,6 @@ app.put('/api/me', authRequired, (req, res) => {
       });
     }
 
-    // 3) 새 비밀번호 해시 후 업데이트 목록에 추가
     const newHashedPw = await bcrypt.hash(newPw, 10);
     fields.push('pw = ?');
     params.push(newHashedPw);
@@ -866,7 +809,6 @@ app.put('/api/me', authRequired, (req, res) => {
 
     params.push(userId);
 
-    // 4) 실제 UPDATE 실행
     db.run(
       `
       UPDATE users
@@ -892,26 +834,14 @@ app.put('/api/me', authRequired, (req, res) => {
   });
 });
 
-// ================== 작가(사용자) 공개 프로필 / 작가 글 목록 ==================
+// --------------------------------------------------
+// 8. 작가 프로필 / 특정 작가 글 목록
+// --------------------------------------------------
 
-<<<<<<< HEAD
 // 8-1) 작가 공개 프로필 조회
-// - 글 상세, 작가 페이지에서 닉네임/소개/통계 노출용
 app.get('/api/users/:id/profile', (req, res) => {
   const authorId = req.params.id;
 
-  // 1) 기본 사용자 정보
-=======
-/**
- * 작가 공개 프로필 조회
- * GET /api/users/:id/profile
- * - 로그인 불필요
- */
-app.get('/api/users/:id/profile', (req, res) => {
-  const authorId = req.params.id;
-
-  // 1) 유저 기본 정보 조회
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   db.get(
     `
     SELECT
@@ -939,11 +869,6 @@ app.get('/api/users/:id/profile', (req, res) => {
           .json({ ok: false, message: '해당 작가를 찾을 수 없습니다.' });
       }
 
-<<<<<<< HEAD
-      // 2) 작성한 글 수, 받은 공감 수 집계
-=======
-      // 2) 글 수 / 받은 공감 수 집계
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
       db.get(
         `
         SELECT
@@ -969,7 +894,7 @@ app.get('/api/users/:id/profile', (req, res) => {
               id: user.id,
               name: user.name,
               nickname: user.nickname,
-              email: user.email,             // 프론트에서 마스킹 처리
+              email: user.email,
               bio: user.bio || null,
               about: user.about || null,
               postCount: stats?.post_count || 0,
@@ -982,19 +907,10 @@ app.get('/api/users/:id/profile', (req, res) => {
   );
 });
 
-/**
- * 특정 작가의 글 목록 조회
- * GET /api/users/:id/posts?offset=0&limit=20
- * - 로그인 불필요 (단, 로그인 상태면 user_liked 포함)
- */
+// 8-2) 특정 작가의 글 목록 (무한스크롤용)
 app.get('/api/users/:id/posts', (req, res) => {
   const authorId = req.params.id;
 
-<<<<<<< HEAD
-  // 로그인 여부 확인 (좋아요 여부 표시용)
-=======
-  // 로그인 여부에 따라 userId 세팅 (피드와 동일한 방식)
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   let userId = null;
   const token = req.cookies.token;
   if (token) {
@@ -1006,11 +922,6 @@ app.get('/api/users/:id/posts', (req, res) => {
     }
   }
 
-<<<<<<< HEAD
-  // 페이지네이션 파라미터
-=======
-  // 페이징 파라미터
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   let limit = parseInt(req.query.limit, 10);
   let offset = parseInt(req.query.offset, 10);
 
@@ -1021,7 +932,6 @@ app.get('/api/users/:id/posts', (req, res) => {
     offset = 0;
   }
 
-  // 공통 SELECT 문
   const baseSelect = `
     SELECT
       p.id,
@@ -1051,9 +961,7 @@ app.get('/api/users/:id/posts', (req, res) => {
   let sql;
   let params = [];
 
-  // 로그인한 경우: user_liked(본인이 공감했는지 여부) 포함
   if (userId) {
-    // 로그인한 상태: user_liked 필드 포함
     sql = `
       ${baseSelect},
       CASE
@@ -1069,11 +977,6 @@ app.get('/api/users/:id/posts', (req, res) => {
     `;
     params = [userId, authorId, limit, offset];
   } else {
-<<<<<<< HEAD
-    // 비로그인: user_liked는 항상 0
-=======
-    // 비로그인 상태: user_liked = 0 고정
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
     sql = `
       ${baseSelect},
       0 AS user_liked
@@ -1096,26 +999,16 @@ app.get('/api/users/:id/posts', (req, res) => {
     return res.json({
       ok: true,
       posts: rows || [],
-      hasMore: rows.length === limit, // 다음 페이지 존재 여부 힌트
+      hasMore: rows.length === limit,
     });
   });
 });
 
+// --------------------------------------------------
+// 9. 글 작성/수정/삭제/피드/좋아요/추천 등 포스트 관련 API
+// --------------------------------------------------
 
-<<<<<<< HEAD
 // 9-1) 글 작성
-// - 로그인 필요
-// - 해시태그 입력도 함께 받아서 저장
-=======
-// ================== 글 관련 API ==================
-
-/**
- * 글 작성 (저장)
- * POST /api/posts
- * body: { title, content, hashtags }
- * 로그인 필요
- */
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 app.post('/api/posts', authRequired, (req, res) => {
   const { title, content, hashtags } = req.body;
   const userId = req.user.id;
@@ -1126,7 +1019,6 @@ app.post('/api/posts', authRequired, (req, res) => {
       .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
   }
 
-  // 1) posts 테이블에 본문 저장
   db.run(
     'INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)',
     [userId, title, content],
@@ -1140,11 +1032,6 @@ app.post('/api/posts', authRequired, (req, res) => {
 
       const newPostId = this.lastID;
 
-<<<<<<< HEAD
-      // 2) 해시태그 저장 (post_hashtags / hashtags 테이블)
-=======
-      // ✅ 에디터에서 받은 해시태그 저장
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
       saveHashtagsForPostFromInput(newPostId, hashtags, (tagErr) => {
         if (tagErr) {
           console.error('해시태그 저장 중 오류:', tagErr);
@@ -1166,11 +1053,7 @@ app.post('/api/posts', authRequired, (req, res) => {
   );
 });
 
-/**
- * 글 수정 (작성자 또는 관리자)
- * PUT /api/posts/:id
- * body: { title, content, hashtags }
- */
+// 9-2) 글 수정 (작성자 또는 관리자)
 app.put('/api/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
   const { title, content, hashtags } = req.body;
@@ -1183,11 +1066,6 @@ app.put('/api/posts/:id', authRequired, (req, res) => {
       .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
   }
 
-<<<<<<< HEAD
-  // 1) 글 주인 확인
-=======
-  // 먼저 글의 작성자 확인
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (err, row) => {
     if (err) {
       console.error(err);
@@ -1202,18 +1080,12 @@ app.put('/api/posts/:id', authRequired, (req, res) => {
         .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
     }
 
-<<<<<<< HEAD
-    // 2) 작성자 본인 또는 관리자만 수정 가능
-=======
-    // 작성자 본인 또는 관리자만 수정 허용
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
     if (!isAdmin && row.user_id !== userId) {
       return res
         .status(403)
         .json({ ok: false, message: '이 글을 수정할 권한이 없습니다.' });
     }
 
-    // 3) 기본 글 내용 업데이트
     db.run(
       'UPDATE posts SET title = ?, content = ? WHERE id = ?',
       [title, content, postId],
@@ -1225,11 +1097,6 @@ app.put('/api/posts/:id', authRequired, (req, res) => {
             .json({ ok: false, message: '글 수정 중 DB 오류가 발생했습니다.' });
         }
 
-<<<<<<< HEAD
-        // 4) 해시태그 갱신 (기존 매핑 삭제 → 새로 삽입)
-=======
-        // ✅ 해시태그도 같이 갱신
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
         saveHashtagsForPostFromInput(postId, hashtags, (tagErr) => {
           if (tagErr) {
             console.error('해시태그 갱신 중 오류:', tagErr);
@@ -1250,11 +1117,7 @@ app.put('/api/posts/:id', authRequired, (req, res) => {
   });
 });
 
-/**
- * 내가 쓴 글 목록 (마이페이지)
- * GET /api/posts/my
- * 로그인 필요
- */
+// 9-3) 내가 쓴 글 목록 (마이페이지)
 app.get('/api/posts/my', authRequired, (req, res) => {
   const userId = req.user.id;
 
@@ -1287,11 +1150,7 @@ app.get('/api/posts/my', authRequired, (req, res) => {
   );
 });
 
-/**
- * 내가 공감한 글 목록 (마이페이지)
- * GET /api/posts/liked
- * 로그인 필요
- */
+// 9-4) 내가 공감한 글 목록 (마이페이지)
 app.get('/api/posts/liked', authRequired, (req, res) => {
   const userId = req.user.id;
 
@@ -1325,20 +1184,8 @@ app.get('/api/posts/liked', authRequired, (req, res) => {
   );
 });
 
-/**
- * 글 피드 조회 (무한스크롤 + 해시태그 필터 지원)
- * GET /api/posts/feed
- *
- * - 로그인 필요 없음 (단, 로그인 되어 있으면 내가 공감 눌렀는지까지 포함)
- * - 쿼리스트링으로 페이징:
- *   - ?offset=0&limit=20
- * - 특정 해시태그만 보고 싶으면 (단일):
- *   - ?tag=힐링
- * - 여러 해시태그 AND 조건 (모두 포함하는 글만):
- *   - ?tags=힐링,위로,응원
- */
+// 9-5) 피드 조회 (전체 글 + 해시태그 필터 + 로그인 시 좋아요 여부 포함)
 app.get('/api/posts/feed', (req, res) => {
-  // 로그인 유저 id (좋아요 여부 표시용)
   let userId = null;
 
   const token = req.cookies.token;
@@ -1351,27 +1198,16 @@ app.get('/api/posts/feed', (req, res) => {
     }
   }
 
-<<<<<<< HEAD
-  // 페이징
-=======
-  // 🔹 페이징 파라미터
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   let limit = parseInt(req.query.limit, 10);
   let offset = parseInt(req.query.offset, 10);
 
   if (isNaN(limit) || limit <= 0 || limit > 50) {
-    limit = 20; // 기본 20개
+    limit = 20;
   }
   if (isNaN(offset) || offset < 0) {
-    offset = 0; // 기본 0부터
+    offset = 0;
   }
 
-<<<<<<< HEAD
-  // 해시태그 필터 파라미터 처리 (tag 또는 tags=tag1,tag2,...)
-=======
-  // 🔹 태그 필터 (여러 개 지원)
-  // 우선순위: ?tags=a,b,c  → 없으면 ?tag=a
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   let tags = [];
   if (req.query.tags) {
     tags = String(req.query.tags)
@@ -1384,7 +1220,6 @@ app.get('/api/posts/feed', (req, res) => {
   }
   const tagCount = tags.length;
 
-  // 공통 SELECT 구문 (좋아요 수, 해시태그 목록 포함)
   const baseSelect = `
     SELECT
       p.id,
@@ -1415,11 +1250,8 @@ app.get('/api/posts/feed', (req, res) => {
   let sql;
   let params = [];
 
-  // 로그인한 경우: user_liked 포함
   if (userId) {
-    // 🔹 로그인 한 경우
     if (tagCount > 0) {
-      // 해시태그 필터 적용 (모든 요청 태그를 다 가진 글만)
       const placeholders = tags.map(() => '?').join(', ');
       sql = `
         ${baseSelect},
@@ -1443,7 +1275,6 @@ app.get('/api/posts/feed', (req, res) => {
       `;
       params = [userId, ...tags, tagCount, limit, offset];
     } else {
-      // 태그 필터 없음
       sql = `
         ${baseSelect},
         CASE
@@ -1459,11 +1290,6 @@ app.get('/api/posts/feed', (req, res) => {
       params = [userId, limit, offset];
     }
   } else {
-<<<<<<< HEAD
-    // 비로그인: user_liked는 항상 0
-=======
-    // 🔹 비로그인
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
     if (tagCount > 0) {
       const placeholders = tags.map(() => '?').join(', ');
       sql = `
@@ -1508,20 +1334,7 @@ app.get('/api/posts/feed', (req, res) => {
   });
 });
 
-<<<<<<< HEAD
 // 9-6) 관련 글 추천 (단일 글 기준 유사 글 목록)
-// - 기준 글의 태그/작성자/좋아요/최신 정도를 반영해서 점수화
-=======
-/**
- * 관련 글 추천
- * GET /api/posts/:id/related?limit=6
- *
- * - 현재 글을 기준으로:
- *   · 최근 글들 중에서
- *   · 태그 겹치는 정도 + 같은 작가 여부 + 좋아요 수 + 최신 정도
- *   를 점수로 계산해 상위 N개 반환
- */
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 app.get('/api/posts/:id/related', (req, res) => {
   const postId = parseInt(req.params.id, 10);
   if (!postId) {
@@ -1532,11 +1345,6 @@ app.get('/api/posts/:id/related', (req, res) => {
 
   const limit = parseInt(req.query.limit, 10) || 6;
 
-<<<<<<< HEAD
-  // 1) 기준 글 정보 + 태그 목록 가져오기
-=======
-  // 1) 기준이 되는 현재 글 정보 (작성자 + 해시태그) 가져오기
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   db.get(
     `
     SELECT
@@ -1565,7 +1373,6 @@ app.get('/api/posts/:id/related', (req, res) => {
           .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
       }
 
-      // 기준 글의 태그 set
       const currentTags = current.hashtags
         ? current.hashtags
             .split(',')
@@ -1573,14 +1380,8 @@ app.get('/api/posts/:id/related', (req, res) => {
             .filter(Boolean)
         : [];
 
-<<<<<<< HEAD
-      const CANDIDATE_LIMIT = 100; // 후보군 최대 개수
-=======
-      // 2) 후보 글들: 최근 글 100개 (현재 글 제외)
       const CANDIDATE_LIMIT = 100;
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 
-      // 2) 다른 글들을 한 번에 불러온 뒤, 서버에서 점수 계산
       db.all(
         `
         SELECT
@@ -1625,56 +1426,36 @@ app.get('/api/posts/:id/related', (req, res) => {
           const now = Date.now();
           const ONE_DAY = 1000 * 60 * 60 * 24;
 
-          // 3) 각 글마다 점수 계산
           const scored = rows.map((p) => {
-            const tagStr = p.hashtags || '';
-            const postTags = tagStr
+            const postTags = (p.hashtags || '')
               .split(',')
               .map((t) => t.trim().toLowerCase())
               .filter(Boolean);
 
-            // 기준 글과 겹치는 태그 수
             const overlapCount = postTags.filter((t) =>
               currentTags.includes(t)
             ).length;
 
-            // 같은 작가인지 여부
             const sameAuthor = p.author_id === current.author_id ? 1 : 0;
 
-            // 최신 정도(며칠 전인지)
             const createdTime = new Date(p.created_at).getTime();
             let recencyScore = 0;
             if (!isNaN(createdTime)) {
               const daysAgo = (now - createdTime) / ONE_DAY;
-<<<<<<< HEAD
-              // 7일 이내일수록 점수 높게
-=======
-              // 0일 전이면 7점, 7일 지나면 0점 정도로 감쇠
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
               recencyScore = Math.max(0, 7 - daysAgo);
             }
 
             const likeCount = p.like_count || 0;
 
-            // 가중치:
-            // - 태그 겹침: 3점
-            // - 같은 작가: 2점
-            // - 좋아요 1개당: 1점
-            // - 최신성: 1점
             const score =
-              overlapCount * 3 + // 태그 겹치는 정도
-              sameAuthor * 2 + // 같은 작가 보너스
-              likeCount * 1 + // 좋아요
-              recencyScore * 1; // 최신 정도
+              overlapCount * 3 +
+              sameAuthor * 2 +
+              likeCount * 1 +
+              recencyScore * 1;
 
             return { ...p, _score: score };
           });
 
-<<<<<<< HEAD
-          // 4) 점수 내림차순 정렬 후 상위 limit개만 반환
-=======
-          // 점수 내림차순 정렬
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
           scored.sort((a, b) => b._score - a._score);
 
           const finalPosts = scored.slice(0, limit).map((p) => {
@@ -1690,17 +1471,7 @@ app.get('/api/posts/:id/related', (req, res) => {
   );
 });
 
-<<<<<<< HEAD
 // 9-7) 글 상세 조회 (편집을 위한 본인 글 조회)
-// - 에디터에서 "수정하기" 모드로 들어갈 때 사용
-=======
-/**
- * 글 상세 조회 (편집용)
- * GET /api/posts/:id
- * 로그인 필요, 자기 글만 조회 가능
- * → 해시태그 배열도 함께 반환
- */
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 app.get('/api/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
   const userId = req.user.id;
@@ -1734,7 +1505,6 @@ app.get('/api/posts/:id', authRequired, (req, res) => {
           .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
       }
 
-      // GROUP_CONCAT 결과를 배열로 변환
       const tags = row.hashtags
         ? row.hashtags.split(',').filter((t) => t && t.length > 0)
         : [];
@@ -1753,20 +1523,12 @@ app.get('/api/posts/:id', authRequired, (req, res) => {
   );
 });
 
-/**
- * 글 삭제 (작성자 또는 관리자)
- * DELETE /api/posts/:id
- */
+// 9-8) 글 삭제 (작성자 또는 관리자)
 app.delete('/api/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
   const userId = req.user.id;
   const isAdmin = !!req.user.isAdmin;
 
-<<<<<<< HEAD
-  // 1) 글 소유자 확인
-=======
-  // 먼저 글의 작성자 확인
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (err, row) => {
     if (err) {
       console.error(err);
@@ -1781,18 +1543,12 @@ app.delete('/api/posts/:id', authRequired, (req, res) => {
         .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
     }
 
-<<<<<<< HEAD
-    // 작성자 또는 관리자만 삭제 허용
-=======
-    // 작성자 본인 또는 관리자만 삭제 허용
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
     if (!isAdmin && row.user_id !== userId) {
       return res
         .status(403)
         .json({ ok: false, message: '이 글을 삭제할 권한이 없습니다.' });
     }
 
-    // 2) 실제 삭제
     db.run('DELETE FROM posts WHERE id = ?', [postId], function (err2) {
       if (err2) {
         console.error(err2);
@@ -1812,20 +1568,11 @@ app.delete('/api/posts/:id', authRequired, (req, res) => {
   });
 });
 
-/**
- * 공감 토글 (좋아요/좋아요 취소)
- * POST /api/posts/:id/toggle-like
- * 로그인 필요
- */
+// 9-9) 좋아요 토글 (추가/취소)
 app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
   const postId = req.params.id;
   const userId = req.user.id;
 
-<<<<<<< HEAD
-  // 1) 현재 좋아요 여부 조회
-=======
-  // 1. 이미 좋아요 했는지 확인
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   db.get(
     'SELECT 1 FROM likes WHERE user_id = ? AND post_id = ?',
     [userId, postId],
@@ -1838,9 +1585,7 @@ app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
         });
       }
 
-      // 이미 좋아요 → 삭제(취소)
       if (row) {
-        // 이미 좋아요 되어 있으면 → 좋아요 취소
         db.run(
           'DELETE FROM likes WHERE user_id = ? AND post_id = ?',
           [userId, postId],
@@ -1853,11 +1598,6 @@ app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
               });
             }
 
-<<<<<<< HEAD
-            // 최신 좋아요 개수 다시 조회
-=======
-            // 최신 좋아요 수 다시 조회
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
             db.get(
               'SELECT COUNT(*) AS cnt FROM likes WHERE post_id = ?',
               [postId],
@@ -1880,11 +1620,6 @@ app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
           }
         );
       } else {
-<<<<<<< HEAD
-        // 아직 좋아요 안 한 상태 → 추가
-=======
-        // 아직 좋아요 안 되어 있으면 → 좋아요 추가
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
         db.run(
           'INSERT INTO likes (user_id, post_id) VALUES (?, ?)',
           [userId, postId],
@@ -1897,11 +1632,6 @@ app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
               });
             }
 
-<<<<<<< HEAD
-            // 좋아요 수 다시 조회
-=======
-            // 최신 좋아요 수 다시 조회
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
             db.get(
               'SELECT COUNT(*) AS cnt FROM likes WHERE post_id = ?',
               [postId],
@@ -1928,20 +1658,11 @@ app.post('/api/posts/:id/toggle-like', authRequired, (req, res) => {
   );
 });
 
-<<<<<<< HEAD
 // --------------------------------------------------
 // 10. 관리자 기능 (회원 조회/삭제)
 // --------------------------------------------------
 
 // 10-1) 관리자: 전체 회원 목록
-// - 이메일, 닉네임, 인증 여부 등을 한 번에 확인
-=======
-/**
- * 관리자용: 회원 목록 조회
- * GET /api/admin/users
- * (관리자만 접근 가능)
- */
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
 app.get('/api/admin/users', authRequired, adminRequired, (req, res) => {
   db.all(
     `
@@ -1972,12 +1693,7 @@ app.get('/api/admin/users', authRequired, adminRequired, (req, res) => {
   );
 });
 
-<<<<<<< HEAD
 // 10-2) 관리자: 특정 회원과 관련 데이터 모두 삭제
-// - 해당 유저가 누른 좋아요
-// - 해당 유저의 글에 달린 좋아요
-// - 해당 유저의 글
-// - 해당 유저 계정
 app.delete(
   '/api/admin/users/:id',
   authRequired,
@@ -1985,9 +1701,7 @@ app.delete(
   (req, res) => {
     const targetUserId = req.params.id;
 
-    // 여러 DELETE를 트랜잭션처럼 순서대로 실행
     db.serialize(() => {
-      // 1) 해당 유저가 공감한 좋아요 삭제
       db.run(
         'DELETE FROM likes WHERE user_id = ?',
         [targetUserId],
@@ -2000,7 +1714,6 @@ app.delete(
             });
           }
 
-          // 2) 해당 유저가 쓴 글에 달린 좋아요 삭제
           db.run(
             `
             DELETE FROM likes
@@ -2017,7 +1730,6 @@ app.delete(
                 });
               }
 
-              // 3) 회원 게시글 삭제
               db.run(
                 'DELETE FROM posts WHERE user_id = ?',
                 [targetUserId],
@@ -2030,7 +1742,6 @@ app.delete(
                     });
                   }
 
-                  // 4) 최종적으로 회원 계정 삭제
                   db.run(
                     'DELETE FROM users WHERE id = ?',
                     [targetUserId],
@@ -2042,153 +1753,62 @@ app.delete(
                           message: '회원 삭제 중 DB 오류가 발생했습니다.',
                         });
                       }
-=======
-/**
- * 관리자용: 회원 삭제
- * DELETE /api/admin/users/:id
- * (관리자만 접근 가능)
- * - 해당 회원의 좋아요 + 게시글 + 계정 삭제
- */
-app.delete('/api/admin/users/:id', authRequired, adminRequired, (req, res) => {
-  const targetUserId = req.params.id;
 
-  db.serialize(() => {
-    // 1) 이 유저가 남긴 좋아요 삭제
-    db.run(
-      'DELETE FROM likes WHERE user_id = ?',
-      [targetUserId],
-      function (err1) {
-        if (err1) {
-          console.error(err1);
-          return res
-            .status(500)
-            .json({ ok: false, message: '회원 좋아요 삭제 중 오류가 발생했습니다.' });
-        }
+                      if (this.changes === 0) {
+                        return res.status(404).json({
+                          ok: false,
+                          message: '해당 회원을 찾을 수 없습니다.',
+                        });
+                      }
 
-        // 2) 이 유저의 글에 달린 좋아요 삭제
-        db.run(
-          `
-          DELETE FROM likes
-          WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?)
-          `,
-          [targetUserId],
-          function (err2) {
-            if (err2) {
-              console.error(err2);
-              return res.status(500).json({
-                ok: false,
-                message: '회원 게시글의 좋아요 삭제 중 오류가 발생했습니다.',
-              });
-            }
-
-            // 3) 이 유저의 게시글 삭제
-            db.run(
-              'DELETE FROM posts WHERE user_id = ?',
-              [targetUserId],
-              function (err3) {
-                if (err3) {
-                  console.error(err3);
-                  return res
-                    .status(500)
-                    .json({ ok: false, message: '회원 게시글 삭제 중 오류가 발생했습니다.' });
-                }
-
-                // 4) 마지막으로 유저 계정 삭제
-                db.run(
-                  'DELETE FROM users WHERE id = ?',
-                  [targetUserId],
-                  function (err4) {
-                    if (err4) {
-                      console.error(err4);
-                      return res
-                        .status(500)
-                        .json({ ok: false, message: '회원 삭제 중 DB 오류가 발생했습니다.' });
-                    }
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
-
-                    if (this.changes === 0) {
-                      return res.status(404).json({
-                        ok: false,
-                        message: '해당 회원을 찾을 수 없습니다.',
+                      return res.json({
+                        ok: true,
+                        message: '회원 및 관련 데이터가 모두 삭제되었습니다.',
                       });
                     }
+                  );
+                }
+              );
+            }
+          );
+        }
+      );
+    });
+  }
+);
 
-                    return res.json({
-                      ok: true,
-                      message: '회원 및 관련 데이터가 모두 삭제되었습니다.',
-                    });
-                  }
-                );
-              }
-            );
-          }
-        );
-      }
-    );
-  });
-});
+// --------------------------------------------------
+// 11. 해시태그 유틸 함수 (공통 사용)
+// --------------------------------------------------
 
-// ===== 해시태그 유틸 (에디터 입력 기반) =====
-
-<<<<<<< HEAD
-// 해시태그 문자열 정리:
-// - 앞뒤 공백 제거
-// - 앞에 붙은 # 제거
-// - 최대 길이 50자로 제한
-// - 소문자 변환 (통일)
-// - 결과가 빈 문자열이면 null
-=======
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+// 해시태그 문자열 정리: 공백/앞의 # 제거, 길이 제한, 영어 소문자 통일
 function normalizeHashtagName(raw) {
   if (!raw) return null;
   let t = String(raw).trim();
   if (!t) return null;
 
-  // 앞에 # 붙어 있으면 제거
   if (t[0] === '#') t = t.slice(1);
   t = t.trim();
   if (!t) return null;
 
-  // 너무 길면 자르기
   if (t.length > 50) t = t.slice(0, 50);
 
-  // 영어는 소문자 통일
   return t.toLowerCase();
 }
 
-<<<<<<< HEAD
 // 에디터에서 들어온 해시태그 입력을 기반으로
-// 해당 게시글의 해시태그 매핑을 모두 "재저장"하는 함수
-// - 1) 기존 post_hashtags 삭제
-// - 2) 새로 들어온 태그들을 정규화해서 Set에 모음
-// - 3) hashtags 테이블에 존재하지 않으면 INSERT
-// - 4) post_hashtags에 (post_id, hashtag_id) INSERT
-=======
-/**
- * 에디터에서 전달된 해시태그 문자열/배열을 기준으로
- * 해당 post_id의 해시태그를 전부 다시 저장.
- *
- * - hashtagsInput: string("#힐링 #일상, 감사") 또는 ["힐링", "일상"]
- */
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+// 해당 게시글의 해시태그 매핑을 모두 재저장
 function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
   let rawList = [];
 
-  // 문자열 배열로 들어온 경우 (['#힐링', '#일상'])
   if (Array.isArray(hashtagsInput)) {
     rawList = hashtagsInput;
   } else if (typeof hashtagsInput === 'string') {
-<<<<<<< HEAD
-    // 공백/쉼표 기준으로 분리된 문자열인 경우
-=======
-    // 공백, 쉼표 기준 분리
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
     rawList = hashtagsInput.split(/[\s,]+/);
   } else {
     rawList = [];
   }
 
-  // Set을 사용해 중복 제거
   const set = new Set();
   rawList.forEach((raw) => {
     const n = normalizeHashtagName(raw);
@@ -2197,11 +1817,6 @@ function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
 
   const tags = Array.from(set);
 
-<<<<<<< HEAD
-  // 태그가 하나도 없으면, 해당 글의 해시태그 매핑만 싹 삭제
-=======
-  // 태그가 하나도 없으면 매핑만 삭제
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
   if (tags.length === 0) {
     db.run(
       'DELETE FROM post_hashtags WHERE post_id = ?',
@@ -2214,10 +1829,7 @@ function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
     return;
   }
 
-  // 태그가 있는 경우:
-  // 1) 기존 매핑 삭제 → 2) 새 태그들 삽입
   db.serialize(() => {
-    // 기존 매핑 삭제
     db.run('DELETE FROM post_hashtags WHERE post_id = ?', [postId], (err) => {
       if (err) {
         console.error('delete post_hashtags error:', err);
@@ -2225,25 +1837,20 @@ function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
         return;
       }
 
-      // hashtags INSERT (이미 존재하면 무시)
       const insertTagStmt = db.prepare(
         'INSERT OR IGNORE INTO hashtags (name) VALUES (?)'
       );
-      // 방금/기존에 있던 태그 id 조회
       const selectTagStmt = db.prepare(
         'SELECT id FROM hashtags WHERE name = ?'
       );
-      // post_hashtags 매핑 삽입
       const insertMapStmt = db.prepare(
         'INSERT INTO post_hashtags (post_id, hashtag_id) VALUES (?, ?)'
       );
 
       let index = 0;
 
-      // tags 배열을 순차적으로 처리하는 내부 재귀 함수
       function processNext() {
         if (index >= tags.length) {
-          // 모든 태그 처리 끝 → prepared statement 닫기
           insertTagStmt.finalize();
           selectTagStmt.finalize();
           insertMapStmt.finalize();
@@ -2252,16 +1859,13 @@ function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
         }
 
         const tag = tags[index++];
-        // 1) 해당 태그가 없으면 INSERT, 있으면 무시
         insertTagStmt.run(tag, (err2) => {
           if (err2) {
             console.error('insert hashtag error:', err2);
-            // 에러가 발생해도 다른 태그들은 계속 처리
             processNext();
             return;
           }
 
-          // 2) 태그 id 조회
           selectTagStmt.get(tag, (err3, row) => {
             if (err3 || !row) {
               console.error('select hashtag error:', err3);
@@ -2269,7 +1873,6 @@ function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
               return;
             }
 
-            // 3) post_hashtags에 매핑 삽입
             insertMapStmt.run(postId, row.id, (err4) => {
               if (err4) {
                 console.error('insert post_hashtags error:', err4);
@@ -2280,28 +1883,21 @@ function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
         });
       }
 
-      // 첫 태그부터 처리 시작
       processNext();
     });
   });
 }
 
-<<<<<<< HEAD
 // --------------------------------------------------
 // 12. 기본 라우트 및 서버 시작
 // --------------------------------------------------
 
-// 루트 요청은 public/index.html 반환
-// - 실제 메인 HTML은 public/index.html 이며
-//   그 안에서 JS/CSS를 로드
-=======
-// ================== 루트 → index.html ==================
->>>>>>> parent of 2b7ee33 (기능 유지 및 주석 추가)
+// 루트 요청은 index.html 반환
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ================== 서버 시작 ==================
+// 서버 실행
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
