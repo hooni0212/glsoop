@@ -45,6 +45,49 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// --------------------------------------------------
+// 3. 공통 미들웨어 설정
+// --------------------------------------------------
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// 3-1) 로그인 필요한 페이지용 미들웨어 (HTML 페이지용)
+function requireLoginPage(req, res, next) {
+  const token = req.cookies.token;
+
+  // 토큰이 없으면 비로그인 상태 → 안내 페이지로
+  if (!token) {
+    return res.sendFile(
+      path.join(__dirname, 'public', 'html', 'login-required.html')
+    );
+  }
+
+  try {
+    // 토큰 검증 시도
+    jwt.verify(token, JWT_SECRET);
+    // 검증 통과 → 로그인 상태
+    next();
+  } catch (err) {
+    console.error('Invalid token in requireLoginPage:', err);
+    return res.sendFile(
+      path.join(__dirname, 'public', 'html', 'login-required.html')
+    );
+  }
+}
+
+// 3-2) 글쓰기(에디터) 페이지 - 로그인 필요
+//      비로그인: login-required.html
+//      로그인:   editor.html
+app.get('/html/editor.html', requireLoginPage, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'html', 'editor.html'));
+});
+
+// 정적 파일 제공 (public 폴더)
+//  - HTML, CSS, JS, 이미지 등 클라이언트 파일
+app.use(express.static(path.join(__dirname, 'public')));
+
+
 // 정적 파일 제공 (public 폴더)
 //  - HTML, CSS, JS, 이미지 등 클라이언트 파일
 app.use(express.static(path.join(__dirname, 'public')));
