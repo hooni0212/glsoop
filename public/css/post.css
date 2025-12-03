@@ -1,0 +1,46 @@
+/* =========================
+글 상세 / 관련 글 페이지 전용
+========================= */
+
+/* 글 상세 카드 자체는 gls-detail-card / gls-detail-content를 components에서 사용 */
+
+/* 관련 글 영역 안에 있는 카드들 높이 통일 */
+#relatedPosts .card {
+min-height: 320px;          /* 필요에 따라 300~360px에서 조절 */
+display: flex;
+flex-direction: column;
+}
+
+/* 카드 안 내용을 세로로 나눔 (제목 / 본문 / 메타) */
+#relatedPosts .card .card-body {
+display: flex;
+flex-direction: column;
+}
+
+/* 본문(quote-card가 들어가는 영역) */
+#relatedPosts .feed-post-content {
+flex: 1;
+display: flex;
+align-items: center;
+justify-content: center;
+height: 220px;              /* 본문 영역 높이 – 카드 크기에 맞춰 조절 */
+max-height: 220px;
+overflow: hidden;
+}
+
+/* 관련 글 카드 안의 quote-card */
+#relatedPosts .quote-card {
+width: 100%;
+max-height: 100%;
+overflow: hidden;
+}
+
+/* 제목이 너무 길면 한 줄만 보이도록 */
+#relatedPosts .card-title {
+display: -webkit-box;
+line-clamp: 1;
+-webkit-line-clamp: 1;
+-webkit-box-orient: vertical;
+overflow: hidden;
+text-overflow: ellipsis;
+}
