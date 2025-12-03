@@ -1,4 +1,23 @@
 // routes/postRoutes.js
+
+// ================== 1. 글 작성/수정/삭제 ==================
+// POST   /api/posts
+// PUT    /api/posts/:id
+// DELETE /api/posts/:id
+
+// ================== 2. 내 글 / 공감한 글 ==================
+// GET /api/posts/my
+// GET /api/posts/liked
+
+// ================== 3. 피드 & 관련 글 ==================
+// GET /api/posts/feed
+// GET /api/posts/:id/related
+
+// ================== 4. 글 상세 & 좋아요 ==================
+// GET  /api/posts/:id
+// POST /api/posts/:id/toggle-like
+
+
 const express = require('express');
 const jwt = require('jsonwebtoken');
 

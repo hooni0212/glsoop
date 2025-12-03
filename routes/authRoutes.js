@@ -1,4 +1,22 @@
 // routes/authRoutes.js
+
+// ================== 1. 회원가입 & 이메일 인증 ==================
+// POST /api/signup
+// GET  /api/verify-email
+
+// ================== 2. 비밀번호 재설정 ==================
+// POST /api/password-reset-request
+// POST /api/password-reset
+
+// ================== 3. 로그인 / 로그아웃 ==================
+// POST /api/login
+// POST /api/logout
+
+// ================== 4. 내 정보(me) 조회/수정 ==================
+// GET  /api/me
+// PUT  /api/me
+
+
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
