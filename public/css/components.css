@@ -279,3 +279,20 @@ margin-bottom: 2rem;
 white-space: pre-wrap;
 word-break: break-word;
 }
+
+
+/* 글 상세 카드 + 관련 글 카드 폭 통일 */
+.post-detail-card,
+.related-card.gls-post-card {
+  max-width: 620px;      /* 원하는 카드 폭, 숫자만 바꾸면 됨 */
+  margin-left: auto;     /* 가운데 정렬 */
+  margin-right: auto;
+}
+
+/* 작은 화면(모바일)에서는 가로 100% 꽉 채우게 */
+@media (max-width: 576px) {
+  .post-detail-card,
+  .related-card.gls-post-card {
+    max-width: 100%;
+  }
+}

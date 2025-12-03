@@ -326,7 +326,7 @@ function buildRelatedPostCardHTML(post) {
       ? 'quote-font-serif'
       : fontKey === 'hand'
       ? 'quote-font-hand'
-      : 'quote-font-sans';
+      : 'quote-font-sans';  
 
   return `
     <div class="card mb-3 related-card gls-post-card" data-post-id="${post.id}">
