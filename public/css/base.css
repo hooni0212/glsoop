@@ -1,0 +1,330 @@
+/* =========================
+   0. 전체 레이아웃 기본
+========================= */
+
+html,
+body {
+  height: 100%;
+}
+
+/* =========================
+   1. 기본 설정 (폰트, 배경, 링크)
+========================= */
+
+/* 네비게이션 높이 */
+.nav-height {
+  min-height: 110px;
+}
+
+body {
+  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  background-color: #f0f2e9; /* 옅은 종이색 + 그레이 + 그린 */
+  color: #222;
+  padding-top: 110px; /* fixed navbar와 겹치지 않도록 위에 여백 */
+}
+
+a {
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* =========================
+   2. 네비게이션 바
+========================= */
+
+/* 상단 네비 전체 배경 */
+.custom-navbar {
+  background: linear-gradient(90deg, #2e8b57, #3ca66c);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* 헤더 로고 "글숲" */
+.custom-navbar .navbar-brand {
+  font-family: 'Nanum Pen Script', cursive;
+  font-size: 2.1rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+
+  /* 🟢 거의 흰색에 가까운 연초록 그라디언트 */
+  background: linear-gradient(120deg, #f8fff9, #ecfff4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* 호버 기능 일단 주석처리
+.custom-navbar .navbar-brand:hover {
+  background: linear-gradient(120deg, #f3fff6, #e2ffe9);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 4px rgba(226, 255, 233, 0.6);
+}
+*/
+
+/* 모바일에서 로고 크기 약간 축소 */
+@media (max-width: 576px) {
+  .custom-navbar .navbar-brand {
+    font-size: 1.8rem;
+  }
+}
+
+/* 네비게이션 링크 */
+.navbar-nav .nav-link {
+  font-weight: 500;
+  opacity: 0.92;
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.navbar-nav .nav-link:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+/* 로그인/회원가입/로그아웃 버튼 */
+.navbar .btn {
+  border-radius: 999px;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.9rem;
+}
+
+/* =========================
+   3. 검색바 (사용 시)
+========================= */
+
+.search-form {
+  width: 50%;
+  margin: 0;
+}
+
+.underline-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid #fff;
+  color: #fff;
+  font-size: 1rem;
+  padding: 0.3rem 0;
+}
+
+.underline-input::placeholder {
+  color: #bbb;
+}
+
+.underline-input:focus {
+  outline: none;
+  border-bottom: 2px solid #00d1b2;
+}
+
+/* =========================
+   4. 섹션 / 히어로 영역
+========================= */
+
+.page-section {
+  padding: 4rem 0;
+}
+
+.hero-section {
+  padding: 4rem 1rem 5rem;
+  text-align: center;
+}
+
+.hero-title {
+  font-size: 2.4rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.hero-subtitle {
+  font-size: 1.05rem;
+  color: #555;
+  margin-bottom: 3rem; /* 하단 여백 넉넉히 */
+}
+
+.hero-card {
+  max-width: 680px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  border-radius: 1.3rem;
+  padding: 2.3rem 2rem;
+  box-shadow: 0 18px 45px rgba(46, 139, 87, 0.08);
+}
+
+/* =========================
+   5. 공통 버튼 스타일
+========================= */
+
+.btn-primary,
+.btn-success {
+  border-radius: 999px;
+  padding: 0.55rem 1.4rem;
+  font-weight: 600;
+  border: none;
+}
+
+.btn-success {
+  background-color: #2e8b57;
+}
+.btn-success:hover {
+  background-color: #267349;
+}
+
+/* =========================
+   13. 메인 히어로 CTA 버튼 (바로 글 쓰러 가기)
+========================= */
+
+.hero-card .hero-cta-btn {
+  position: relative;
+  overflow: visible; /* 잎사귀가 바깥으로 튀어나오도록 */
+
+  border: none;
+  padding: 0.8rem 2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+
+  text-decoration: none; /* 밑줄 X */
+
+  /* 기본 상태 그림자 */
+  box-shadow: 0 10px 24px rgba(46, 139, 87, 0.35);
+
+  transition:
+    transform 0.22s ease-out,
+    box-shadow 0.22s ease-out,
+    background-color 0.22s ease-out;
+}
+
+/* 호버/포커스 시: 버튼 앞으로 튀어나오기 + 그림자 더 깊게 */
+.hero-card .hero-cta-btn:hover,
+.hero-card .hero-cta-btn:focus-visible {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 18px 42px rgba(46, 139, 87, 0.65);
+  background-color: #28794a;
+  text-decoration: none;
+}
+
+/* 포커스 링 (키보드 접근용) */
+.hero-card .hero-cta-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+}
+
+/* =========================
+   14. 히어로 CTA 잎사귀 파티클
+========================= */
+
+.hero-cta-leaves {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 개별 잎사귀 기본 상태 */
+.hero-cta-leaf {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+
+  /* 처음부터 최종 위치 주변에서만 등장하게 */
+  transform:
+    translate(-50%, -50%)
+    translate(var(--leaf-tx, 0px), var(--leaf-ty, -16px))
+    scale(0.1)
+    rotate(var(--leaf-rot, 0deg));
+  transform-origin: center bottom;
+
+  opacity: 0;
+  font-size: 1.2rem;
+
+  pointer-events: none;
+
+  transition:
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.35s ease-out;
+}
+
+/* 애니메이션이 적용될 때 (살짝 커지고 선명해지는 정도만) */
+.hero-cta-leaf.leaf-show {
+  opacity: 1;
+  transform:
+    translate(-50%, -50%)
+    translate(var(--leaf-tx, 0px), var(--leaf-ty, -22px))
+    scale(var(--leaf-scale, 1))
+    rotate(var(--leaf-rot, 0deg));
+}
+
+/* 모바일에서의 CTA 버튼 모양 */
+@media (max-width: 576px) {
+  .hero-card .hero-cta-btn {
+    width: 100%;
+    padding: 0.9rem 1.3rem;
+    font-size: 1rem;
+    border-radius: 999px;
+  }
+
+  .hero-cta-leaf {
+    font-size: 1.3rem;
+  }
+}
+
+/* =========================
+   15. 공통 푸터
+========================= */
+
+.custom-footer {
+  background: linear-gradient(90deg, #2e8b57, #3ca66c); /* 헤더와 같은 그라디언트 */
+  color: #fdfdfd;
+  margin-top: auto;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.footer-brand {
+  font-family: 'Nanum Pen Script', cursive;
+  font-size: 1.8rem;
+}
+
+.footer-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  margin-bottom: 0;
+}
+
+.footer-links a {
+  color: #fdfdfd;
+  text-decoration: none;
+  font-size: 0.9rem;
+  padding: 0 0.35rem;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
+}
+
+.footer-copy {
+  font-size: 0.8rem;
+  opacity: 0.9;
+  margin-bottom: 0.1rem;
+}
+
+.footer-small {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+/* 모바일에서 중앙 정렬 */
+@media (max-width: 576px) {
+  .custom-footer {
+    text-align: center;
+  }
+}

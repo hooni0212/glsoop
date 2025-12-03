@@ -27,7 +27,8 @@
 
   <!-- Custom CSS -->
   <!-- post.html은 /html 폴더 안에 있으므로 절대 경로(/css/...) 사용 -->
-  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
 </head>
 <body>
   <!-- 상단 헤더 네비게이션 -->
@@ -85,26 +86,6 @@
       </div>
     </div>
   </nav>
-
-  <!-- 메인 상단 히어로 섹션 -->
-  <!-- index.html과 동일한 “글숲” 소개 + 글쓰기 CTA 버튼 -->
-  <section class="hero-section">
-    <div class="container">
-      <div class="hero-card">
-        <h1 class="hero-title">글숲</h1>
-        <p class="hero-subtitle">
-          글을 쓰는 사람, 읽는 사람이 함께 머무는 작은 숲.<br />
-          오늘의 생각, 감정을 천천히 적어 내려가 보세요.
-        </p>
-        <!-- 글쓰기 페이지로 이동하는 CTA 버튼 (잎사귀 애니메이션 포함) -->
-        <a href="/html/editor.html" class="btn btn-success hero-cta-btn">
-          <span class="hero-cta-text">바로 글 쓰러 가기</span>
-          <!-- 잎사귀 이모지 애니메이션 컨테이너 (index.js에서 제어) -->
-          <span class="hero-cta-leaves" aria-hidden="true"></span>
-        </a>
-      </div>
-    </div>
-  </section>
 
   <!-- 개별 글 상세 보기 섹션 -->
   <!-- post.js → initPostDetailPage()에서 localStorage의 glsoop_lastPost를 읽어
