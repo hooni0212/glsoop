@@ -440,39 +440,6 @@ function renderRelatedPosts(box, posts, currentPostId) {
   });
 }
 
-/**
- * 인덱스 / 포스트 공통 해시태그 버튼 HTML 생성 함수
- * - post.hashtags에서 태그 문자열을 읽어 버튼(.hashtag-pill)들로 변환
- *
- * @param {Object} post - 글 데이터(hashtags 필드 포함)
- * @returns {string}    - <div>...</div> 형태의 HTML 문자열 (버튼 여러 개)
- */
-function buildHashtagHtml(post) {
-  // 해시태그 정보가 없으면 빈 문자열 반환
-  if (!post || !post.hashtags) return '';
-
-  // "태그1, 태그2, 태그3" 같은 문자열을 쉼표 기준으로 나누고 공백 제거
-  const tags = String(post.hashtags)
-    .split(',')
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0);
-
-  // 유효한 태그가 하나도 없으면 역시 빈 문자열
-  if (!tags.length) return '';
-
-  // 각 태그를 버튼(.hashtag-pill) HTML로 변환
-  const pills = tags
-    .map(
-      (t) =>
-        `<button type="button"
-                  class="btn btn-sm btn-outline-success me-1 mb-1 hashtag-pill"
-                  data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`
-    )
-    .join('');
-
-  // 버튼들을 감싸는 div 반환 (좌측 정렬)
-  return `<div class="mt-2 text-start">${pills}</div>`;
-}
 
 /**
  * 관련 글 카드에서 공감 버튼 클릭 시 좋아요 토글

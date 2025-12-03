@@ -209,3 +209,63 @@ function extractFontFromContent(html) {
 
   return { cleanHtml, fontKey };
 }
+
+
+/**
+ * 해시태그를 공통 HTML 버튼으로 만들어 주는 함수
+ * - post.hashtags가 문자열("힐링, 위로")이든
+ *   배열(["힐링", "위로"])이든 둘 다 처리
+ * - 인덱스 해시태그 검색 로직을 위해
+ *   클래스: hashtag-pill gls-tag-btn
+ *   data-tag: 사람이 읽는 텍스트 그대로
+ */
+function buildHashtagHtml(source) {
+  if (!source) return '';
+
+  let tags = [];
+
+  // 1) post 객체인 경우: { hashtags: ... } 형태
+  if (typeof source === 'object' && !Array.isArray(source)) {
+    if (!source.hashtags) return '';
+    source = source.hashtags;
+  }
+
+  // 2) 배열 형태인 경우 (예: ["사랑", "위로"])
+  if (Array.isArray(source)) {
+    tags = source
+      .map((t) => String(t).trim())
+      .filter((t) => t.length > 0);
+  }
+  // 3) 문자열 형태인 경우 (예: "사랑, 위로, 힐링")
+  else if (typeof source === 'string') {
+    tags = source
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+  } else {
+    return '';
+  }
+
+  if (!tags.length) return '';
+
+  const pills = tags
+    .map((tag) => {
+      const safeTag = escapeHtml(tag);
+      return `
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-success me-1 mb-1 hashtag-pill gls-tag-btn"
+          data-tag="${safeTag}"
+        >
+          #${safeTag}
+        </button>
+      `;
+    })
+    .join('');
+
+  return `
+    <div class="mt-2 text-start gls-card-hashtags">
+      ${pills}
+    </div>
+  `;
+}

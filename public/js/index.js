@@ -635,32 +635,6 @@ Glsoop.FeedPage = (function () {
     loadMoreFeed();
   }
 
-  /**
-   * 서버에서 내려준 post.hashtags를 버튼들로 변환
-   * - "힐링, 위로" → #힐링 버튼, #위로 버튼
-   */
-  function buildHashtagHtml(post) {
-    if (!post.hashtags) return '';
-
-    const tags = String(post.hashtags)
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
-
-    if (!tags.length) return '';
-
-    const pills = tags
-      .map(
-        (t) =>
-          `<button type="button"
-                    class="btn btn-sm btn-outline-success me-1 mb-1 hashtag-pill"
-                    data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`
-      )
-      .join('');
-
-    return `<div class="mt-2 text-start">${pills}</div>`;
-  }
-
   // ===== 히어로 CTA 잎사귀 애니메이션 =====
 
   /**
