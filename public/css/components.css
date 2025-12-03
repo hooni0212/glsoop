@@ -1,0 +1,282 @@
+/* =========================
+   공통 카드 / 글 목록 컴포넌트
+========================= */
+
+.card {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+  }
+  
+  .card-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  
+  .card-body small.text-muted {
+    font-size: 0.8rem;
+  }
+  
+  /* "내가 쓴 글" 카드 안의 내용 박스 */
+  .post-content .border {
+    border-radius: 0.8rem !important;
+    background-color: #fbfbff;
+  }
+  
+  /* 피드에서 글 내용 미리보기 (접힌 상태) */
+  .feed-post-content {
+    position: relative;
+    max-height: 26rem;
+    overflow: hidden;
+  }
+  
+  /* 피드 내용 펼쳐진 상태 */
+  .feed-post-content.expanded {
+    max-height: none;
+  }
+  
+  /* =========================
+     인스타 감성 종이질감 카드
+  ========================= */
+  
+  .quote-card {
+    /* 크기 & 비율 */
+    width: min(80vw, 360px);
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+    padding: 1.4rem;
+  
+    /* 배경: 종이 텍스처 + 연한 베이지 */
+    background-color: #fdf8ea;
+    background-image: url('/img/paper-texture.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  
+    border-radius: 1.5rem;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+  
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    text-align: left;
+  
+    /* 타이포 */
+    font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+    font-size: 1.6rem;
+    line-height: 1.9rem;
+    color: #5c5c5c;
+    word-break: keep-all;
+  }
+  
+  /* 자식 요소들이 카드 폭 전체를 쓰도록 */
+  .quote-card > * {
+    margin: 0.2rem 0;
+    width: 100%;
+  }
+  
+  /* 모바일에서 조금 작게 */
+  @media (max-width: 576px) {
+    .quote-card {
+      width: min(90vw, 320px);
+      padding: 1.2rem;
+      font-size: 1.4rem;
+    }
+  }
+  
+  /* =========================
+     메인 피드 좋아요 버튼 (.like-*)
+  ========================= */
+  
+  .like-btn {
+    text-decoration: none;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  
+  .like-heart {
+    display: inline-block;              /* transform 잘 보이도록 */
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #222;                        /* 기본: 검은 테두리 하트(♡) 느낌 */
+    transform: scale(1);                /* 기본 크기 */
+    transition:
+      transform 0.22s ease-out,         /* 커졌다 작아지는 애니메이션 */
+      color 0.15s ease;
+  }
+  
+  /* 좋아요 된 상태일 때 빨간색 하트 */
+  .like-btn.liked .like-heart {
+    color: #e53935;
+  }
+  
+  /* 숫자 */
+  .like-count {
+    font-size: 1rem;
+  }
+  
+  /* 범프 상태: 확실히 눈에 띄게 */
+  .like-heart.bump {
+    transform: scale(1.4);
+  }
+  
+  /* =========================
+     마이페이지 공감 하트
+  ========================= */
+  
+  .mypage-like-heart {
+    color: #e53935;
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+  
+  .mypage-like-count {
+    font-size: 1.1rem;
+  }
+  
+  .mypage-like {
+    cursor: default;
+  }
+  
+  /* =========================
+     마이페이지 박스 스타일
+  ========================= */
+  
+  #userInfo {
+    background-color: #ffffff;
+    border-radius: 1rem;
+    padding: 1.2rem 1.5rem;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.04);
+  }
+  
+  /* =========================
+     더보기 버튼 (피드 카드 내부)
+  ========================= */
+  
+  .more-toggle {
+    border: none;
+    background: none;
+    padding: 0;
+    margin-top: 0.25rem;
+    margin-right: 0.25rem;
+  
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #6b5b4b;
+  
+    cursor: pointer;
+    text-decoration: none;
+  
+    display: block;      /* 한 줄 전부 차지하게 만들고 */
+    margin-left: auto;   /* 오른쪽으로 붙이기 */
+  
+    transition:
+      color 0.15s ease,
+      opacity 0.15s ease;
+  }
+  
+  .more-toggle:hover {
+    color: #4f4337;
+    opacity: 0.9;
+    text-decoration: none;
+  }
+  
+  .more-toggle:active {
+    opacity: 0.7;
+    text-decoration: none;
+  }
+  
+  /* =========================
+     피드 / 미리보기 카드 폰트 스타일 변형
+  ========================= */
+  
+  .quote-card.quote-font-serif {
+    font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+  }
+  
+  .quote-card.quote-font-sans {
+    font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
+      sans-serif;
+  }
+  
+  .quote-card.quote-font-hand {
+    font-family: 'Nanum Pen Script', cursive;
+  }
+  
+  /* =========================
+     Quill 정렬 클래스 (에디터/피드/마이페이지 공통)
+  ========================= */
+  
+  .ql-editor .ql-align-center,
+  .quote-card .ql-align-center,
+  .paper-content .ql-align-center {
+    text-align: center;
+  }
+  
+  .ql-editor .ql-align-right,
+  .quote-card .ql-align-right,
+  .paper-content .ql-align-right {
+    text-align: right;
+  }
+  
+  .ql-editor .ql-align-justify,
+  .quote-card .ql-align-justify,
+  .paper-content .ql-align-justify {
+    text-align: justify;
+  }
+  
+  /* =========================
+     공통 글 카드 / 폰트 / 해시태그
+  ========================= */
+  
+  .gls-post-card {
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  
+  .gls-post-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  }
+  
+  /* 작성자 뱃지 */
+  .gls-author-badge {
+    font-weight: 500;
+  }
+  
+  /* 카드 안 인용 텍스트(미리보기) */
+  .gls-post-quote {
+    margin-top: 0.25rem;
+  }
+  
+  /* 폰트 스타일 */
+  .gls-font-serif {
+    font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+  }
+  
+  .gls-font-hand {
+    font-family: 'Nanum Pen Script', 'Noto Sans KR', cursive;
+  }
+  
+  .gls-font-sans {
+    font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
+      sans-serif;
+  }
+  
+  /* 관련 글 섹션 해시태그 */
+  .gls-card-hashtags {
+    word-break: keep-all;
+  }
+  
+  /* 상세 본문 */
+  .gls-detail-card {
+    margin-bottom: 2rem;
+  }
+  
+  .gls-detail-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  
