@@ -227,67 +227,38 @@ function switchMyPageTab(target) {
 function renderPostCard(post, options = {}) {
   const { showActions = false } = options;
 
-  // 글 작성 시간을 한국형 포맷 문자열로 변환
-  const dateStr = formatKoreanDateTime(post.created_at);
+  // 공통 카드 HTML (내용은 항상 전체 보이게)
+  const mainCardHtml = buildStandardPostCardHTML(post, {
+    showMoreButton: false,      // 마이페이지에선 더보기 버튼 안 씀
+    contentExpanded: true,      // 내용 전체 표시
+  });
 
-  // 공감 수(좋아요 수) 숫자 처리
-  const likeCount =
-    post.like_count !== undefined && post.like_count !== null
-      ? Number(post.like_count)
-      : 0;
-
-  // 카드 전체 HTML 템플릿
+  // 바깥에 마이페이지 전용 wrapper를 하나 더 두고,
+  // 그 안에 공통 카드 + (선택) 수정/삭제 버튼을 넣는다.
   return `
-    <div class="card mb-3 mypage-post-card" data-post-id="${post.id}">
-      <div class="card-body d-flex flex-column align-items-center">
-        <!-- 인스타 감성 종이 카드(마이페이지 버전) -->
-        <div class="quote-card">
-          <!-- 카드 상단: 제목 + 날짜 + 공감 수 -->
-          <div class="mb-3" style="width: 100%;">
-            <div class="d-flex flex-column align-items-center">
-              <!-- 글 제목 -->
-              <div class="paper-title mb-1" style="font-size: 1rem; font-weight: 600;">
-                ${escapeHtml(post.title)}
-              </div>
-              <!-- 작성일 + 공감 수 -->
-              <div class="paper-meta" style="font-size: 0.8rem; color: #777;">
-                ${dateStr}
-                &nbsp;&nbsp;
-                <span class="mypage-like">
-                  <span class="mypage-like-heart">♥</span>
-                  <span class="mypage-like-count">${likeCount}</span>
-                </span>
-              </div>
-            </div>
-          </div>
-          <!-- 카드 본문: 실제 글 내용 (에디터에서 작성된 HTML) -->
-          <div class="paper-content">
-            ${post.content}
-          </div>
-        </div>
+    <div class="mypage-post-card" data-post-id="${post.id}">
+      ${mainCardHtml}
 
-        ${
-          // showActions가 true일 때만 수정/삭제 버튼 표시 (내가 쓴 글에서만)
-          showActions
-            ? `
-        <div class="d-flex justify-content-end w-100 mt-3 gap-2">
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-secondary edit-post-btn"
-          >
-            수정
-          </button>
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-danger delete-post-btn"
-          >
-            삭제
-          </button>
-        </div>
-        `
-            : ''
-        }
+      ${
+        showActions
+          ? `
+      <div class="d-flex justify-content-end w-100 mt-2 gap-2">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary edit-post-btn"
+        >
+          수정
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-danger delete-post-btn"
+        >
+          삭제
+        </button>
       </div>
+      `
+          : ''
+      }
     </div>
   `;
 }
@@ -344,8 +315,34 @@ async function loadMyPosts() {
       .map((post) => renderPostCard(post, { showActions: true }))
       .join('');
 
-    postsBox.innerHTML = listHtml;
-    myPostsLoaded = true; // 이후에는 다시 로드하지 않도록 플래그 설정
+      postsBox.innerHTML = listHtml;
+      myPostsLoaded = true; // 이후에는 다시 로드하지 않도록 플래그 설정
+  
+      // ✅ 공통 카드 기능(폰트 조절 등) + 카드 클릭 → 상세 페이지 이동
+      posts.forEach((post) => {
+        const wrapper = postsBox.querySelector(
+          `.mypage-post-card[data-post-id="${post.id}"]`
+        );
+        if (!wrapper) return;
+  
+        const card = wrapper.querySelector('.gls-post-card');
+        if (card && typeof enhanceStandardPostCard === 'function') {
+          // autoAdjustQuoteFont 등 공통 처리
+          enhanceStandardPostCard(card, post);
+        }
+  
+        // 카드 전체 클릭 → 상세 페이지로 이동
+        wrapper.style.cursor = 'pointer';
+        wrapper.addEventListener('click', (e) => {
+          // 수정/삭제 버튼 클릭은 상세 페이지로 안 가게 예외 처리
+          if (e.target.closest('.edit-post-btn') || e.target.closest('.delete-post-btn')) {
+            return;
+          }
+          window.location.href = `/html/post.html?postId=${encodeURIComponent(
+            post.id
+          )}`;
+        });
+      });
   } catch (err) {
     console.error(err);
     postsBox.innerHTML =
@@ -405,8 +402,30 @@ async function loadLikedPosts() {
       .map((post) => renderPostCard(post, { showActions: false }))
       .join('');
 
-    likedBox.innerHTML = likedHtml;
-    likedPostsLoaded = true;
+      likedBox.innerHTML = likedHtml;
+      likedPostsLoaded = true;
+  
+      // ✅ 공통 카드 기능 + 카드 클릭 → 상세 페이지 이동
+      likedPosts.forEach((post) => {
+        const wrapper = likedBox.querySelector(
+          `.mypage-post-card[data-post-id="${post.id}"]`
+        );
+        if (!wrapper) return;
+  
+        const card = wrapper.querySelector('.gls-post-card');
+        if (card && typeof enhanceStandardPostCard === 'function') {
+          enhanceStandardPostCard(card, post);
+        }
+  
+        wrapper.style.cursor = 'pointer';
+        wrapper.addEventListener('click', (e) => {
+          // (여긴 수정/삭제 버튼이 없으니까 바로 이동)
+          window.location.href = `/html/post.html?postId=${encodeURIComponent(
+            post.id
+          )}`;
+        });
+      });
+  
   } catch (err) {
     console.error(err);
     likedBox.innerHTML =

@@ -296,3 +296,14 @@ word-break: break-word;
     max-width: 100%;
   }
 }
+
+/* 마이페이지에서는 하트 버튼은 "표시용"만 쓰고 클릭은 막기 */
+.mypage-post-card .like-btn {
+    pointer-events: none;
+    opacity: 0.7;  /* 살짝 흐리게 하고 싶으면 */
+  }
+  
+/* 마이페이지 카드들 사이 간격 확보 */
+.mypage-post-card {
+    margin-bottom: 1.8rem;  /* 필요하면 1.5~2rem 사이에서 숫자만 조절 */
+  }

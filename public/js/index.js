@@ -202,127 +202,42 @@ Glsoop.FeedPage = (function () {
     }
   }
 
-  /**
-   * 서버에서 받아온 posts 배열을 DOM에 카드 형태로 추가
-   * - 각 카드마다 좋아요/해시태그/더보기/상세보기/작가페이지 이동 이벤트 연결
-   */
-  function renderFeedPosts(posts) {
-    const feedBox = document.getElementById('feedPosts');
-    if (!feedBox || !posts || posts.length === 0) return;
+/*
+ * 서버에서 받아온 posts 배열을 DOM에 카드 형태로 추가
+ * - 각 카드마다 좋아요/해시태그/더보기/상세보기/작가페이지 이동 이벤트 연결
+ */
+function renderFeedPosts(posts) {
+  const feedBox = document.getElementById('feedPosts');
+  if (!feedBox || !posts || posts.length === 0) return;
 
-    // posts 배열을 HTML 문자열로 변환
-    const fragmentHtml = posts
-      .map((post) => {
-        // ✅ UTC 문자열을 한국시간으로 예쁜 문자열로 변환
-        const dateStr = formatKoreanDateTime(post.created_at);
+  // posts 배열을 HTML 문자열로 변환
+  const fragmentHtml = posts
+  .map((post) =>
+    buildStandardPostCardHTML(post, {
+      showMoreButton: true, // 인덱스 피드에는 더보기 버튼 사용
+    })
+  )
+  .join('');
 
-        // 닉네임 + (마스킹 이메일) 표시
-        const nickname =
-          post.author_nickname && post.author_nickname.trim().length > 0
-            ? post.author_nickname.trim()
-            : '';
 
-        const baseName =
-          nickname ||
-          (post.author_name && post.author_name.trim().length > 0
-            ? post.author_name.trim()
-            : '익명');
-
-        // 이메일 마스킹 (예: ab***@gmail.com) - utils.js에 정의
-        const maskedEmail = maskEmail(post.author_email);
-
-        // 최종 표시: "닉네임 (마스킹이메일)" 또는 "이름 (마스킹이메일)"
-        const author = maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
-
-        // 공감 수, 내가 공감했는지 여부
-        const likeCount =
-          typeof post.like_count === 'number' ? post.like_count : 0;
-        const liked =
-          post.user_liked === 1 || post.user_liked === true ? true : false;
-
-        // 해시태그 버튼 HTML
-        const hashtagHtml = buildHashtagHtml(post);
-
-        // 폰트 메타(<!--FONT:...-->) 파싱 (utils.js)
-        // - cleanHtml: 실제 표시할 내용
-        // - fontKey: 'serif' | 'sans' | 'hand' 중 하나
-        const { cleanHtml, fontKey } = extractFontFromContent(post.content);
-        const quoteFontClass =
-          fontKey === 'serif' || fontKey === 'sans' || fontKey === 'hand'
-            ? `quote-font-${fontKey}`
-            : '';
-
-        // 한 개의 피드 카드 HTML
-        return `
-          <div class="card mb-3" data-post-id="${post.id}">
-            <div class="card-body">
-              <!-- 제목 -->
-              <h5 class="card-title mb-1">${escapeHtml(post.title)}</h5>
-              <!-- 작성자 / 날짜 -->
-              <p class="card-text mb-1">
-                <small class="text-muted">${escapeHtml(
-                  author
-                )} · ${dateStr}</small>
-              </p>
-
-              <!-- 공감(하트) 버튼 -->
-              <div class="mb-1">
-                <button
-                  class="like-btn ${liked ? 'liked' : ''}"
-                  type="button"
-                  data-post-id="${post.id}"
-                  data-liked="${liked ? '1' : '0'}"
-                >
-                  <span class="like-heart">${liked ? '♥' : '♡'}</span>
-                  <span class="like-count ms-1">${likeCount}</span>
-                </button>
-              </div>
-
-              <!-- 해시태그 버튼들 -->
-              ${hashtagHtml}
-
-              <!-- 본문 카드 & 더보기 버튼 -->
-              <div class="post-content mt-2">
-                <div class="feed-post-content">
-                  <!-- 인스타 감성 글귀 카드 -->
-                  <div class="quote-card ${quoteFontClass}">
-                    ${cleanHtml}
-                  </div>
-                </div>
-                <!-- 버튼만 오른쪽 정렬 -->
-                <div class="mt-1 text-end">
-                  <button
-                    class="btn btn-link p-0 more-toggle"
-                    type="button"
-                    style="display:none;"
-                  >
-                    더보기...
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      })
-      .join('');
-
-    // 첫 로드에서 "피드를 불러오는 중..." 문구 제거
-    if (!feedBox.dataset.initialized) {
-      feedBox.innerHTML = '';
-      feedBox.dataset.initialized = '1';
-    }
-
-    // 새 카드들을 피드 맨 아래에 추가
-    feedBox.insertAdjacentHTML('beforeend', fragmentHtml);
-
-    // 새로 추가된 카드들에 대해 폰트/더보기/좋아요/해시태그/작성자 링크/상세보기 설정
-    posts.forEach((post) => {
-      const card = feedBox.querySelector(`.card[data-post-id="${post.id}"]`);
-      if (!card) return;
-      setupCardAuthorLink(card, post);  // 작성자 클릭 → 작가 페이지
-      setupCardInteractions(card, post); // 좋아요/더보기/상세보기 등
-    });
+  // 첫 로드에서 "피드를 불러오는 중..." 문구 제거
+  if (!feedBox.dataset.initialized) {
+    feedBox.innerHTML = '';
+    feedBox.dataset.initialized = '1';
   }
+
+  // 새 카드들을 피드 맨 아래에 추가
+  feedBox.insertAdjacentHTML('beforeend', fragmentHtml);
+
+  // 새로 추가된 카드들에 대해 폰트/더보기/좋아요/해시태그/작성자 링크/상세보기 설정
+  posts.forEach((post) => {
+    const card = feedBox.querySelector(`.card[data-post-id="${post.id}"]`);
+    if (!card) return;
+    setupCardAuthorLink(card, post);  // 작성자 클릭 → 작가 페이지
+    setupCardInteractions(card, post); // 좋아요/더보기/상세보기 등
+  });
+}
+
 
   /**
    * 개별 카드에 대한 인터랙션 세팅

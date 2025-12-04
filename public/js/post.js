@@ -64,6 +64,47 @@ async function initPostDetailPage() {
 }
 
 /**
+ * 상세/관련글 카드에서 작성자 배지를 클릭하면 작가 페이지로 이동
+ * - post.author_id 가 있어야 동작
+ */
+function setupCardAuthorLink(card, post) {
+  if (!card || !post || !post.author_id) return;
+
+  const badge = card.querySelector('.gls-author-badge');
+  if (!badge) return;
+
+  badge.style.cursor = 'pointer';
+  badge.addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.location.href = `/html/author.html?userId=${encodeURIComponent(
+      post.author_id
+    )}`;
+  });
+}
+
+/**
+ * 상세/관련글 카드에서 좋아요 버튼 동작 붙이기
+ * - 표준 카드 템플릿(.like-btn / .like-heart / .like-count)에 맞춰서 처리
+ */
+function setupCardInteractions(card, post) {
+  if (!card || !post) return;
+
+  const likeBtn = card.querySelector('.like-btn');
+  if (likeBtn) {
+    likeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pid = likeBtn.getAttribute('data-post-id') || post.id;
+      if (!pid) return;
+      toggleLike(pid, likeBtn);
+    });
+  }
+
+  // 이 페이지(post.html)에서는 카드 전체 클릭 → 상세 이동은
+  // renderRelatedPosts 안에서 따로 처리하고 있으므로 여기서는 안 건드려도 됨.
+}
+
+
+/**
  * 선택된 한 개의 글을 화면 상단에 크게 렌더링
  * - index 피드 카드와 거의 동일한 레이아웃을 사용
  * - 해시태그는 버튼(.hashtag-pill)로 보여줌
@@ -72,78 +113,18 @@ async function initPostDetailPage() {
  * @param {Object} post            - 글 데이터(제목, 내용, 작성자, 해시태그 등)
  */
 function renderPostDetail(container, post) {
-  if (!post) return; // 방어 코드: post가 없으면 렌더링하지 않음
+  if (!container || !post) return;
 
-  // 폰트 메타(<!--FONT:...-->) 파싱
-  // - content 안에 <!--FONT:serif--> 같은 메타가 들어 있을 수 있음
-  // - extractFontFromContent는 HTML 문자열에서 메타를 제거하고, 폰트 타입만 따로 뽑아줌
-  const { cleanHtml, fontKey } = extractFontFromContent(post.content || '');
+  // 1) 공통 카드 HTML을 한 장 만든다 (더보기 버튼은 숨김)
+  const cardHtml = buildStandardPostCardHTML(post, {
+    showMoreButton: false, // 상세 페이지는 항상 전체 내용 보여줄 거라서
+  });
 
-  // 폰트 타입에 따라 quote-card에 적용할 클래스 결정
-  // - quote-font-serif / quote-font-sans / quote-font-hand 중 하나
-  const quoteFontClass =
-    fontKey === 'serif' || fontKey === 'sans' || fontKey === 'hand'
-      ? `quote-font-${fontKey}`
-      : '';
-
-  // created_at(ISO 문자열 등)을 "YYYY.MM.DD HH:mm" 같은 한국형 시간 문자열로 변환
-  const dateStr = formatKoreanDateTime(post.created_at);
-
-  // 닉네임이 있는 경우: 닉네임 우선 사용
-  const nickname =
-    post.author_nickname && String(post.author_nickname).trim().length > 0
-      ? String(post.author_nickname).trim()
-      : '';
-
-  // 닉네임이 없으면 이메일 앞부분(아이디) 사용, 둘 다 없으면 '익명'
-  const baseName =
-    nickname ||
-    (post.author_email ? post.author_email.split('@')[0] : '익명');
-
-  // 이메일을 살짝 마스킹 처리 (예: ab***@gmail.com)
-  const maskedEmail = maskEmail(post.author_email);
-  // 최종 표시용 작성자 문자열 (예: "재원 (ab***@gmail.com)")
-  const author = maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
-
-  // 인덱스 페이지와 동일한 스타일의 해시태그 버튼 HTML 생성
-  // - #태그 버튼 여러 개가 있는 <div> 문자열을 반환
-  const hashtagHtml = buildHashtagHtml(post);
-
-  // 상세 카드 전체 HTML 구조 생성
-  // - 크게 보면 .card 안에 .card-body, 그 안에 제목/작성자/해시태그/내용 순
+  // 2) 레이아웃(가운데 정렬 + "피드로 돌아가기" 버튼 포함) 조립
   container.innerHTML = `
     <div class="row justify-content-center">
       <div class="col-md-8">
-        <!-- 메인 상세 카드 -->
-        <div class="card post-detail-card mb-3" data-post-id="${post.id}">
-          <!-- index 카드와 동일하게: card-body 만 사용 (추가 py-2 X) -->
-          <div class="card-body">
-            <!-- 제목 영역: 인덱스 카드와 동일하게 mb-1 -->
-            <h5 class="card-title mb-1">${escapeHtml(post.title || '')}</h5>
-
-            <!-- 작성자 / 날짜 영역 -->
-            <p class="card-text mb-1">
-              <small class="text-muted">
-                ${escapeHtml(author)} · ${dateStr}
-              </small>
-            </p>
-
-            <!-- 해시태그 버튼 영역 (#태그 버튼들) -->
-            ${hashtagHtml}
-
-            <!-- 본문 카드 영역 (index와 동일 구조) -->
-            <div class="post-content mt-2 text-end">
-              <!-- feed-post-content: 피드에서 '더보기' 접힘/펼침에 쓰던 컨테이너
-                   여기서는 expanded 클래스로 항상 전체 내용 보이게 -->
-              <div class="feed-post-content expanded">
-                <!-- 인스타 감성 종이 카드 (정사각형 quote-card) -->
-                <div class="quote-card ${quoteFontClass}">
-                  ${cleanHtml}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        ${cardHtml}
 
         <!-- 아래에 '피드로 돌아가기' 버튼 -->
         <div class="d-flex justify-content-between align-items-center mt-2">
@@ -159,36 +140,32 @@ function renderPostDetail(container, post) {
     </div>
   `;
 
-  // 글귀 카드 폰트 자동 조절
-  // - 내용 길이에 따라 폰트 크기를 적당히 줄여주는 util 함수
-  const quoteEl = container.querySelector('.quote-card');
-  if (quoteEl) {
-    autoAdjustQuoteFont(quoteEl);
+  // 3) 방금 만든 카드 DOM을 찾아서 기능 붙이기
+  const card = container.querySelector('.gls-post-card');
+  if (card) {
+    // 글귀 카드 폰트 자동 조절 + (있다면) 공통 상호작용 함수 호출
+    enhanceStandardPostCard(card, post);
+
+    // 상세 페이지에서는 내용이 항상 전체 보이도록 강제
+    const feedContent = card.querySelector('.feed-post-content');
+    if (feedContent) {
+      feedContent.classList.add('expanded'); // height 제한 해제
+    }
+
+    // 상세에서는 더보기 버튼 안 쓰므로 안전하게 숨김
+    const moreBtn = card.querySelector('.more-toggle');
+    if (moreBtn) {
+      moreBtn.style.display = 'none';
+    }
   }
 
-  // "뒤로 가기" 버튼 클릭 시 index.html로 이동
-  const backBtn = container.querySelector('#backToFeedBtn');
+  // 4) '피드로 돌아가기' 버튼 동작
+  const backBtn = document.getElementById('backToFeedBtn');
   if (backBtn) {
     backBtn.addEventListener('click', () => {
       window.location.href = '/index.html';
     });
   }
-
-  // 해시태그 버튼 클릭 시 메인 피드에서 해당 태그로 필터링
-  // - /index.html?tag=OOO 형태로 이동
-  const tagButtons = container.querySelectorAll('.hashtag-pill');
-  tagButtons.forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();                  // 상위 카드 클릭 이벤트로 전파 막기
-      const tag = btn.getAttribute('data-tag');
-      if (!tag) return;
-
-      // index.html 로 이동하면서 ?tag= 쿼리로 전달
-      const url = new URL('/index.html', window.location.origin);
-      url.searchParams.set('tag', tag);
-      window.location.href = url.toString();
-    });
-  });
 }
 
 /**
@@ -273,99 +250,12 @@ async function loadRelatedPosts(currentPost) {
 function buildRelatedPostCardHTML(post) {
   if (!post) return '';
 
-  // 내용에서 FONT 메타 제거 + 순수 HTML
-  const { cleanHtml, fontKey } = extractFontFromContent(post.content || '');
-  const text = stripHtml(cleanHtml);
-
-  // 너무 길면 일부만 잘라서 미리보기로 사용
-  const maxLen = 120;
-  const preview =
-    text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
-
-  const dateStr = formatKoreanDateTime(post.created_at);
-
-  // 닉네임 / 이름 / 이메일 마스킹 중 하나 선택
-  const nickname =
-    post.author_nickname && post.author_nickname.trim().length > 0
-      ? post.author_nickname.trim()
-      : '';
-
-  const baseName =
-    nickname ||
-    (post.author_name && post.author_name.trim().length > 0
-      ? post.author_name.trim()
-      : '익명');
-
-  const maskedEmail = maskEmail(post.author_email);
-  const author = maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
-
-  // 해시태그 배열/문자열 모두 처리
-  let tags = [];
-  if (Array.isArray(post.hashtags)) {
-    tags = post.hashtags;
-  } else if (typeof post.hashtags === 'string' && post.hashtags.trim() !== '') {
-    tags = post.hashtags.split(',').map((t) => t.trim()).filter(Boolean);
-  }
-
-  const hashtagHtml =
-    tags.length > 0
-      ? `
-        <div class="mt-2 text-muted small gls-card-hashtags">
-          ${tags.map((t) => `#${escapeHtml(t)}`).join(' ')}
-        </div>
-      `
-      : '';
-
-  const likeCount = post.like_count || 0;
-  // /api/posts/:id/related는 user_liked는 없으므로 기본은 '안 누른 상태'로 표시
-  const heart = '♡';
-  const likeBtnClass = 'btn-outline-success';
-
-  const fontClass =
-    fontKey === 'serif'
-      ? 'quote-font-serif'
-      : fontKey === 'hand'
-      ? 'quote-font-hand'
-      : 'quote-font-sans';  
-
-  return `
-    <div class="card mb-3 related-card gls-post-card" data-post-id="${post.id}">
-      <div class="card-body">
-        <!-- 상단 메타 정보 (작성자, 날짜, 공감 버튼) -->
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-light text-muted border gls-author-badge">
-              ${escapeHtml(author)}
-            </span>
-            <span class="text-muted small">${escapeHtml(dateStr)}</span>
-          </div>
-          <button
-            type="button"
-            class="btn btn-sm ${likeBtnClass} gls-like-btn"
-            data-post-id="${post.id}"
-          >
-            <span class="gls-like-heart">${heart}</span>
-            <span class="gls-like-count ms-1">${likeCount}</span>
-          </button>
-        </div>
-
-        <!-- 제목 -->
-        <h6 class="card-title mb-2">
-          ${escapeHtml(post.title || '')}
-        </h6>
-
-        <!-- 본문 미리보기: 인스타 감성 quote-card -->
-        <div class="quote-card ${fontClass}">
-          ${escapeHtml(preview || '')}
-        </div>
-
-        <!-- 해시태그 (있을 때만) -->
-        ${hashtagHtml}
-      </div>
-    </div>
-  `;
+  // 더보기 버튼은 안 보이게, .related-card 클래스는 그대로 유지
+  return buildStandardPostCardHTML(post, {
+    showMoreButton: false,
+    cardExtraClass: 'related-card',
+  });
 }
-
 /**
  * 관련 글 카드 목록 렌더링
  * - 오른쪽/아래쪽에 작게 여러 개 표시되는 카드들
@@ -376,33 +266,42 @@ function buildRelatedPostCardHTML(post) {
  * @param {number|string} currentPostId - 현재 글 ID (자기 자신 제외 용도, 여기선 이미 제외된 상태)
  */
 function renderRelatedPosts(box, posts, currentPostId) {
-  // posts 배열을 각 카드 HTML 문자열로 변환 후 join
-  const cardsHtml = posts.map((post) => buildRelatedPostCardHTML(post)).join('');
+  if (!box) return;
 
-  // 조립된 HTML을 컨테이너에 삽입
+  // 혹시 현재 글이 목록에 섞여있다면 제외
+  const list = Array.isArray(posts)
+    ? posts.filter((p) => String(p.id) !== String(currentPostId))
+    : [];
+
+  if (!list.length) {
+    box.innerHTML =
+      '<p class="text-muted small mb-0">아직 관련된 글이 없습니다.</p>';
+    return;
+  }
+
+  // 1) 카드 HTML 조립 (공통 템플릿 사용)
+  const cardsHtml = list.map((post) => buildRelatedPostCardHTML(post)).join('');
   box.innerHTML = cardsHtml;
 
-  // 렌더링된 각 카드에 폰트 자동 조절 + 클릭 이벤트 설정
-  const cards = box.querySelectorAll('.related-card');
-  cards.forEach((card) => {
-    const postId = card.getAttribute('data-post-id'); // 카드에 박아둔 data-post-id
-    const quote = card.querySelector('.quote-card');
-    const likeBtn = card.querySelector('.gls-like-btn');
+  // 2) 각 카드에 공통 기능 + 클릭 이동 붙이기
+  list.forEach((post) => {
+    const card = box.querySelector(
+      `.gls-post-card[data-post-id="${post.id}"]`
+    );
+    if (!card) return;
 
-    // 작은 quote-card에도 내용 길이에 따라 폰트 조절
-    if (quote) {
-      autoAdjustQuoteFont(quote);
+    // (1) 글귀 폰트/좋아요/작성자 링크 등 공통 처리
+    if (typeof enhanceStandardPostCard === 'function') {
+      enhanceStandardPostCard(card, post);
     }
 
-    // 카드 전체를 클릭 가능하게 처리
+    // (2) 카드 전체 클릭 → 상세 페이지로 이동
     card.style.cursor = 'pointer';
-    card.addEventListener('click', () => {
-      // 현재 클릭한 카드에 해당하는 post 데이터 찾기
-      const post = posts.find((p) => String(p.id) === String(postId));
-      if (!post) return;
+    card.addEventListener('click', (e) => {
+      // 좋아요 버튼 / 해시태그 클릭 시에는 이동 막기
+      if (e.target.closest('.like-btn')) return;
+      if (e.target.closest('.gls-tag-btn')) return;
 
-      // 새 글을 상세 보기용으로 localStorage에 저장
-      // - initPostDetailPage에서 다시 이 값을 읽어와서 상세 카드 렌더링에 사용
       try {
         const detailData = {
           id: post.id,
@@ -421,70 +320,10 @@ function renderRelatedPosts(box, posts, currentPostId) {
         console.error('failed to cache related post detail', err);
       }
 
-      // 해당 글의 상세 페이지로 이동
-      // - /html/post.html?postId=OOO
       window.location.href = `/html/post.html?postId=${encodeURIComponent(
         post.id
       )}`;
     });
-
-    // 공감 버튼 클릭 시 좋아요 토글
-    if (likeBtn) {
-      likeBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); // 카드 클릭(상세 페이지 이동)과 분리
-        const pid = likeBtn.getAttribute('data-post-id');
-        if (!pid) return;
-        toggleLike(pid, likeBtn);
-      });
-    }
   });
 }
 
-
-/**
- * 관련 글 카드에서 공감 버튼 클릭 시 좋아요 토글
- * - 서버: POST /api/posts/:id/toggle-like
- * - 응답에 따라 하트 모양 / 숫자 변경
- */
-async function toggleLike(postId, btnEl) {
-  try {
-    const res = await fetch(`/api/posts/${encodeURIComponent(postId)}/toggle-like`, {
-      method: 'POST',
-    });
-
-    if (!res.ok) {
-      if (res.status === 401) {
-        alert('공감을 누르려면 먼저 로그인해 주세요.');
-        return;
-      }
-      alert('공감 처리 중 오류가 발생했습니다.');
-      return;
-    }
-
-    const data = await res.json();
-    if (!data.ok) {
-      alert(data.message || '공감 처리 중 오류가 발생했습니다.');
-      return;
-    }
-
-    const heartSpan = btnEl.querySelector('.gls-like-heart');
-    const countSpan = btnEl.querySelector('.gls-like-count');
-
-    if (data.liked) {
-      btnEl.classList.remove('btn-outline-success');
-      btnEl.classList.add('btn-success');
-      if (heartSpan) heartSpan.textContent = '♥';
-    } else {
-      btnEl.classList.remove('btn-success');
-      btnEl.classList.add('btn-outline-success');
-      if (heartSpan) heartSpan.textContent = '♡';
-    }
-
-    if (countSpan) {
-      countSpan.textContent = data.likeCount != null ? data.likeCount : 0;
-    }
-  } catch (err) {
-    console.error(err);
-    alert('공감 처리 중 오류가 발생했습니다.');
-  }
-}
