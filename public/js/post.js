@@ -8,60 +8,115 @@ document.addEventListener('DOMContentLoaded', () => {
   initPostDetailPage();
 });
 
-/**
- * 글 상세 페이지 초기화
- * - URL 쿼리에서 postId 추출
- * - localStorage에 저장되어 있는 글 데이터(glsoop_lastPost)에서 해당 글 찾기
- * - 찾은 데이터를 기반으로 상세 카드 렌더링 + 관련 글 로딩
- */
+// 글 상세 페이지 초기화
+// - URL 쿼리에서 postId 추출
+// - localStorage(glsoop_lastPost)에서 먼저 찾고
+// - 가능하면 서버(/api/posts/:id/detail)에서 최신 like_count 등을 덮어씀
 async function initPostDetailPage() {
-  // 현재 URL 예: /html/post.html?postId=3
   const params = new URLSearchParams(window.location.search);
-  const postId = params.get('postId');           // 쿼리스트링에서 postId 값 가져오기
-  const container = document.getElementById('postDetail'); // 상세 카드가 들어갈 컨테이너
+  const postId = params.get('postId');
+  const container = document.getElementById('postDetail');
 
-  // postDetail 컨테이너가 없으면 아무 것도 하지 않고 종료
   if (!container) return;
 
-  // URL에 postId가 없으면 잘못된 접근 → 에러 메시지 출력
+  // postId 없으면 바로 에러
   if (!postId) {
     container.innerHTML =
       '<p class="text-danger">글 정보를 찾을 수 없습니다. 메인 피드에서 다시 시도해주세요.</p>';
     return;
   }
 
-  // 1) 먼저 localStorage에 저장해 둔 데이터에서 찾아보기
-  //    - index.js에서 상세 페이지로 이동하기 전에 glsoop_lastPost에 마지막 클릭한 글 정보를 저장함
+  // 1) 먼저 localStorage에서 찾기(지금 쓰던 로직 그대로)
   let postData = null;
   try {
-    const stored = localStorage.getItem('glsoop_lastPost'); // 문자열(JSON) 가져오기
+    const stored = localStorage.getItem('glsoop_lastPost');
     if (stored) {
-      const parsed = JSON.parse(stored);                    // JSON → 객체로 파싱
-      // 저장된 객체의 id와 현재 URL의 postId가 일치하면 그 데이터를 사용
+      const parsed = JSON.parse(stored);
       if (parsed && String(parsed.id) === String(postId)) {
         postData = parsed;
       }
     }
   } catch (e) {
-    // localStorage 파싱 중 예외 발생 시 콘솔에만 에러 출력 (화면은 진행)
     console.error('Failed to parse glsoop_lastPost', e);
   }
 
-  // localStorage에서 데이터를 못 찾은 경우
-  // - 이 페이지는 원래 index에서 카드 클릭으로 들어와야 하기 때문에
-  //   단독 접근 시에는 다시 메인으로 돌아가도록 안내
+  // localStorage에도 없으면 예전처럼 안내
   if (!postData) {
     container.innerHTML =
       '<p class="text-danger">이 페이지는 메인 피드에서 카드를 클릭해서 들어와야 합니다.<br/>메인으로 돌아가 다시 시도해주세요.</p>';
     return;
   }
 
-  // 2) 상세 글 카드 렌더링
+  // 2) (선택) 서버에서 최신 정보 한 번 더 가져와서 덮어쓰기
+  //    👉 아직 /api/posts/:id/detail 라우트를 안 만들었으면
+  //       이 fetch는 실패하지만, 아래 catch에서 그냥 콘솔 경고만 찍고 넘어감.
+  try {
+    const res = await fetch(
+      `/api/posts/${encodeURIComponent(postId)}/detail`
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && data.post) {
+        const fresh = data.post;
+
+        // 필요한 필드만 postData 위에 덮어쓰기
+        postData.title = fresh.title ?? postData.title;
+        postData.content = fresh.content ?? postData.content;
+        postData.created_at = fresh.created_at ?? postData.created_at;
+
+        // 작성자 정보
+        postData.author_id = fresh.author_id ?? postData.author_id;
+        postData.author_name = fresh.author_name ?? postData.author_name;
+        postData.author_nickname =
+          fresh.author_nickname ?? postData.author_nickname;
+        postData.author_email =
+          fresh.author_email ?? postData.author_email;
+
+        // 🔥 좋아요 정보 (우리가 진짜 원하는 부분)
+        if (typeof fresh.like_count === 'number') {
+          postData.like_count = fresh.like_count;
+        }
+        if (fresh.user_liked !== undefined) {
+          postData.user_liked = fresh.user_liked ? 1 : 0;
+        }
+
+        // 해시태그도 배열/문자열에 맞게 덮어쓰고 싶으면 여기서 같이 처리
+        if (fresh.hashtags) {
+          postData.hashtags = fresh.hashtags;
+        }
+
+        // 이후 페이지 이동용 캐시도 최신값으로 갱신해두면 좋음
+        try {
+          localStorage.setItem(
+            'glsoop_lastPost',
+            JSON.stringify(postData)
+          );
+        } catch (e) {
+          console.warn('glsoop_lastPost 저장 실패', e);
+        }
+      }
+    } else {
+      // /detail 라우트 아직 없으면 여기로 들어옴 (404 같은 상태)
+      console.warn(
+        'detail API 응답 비정상:',
+        res.status,
+        res.statusText
+      );
+    }
+  } catch (e) {
+    // 서버에 아직 라우트 없거나, 네트워크 오류여도 화면은 계속 진행됨
+    console.warn('detail API 호출 실패(무시 가능)', e);
+  }
+
+  // 3) 상세 글 카드 렌더링 (postData는 localStorage + 서버 덮어쓰기 결과)
   renderPostDetail(container, postData);
 
-  // 3) 현재 글을 기준으로 "관련 글" 목록 불러오기
-  loadRelatedPosts(postData); // 🔥 관련 글 불러오기
+  // 4) 현재 글을 기준으로 "관련 글" 목록 불러오기
+  loadRelatedPosts(postData);
 }
+
+
 
 /**
  * 상세/관련글 카드에서 작성자 배지를 클릭하면 작가 페이지로 이동
@@ -85,6 +140,7 @@ function setupCardAuthorLink(card, post) {
 /**
  * 상세/관련글 카드에서 좋아요 버튼 동작 붙이기
  * - 표준 카드 템플릿(.like-btn / .like-heart / .like-count)에 맞춰서 처리
+ * - 실제 토글 로직은 postCard.js 안의 toggleLike 가 담당
  */
 function setupCardInteractions(card, post) {
   if (!card || !post) return;
@@ -93,16 +149,19 @@ function setupCardInteractions(card, post) {
   if (likeBtn) {
     likeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const pid = likeBtn.getAttribute('data-post-id') || post.id;
+
+      const pid =
+        likeBtn.getAttribute('data-post-id') || post.id;
       if (!pid) return;
+
+      // 🔥 공통 toggle 함수 (postCard.js에 정의됨)
       toggleLike(pid, likeBtn);
     });
   }
 
   // 이 페이지(post.html)에서는 카드 전체 클릭 → 상세 이동은
-  // renderRelatedPosts 안에서 따로 처리하고 있으므로 여기서는 안 건드려도 됨.
+  // renderRelatedPosts 안에서 따로 처리하고 있으므로 여기서는 건드리지 않음.
 }
-
 
 /**
  * 선택된 한 개의 글을 화면 상단에 크게 렌더링
@@ -110,7 +169,7 @@ function setupCardInteractions(card, post) {
  * - 해시태그는 버튼(.hashtag-pill)로 보여줌
  *
  * @param {HTMLElement} container - #postDetail 엘리먼트
- * @param {Object} post            - 글 데이터(제목, 내용, 작성자, 해시태그 등)
+ * @param {Object} post            - 글 데이터(제목, 내용, 작성자, 해시태그 등)포
  */
 function renderPostDetail(container, post) {
   if (!container || !post) return;
@@ -166,18 +225,6 @@ function renderPostDetail(container, post) {
       window.location.href = '/index.html';
     });
   }
-}
-
-/**
- * HTML → 텍스트 변환 (미리보기용)
- * - 태그 제거 + 공백 정리
- */
-function stripHtml(html) {
-  if (!html) return '';
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  const text = tmp.textContent || tmp.innerText || '';
-  return text.replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -298,10 +345,23 @@ function renderRelatedPosts(box, posts, currentPostId) {
     // (2) 카드 전체 클릭 → 상세 페이지로 이동
     card.style.cursor = 'pointer';
     card.addEventListener('click', (e) => {
-      // 좋아요 버튼 / 해시태그 클릭 시에는 이동 막기
+      // 좋아요 버튼 / 해시태그 클릭 시에는 상세 이동 막기
       if (e.target.closest('.like-btn')) return;
       if (e.target.closest('.gls-tag-btn')) return;
-
+    
+      // 🔹 현재 카드에서 좋아요 상태/개수 읽어오기
+      let likeCount = 0;
+      let userLiked = 0;
+      const likeBtn = card.querySelector('.like-btn');
+      if (likeBtn) {
+        const countEl = likeBtn.querySelector('.like-count');
+        if (countEl) {
+          const parsed = parseInt(countEl.textContent, 10);
+          likeCount = Number.isNaN(parsed) ? 0 : parsed;
+        }
+        userLiked = likeBtn.getAttribute('data-liked') === '1' ? 1 : 0;
+      }
+    
       try {
         const detailData = {
           id: post.id,
@@ -309,21 +369,188 @@ function renderRelatedPosts(box, posts, currentPostId) {
           content: post.content,
           created_at: post.created_at,
           hashtags: post.hashtags,
+    
+          // 🔹 작가 정보까지 같이
+          author_id: post.author_id || null,
+          author_name: post.author_name || null,
           author_nickname:
             (post.author_nickname && post.author_nickname.trim()) ||
             (post.author_name && post.author_name.trim()) ||
             null,
           author_email: post.author_email || null,
+    
+          // 🔹 좋아요 정보 동기화
+          like_count: likeCount,
+          user_liked: userLiked,
         };
+    
         localStorage.setItem('glsoop_lastPost', JSON.stringify(detailData));
       } catch (err) {
         console.error('failed to cache related post detail', err);
       }
-
+    
       window.location.href = `/html/post.html?postId=${encodeURIComponent(
         post.id
       )}`;
     });
+    
   });
 }
 
+
+
+/**
+ * 글 상세/관련글 카드에서 사용할 공통 좋아요 토글 함수
+ * - POST /api/posts/:id/toggle-like 호출
+ * - likeBtn 안의 하트/숫자/클래스 갱신
+ * - glsoop_lastPost 캐시까지 동기화
+ */
+async function toggleLike(postId, likeBtn) {
+  if (!postId || !likeBtn) return;
+
+  try {
+    const res = await fetch(`/api/posts/${postId}/toggle-like`, {
+      method: 'POST',
+    });
+
+    // 401 → 비로그인
+    if (res.status === 401) {
+      alert('로그인 후 공감할 수 있습니다.');
+      window.location.href = '/html/login.html';
+      return;
+    }
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      alert(data.message || '공감 처리 중 오류가 발생했습니다.');
+      return;
+    }
+
+    const liked = !!data.liked;
+    const likeCount =
+      typeof data.likeCount === 'number' ? data.likeCount : 0;
+
+    // 버튼 상태 갱신
+    likeBtn.setAttribute('data-liked', liked ? '1' : '0');
+
+    const heartEl = likeBtn.querySelector('.like-heart');
+    const countEl = likeBtn.querySelector('.like-count');
+
+    if (heartEl) {
+      heartEl.textContent = liked ? '♥' : '♡';
+    }
+    if (countEl) {
+      countEl.textContent = likeCount;
+    }
+
+    likeBtn.classList.toggle('liked', liked);
+
+    // ON일 때만 살짝 "톡" 애니메이션
+    if (heartEl && liked) {
+      heartEl.style.transition = 'transform 0.16s ease-out';
+      heartEl.style.transform = 'scale(1)';
+      void heartEl.offsetWidth;
+      heartEl.style.transform = 'scale(1.28)';
+      setTimeout(() => {
+        heartEl.style.transform = 'scale(1)';
+      }, 160);
+    }
+
+    // 🔹 현재 보고 있는 글이면 localStorage 캐시도 함께 갱신
+    try {
+      const raw = localStorage.getItem('glsoop_lastPost');
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && String(obj.id) === String(postId)) {
+          obj.like_count = likeCount;
+          obj.user_liked = liked ? 1 : 0;
+          localStorage.setItem('glsoop_lastPost', JSON.stringify(obj));
+        }
+      }
+    } catch (e) {
+      console.warn('glsoop_lastPost like 동기화 실패', e);
+    }
+  } catch (e) {
+    console.error(e);
+    alert('공감 처리 중 오류가 발생했습니다.');
+  }
+}
+
+/**
+ * 글 상세/관련글 카드에서 사용할 공통 좋아요 토글 함수
+ * - POST /api/posts/:id/toggle-like 호출
+ * - likeBtn 안의 하트/숫자/클래스 갱신
+ * - glsoop_lastPost 캐시까지 동기화
+ */
+async function toggleLike(postId, likeBtn) {
+  if (!postId || !likeBtn) return;
+
+  try {
+    const res = await fetch(`/api/posts/${postId}/toggle-like`, {
+      method: 'POST',
+    });
+
+    // 401 → 비로그인
+    if (res.status === 401) {
+      alert('로그인 후 공감할 수 있습니다.');
+      window.location.href = '/html/login.html';
+      return;
+    }
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      alert(data.message || '공감 처리 중 오류가 발생했습니다.');
+      return;
+    }
+
+    const liked = !!data.liked;
+    const likeCount =
+      typeof data.likeCount === 'number' ? data.likeCount : 0;
+
+    // 버튼 상태 갱신
+    likeBtn.setAttribute('data-liked', liked ? '1' : '0');
+
+    const heartEl = likeBtn.querySelector('.like-heart');
+    const countEl = likeBtn.querySelector('.like-count');
+
+    if (heartEl) {
+      heartEl.textContent = liked ? '♥' : '♡';
+    }
+    if (countEl) {
+      countEl.textContent = likeCount;
+    }
+
+    likeBtn.classList.toggle('liked', liked);
+
+    // ON일 때만 살짝 "톡" 애니메이션
+    if (heartEl && liked) {
+      heartEl.style.transition = 'transform 0.16s ease-out';
+      heartEl.style.transform = 'scale(1)';
+      void heartEl.offsetWidth;
+      heartEl.style.transform = 'scale(1.28)';
+      setTimeout(() => {
+        heartEl.style.transform = 'scale(1)';
+      }, 160);
+    }
+
+    // 🔹 현재 보고 있는 글이면 localStorage 캐시도 함께 갱신
+    try {
+      const raw = localStorage.getItem('glsoop_lastPost');
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && String(obj.id) === String(postId)) {
+          obj.like_count = likeCount;
+          obj.user_liked = liked ? 1 : 0;
+          localStorage.setItem('glsoop_lastPost', JSON.stringify(obj));
+        }
+      }
+    } catch (e) {
+      console.warn('glsoop_lastPost like 동기화 실패', e);
+    }
+  } catch (e) {
+    console.error(e);
+    alert('공감 처리 중 오류가 발생했습니다.');
+  }
+}
