@@ -16,6 +16,7 @@
 // ================== 4. 글 상세 & 좋아요 ==================
 // GET  /api/posts/:id
 // POST /api/posts/:id/toggle-like
+// POST /api/posts/:id/detail
 
 
 const express = require('express');
@@ -365,6 +366,19 @@ router.get('/posts/:id/related', (req, res) => {
 
   const limit = parseInt(req.query.limit, 10) || 6;
 
+  // 🔹 0) 현재 로그인한 사용자 ID 추출 (없으면 null)
+  let userId = null;
+  if (req.user && req.user.id) {
+    userId = req.user.id;
+  } else if (req.cookies && req.cookies.token) {
+    try {
+      const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
+      userId = decoded.id;
+    } catch (e) {
+      userId = null;
+    }
+  }
+
   db.get(
     `
     SELECT
@@ -402,6 +416,7 @@ router.get('/posts/:id/related', (req, res) => {
 
       const CANDIDATE_LIMIT = 100;
 
+      // 🔹 1) 후보 글들 + like_count + (이 유저가 눌렀는지 user_liked)까지 한 번에 가져오기
       db.all(
         `
         SELECT
@@ -409,19 +424,29 @@ router.get('/posts/:id/related', (req, res) => {
           p.title,
           p.content,
           p.created_at,
-          u.id      AS author_id,
+          u.id       AS author_id,
           u.name     AS author_name,
           u.nickname AS author_nickname,
           u.email    AS author_email,
           IFNULL(l.like_count, 0) AS like_count,
+          -- ✅ 이 유저가 누른 좋아요 여부
+          CASE
+            WHEN my.user_id IS NULL THEN 0
+            ELSE 1
+          END AS user_liked,
           GROUP_CONCAT(DISTINCT h.name) AS hashtags
         FROM posts p
         JOIN users u ON p.user_id = u.id
+        -- 전체 좋아요 개수 집계
         LEFT JOIN (
           SELECT post_id, COUNT(*) AS like_count
           FROM likes
           GROUP BY post_id
         ) l ON l.post_id = p.id
+        -- 현재 로그인한 유저가 누른 좋아요만 따로 조인
+        LEFT JOIN likes my
+          ON my.post_id = p.id
+         AND my.user_id = ?
         LEFT JOIN post_hashtags ph ON ph.post_id = p.id
         LEFT JOIN hashtags h ON h.id = ph.hashtag_id
         WHERE p.id != ?
@@ -429,7 +454,10 @@ router.get('/posts/:id/related', (req, res) => {
         ORDER BY p.created_at DESC
         LIMIT ?
         `,
-        [postId, CANDIDATE_LIMIT],
+        // 파라미터 순서: 1) userId (my.user_id = ?)
+        //              2) postId (p.id != ?)
+        //              3) CANDIDATE_LIMIT (LIMIT ?)
+        [userId, postId, CANDIDATE_LIMIT],
         (err2, rows) => {
           if (err2) {
             console.error(err2);
@@ -490,6 +518,7 @@ router.get('/posts/:id/related', (req, res) => {
     }
   );
 });
+
 
 // 9-7) 글 상세 조회 (편집용)
 router.get('/posts/:id', authRequired, (req, res) => {
@@ -678,4 +707,115 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
   );
 });
 
+// 9-10) 공개 글 상세 조회 (좋아요 개수 + 내가 눌렀는지 여부까지)
+router.get('/posts/:id/detail', (req, res) => {
+  const postId = parseInt(req.params.id, 10);
+  if (!postId) {
+    return res
+      .status(400)
+      .json({ ok: false, message: '잘못된 글 ID입니다.' });
+  }
+
+  // 쿠키에 로그인 토큰이 있으면 userId 추출 (없으면 null)
+  let userId = null;
+  const token = req.cookies.token;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch (e) {
+      userId = null;
+    }
+  }
+
+  // 기본 SELECT (like_count까지 포함)
+  const baseSelect = `
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.created_at,
+      u.id       AS author_id,
+      u.name     AS author_name,
+      u.nickname AS author_nickname,
+      u.email    AS author_email,
+      IFNULL(l.like_count, 0) AS like_count,
+      GROUP_CONCAT(DISTINCT h.name) AS hashtags
+    FROM posts p
+    JOIN users u ON p.user_id = u.id
+    LEFT JOIN (
+      SELECT post_id, COUNT(*) AS like_count
+      FROM likes
+      GROUP BY post_id
+    ) l ON l.post_id = p.id
+    LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+    LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+    WHERE p.id = ?
+    GROUP BY p.id
+  `;
+
+  // user_liked 까지 붙이는 쿼리 (로그인 여부에 따라 다름)
+  let sql;
+  let params;
+
+  if (userId) {
+    sql = `
+      SELECT sub.*,
+        CASE
+          WHEN EXISTS (
+            SELECT 1 FROM likes l2
+            WHERE l2.post_id = sub.id AND l2.user_id = ?
+          ) THEN 1 ELSE 0
+        END AS user_liked
+      FROM (${baseSelect}) AS sub
+    `;
+    params = [postId, userId];
+  } else {
+    sql = `
+      SELECT sub.*, 0 AS user_liked
+      FROM (${baseSelect}) AS sub
+    `;
+    params = [postId];
+  }
+
+  db.get(sql, params, (err, row) => {
+    if (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ ok: false, message: '글 상세 조회 중 DB 오류가 발생했습니다.' });
+    }
+
+    if (!row) {
+      return res
+        .status(404)
+        .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+    }
+
+    // hashtags: "힐링,위로" → 배열로 변환해 주면 프론트 쓰기 편함
+    const hashtags = row.hashtags
+      ? row.hashtags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
+
+    return res.json({
+      ok: true,
+      post: {
+        id: row.id,
+        title: row.title,
+        content: row.content,
+        created_at: row.created_at,
+        author_id: row.author_id,
+        author_name: row.author_name,
+        author_nickname: row.author_nickname,
+        author_email: row.author_email,
+        like_count: row.like_count,
+        user_liked: row.user_liked ? 1 : 0,
+        hashtags,
+      },
+    });
+  });
+});
 module.exports = router;

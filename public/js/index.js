@@ -202,127 +202,42 @@ Glsoop.FeedPage = (function () {
     }
   }
 
-  /**
-   * 서버에서 받아온 posts 배열을 DOM에 카드 형태로 추가
-   * - 각 카드마다 좋아요/해시태그/더보기/상세보기/작가페이지 이동 이벤트 연결
-   */
-  function renderFeedPosts(posts) {
-    const feedBox = document.getElementById('feedPosts');
-    if (!feedBox || !posts || posts.length === 0) return;
+/*
+ * 서버에서 받아온 posts 배열을 DOM에 카드 형태로 추가
+ * - 각 카드마다 좋아요/해시태그/더보기/상세보기/작가페이지 이동 이벤트 연결
+ */
+function renderFeedPosts(posts) {
+  const feedBox = document.getElementById('feedPosts');
+  if (!feedBox || !posts || posts.length === 0) return;
 
-    // posts 배열을 HTML 문자열로 변환
-    const fragmentHtml = posts
-      .map((post) => {
-        // ✅ UTC 문자열을 한국시간으로 예쁜 문자열로 변환
-        const dateStr = formatKoreanDateTime(post.created_at);
+  // posts 배열을 HTML 문자열로 변환
+  const fragmentHtml = posts
+  .map((post) =>
+    buildStandardPostCardHTML(post, {
+      showMoreButton: true, // 인덱스 피드에는 더보기 버튼 사용
+    })
+  )
+  .join('');
 
-        // 닉네임 + (마스킹 이메일) 표시
-        const nickname =
-          post.author_nickname && post.author_nickname.trim().length > 0
-            ? post.author_nickname.trim()
-            : '';
 
-        const baseName =
-          nickname ||
-          (post.author_name && post.author_name.trim().length > 0
-            ? post.author_name.trim()
-            : '익명');
-
-        // 이메일 마스킹 (예: ab***@gmail.com) - utils.js에 정의
-        const maskedEmail = maskEmail(post.author_email);
-
-        // 최종 표시: "닉네임 (마스킹이메일)" 또는 "이름 (마스킹이메일)"
-        const author = maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
-
-        // 공감 수, 내가 공감했는지 여부
-        const likeCount =
-          typeof post.like_count === 'number' ? post.like_count : 0;
-        const liked =
-          post.user_liked === 1 || post.user_liked === true ? true : false;
-
-        // 해시태그 버튼 HTML
-        const hashtagHtml = buildHashtagHtml(post);
-
-        // 폰트 메타(<!--FONT:...-->) 파싱 (utils.js)
-        // - cleanHtml: 실제 표시할 내용
-        // - fontKey: 'serif' | 'sans' | 'hand' 중 하나
-        const { cleanHtml, fontKey } = extractFontFromContent(post.content);
-        const quoteFontClass =
-          fontKey === 'serif' || fontKey === 'sans' || fontKey === 'hand'
-            ? `quote-font-${fontKey}`
-            : '';
-
-        // 한 개의 피드 카드 HTML
-        return `
-          <div class="card mb-3" data-post-id="${post.id}">
-            <div class="card-body">
-              <!-- 제목 -->
-              <h5 class="card-title mb-1">${escapeHtml(post.title)}</h5>
-              <!-- 작성자 / 날짜 -->
-              <p class="card-text mb-1">
-                <small class="text-muted">${escapeHtml(
-                  author
-                )} · ${dateStr}</small>
-              </p>
-
-              <!-- 공감(하트) 버튼 -->
-              <div class="mb-1">
-                <button
-                  class="like-btn ${liked ? 'liked' : ''}"
-                  type="button"
-                  data-post-id="${post.id}"
-                  data-liked="${liked ? '1' : '0'}"
-                >
-                  <span class="like-heart">${liked ? '♥' : '♡'}</span>
-                  <span class="like-count ms-1">${likeCount}</span>
-                </button>
-              </div>
-
-              <!-- 해시태그 버튼들 -->
-              ${hashtagHtml}
-
-              <!-- 본문 카드 & 더보기 버튼 -->
-              <div class="post-content mt-2">
-                <div class="feed-post-content">
-                  <!-- 인스타 감성 글귀 카드 -->
-                  <div class="quote-card ${quoteFontClass}">
-                    ${cleanHtml}
-                  </div>
-                </div>
-                <!-- 버튼만 오른쪽 정렬 -->
-                <div class="mt-1 text-end">
-                  <button
-                    class="btn btn-link p-0 more-toggle"
-                    type="button"
-                    style="display:none;"
-                  >
-                    더보기...
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      })
-      .join('');
-
-    // 첫 로드에서 "피드를 불러오는 중..." 문구 제거
-    if (!feedBox.dataset.initialized) {
-      feedBox.innerHTML = '';
-      feedBox.dataset.initialized = '1';
-    }
-
-    // 새 카드들을 피드 맨 아래에 추가
-    feedBox.insertAdjacentHTML('beforeend', fragmentHtml);
-
-    // 새로 추가된 카드들에 대해 폰트/더보기/좋아요/해시태그/작성자 링크/상세보기 설정
-    posts.forEach((post) => {
-      const card = feedBox.querySelector(`.card[data-post-id="${post.id}"]`);
-      if (!card) return;
-      setupCardAuthorLink(card, post);  // 작성자 클릭 → 작가 페이지
-      setupCardInteractions(card, post); // 좋아요/더보기/상세보기 등
-    });
+  // 첫 로드에서 "피드를 불러오는 중..." 문구 제거
+  if (!feedBox.dataset.initialized) {
+    feedBox.innerHTML = '';
+    feedBox.dataset.initialized = '1';
   }
+
+  // 새 카드들을 피드 맨 아래에 추가
+  feedBox.insertAdjacentHTML('beforeend', fragmentHtml);
+
+  // 새로 추가된 카드들에 대해 폰트/더보기/좋아요/해시태그/작성자 링크/상세보기 설정
+  posts.forEach((post) => {
+    const card = feedBox.querySelector(`.card[data-post-id="${post.id}"]`);
+    if (!card) return;
+    setupCardAuthorLink(card, post);  // 작성자 클릭 → 작가 페이지
+    setupCardInteractions(card, post); // 좋아요/더보기/상세보기 등
+  });
+}
+
 
   /**
    * 개별 카드에 대한 인터랙션 세팅
@@ -332,97 +247,118 @@ Glsoop.FeedPage = (function () {
    * - 해시태그 버튼(AND 필터)
    * - 카드 전체 클릭 시 글 상세 페이지 이동
    */
-  function setupCardInteractions(card, post) {
-    // 1) 글귀 폰트 자동 조절 (내용 길이에 따라 폰트 크기 조정)
-    const quoteCard = card.querySelector('.quote-card');
-    if (quoteCard) {
-      autoAdjustQuoteFont(quoteCard);
-    }
+// 작성자 영역(작은 텍스트)을 클릭하면 작가 페이지로 이동
+// - /html/author.html?userId=...
+/**
+ * 개별 카드에 대한 인터랙션 세팅
+ * - 글귀 폰트 자동 조절
+ * - 더보기/접기 버튼
+ * - 좋아요 버튼
+ * - 해시태그 버튼(AND 필터)
+ * - 카드 전체 클릭 시 글 상세 페이지 이동
+ */
+function setupCardInteractions(card, post) {
+  if (!card || !post) return;
 
-    // 2) 더보기 토글 (내용이 잘리는 경우에만 버튼 표시)
-    const contentBox = card.querySelector('.feed-post-content');
-    const moreBtn = card.querySelector('.more-toggle');
+  // 1) 글 내용 폰트 자동 조절 (PostCard 모듈이 있다면 사용)
+  const contentEl = card.querySelector('.gls-post-content');
+  if (
+    contentEl &&
+    window.Glsoop &&
+    Glsoop.PostCard &&
+    typeof Glsoop.PostCard.adjustContentFont === 'function'
+  ) {
+    Glsoop.PostCard.adjustContentFont(contentEl);
+  }
 
-    if (contentBox && moreBtn) {
-      // 내용이 영역 높이를 넘어가는지 체크
-      const isOverflowing =
-        contentBox.scrollHeight > contentBox.clientHeight + 4;
+  // 2) 더보기 / 접기 버튼
+  const moreBtn = card.querySelector('.gls-post-more-btn');
+  if (moreBtn && contentEl) {
+    moreBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
 
-      if (!isOverflowing) {
-        // 넘치지 않으면 더보기 버튼 숨김
-        moreBtn.style.display = 'none';
-      } else {
-        // 넘치면 더보기 버튼 활성화
-        moreBtn.style.display = 'inline-block';
-        moreBtn.textContent = '더보기...';
-
-        moreBtn.addEventListener('click', (e) => {
-          // 카드 전체 클릭으로 버블링되지 않게 막기
-          e.stopPropagation();
-          // expanded 클래스를 토글해 높이 제한 on/off
-          const nowExpanded = contentBox.classList.toggle('expanded');
-          moreBtn.textContent = nowExpanded ? '접기' : '더보기...';
-        });
-      }
-    }
-
-    // 3) 좋아요(공감) 버튼
-    const likeBtn = card.querySelector('.like-btn');
-    if (likeBtn) {
-      likeBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); // 카드 전체 클릭 이벤트 막기
-        handleLikeClick(likeBtn);
-      });
-    }
-
-    // 4) 해시태그 버튼 클릭 → 태그 필터 추가 (여러 태그 AND 조건)
-    const tagButtons = card.querySelectorAll('.hashtag-pill');
-    tagButtons.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation(); // 카드 클릭(상세보기) 막기
-        const tag = btn.getAttribute('data-tag');
-        if (!tag) return;
-        applyTagFilter(tag);
-      });
-    });
-
-    // 5) 카드 전체 클릭 → 글 상세 페이지(트위터 형식)로 이동
-    card.addEventListener('click', () => {
-      const postId =
-        card.getAttribute('data-post-id') || (post && post.id);
-      if (!postId) return;
-
-      // 상세 페이지에서 다시 서버를 안 치기 위해,
-      // 현재 카드의 post 데이터를 localStorage에 저장
-      if (post) {
-        try {
-          const detailData = {
-            id: post.id,
-            title: post.title,
-            content: post.content,
-            created_at: post.created_at,
-            hashtags: post.hashtags,
-            author_nickname:
-              (post.author_nickname && post.author_nickname.trim()) ||
-              (post.author_name && post.author_name.trim()) ||
-              null,
-            author_email: post.author_email || null,
-          };
-          localStorage.setItem(
-            'glsoop_lastPost',
-            JSON.stringify(detailData)
-          );
-        } catch (err) {
-          console.error('failed to cache post detail', err);
-        }
-      }
-
-      // post.html로 이동하면서 ?postId=... 쿼리로 전달
-      window.location.href = `/html/post.html?postId=${encodeURIComponent(
-        postId
-      )}`;
+      const isExpanded = contentEl.classList.toggle('expanded');
+      moreBtn.textContent = isExpanded ? '접기' : '더보기';
     });
   }
+
+  // 3) 좋아요 버튼
+  const likeBtn = card.querySelector('.like-btn');
+  if (likeBtn) {
+    // 어떤 글에 대한 버튼인지 식별용
+    likeBtn.setAttribute('data-post-id', post.id);
+
+    likeBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // 카드 전체 클릭(상세 이동) 막기
+      handleLikeClick(likeBtn);
+    });
+  }
+
+  // 4) 해시태그 칩 클릭 → AND 필터 적용
+  const hashtagChips = card.querySelectorAll('.gls-hashtag-chip');
+  hashtagChips.forEach((chip) => {
+    const tag = chip.getAttribute('data-tag') || chip.dataset.tag;
+    if (!tag) return;
+
+    chip.style.cursor = 'pointer';
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation(); // 카드 클릭과 분리
+      applyTagFilter(tag);
+    });
+  });
+
+  // 5) 카드 전체 클릭 → 글 상세 페이지로 이동 + localStorage에 상세 데이터 캐싱
+  card.addEventListener('click', (e) => {
+    // 좋아요 버튼 / 해시태그 클릭 시에는 상세 이동 막기
+    if (e.target.closest('.like-btn')) return;
+    if (e.target.closest('.gls-tag-btn')) return;
+  
+    // 현재 카드에서 좋아요 상태/개수 읽기
+    let likeCount = 0;
+    let userLiked = 0;
+    const likeBtn = card.querySelector('.like-btn');
+    if (likeBtn) {
+      const countEl = likeBtn.querySelector('.like-count');
+      if (countEl) {
+        const parsed = parseInt(countEl.textContent, 10);
+        likeCount = Number.isNaN(parsed) ? 0 : parsed;
+      }
+      userLiked = likeBtn.getAttribute('data-liked') === '1' ? 1 : 0;
+    }
+  
+    try {
+      const detailData = {
+        id: post.id,
+        title: post.title,
+        content: post.content,
+        created_at: post.created_at,
+        hashtags: post.hashtags,
+  
+        // 작가 정보
+        author_id: post.author_id || null,
+        author_name: post.author_name || null,
+        author_nickname:
+          (post.author_nickname && post.author_nickname.trim()) ||
+          (post.author_name && post.author_name.trim()) ||
+          null,
+        author_email: post.author_email || null,
+  
+        // 좋아요 정보
+        like_count: likeCount,
+        user_liked: userLiked,
+      };
+      localStorage.setItem('glsoop_lastPost', JSON.stringify(detailData));
+    } catch (err) {
+      console.error('failed to cache related post detail', err);
+    }
+  
+    window.location.href = `/html/post.html?postId=${encodeURIComponent(
+      post.id
+    )}`;
+  });  
+}
+
+
 
   /**
    * 좋아요(공감) 버튼 클릭 처리
@@ -494,33 +430,6 @@ Glsoop.FeedPage = (function () {
       console.error(e);
       alert('공감 처리 중 오류가 발생했습니다.');
     }
-  }
-
-  /**
-   * 작성자 영역(작은 텍스트)을 클릭하면 작가 페이지로 이동
-   * - /html/author.html?userId=...
-   */
-  function setupCardAuthorLink(card, post) {
-    // author_id가 없으면 작가 페이지로 이동할 수 없음
-    if (!post || !post.author_id) return;
-
-    // 작성자 정보가 들어 있는 <small class="text-muted"> 요소
-    const metaEl = card.querySelector('.card-text small.text-muted');
-    if (!metaEl) return;
-
-    // 데이터 속성에 작가 ID 주입
-    metaEl.setAttribute('data-author-id', post.author_id);
-    metaEl.style.cursor = 'pointer';
-
-    metaEl.addEventListener('click', (e) => {
-      // 카드 전체 클릭(상세페이지 이동)과 분리
-      e.stopPropagation();
-      const authorId = metaEl.getAttribute('data-author-id');
-      if (!authorId) return;
-      window.location.href = `/html/author.html?userId=${encodeURIComponent(
-        authorId
-      )}`;
-    });
   }
 
   // ===== 태그 필터 관련 =====
@@ -633,32 +542,6 @@ Glsoop.FeedPage = (function () {
     renderTagFilterBar();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     loadMoreFeed();
-  }
-
-  /**
-   * 서버에서 내려준 post.hashtags를 버튼들로 변환
-   * - "힐링, 위로" → #힐링 버튼, #위로 버튼
-   */
-  function buildHashtagHtml(post) {
-    if (!post.hashtags) return '';
-
-    const tags = String(post.hashtags)
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
-
-    if (!tags.length) return '';
-
-    const pills = tags
-      .map(
-        (t) =>
-          `<button type="button"
-                    class="btn btn-sm btn-outline-success me-1 mb-1 hashtag-pill"
-                    data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`
-      )
-      .join('');
-
-    return `<div class="mt-2 text-start">${pills}</div>`;
   }
 
   // ===== 히어로 CTA 잎사귀 애니메이션 =====
