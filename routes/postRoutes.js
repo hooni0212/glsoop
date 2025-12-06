@@ -16,8 +16,7 @@
 // ================== 4. 글 상세 & 좋아요 ==================
 // GET  /api/posts/:id
 // POST /api/posts/:id/toggle-like
-// POST /api/posts/:id/detail
-
+// GET /api/posts/:id/detail
 
 const express = require('express');
 const jwt = require('jsonwebtoken');
@@ -735,7 +734,6 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
     }
   );
 });
-
 // 9-10) 공개 글 상세 조회 (좋아요 개수 + 내가 눌렀는지 여부까지)
 router.get('/posts/:id/detail', (req, res) => {
   const postId = parseInt(req.params.id, 10);
@@ -745,7 +743,6 @@ router.get('/posts/:id/detail', (req, res) => {
       .json({ ok: false, message: '잘못된 글 ID입니다.' });
   }
 
-  // 쿠키에 로그인 토큰이 있으면 userId 추출 (없으면 null)
   let userId = null;
   const token = req.cookies.token;
   if (token) {
@@ -757,7 +754,6 @@ router.get('/posts/:id/detail', (req, res) => {
     }
   }
 
-  // 기본 SELECT (like_count까지 포함)
   const baseSelect = `
     SELECT
       p.id,
@@ -783,7 +779,6 @@ router.get('/posts/:id/detail', (req, res) => {
     GROUP BY p.id
   `;
 
-  // user_liked 까지 붙이는 쿼리 (로그인 여부에 따라 다름)
   let sql;
   let params;
 
@@ -798,7 +793,7 @@ router.get('/posts/:id/detail', (req, res) => {
         END AS user_liked
       FROM (${baseSelect}) AS sub
     `;
-    params = [postId, userId];
+    params = [userId, postId];
   } else {
     sql = `
       SELECT sub.*, 0 AS user_liked
@@ -821,7 +816,6 @@ router.get('/posts/:id/detail', (req, res) => {
         .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
     }
 
-    // hashtags: "힐링,위로" → 배열로 변환해 주면 프론트 쓰기 편함
     const hashtags = row.hashtags
       ? row.hashtags
           .split(',')
@@ -847,4 +841,5 @@ router.get('/posts/:id/detail', (req, res) => {
     });
   });
 });
+
 module.exports = router;

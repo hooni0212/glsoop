@@ -187,50 +187,78 @@ function enhanceStandardPostCard(cardElement, post) {
 // ==============================
 // 공통: 좋아요 토글
 // ==============================
-async function toggleLike(postId, btnEl) {
-  if (!btnEl) return;
+async function toggleLike(postId, likeBtn) {
+  if (!postId || !likeBtn) return;
 
   try {
-    const res = await fetch(
-      `/api/posts/${encodeURIComponent(postId)}/toggle-like`,
-      { method: 'POST' }
-    );
+    const res = await fetch(`/api/posts/${encodeURIComponent(postId)}/toggle-like`, {
+      method: 'POST',
+    });
 
-    if (!res.ok) {
-      if (res.status === 401) {
-        alert('공감을 누르려면 먼저 로그인해 주세요.');
-        return;
-      }
-      alert('공감 처리 중 오류가 발생했습니다.');
+    // 401 → 비로그인
+    if (res.status === 401) {
+      alert('로그인 후 공감할 수 있습니다.');
+      window.location.href = '/html/login.html';
       return;
     }
 
     const data = await res.json();
-    if (!data.ok) {
+
+    if (!res.ok || !data.ok) {
       alert(data.message || '공감 처리 중 오류가 발생했습니다.');
       return;
     }
 
-    const heartSpan = btnEl.querySelector('.like-heart');
-    const countSpan = btnEl.querySelector('.like-count');
+    const liked = !!data.liked;
+    const likeCount =
+      typeof data.likeCount === 'number' ? data.likeCount : 0;
 
-    if (data.liked) {
-      btnEl.classList.add('liked');
-      if (heartSpan) heartSpan.textContent = '♥';
-    } else {
-      btnEl.classList.remove('liked');
-      if (heartSpan) heartSpan.textContent = '♡';
+    // 버튼 상태 갱신
+    likeBtn.setAttribute('data-liked', liked ? '1' : '0');
+
+    const heartEl = likeBtn.querySelector('.like-heart');
+    const countEl = likeBtn.querySelector('.like-count');
+
+    if (heartEl) {
+      heartEl.textContent = liked ? '♥' : '♡';
+    }
+    if (countEl) {
+      countEl.textContent = likeCount;
     }
 
-    if (countSpan) {
-      countSpan.textContent =
-        data.likeCount != null ? data.likeCount : 0;
+    likeBtn.classList.toggle('liked', liked);
+
+    // ON일 때만 살짝 "톡" 애니메이션
+    if (heartEl && liked) {
+      heartEl.style.transition = 'transform 0.16s ease-out';
+      heartEl.style.transform = 'scale(1)';
+      void heartEl.offsetWidth;
+      heartEl.style.transform = 'scale(1.28)';
+      setTimeout(() => {
+        heartEl.style.transform = 'scale(1)';
+      }, 160);
     }
-  } catch (err) {
-    console.error(err);
+
+    // 🔹 현재 보고 있는 글이면 localStorage 캐시도 함께 갱신
+    try {
+      const raw = localStorage.getItem('glsoop_lastPost');
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && String(obj.id) === String(postId)) {
+          obj.like_count = likeCount;
+          obj.user_liked = liked ? 1 : 0;
+          localStorage.setItem('glsoop_lastPost', JSON.stringify(obj));
+        }
+      }
+    } catch (e) {
+      console.warn('glsoop_lastPost like 동기화 실패', e);
+    }
+  } catch (e) {
+    console.error(e);
     alert('공감 처리 중 오류가 발생했습니다.');
   }
 }
+
 
 // ==============================
 // 공통: 작가 배지 클릭 → 작가 페이지
