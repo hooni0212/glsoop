@@ -735,3 +735,22 @@ a:hover {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+
+/* =========================
+   인덱스 메인 피드 카드 폭 통일
+   - post.html의 post-detail-card와 동일한 620px 중앙 정렬
+========================= */
+
+.page-index #feedPosts .gls-post-card {
+  max-width: 620px;   /* post-detail-card와 맞추고 싶으면 이 숫자 동일하게 */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+
+.page-index #feedPosts .card.gls-post-card {
+  max-width: 620px;   /* post-detail-card와 동일 값 */
+  margin-left: auto;
+  margin-right: auto;
+}

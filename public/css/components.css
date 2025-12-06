@@ -307,3 +307,10 @@ word-break: break-word;
 .mypage-post-card {
     margin-bottom: 1.8rem;  /* 필요하면 1.5~2rem 사이에서 숫자만 조절 */
   }
+
+
+  .page-index .gls-post-card {
+    max-width: 620px;
+    margin-left: auto;
+    margin-right: auto;
+  }

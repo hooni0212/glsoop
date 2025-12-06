@@ -233,6 +233,14 @@ function renderFeedPosts(posts) {
   posts.forEach((post) => {
     const card = feedBox.querySelector(`.card[data-post-id="${post.id}"]`);
     if (!card) return;
+
+    const quoteEl = card.querySelector('.quote-card');
+
+    if (quoteEl && typeof autoAdjustQuoteFont === 'function') {
+      autoAdjustQuoteFont(quoteEl);
+    }
+
+    
     setupCardAuthorLink(card, post);  // 작성자 클릭 → 작가 페이지
     setupCardInteractions(card, post); // 좋아요/더보기/상세보기 등
   });
