@@ -9,13 +9,8 @@
 
 /* 메인 레이아웃: 두 컬럼(row) 상단 정렬 */
 .author-main-row,
-.author-page-main-row { /* 혹시 HTML에서 author-page-main-row를 쓰고 있어도 대응 */
+.author-page-main-row {
   align-items: flex-start;
-}
-
-/* 왼쪽 컬럼: 프로필 카드 감싸는 col */
-.author-left-col {
-  display: flex;           /* 안의 카드가 세로로 꽉 차도록 */
 }
 
 /* =========================
@@ -68,7 +63,6 @@
 
 /* 기본: 내용이 적어도 어느 정도 키 유지 */
 .author-profile-card {
-  flex: 1 0 auto;
   min-height: 320px;   /* 필요하면 300~380 사이에서 숫자만 조절 */
   display: flex;
   flex-direction: column;
@@ -79,21 +73,41 @@
   flex: 1 0 auto;
 }
 
-/* 데스크톱(넓은 화면)에서만 왼쪽 프로필 카드 sticky */
+/* 데스크톱(넓은 화면)에서만 왼쪽 "컬럼 전체"를 sticky 로 고정 */
 @media (min-width: 992px) {
-  .author-profile-card {
+  .author-left-col {
     position: sticky;
-    top: 120px;  /* 네비게이션 높이 + 살짝 여백. 필요하면 100~130 사이 조절 */
+    top: 120px;         /* 네비게이션 높이 + 여백 (100~130 사이에서 조절 가능) */
     align-self: flex-start;
+  }
+
+  /* sticky는 컬럼에만 적용하니, 카드는 일반 static 위치 */
+  .author-profile-card {
+    position: static;
   }
 }
 
 /* =========================
   4. 작가 페이지 전용 푸터(선택)
-  - author.html 에서 <footer class="site-footer"> 를 쓰는 경우에만 적용
 ========================= */
 
 .site-footer {
   border-top: 1px solid rgba(0, 0, 0, 0.05);
   background-color: #f7f8ef;
+}
+
+
+/* =========================
+   작가 페이지: sticky 잠시 완전 OFF
+   - 카드가 왼↔오로 튕기는 느낌 때문에 일단 고정 기능 제거
+   - 나중에 필요하면 별도 레이아웃으로 sticky 다시 설계
+========================= */
+
+@media (min-width: 992px) {
+  .author-left-col,
+  .author-profile-card {
+    position: static !important;
+    top: auto !important;
+    align-self: auto !important;
+  }
 }
