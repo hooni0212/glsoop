@@ -149,18 +149,35 @@ router.get('/posts/my', authRequired, (req, res) => {
       p.title,
       p.content,
       p.created_at,
-      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count
+      p.user_id                AS author_id,
+      u.name                   AS author_name,
+      u.nickname               AS author_nickname,
+      u.email                  AS author_email,
+      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+      CASE
+        WHEN EXISTS (
+          SELECT 1
+          FROM likes l2
+          WHERE l2.post_id = p.id
+            AND l2.user_id = ?
+        ) THEN 1
+        ELSE 0
+      END AS user_liked
     FROM posts p
+    JOIN users u ON p.user_id = u.id
     WHERE p.user_id = ?
     ORDER BY p.created_at DESC
     `,
-    [userId],
+    [userId, userId],
     (err, rows) => {
       if (err) {
         console.error(err);
         return res
           .status(500)
-          .json({ ok: false, message: '글 목록 조회 중 DB 오류가 발생했습니다.' });
+          .json({
+            ok: false,
+            message: '글 목록 조회 중 DB 오류가 발생했습니다.',
+          });
       }
 
       return res.json({
@@ -170,6 +187,7 @@ router.get('/posts/my', authRequired, (req, res) => {
     }
   );
 });
+
 
 // 9-4) 내가 공감한 글 목록
 router.get('/posts/liked', authRequired, (req, res) => {
@@ -182,9 +200,17 @@ router.get('/posts/liked', authRequired, (req, res) => {
       p.title,
       p.content,
       p.created_at,
-      (SELECT COUNT(*) FROM likes l2 WHERE l2.post_id = p.id) AS like_count
+      p.user_id                AS author_id,
+      u.name                   AS author_name,
+      u.nickname               AS author_nickname,
+      u.email                  AS author_email,
+      -- 해당 글의 총 공감 수
+      (SELECT COUNT(*) FROM likes l2 WHERE l2.post_id = p.id) AS like_count,
+      -- "내가 공감한 글" 목록이니까 항상 공감한 상태
+      1 AS user_liked
     FROM posts p
     INNER JOIN likes l ON l.post_id = p.id
+    JOIN users u ON p.user_id = u.id
     WHERE l.user_id = ?
     ORDER BY l.created_at DESC
     `,
@@ -194,7 +220,10 @@ router.get('/posts/liked', authRequired, (req, res) => {
         console.error(err);
         return res
           .status(500)
-          .json({ ok: false, message: '공감한 글 목록 조회 중 DB 오류가 발생했습니다.' });
+          .json({
+            ok: false,
+            message: '공감한 글 목록 조회 중 DB 오류가 발생했습니다.',
+          });
       }
 
       return res.json({

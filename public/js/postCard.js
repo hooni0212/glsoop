@@ -5,19 +5,48 @@
  * - 닉네임 > 이름 > 익명
  * - 이메일은 마스킹해서 괄호 안에 표시 (예: 재원 (ab***@gmail.com))
  */
+
+/**
+ * 공통: 작성자 표시 문자열 만들기
+ * - 닉네임 > 이름 > 익명
+ * - 이메일은 마스킹해서 괄호 안에 표시 (예: 재원 (ab***@gmail.com))
+ * - 가능한 여러 키를 다 받아줌:
+ *   author_nickname, nickname / author_name, name / author_email, email
+ */
 function buildAuthorDisplay(post) {
+  if (!post) return '익명';
+
+  // 1) 혹시 서버에서 아예 완성된 문자열을 보내주는 경우
+  if (
+    post.author_display &&
+    String(post.author_display).trim().length > 0
+  ) {
+    return String(post.author_display).trim();
+  }
+
+  // 2) 닉네임 후보: author_nickname > nickname
   const nickname =
-    post.author_nickname && String(post.author_nickname).trim().length > 0
-      ? String(post.author_nickname).trim()
-      : '';
+    (post.author_nickname &&
+      String(post.author_nickname).trim()) ||
+    (post.nickname && String(post.nickname).trim()) ||
+    '';
 
-  const baseName =
-    nickname ||
-    (post.author_name && String(post.author_name).trim().length > 0
-      ? String(post.author_name).trim()
-      : '익명');
+  // 3) 이름 후보: author_name > name
+  const name =
+    (post.author_name && String(post.author_name).trim()) ||
+    (post.name && String(post.name).trim()) ||
+    '';
 
-  const maskedEmail = post.author_email ? maskEmail(post.author_email) : '';
+  const baseName = nickname || name || '익명';
+
+  // 4) 이메일 후보: author_email > email
+  const rawEmail =
+    (post.author_email && String(post.author_email).trim()) ||
+    (post.email && String(post.email).trim()) ||
+    '';
+
+  const maskedEmail = rawEmail ? maskEmail(rawEmail) : '';
+
   return maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
 }
 
