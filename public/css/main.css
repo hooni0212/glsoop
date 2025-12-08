@@ -210,6 +210,7 @@ a:hover {
 .feed-post-content {
   position: relative;
   max-height: 26rem;
+  padding: 0.6rem 0;
   overflow: hidden;
 }
 
@@ -724,7 +725,6 @@ a:hover {
 /* 관련 글 섹션 해시태그 */
 .gls-card-hashtags {
   word-break: keep-all;
-  padding-top: 0.35rem;
 }
 
 /* 상세 본문 */

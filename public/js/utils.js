@@ -195,22 +195,19 @@ function extractFontFromContent(html) {
 
   const str = String(html);
 
-  // 문자열 앞뒤로 섞여 들어간 공백이나 BOM을 무시하고 메타 태그 탐색
-  const leadingMatch = str.match(/^\uFEFF?\s*<!--FONT:(serif|sans|hand)-->/);
-  if (leadingMatch) {
-    const cleanHtml = str.replace(leadingMatch[0], '').trim();
-    return { cleanHtml, fontKey: leadingMatch[1] };
+  // 문자열 맨 앞에서 <!--FONT:xxx--> 형식 찾기
+  const m = str.match(/^<!--FONT:(serif|sans|hand)-->/);
+  if (!m) {
+    // 메타 태그가 없으면 원본 그대로 사용하고 fontKey는 null
+    return { cleanHtml: str, fontKey: null };
   }
 
-  // 혹시 본문 중간으로 밀려난 경우에도 한 번 더 찾아본다
-  const anywhereMatch = str.match(/<!--FONT:(serif|sans|hand)-->/);
-  if (anywhereMatch) {
-    const cleanHtml = str.replace(anywhereMatch[0], '').trim();
-    return { cleanHtml, fontKey: anywhereMatch[1] };
-  }
+  // m[0] : 전체 매칭 문자열 ("<!--FONT:serif-->")
+  // m[1] : 그룹 캡처된 fontKey ("serif" 등)
+  const cleanHtml = str.replace(m[0], '').trim();
+  const fontKey = m[1];
 
-  // 메타 태그가 없으면 원본 그대로 사용하고 fontKey는 null
-  return { cleanHtml: str, fontKey: null };
+  return { cleanHtml, fontKey };
 }
 
 

@@ -114,14 +114,6 @@ try {
   };
 
   /**
-   * 현재 선택된 폰트 키(serif | sans | hand)를 안전하게 가져오는 함수
-   */
-  function getCurrentFontKey() {
-    const val = fontSelectEl ? fontSelectEl.value : 'serif';
-    return FONT_MAP[val] ? val : 'serif';
-  }
-
-  /**
    * ✅ 에디터 + 미리보기 카드에 폰트 적용
    * - select에서 폰트 변경 시 호출
    * - quill.root와 미리보기 quote-card의 클래스에 반영
@@ -410,24 +402,9 @@ try {
         isEditMode = false; // 실패 시 새 글 모드로 전환
       } else {
         const post = data.post;
-        // 제목/본문 세팅 (본문은 폰트 메타를 제거하고 로드)
+        // 제목/본문 세팅
         titleInput.value = post.title || '';
-
-        // content 앞의 <!--FONT:xxx--> 메타를 제거해서 에디터에 채워 넣기
-        let cleanContent = post.content || '';
-        let initialFontKey = null;
-        if (typeof extractFontFromContent === 'function') {
-          const { cleanHtml, fontKey } = extractFontFromContent(post.content || '');
-          cleanContent = cleanHtml;
-          initialFontKey = fontKey;
-        }
-        quill.root.innerHTML = cleanContent;
-
-        // 서버에서 전달한 폰트가 있으면 select 값에 반영
-        if (initialFontKey && fontSelectEl) {
-          fontSelectEl.value = initialFontKey;
-          applyEditorFont(initialFontKey);
-        }
+        quill.root.innerHTML = post.content || '';
 
         // 서버에서 hashtags를 내려줄 경우, 인풋/칩에 반영
         if (hashtagsInput) {
@@ -506,7 +483,6 @@ try {
     const contentHtml = quill.root.innerHTML.trim(); // 본문(HTML)
     const plainText = quill.getText().trim();      // 본문(plain text)
     const length = plainText.length;
-    const fontKey = getCurrentFontKey();
 
     // 칩 → 인풋 동기화 한 번 더 (혹시 남아있는 텍스트 반영)
     syncHashtagInputFromList();
@@ -544,15 +520,12 @@ try {
         method = 'PUT';
       }
 
-      // 폰트 정보를 본문 맨 앞에 메타 태그로 심어서 저장
-      const contentWithFontMeta = `<!--FONT:${fontKey}-->${contentHtml}`;
-
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
-          content: contentWithFontMeta,
+          content: contentHtml,
           hashtags: hashtagsRaw, // ✅ 서버로 해시태그 문자열 함께 전송
         }),
       });
