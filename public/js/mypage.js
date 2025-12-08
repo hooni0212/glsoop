@@ -124,14 +124,12 @@ async function loadMyPage() {
             </button>
           </div>
         </div>
-        <button
-          type="button"
+        <a
           class="btn btn-outline-secondary btn-sm"
-          data-bs-toggle="modal"
-          data-bs-target="#userEditModal"
+          href="/html/account-settings.html"
         >
           내 정보 수정
-        </button>
+        </a>
       </div>
     `;
 
