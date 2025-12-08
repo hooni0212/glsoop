@@ -12,6 +12,17 @@ const router = express.Router();
 router.get('/users/:id/profile', (req, res) => {
   const authorId = req.params.id;
 
+  let viewerId = null;
+  const token = req.cookies.token;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      viewerId = decoded.id;
+    } catch (e) {
+      viewerId = null;
+    }
+  }
+
   db.get(
     `
     SELECT
@@ -47,30 +58,182 @@ router.get('/users/:id/profile', (req, res) => {
         FROM posts p
         LEFT JOIN likes l ON l.post_id = p.id
         WHERE p.user_id = ?
-        `,
-        [authorId],
-        (err2, stats) => {
+    `,
+    [authorId],
+    (err2, stats) => {
+      if (err2) {
+        console.error(err2);
+            return res.status(500).json({
+              ok: false,
+            message: '작가 통계 조회 중 DB 오류가 발생했습니다.',
+          });
+        }
+
+        db.get(
+          `
+          SELECT
+            (SELECT COUNT(*) FROM follows f1 WHERE f1.followee_id = ?) AS follower_count,
+            (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = ?) AS following_count
+          `,
+          [authorId, authorId],
+          (err3, followStats) => {
+            if (err3) {
+              console.error(err3);
+              return res.status(500).json({
+                ok: false,
+                message: '팔로우 통계 조회 중 DB 오류가 발생했습니다.',
+              });
+            }
+
+            const sendProfileResponse = (isFollowing = false) =>
+              res.json({
+                ok: true,
+                user: {
+                  id: user.id,
+                  name: user.name,
+                  nickname: user.nickname,
+                  email: user.email,
+                  bio: user.bio || null,
+                  about: user.about || null,
+                  postCount: stats?.post_count || 0,
+                  totalLikes: stats?.total_likes || 0,
+                  followerCount: followStats?.follower_count || 0,
+                  followingCount: followStats?.following_count || 0,
+                },
+                viewer: {
+                  id: viewerId,
+                  isLoggedIn: !!viewerId,
+                  isOwnProfile: !!viewerId && viewerId === user.id,
+                  isFollowing: !!isFollowing,
+                },
+              });
+
+            if (viewerId) {
+              db.get(
+                `SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?`,
+                [viewerId, authorId],
+                (err4, followRow) => {
+                  if (err4) {
+                    console.error(err4);
+                    return res.status(500).json({
+                      ok: false,
+                      message: '팔로우 상태 조회 중 DB 오류가 발생했습니다.',
+                    });
+                  }
+
+                  return sendProfileResponse(!!followRow);
+                }
+              );
+            } else {
+              return sendProfileResponse(false);
+            }
+          }
+        );
+      }
+    );
+  }
+  );
+});
+
+// 8-1-1) 작가 팔로우/언팔로우 토글
+router.post('/users/:id/follow', authRequired, (req, res) => {
+  const targetUserId = parseInt(req.params.id, 10);
+  const viewerId = req.user.id;
+
+  if (Number.isNaN(targetUserId)) {
+    return res.status(400).json({ ok: false, message: '잘못된 요청입니다.' });
+  }
+
+  if (targetUserId === viewerId) {
+    return res
+      .status(400)
+      .json({ ok: false, message: '자기 자신을 팔로우할 수 없습니다.' });
+  }
+
+  db.get(
+    `SELECT id FROM users WHERE id = ?`,
+    [targetUserId],
+    (err, foundUser) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ ok: false, message: '사용자 조회 중 오류가 발생했습니다.' });
+      }
+
+      if (!foundUser) {
+        return res
+          .status(404)
+          .json({ ok: false, message: '해당 사용자를 찾을 수 없습니다.' });
+      }
+
+      db.get(
+        `SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?`,
+        [viewerId, targetUserId],
+        (err2, exists) => {
           if (err2) {
             console.error(err2);
             return res.status(500).json({
               ok: false,
-              message: '작가 통계 조회 중 DB 오류가 발생했습니다.',
+              message: '팔로우 상태 확인 중 DB 오류가 발생했습니다.',
             });
           }
 
-          return res.json({
-            ok: true,
-            user: {
-              id: user.id,
-              name: user.name,
-              nickname: user.nickname,
-              email: user.email,
-              bio: user.bio || null,
-              about: user.about || null,
-              postCount: stats?.post_count || 0,
-              totalLikes: stats?.total_likes || 0,
-            },
-          });
+          const handleResult = () => {
+            db.get(
+              `SELECT COUNT(*) AS follower_count FROM follows WHERE followee_id = ?`,
+              [targetUserId],
+              (err3, countRow) => {
+                if (err3) {
+                  console.error(err3);
+                  return res.status(500).json({
+                    ok: false,
+                    message: '팔로워 수 갱신 중 DB 오류가 발생했습니다.',
+                  });
+                }
+
+                return res.json({
+                  ok: true,
+                  following: !exists,
+                  followerCount: countRow?.follower_count || 0,
+                });
+              }
+            );
+          };
+
+          if (exists) {
+            db.run(
+              `DELETE FROM follows WHERE follower_id = ? AND followee_id = ?`,
+              [viewerId, targetUserId],
+              (err4) => {
+                if (err4) {
+                  console.error(err4);
+                  return res.status(500).json({
+                    ok: false,
+                    message: '언팔로우 처리 중 DB 오류가 발생했습니다.',
+                  });
+                }
+
+                handleResult();
+              }
+            );
+          } else {
+            db.run(
+              `INSERT INTO follows (follower_id, followee_id) VALUES (?, ?)`,
+              [viewerId, targetUserId],
+              (err5) => {
+                if (err5) {
+                  console.error(err5);
+                  return res.status(500).json({
+                    ok: false,
+                    message: '팔로우 처리 중 DB 오류가 발생했습니다.',
+                  });
+                }
+
+                handleResult();
+              }
+            );
+          }
         }
       );
     }
