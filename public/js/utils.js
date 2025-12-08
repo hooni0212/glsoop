@@ -195,8 +195,9 @@ function extractFontFromContent(html) {
 
   const str = String(html);
 
-  // 문자열 맨 앞에서 <!--FONT:xxx--> 형식 찾기
-  const m = str.match(/^<!--FONT:(serif|sans|hand)-->/);
+  // 문자열 맨 앞(선행 공백 포함)에서 <!--FONT:xxx--> 형식 찾기
+  // 저장/전달 과정에서 공백이 삽입되는 경우도 대비해 \s* 허용
+  const m = str.match(/^\s*<!--FONT:(serif|sans|hand)-->/);
   if (!m) {
     // 메타 태그가 없으면 원본 그대로 사용하고 fontKey는 null
     return { cleanHtml: str, fontKey: null };
