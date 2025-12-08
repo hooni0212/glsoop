@@ -76,6 +76,24 @@ body.autumn-theme .btn-success:hover {
   transform: translateY(-2px);
 }
 
+body.autumn-theme .btn-outline-success {
+  color: #C57136;
+  border-color: #D98A4A;
+  background-color: rgba(217, 138, 74, 0.08);
+  box-shadow: 0 6px 16px rgba(140, 74, 47, 0.2);
+}
+
+body.autumn-theme .btn-outline-success:hover,
+body.autumn-theme .btn-outline-success:focus-visible,
+body.autumn-theme .btn-outline-success.active,
+body.autumn-theme .btn-outline-success:active,
+body.autumn-theme .show > .btn-outline-success.dropdown-toggle {
+  color: #fff;
+  background-color: #C57136;
+  border-color: #C57136;
+  box-shadow: 0 10px 26px rgba(140, 74, 47, 0.32);
+}
+
 /* =========================
    4. quote-card
 ========================= */

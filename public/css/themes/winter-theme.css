@@ -61,15 +61,38 @@ body.winter-theme .hero-card {
   box-shadow: 0 18px 45px rgba(45, 83, 132, 0.22);
 }
 
-/* CTA 버튼은 겨울 녹청색 느낌 */
-body.winter-theme .hero-card .hero-cta-btn {
+/* CTA 버튼과 공통 success 버튼은 겨울 녹청색 느낌 */
+body.winter-theme .hero-card .hero-cta-btn,
+body.winter-theme .btn-success {
   background-color: #2F6C8A;
+  border: none;
   box-shadow: 0 10px 24px rgba(34, 70, 104, 0.55);
 }
 body.winter-theme .hero-card .hero-cta-btn:hover,
-body.winter-theme .hero-card .hero-cta-btn:focus-visible {
+body.winter-theme .hero-card .hero-cta-btn:focus-visible,
+body.winter-theme .btn-success:hover,
+body.winter-theme .btn-success:focus-visible {
   background-color: #275874;
   box-shadow: 0 18px 42px rgba(34, 70, 104, 0.75);
+}
+
+/* 아웃라인 success 버튼 (탭/필터 등) */
+body.winter-theme .btn-outline-success {
+  color: #2F6C8A;
+  border-color: #2F6C8A;
+  background-color: rgba(47, 108, 138, 0.05);
+  box-shadow: 0 6px 16px rgba(34, 70, 104, 0.12);
+}
+
+body.winter-theme .btn-outline-success:hover,
+body.winter-theme .btn-outline-success:focus-visible,
+body.winter-theme .btn-outline-success.active,
+body.winter-theme .btn-outline-success:active,
+body.winter-theme .show > .btn-outline-success.dropdown-toggle {
+  color: #fff;
+  background-color: #2F6C8A;
+  border-color: #2F6C8A;
+  box-shadow: 0 10px 26px rgba(34, 70, 104, 0.35);
 }
 
 /* 5. quote-card(인스타 감성 카드) 겨울톤 보정 */

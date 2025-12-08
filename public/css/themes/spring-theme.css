@@ -79,6 +79,24 @@ body.spring-theme .btn-success:hover {
   transform: translateY(-2px);
 }
 
+body.spring-theme .btn-outline-success {
+  color: #6BBF65;
+  border-color: #87D37C;
+  background-color: rgba(135, 211, 124, 0.08);
+  box-shadow: 0 6px 16px rgba(135, 211, 124, 0.25);
+}
+
+body.spring-theme .btn-outline-success:hover,
+body.spring-theme .btn-outline-success:focus-visible,
+body.spring-theme .btn-outline-success.active,
+body.spring-theme .btn-outline-success:active,
+body.spring-theme .show > .btn-outline-success.dropdown-toggle {
+  color: #fff;
+  background-color: #6BBF65;
+  border-color: #6BBF65;
+  box-shadow: 0 10px 26px rgba(107, 191, 101, 0.4);
+}
+
 /* =========================
    4. 메인 피드 카드 (quote-card)
 ========================= */
