@@ -587,22 +587,31 @@ router.put('/me', authRequired, (req, res) => {
   const userId = req.user.id;
   const { nickname, currentPw, newPw, bio, about } = req.body || {};
 
+  // 닉네임/소개 필드에 대해 불필요한 공백을 제거하고 빈 문자열은 null로 저장할 수 있도록 처리
+  const trimmedNickname =
+    nickname === undefined || nickname === null
+      ? nickname
+      : nickname.trim();
+  const trimmedBio = bio === undefined || bio === null ? bio : bio.trim();
+  const trimmedAbout =
+    about === undefined || about === null ? about : about.trim();
+
   const fields = [];
   const params = [];
 
-  if (nickname !== undefined && nickname !== null) {
+  if (trimmedNickname !== undefined) {
     fields.push('nickname = ?');
-    params.push(nickname);
+    params.push(trimmedNickname === '' ? null : trimmedNickname);
   }
 
-  if (bio !== undefined) {
+  if (trimmedBio !== undefined) {
     fields.push('bio = ?');
-    params.push(bio);
+    params.push(trimmedBio === '' ? null : trimmedBio);
   }
 
-  if (about !== undefined) {
+  if (trimmedAbout !== undefined) {
     fields.push('about = ?');
-    params.push(about);
+    params.push(trimmedAbout === '' ? null : trimmedAbout);
   }
 
   const wantsPwChange = !!newPw;
