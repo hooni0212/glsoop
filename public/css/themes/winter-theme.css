@@ -1,0 +1,168 @@
+/* =========================
+   Winter Theme (글숲 겨울 스킨)
+   - body에 .winter-theme 클래스가 붙었을 때만 적용
+   - 눈 애니메이션은 index(메인) + winter-theme 둘 다일 때만 적용
+========================= */
+
+/* 1. 전체 배경 & 텍스트 컬러 */
+body.winter-theme {
+  /* 차가운 겨울 하늘 느낌 그라디언트 */
+  background:
+    radial-gradient(circle at top,
+      #F5FBFF 0%,
+      #E3F0FF 40%,
+      #DDE7F3 75%,
+      #C7D2E3 100%
+    );
+  color: #1E2A33;
+}
+
+/* base.css에서 body에 깔아둔 배경보다 우선되도록
+   (body에 winter-theme가 붙어있으니 이 쪽이 이김) */
+
+/* 2. 살짝 흐린 안개/구름 레이어 */
+body.winter-theme::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(255,255,255,0.25) 0, transparent 60%),
+    radial-gradient(circle at 80% 15%, rgba(255,255,255,0.18) 0, transparent 55%),
+    radial-gradient(circle at 50% 80%, rgba(255,255,255,0.16) 0, transparent 60%);
+}
+
+/* 3. 네비게이션 & 푸터 겨울 톤 */
+body.winter-theme .custom-navbar,
+body.winter-theme .custom-footer {
+  background: linear-gradient(90deg, #2C4C72, #3F668F);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+/* 네비 브랜드 글씨는 조금 더 차분하게 */
+body.winter-theme .custom-navbar .navbar-brand {
+  background: linear-gradient(120deg, #F8FDFF, #EAF5FF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 4. 히어로 카드(메인 중앙 카드) 겨울 스타일 */
+body.winter-theme .hero-card {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 45px rgba(45, 83, 132, 0.22);
+}
+
+/* CTA 버튼은 겨울 녹청색 느낌 */
+body.winter-theme .hero-card .hero-cta-btn {
+  background-color: #2F6C8A;
+  box-shadow: 0 10px 24px rgba(34, 70, 104, 0.55);
+}
+body.winter-theme .hero-card .hero-cta-btn:hover,
+body.winter-theme .hero-card .hero-cta-btn:focus-visible {
+  background-color: #275874;
+  box-shadow: 0 18px 42px rgba(34, 70, 104, 0.75);
+}
+
+/* 5. quote-card(인스타 감성 카드) 겨울톤 보정 */
+body.winter-theme .quote-card {
+  background-color: #FFFFFF;
+  background-image: none; /* 종이 텍스처 빼고 겨울엔 깔끔한 흰색 */
+  box-shadow: 0 10px 24px rgba(51, 94, 140, 0.18);
+}
+
+/* 6. 메인 카드(피드/포스트) 테두리 & 그림자 살짝 차갑게 */
+body.winter-theme .card {
+  box-shadow: 0 10px 24px rgba(34, 70, 104, 0.09);
+}
+
+/* =========================
+   7. 눈 효과 (메인 페이지 전용)
+   - body class="page-index winter-theme" 일 때만 보이게
+========================= */
+
+/* 전체 화면 눈 레이어 (배경 위, 카드/텍스트 위에 얇게) */
+.page-index.winter-theme .snow-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2; /* 카드/본문 위, 네비(부트스트랩 fixed-top z-index 1030)보단 아래 */
+}
+
+/* 공통 눈 조각 스타일 */
+.page-index.winter-theme .snowflake {
+  position: absolute;
+  top: -10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 6px rgba(216, 233, 255, 0.9);
+  opacity: 0.8;
+  filter: blur(0.3px);
+  animation-name: snowFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* 가까운 큰 눈 (빠르게, 더 또렷하게) */
+.page-index.winter-theme .snowflake.big {
+  width: 8px;
+  height: 8px;
+  animation-duration: 6s;
+}
+
+/* 중간 거리 눈 */
+.page-index.winter-theme .snowflake.mid {
+  width: 5px;
+  height: 5px;
+  animation-duration: 9s;
+  opacity: 0.7;
+}
+
+/* 멀리 보이는 작은 눈 (느리게, 흐릿하게) */
+.page-index.winter-theme .snowflake.small {
+  width: 3px;
+  height: 3px;
+  animation-duration: 13s;
+  opacity: 0.5;
+}
+
+/* 기본 눈 떨어지는 방향: 살짝 오른쪽으로 흘러내림 */
+@keyframes snowFall {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(15px, 110vh, 0);
+  }
+}
+
+/* 반대 방향으로 흘러가는 눈 (원하면 JS에서 일부에 이거 적용) */
+@keyframes snowFallAlt {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-10px, 110vh, 0);
+  }
+}
+
+/* =========================
+   8. 반응형: 모바일에서 눈 너무 과하면 살짝 줄이기
+========================= */
+
+@media (max-width: 576px) {
+  .page-index.winter-theme .snowflake.big {
+    width: 7px;
+    height: 7px;
+  }
+  .page-index.winter-theme .snowflake.mid {
+    width: 4px;
+    height: 4px;
+  }
+  .page-index.winter-theme .snowflake.small {
+    width: 2px;
+    height: 2px;
+  }
+}

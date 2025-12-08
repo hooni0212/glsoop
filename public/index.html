@@ -20,8 +20,15 @@
        - index.html은 프로젝트 루트(/)에 있기 때문에 상대 경로 ./css/main.css 사용
        - 공통 스타일(네비, 히어로, 카드, 푸터 등)은 모두 main.css에서 관리 -->
   <link rel="stylesheet" href="./css/main.css">
+  <!-- 계절별 배경 스타일 추가-->
+  <link rel="stylesheet" href="./css/snow.css">
+  <link rel="stylesheet" href="/css/themes/spring-theme.css">
+  <link rel="stylesheet" href="/css/themes/summer-theme.css">
+  <link rel="stylesheet" href="/css/themes/autumn-theme.css">
+  <link rel="stylesheet" href="/css/themes/winter-theme.css">
+
 </head>
-<body class="page-index">
+<body class="page-index winter-theme">
   <!-- =========================
        상단 네비게이션 / 헤더 영역
        ========================= -->
@@ -164,5 +171,7 @@
        - Glsoop.FeedPage 모듈
        - 무한 스크롤, 좋아요 토글, 태그 필터, 잎사귀 애니메이션 등 -->
   <script src="./js/index.js"></script>
+
+  <script src="./js/falling.js"></script>
 </body>
 </html>

@@ -1,0 +1,134 @@
+/* =========================
+   summer-theme.css
+   - body.summer-theme 가 있을 때만 적용
+========================= */
+
+/* 0. 전체 배경 & 텍스트 */
+body.summer-theme {
+  background: radial-gradient(
+    circle at top,
+    #E5F7FF 0%,
+    #F4FBFF 45%,
+    #F0FCF8 100%
+  ); /* 하늘 + 얕은 바다 */
+  color: #1E2A33;
+}
+
+/* =========================
+   1. 네비게이션 바
+========================= */
+
+body.summer-theme .custom-navbar {
+  background: linear-gradient(90deg, #00A9FF, #00C39A); /* 시원한 하늘+바다 */
+  box-shadow: 0 6px 18px rgba(0, 169, 255, 0.35);
+}
+
+body.summer-theme .custom-navbar .navbar-brand {
+  background: linear-gradient(120deg, #F9FFFF, #E6FAFF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* =========================
+   2. 히어로 섹션
+========================= */
+
+body.summer-theme .hero-section {
+  background: radial-gradient(
+    circle at top,
+    #F5FDFF 0%,
+    #E5F7FF 40%,
+    #F0FCF8 100%
+  );
+}
+
+body.summer-theme .hero-card {
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 18px 42px rgba(0, 169, 255, 0.22);
+  border-radius: 1.4rem;
+}
+
+body.summer-theme .hero-title {
+  color: #007BB8;
+}
+
+body.summer-theme .hero-subtitle {
+  color: #2D6F68;
+}
+
+/* =========================
+   3. 버튼
+========================= */
+
+body.summer-theme .hero-cta-btn,
+body.summer-theme .btn-success {
+  background-color: #00C39A;  /* 청록 메인 */
+  border: none;
+  box-shadow: 0 10px 26px rgba(0, 195, 154, 0.65);
+}
+
+body.summer-theme .hero-cta-btn:hover,
+body.summer-theme .btn-success:hover {
+  background-color: #00A982;
+  transform: translateY(-2px);
+}
+
+/* =========================
+   4. quote-card
+========================= */
+
+body.summer-theme .quote-card {
+  background-color: #F5FDFF;  /* 연한 하늘 + 종이 */
+  background-image: none;
+  color: #1E2A33;
+  box-shadow: 0 10px 24px rgba(0, 169, 255, 0.12);
+}
+
+/* =========================
+   5. 뱃지 / 태그
+========================= */
+
+body.summer-theme .gls-author-badge {
+  background-color: #E5F7FF !important;
+  border-color: #9FD9FF !important;
+  color: #007BB8 !important;
+}
+
+body.summer-theme .gls-tag-btn {
+  background-color: #E5F7FF;
+  border-color: #9FD9FF;
+  color: #007BB8;
+}
+
+body.summer-theme .gls-tag-btn:hover {
+  background-color: #D1F4F1;
+  border-color: #61D3C0;
+  color: #006280;
+}
+
+/* =========================
+   6. 좋아요 하트
+========================= */
+
+body.summer-theme .like-btn .like-heart {
+  color: #145055;
+}
+
+body.summer-theme .like-btn.liked .like-heart {
+  color: #FFB53A; /* 태양빛 느낌 노랑 */
+}
+
+/* =========================
+   7. 푸터
+========================= */
+
+body.summer-theme .custom-footer {
+  background: linear-gradient(90deg, #00A9FF, #00C39A);
+  color: #F9FFFF;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+body.summer-theme .footer-links a {
+  color: #F9FFFF;
+}

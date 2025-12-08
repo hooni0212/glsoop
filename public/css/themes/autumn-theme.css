@@ -1,0 +1,129 @@
+/* =========================
+   autumn-theme.css
+   - body.autumn-theme 가 있을 때만 적용
+========================= */
+
+/* 0. 전체 배경 & 텍스트 */
+body.autumn-theme {
+  background-color: #FBF3E8; /* 따뜻한 베이지 */
+  color: #3B2A22;
+}
+
+/* =========================
+   1. 네비게이션 바
+========================= */
+
+body.autumn-theme .custom-navbar {
+  background: linear-gradient(90deg, #D98A4A, #8C4A2F); /* 단풍 오렌지 + 브라운 */
+  box-shadow: 0 6px 18px rgba(140, 74, 47, 0.4);
+}
+
+body.autumn-theme .custom-navbar .navbar-brand {
+  background: linear-gradient(120deg, #FFF7EC, #FCE2C4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* =========================
+   2. 히어로 섹션
+========================= */
+
+body.autumn-theme .hero-section {
+  background: radial-gradient(
+    circle at top,
+    #FFF9F0 0%,
+    #FCEBD8 45%,
+    #FBF3E8 100%
+  );
+}
+
+body.autumn-theme .hero-card {
+  background-color: rgba(255, 249, 240, 0.96);
+  box-shadow: 0 18px 42px rgba(140, 74, 47, 0.25);
+  border-radius: 1.4rem;
+}
+
+body.autumn-theme .hero-title {
+  color: #8C4A2F;
+}
+
+body.autumn-theme .hero-subtitle {
+  color: #6C513F;
+}
+
+/* =========================
+   3. 버튼
+========================= */
+
+body.autumn-theme .hero-cta-btn,
+body.autumn-theme .btn-success {
+  background-color: #D98A4A; /* 단풍 오렌지 */
+  border: none;
+  box-shadow: 0 10px 24px rgba(140, 74, 47, 0.55);
+}
+
+body.autumn-theme .hero-cta-btn:hover,
+body.autumn-theme .btn-success:hover {
+  background-color: #C57136;
+  transform: translateY(-2px);
+}
+
+/* =========================
+   4. quote-card
+========================= */
+
+body.autumn-theme .quote-card {
+  background-color: #FFF7EC; /* 노트 같은 크림색 */
+  background-image: none;
+  color: #3B2A22;
+  box-shadow: 0 10px 24px rgba(140, 74, 47, 0.18);
+}
+
+/* =========================
+   5. 뱃지 / 태그
+========================= */
+
+body.autumn-theme .gls-author-badge {
+  background-color: #FCEBD8 !important;
+  border-color: #E5B38D !important;
+  color: #8C4A2F !important;
+}
+
+body.autumn-theme .gls-tag-btn {
+  background-color: #FCEBD8;
+  border-color: #E5B38D;
+  color: #8C4A2F;
+}
+
+body.autumn-theme .gls-tag-btn:hover {
+  background-color: #F6D7B7;
+  color: #6C3824;
+}
+
+/* =========================
+   6. 좋아요 하트
+========================= */
+
+body.autumn-theme .like-btn .like-heart {
+  color: #6C3824;
+}
+
+body.autumn-theme .like-btn.liked .like-heart {
+  color: #E85C3C; /* 붉은 단풍 색 */
+}
+
+/* =========================
+   7. 푸터
+========================= */
+
+body.autumn-theme .custom-footer {
+  background: linear-gradient(90deg, #D98A4A, #8C4A2F);
+  color: #FFF9F0;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+body.autumn-theme .footer-links a {
+  color: #FFF9F0;
+}
+

@@ -1,0 +1,131 @@
+/* =========================
+   spring-theme.css
+   - body.spring-theme 가 있을 때만 적용
+========================= */
+
+/* 0. 전체 배경 & 기본 텍스트 */
+body.spring-theme {
+  background-color: #FFF9F9; /* 아주 옅은 핑크 + 화이트 */
+  color: #34343A;
+}
+
+/* =========================
+   1. 네비게이션 바
+========================= */
+
+body.spring-theme .custom-navbar {
+  /* 벚꽃 분홍 + 연두 */
+  background: linear-gradient(90deg, #FF9DB8, #87D37C);
+  box-shadow: 0 6px 18px rgba(255, 157, 184, 0.35);
+}
+
+/* 로고: 봄 느낌 분홍빛 그라디언트 */
+body.spring-theme .custom-navbar .navbar-brand {
+  background: linear-gradient(120deg, #FFF5F8, #FFE4EE);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* =========================
+   2. 히어로 섹션
+========================= */
+
+body.spring-theme .hero-section {
+  background: radial-gradient(
+    circle at top,
+    #FFFDFE 0%,
+    #FFF3F6 40%,
+    #FFF9F9 100%
+  );
+}
+
+/* 히어로 카드: 따뜻한 종이 느낌 */
+body.spring-theme .hero-card {
+  background-color: rgba(255, 250, 252, 0.96);
+  box-shadow: 0 18px 42px rgba(255, 157, 184, 0.25);
+  border-radius: 1.4rem;
+}
+
+body.spring-theme .hero-title {
+  color: #C7527A; /* 메인 타이틀 분홍 */
+}
+
+body.spring-theme .hero-subtitle {
+  color: #6F7F4C; /* 연두 톤 글자 */
+}
+
+/* =========================
+   3. 버튼 (CTA, success 공통)
+========================= */
+
+body.spring-theme .hero-cta-btn,
+body.spring-theme .btn-success {
+  background-color: #87D37C;  /* 연두 메인 */
+  border: none;
+  box-shadow: 0 10px 24px rgba(135, 211, 124, 0.6);
+}
+
+body.spring-theme .hero-cta-btn:hover,
+body.spring-theme .btn-success:hover {
+  background-color: #6BBF65;
+  transform: translateY(-2px);
+}
+
+/* =========================
+   4. 메인 피드 카드 (quote-card)
+========================= */
+
+body.spring-theme .quote-card {
+  background-color: #FFF7FA; /* 연한 핑크 종이 */
+  background-image: none;
+  color: #34343A;
+  box-shadow: 0 10px 24px rgba(255, 157, 184, 0.18);
+}
+
+/* =========================
+   5. 작성자 뱃지 / 해시태그
+========================= */
+
+body.spring-theme .gls-author-badge {
+  background-color: #FFF3F6 !important;
+  border-color: #FFC4D6 !important;
+  color: #C7527A !important;
+}
+
+body.spring-theme .gls-tag-btn {
+  background-color: #FFF3F6;
+  border-color: #FFC4D6;
+  color: #C7527A;
+}
+
+body.spring-theme .gls-tag-btn:hover {
+  background-color: #FFE4EE;
+  color: #A63F63;
+}
+
+/* =========================
+   6. 좋아요 하트
+========================= */
+
+body.spring-theme .like-btn .like-heart {
+  color: #A63F63;
+}
+
+body.spring-theme .like-btn.liked .like-heart {
+  color: #FF6B8F;
+}
+
+/* =========================
+   7. 푸터
+========================= */
+
+body.spring-theme .custom-footer {
+  background: linear-gradient(90deg, #FF9DB8, #87D37C);
+  color: #FFFDFE;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+body.spring-theme .footer-links a {
+  color: #FFFDFE;
+}
