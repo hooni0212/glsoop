@@ -11,6 +11,9 @@ const allowedOrigins = [
   'https://glsoop.com',
 ];
 
+// Cloudflare Tunnel(trycloudflare.com 등)로 노출될 때도 API와 리소스가 정상 동작하도록 허용할 도메인 패턴
+const allowedOriginSuffixes = ['.trycloudflare.com'];
+
 // ✅ CORS 옵션
 const corsOptions = {
   origin(origin, callback) {
@@ -19,7 +22,10 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    if (allowedOrigins.includes(origin)) {
+    if (
+      allowedOrigins.includes(origin) ||
+      allowedOriginSuffixes.some((suffix) => origin.endsWith(suffix))
+    ) {
       return callback(null, true);
     }
 
