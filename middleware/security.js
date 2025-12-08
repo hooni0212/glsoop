@@ -41,7 +41,7 @@ function applySecurity(app) {
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,
-      crossOriginResourcePolicy: { policy: 'same-origin' },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     })
   );
 
@@ -64,9 +64,15 @@ function applySecurity(app) {
           'https://cdn.quilljs.com', // Quill 에디터 테마
           'https://fonts.googleapis.com',
         ],
-        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-        imgSrc: ["'self'", 'data:'],
-        connectSrc: ["'self'"], // 필요 시 API/WS 도메인 추가
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: ["'self'", 'data:', 'https://cdn.quilljs.com'],
+        connectSrc: [
+          "'self'",
+          'https://cdn.jsdelivr.net',
+          'https://static.cloudflareinsights.com',
+          'https://fonts.googleapis.com',
+          'https://fonts.gstatic.com',
+        ],
       },
     })
   );
