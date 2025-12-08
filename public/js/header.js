@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', handleLogout);
   }
+
+  // 모바일 햄버거 메뉴 토글 초기화 (부트스트랩 스크립트 로드 실패 시에도 대응)
+  initNavbarToggle();
 });
 
 /**
@@ -88,4 +91,41 @@ async function handleLogout() {
     // 로그아웃 후에는 항상 메인 페이지로 이동
     window.location.href = '/index.html';
   }
+}
+
+/**
+ * 모바일 햄버거 메뉴 토글 초기화
+ * - 부트스트랩 JS가 정상 로드되면 bootstrap.Collapse 인스턴스를 사용
+ * - 만약 CDN 문제로 부트스트랩이 동작하지 않아도 "show" 클래스를 토글해서 메뉴가 열리도록 보완
+ */
+function initNavbarToggle() {
+  const toggler = document.querySelector('.navbar-toggler');
+  const collapseEl = document.getElementById('navbarNav');
+
+  if (!toggler || !collapseEl) return;
+
+  // aria 속성 기본값 보강 (접근성 & 토글 상태 표시)
+  toggler.setAttribute('aria-controls', 'navbarNav');
+  toggler.setAttribute('aria-expanded', 'false');
+  toggler.setAttribute('aria-label', '내비게이션 토글');
+
+  // 부트스트랩이 로드된 경우 정식 Collapse 인스턴스 사용
+  if (window.bootstrap && window.bootstrap.Collapse) {
+    const collapse = new bootstrap.Collapse(collapseEl, { toggle: false });
+
+    toggler.addEventListener('click', () => {
+      const isShown = collapseEl.classList.contains('show');
+      collapse[isShown ? 'hide' : 'show']();
+      toggler.setAttribute('aria-expanded', String(!isShown));
+    });
+    return;
+  }
+
+  // 부트스트랩이 없을 때도 최소한의 토글이 가능하도록 fallback
+  toggler.addEventListener('click', () => {
+    const isShown = collapseEl.classList.toggle('show');
+    // 기본 .collapse 스타일을 고려해 display 강제 설정
+    collapseEl.style.display = isShown ? 'block' : 'none';
+    toggler.setAttribute('aria-expanded', String(isShown));
+  });
 }
