@@ -48,12 +48,14 @@ function applySecurity(app) {
         scriptSrc: [
           "'self'",
           'https://cdn.jsdelivr.net', // 부트스트랩 JS
+          'https://cdn.quilljs.com', // Quill 에디터
           'https://static.cloudflareinsights.com', // (원하면) Cloudflare beacon
         ],
         styleSrc: [
           "'self'",
           "'unsafe-inline'",
           'https://cdn.jsdelivr.net', // 부트스트랩 CSS
+          'https://cdn.quilljs.com', // Quill 에디터 CSS
           'https://fonts.googleapis.com',
         ],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
