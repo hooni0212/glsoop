@@ -1,47 +1,71 @@
+// middleware/security.js
+
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 
-function buildCorsOptions() {
-  const originsEnv = process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:4173';
-  const allowedOrigins = originsEnv
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+// ✅ 이 도메인들만 허용 (필요하면 추가)
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://www.glsoop.com',
+  'https://glsoop.com',
+];
 
-  return {
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  };
-}
+// ✅ CORS 옵션
+const corsOptions = {
+  origin(origin, callback) {
+    // origin이 없는 경우 (예: Postman, 서버 내부 호출 등) 허용
+    if (!origin) {
+      return callback(null, true);
+    }
 
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
+    console.log('[CORS BLOCKED] origin =', origin);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true, // JWT 쿠키 같이 보내려면 필수
+};
+
+// ✅ 보안 관련 미들웨어 적용
 function applySecurity(app) {
+  // 1) 기본 helmet
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,
-      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginResourcePolicy: { policy: 'same-origin' },
     })
   );
 
-  app.use(morgan('combined'));
-  app.use(cors(buildCorsOptions()));
-  app.use('/api', apiLimiter);
+  // 2) CSP (필요한 CDN만 열어둔다)
+  app.use(
+    helmet.contentSecurityPolicy({
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          'https://cdn.jsdelivr.net', // 부트스트랩 JS
+          'https://static.cloudflareinsights.com', // (원하면) Cloudflare beacon
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://cdn.jsdelivr.net', // 부트스트랩 CSS
+          'https://fonts.googleapis.com',
+        ],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: ["'self'"], // 필요 시 API/WS 도메인 추가
+      },
+    })
+  );
+
+  // 3) CORS 적용
+  app.use(cors(corsOptions));
+  //app.options('*', cors(corsOptions)); // Preflight 대응
 }
 
-module.exports = {
-  applySecurity,
-};
+module.exports = { applySecurity };
