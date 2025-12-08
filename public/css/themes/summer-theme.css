@@ -12,6 +12,13 @@ body.summer-theme {
     #F0FCF8 100%
   ); /* 하늘 + 얕은 바다 */
   color: #1E2A33;
+  --author-surface: rgba(229, 247, 255, 0.6);
+  --author-card-bg: rgba(255, 255, 255, 0.95);
+  --author-card-shadow: 0 12px 32px rgba(0, 169, 255, 0.18);
+  --author-card-shadow-compact: 0 8px 18px rgba(0, 169, 255, 0.12);
+  --author-text-muted: #2d6f68;
+  --author-divider: rgba(0, 195, 154, 0.2);
+  --author-accent: #00a982;
 }
 
 /* =========================

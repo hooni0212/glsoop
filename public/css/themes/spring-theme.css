@@ -7,6 +7,13 @@
 body.spring-theme {
   background-color: #FFF9F9; /* 아주 옅은 핑크 + 화이트 */
   color: #34343A;
+  --author-surface: rgba(255, 247, 250, 0.65);
+  --author-card-bg: rgba(255, 250, 252, 0.96);
+  --author-card-shadow: 0 12px 32px rgba(255, 157, 184, 0.16);
+  --author-card-shadow-compact: 0 8px 18px rgba(255, 157, 184, 0.12);
+  --author-text-muted: #7a5b66;
+  --author-divider: rgba(199, 82, 122, 0.18);
+  --author-accent: #c7527a;
 }
 
 /* =========================
