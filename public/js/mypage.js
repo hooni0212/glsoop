@@ -329,7 +329,7 @@ function renderFollowingCard(user) {
           <div class="d-flex flex-column gap-2 align-items-end">
             <a
               class="btn btn-outline-primary btn-sm"
-              href="/html/author.html?authorId=${encodeURIComponent(user.id)}"
+              href="/html/author.html?userId=${encodeURIComponent(user.id)}"
             >
               프로필 보기
             </a>
