@@ -60,10 +60,13 @@ function extractContentWithFont(post) {
   const raw = post.content || '';
   const { cleanHtml, fontKey } = extractFontFromContent(raw);
 
-  const quoteFontClass =
+  // 메타가 없더라도 최소 기본 폰트는 적용되도록 기본값을 serif로 둔다
+  const resolvedFontKey =
     fontKey === 'serif' || fontKey === 'sans' || fontKey === 'hand'
-      ? `quote-font-${fontKey}`
-      : '';
+      ? fontKey
+      : 'serif';
+
+  const quoteFontClass = `quote-font-${resolvedFontKey}`;
 
   return { cleanHtml, quoteFontClass };
 }

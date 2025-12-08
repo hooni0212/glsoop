@@ -349,10 +349,11 @@ function renderAuthorPosts(posts) {
 
       // 폰트 메타 파싱 (<!--FONT:...--> 같은 것 파싱)
       const { cleanHtml, fontKey } = extractFontFromContent(post.content);
-      const quoteFontClass =
+      const resolvedFontKey =
         fontKey === 'serif' || fontKey === 'sans' || fontKey === 'hand'
-          ? `quote-font-${fontKey}`
-          : '';
+          ? fontKey
+          : 'serif';
+      const quoteFontClass = `quote-font-${resolvedFontKey}`;
 
       // 카드 전체 HTML
       return `
