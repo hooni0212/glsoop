@@ -724,6 +724,7 @@ a:hover {
 /* 관련 글 섹션 해시태그 */
 .gls-card-hashtags {
   word-break: keep-all;
+  padding-top: 0.35rem;
 }
 
 /* 상세 본문 */
