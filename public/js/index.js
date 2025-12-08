@@ -18,6 +18,10 @@ Glsoop.FeedPage = (function () {
   let feedLoading = false;   // 현재 글을 가져오는 중인지 여부
   let feedDone = false;      // 더 이상 가져올 글이 없는지 여부
 
+  // 어떤 피드를 보고 있는지: 'all' | 'following'
+  let feedSource = 'all';
+  let isLoggedIn = false;
+
   // 여러 태그 AND 조건용 필터 목록
   // 예: ['힐링', '위로'] → 이 두 태그를 모두 포함한 글만 보기
   let currentTags = [];
@@ -27,6 +31,9 @@ Glsoop.FeedPage = (function () {
     // 1) URL 쿼리에서 태그 읽기 (?tag=힐링 또는 ?tags=힐링,위로)
     parseTagsFromURL();
 
+    // 1-1) 로그인 상태 확인(팔로잉 탭 활성화용)
+    checkLoginStatus();
+
     // 2) 피드 초기화 (첫 로드 + 스크롤 이벤트 등록)
     initFeed();
 
@@ -35,8 +42,24 @@ Glsoop.FeedPage = (function () {
       renderTagFilterBar();
     }
 
+    // 3-1) 피드 전환 탭 이벤트 등록
+    setupFeedTabs();
+
     // 4) 히어로 CTA 잎사귀 애니메이션 세팅
     setupHeroCtaLeaves();
+  }
+
+  async function checkLoginStatus() {
+    try {
+      const res = await fetch('/api/me');
+      if (!res.ok) return;
+      const data = await res.json();
+      isLoggedIn = !!(data && data.ok);
+    } catch (err) {
+      console.error('로그인 상태 확인 실패', err);
+    } finally {
+      updateFeedTabUI();
+    }
   }
 
   /**
@@ -75,7 +98,7 @@ Glsoop.FeedPage = (function () {
     }
 
     // 초기 로딩 메시지
-    feedBox.innerHTML = '<p class="text-muted">피드를 불러오는 중입니다...</p>';
+    feedBox.innerHTML = `<p class="text-muted">${getFeedLoadingMessage()}</p>`;
 
     // 첫 페이지 로딩
     await loadMoreFeed();
@@ -132,8 +155,17 @@ Glsoop.FeedPage = (function () {
         params.set('tags', currentTags.join(','));
       }
 
-      const res = await fetch('/api/posts/feed?' + params.toString());
+      const endpoint =
+        feedSource === 'following' ? '/api/posts/following' : '/api/posts/feed';
+      const res = await fetch(endpoint + '?' + params.toString());
       if (!res.ok) {
+        if (res.status === 401 && feedSource === 'following') {
+          feedBox.innerHTML =
+            '<p class="text-muted">로그인 후 팔로잉 글을 볼 수 있습니다.</p>';
+          feedLoading = false;
+          feedDone = true;
+          return;
+        }
         // 첫 로드에서 실패하면 에러 메시지 표시
         if (feedOffset === 0) {
           feedBox.innerHTML =
@@ -164,10 +196,17 @@ Glsoop.FeedPage = (function () {
           const label = currentTags
             .map((t) => `#${escapeHtml(t)}`)
             .join(', ');
-          feedBox.innerHTML = `<p class="text-muted">${label} 태그를 모두 포함하는 글이 아직 없습니다.</p>`;
+          const emptyMessage =
+            feedSource === 'following'
+              ? `${label} 태그를 모두 포함하는 팔로잉 글이 아직 없습니다.`
+              : `${label} 태그를 모두 포함하는 글이 아직 없습니다.`;
+          feedBox.innerHTML = `<p class="text-muted">${emptyMessage}</p>`;
         } else {
-          feedBox.innerHTML =
-            '<p class="text-muted">아직 작성된 글이 없습니다.</p>';
+          const emptyMessage =
+            feedSource === 'following'
+              ? '팔로잉한 작가들의 글이 아직 없습니다. 마음에 드는 작가를 팔로우해 보세요.'
+              : '아직 작성된 글이 없습니다.';
+          feedBox.innerHTML = `<p class="text-muted">${emptyMessage}</p>`;
         }
         feedDone = true;
         feedLoading = false;
@@ -199,6 +238,95 @@ Glsoop.FeedPage = (function () {
     } finally {
       // 로딩 상태 해제
       feedLoading = false;
+    }
+  }
+
+  // ===== 피드 전환/메시지 헬퍼 =====
+
+  function getFeedLoadingMessage() {
+    const label = currentTags.map((t) => `#${escapeHtml(t)}`).join(', ');
+
+    if (feedSource === 'following') {
+      if (currentTags.length > 0) {
+        return `${label} 태그를 포함한 팔로잉 글을 불러오는 중입니다...`;
+      }
+      return '팔로잉한 작가들의 글을 불러오는 중입니다...';
+    }
+
+    if (currentTags.length > 0) {
+      return `${label} 태그를 포함한 글을 불러오는 중입니다...`;
+    }
+    return '전체 글을 불러오는 중입니다...';
+  }
+
+  function resetFeedStateAndRenderMessage() {
+    feedOffset = 0;
+    feedDone = false;
+
+    const feedBox = document.getElementById('feedPosts');
+    if (feedBox) {
+      feedBox.dataset.initialized = '';
+      feedBox.innerHTML = `<p class="text-muted">${getFeedLoadingMessage()}</p>`;
+    }
+  }
+
+  function updateFeedTitle() {
+    const titleEl = document.getElementById('feedTitle');
+    if (!titleEl) return;
+
+    titleEl.textContent = feedSource === 'following' ? '팔로잉 글' : '최근 글';
+  }
+
+  function setupFeedTabs() {
+    const tabAll = document.getElementById('feedTabAll');
+    const tabFollowing = document.getElementById('feedTabFollowing');
+
+    if (tabAll && !tabAll.dataset.bound) {
+      tabAll.addEventListener('click', () => switchFeedSource('all'));
+      tabAll.dataset.bound = '1';
+    }
+
+    if (tabFollowing && !tabFollowing.dataset.bound) {
+      tabFollowing.addEventListener('click', () => switchFeedSource('following'));
+      tabFollowing.dataset.bound = '1';
+    }
+
+    updateFeedTabUI();
+  }
+
+  function switchFeedSource(target) {
+    if (target === feedSource) return;
+    if (target === 'following' && !isLoggedIn) {
+      alert('로그인 후 팔로잉 글을 볼 수 있습니다.');
+      return;
+    }
+
+    feedSource = target;
+    updateFeedTitle();
+    updateFeedTabUI();
+    resetFeedStateAndRenderMessage();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadMoreFeed();
+  }
+
+  function updateFeedTabUI() {
+    const tabAll = document.getElementById('feedTabAll');
+    const tabFollowing = document.getElementById('feedTabFollowing');
+    const loginNotice = document.getElementById('followingLoginNotice');
+
+    if (tabAll) {
+      tabAll.classList.toggle('active', feedSource === 'all');
+    }
+
+    if (tabFollowing) {
+      tabFollowing.classList.toggle('active', feedSource === 'following');
+      tabFollowing.disabled = !isLoggedIn;
+      tabFollowing.classList.toggle('disabled', !isLoggedIn);
+      tabFollowing.title = !isLoggedIn ? '로그인 후 볼 수 있습니다' : '';
+    }
+
+    if (loginNotice) {
+      loginNotice.style.display = isLoggedIn ? 'none' : 'block';
     }
   }
 
@@ -456,16 +584,7 @@ function setupCardInteractions(card, post) {
     }
 
     // 피드 상태 리셋
-    feedOffset = 0;
-    feedDone = false;
-
-    const feedBox = document.getElementById('feedPosts');
-    if (feedBox) {
-      // 첫 로드 플래그 초기화
-      feedBox.dataset.initialized = '';
-      const label = currentTags.map((t) => `#${escapeHtml(t)}`).join(', ');
-      feedBox.innerHTML = `<p class="text-muted">${label} 태그를 포함한 글을 불러오는 중입니다...</p>`;
-    }
+    resetFeedStateAndRenderMessage();
 
     // 상단 필터 바 갱신
     renderTagFilterBar();
@@ -536,15 +655,7 @@ function setupCardInteractions(card, post) {
    */
   function clearTagFilters() {
     currentTags = [];
-    feedOffset = 0;
-    feedDone = false;
-
-    const feedBox = document.getElementById('feedPosts');
-    if (feedBox) {
-      feedBox.dataset.initialized = '';
-      feedBox.innerHTML =
-        '<p class="text-muted">전체 글을 불러오는 중입니다...</p>';
-    }
+    resetFeedStateAndRenderMessage();
 
     // 필터 바 갱신(숨기기)
     renderTagFilterBar();

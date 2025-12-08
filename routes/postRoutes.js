@@ -383,6 +383,118 @@ router.get('/posts/feed', (req, res) => {
   });
 });
 
+// 9-5-1) 팔로잉한 작가들의 글 피드 조회
+router.get('/posts/following', authRequired, (req, res) => {
+  const userId = req.user.id;
+
+  let limit = parseInt(req.query.limit, 10);
+  let offset = parseInt(req.query.offset, 10);
+
+  if (isNaN(limit) || limit <= 0 || limit > 50) {
+    limit = 20;
+  }
+  if (isNaN(offset) || offset < 0) {
+    offset = 0;
+  }
+
+  let tags = [];
+  if (req.query.tags) {
+    tags = String(req.query.tags)
+      .split(',')
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t.length > 0);
+  } else if (req.query.tag) {
+    const t = String(req.query.tag).trim().toLowerCase();
+    if (t) tags = [t];
+  }
+  const tagCount = tags.length;
+
+  const baseSelect = `
+    SELECT
+      p.id,
+      p.title,
+      p.content,
+      p.created_at,
+      u.id      AS author_id,
+      u.name     AS author_name,
+      u.nickname AS author_nickname,
+      u.email    AS author_email,
+      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+      GROUP_CONCAT(DISTINCT h.name) AS hashtags
+  `;
+
+  const baseFromJoin = `
+    FROM posts p
+    JOIN users u ON p.user_id = u.id
+    JOIN follows f ON f.followee_id = p.user_id AND f.follower_id = ?
+    LEFT JOIN post_hashtags ph ON ph.post_id = p.id
+    LEFT JOIN hashtags h ON h.id = ph.hashtag_id
+  `;
+
+  const baseOrder = `
+    GROUP BY p.id
+    ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
+
+  let sql;
+  let params = [];
+
+  if (tagCount > 0) {
+    const placeholders = tags.map(() => '?').join(', ');
+    sql = `
+      ${baseSelect},
+      CASE
+        WHEN EXISTS (
+          SELECT 1 FROM likes l2
+          WHERE l2.post_id = p.id AND l2.user_id = ?
+        ) THEN 1
+        ELSE 0
+      END AS user_liked
+      ${baseFromJoin}
+      WHERE p.id IN (
+        SELECT ph2.post_id
+        FROM post_hashtags ph2
+        JOIN hashtags h2 ON h2.id = ph2.hashtag_id
+        WHERE h2.name IN (${placeholders})
+        GROUP BY ph2.post_id
+        HAVING COUNT(DISTINCT h2.name) = ?
+      )
+      ${baseOrder}
+    `;
+    params = [userId, userId, ...tags, tagCount, limit, offset];
+  } else {
+    sql = `
+      ${baseSelect},
+      CASE
+        WHEN EXISTS (
+          SELECT 1 FROM likes l2
+          WHERE l2.post_id = p.id AND l2.user_id = ?
+        ) THEN 1
+        ELSE 0
+      END AS user_liked
+      ${baseFromJoin}
+      ${baseOrder}
+    `;
+    params = [userId, userId, limit, offset];
+  }
+
+  db.all(sql, params, (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ ok: false, message: '팔로잉 피드 조회 중 DB 오류가 발생했습니다.' });
+    }
+
+    return res.json({
+      ok: true,
+      posts: rows,
+      hasMore: rows.length === limit,
+    });
+  });
+});
+
 // 9-6) 관련 글 추천
 router.get('/posts/:id/related', (req, res) => {
   const postId = parseInt(req.params.id, 10);
