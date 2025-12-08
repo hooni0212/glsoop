@@ -13,6 +13,13 @@ let myPostsLoaded = false;
 let likedPostsLoaded = false;
 let followingsLoaded = false;
 
+// 현재 프로필 값 저장 (변경 여부 판별에 사용)
+const originalProfile = {
+  nickname: '',
+  bio: '',
+  about: '',
+};
+
 // DOM이 완전히 로드되면 마이페이지 초기화
 document.addEventListener('DOMContentLoaded', () => {
   setupMyPageTabs();        // 탭 버튼(내가 쓴 글 / 공감한 글) 이벤트 설정
@@ -128,20 +135,24 @@ async function loadMyPage() {
       </div>
     `;
 
-    // 2-1. 모달 내 닉네임 / 프로필 기본 값 채우기
+    // 2-1. 모달 내 닉네임 / 프로필 기본 값 채우기 + 원본 상태 저장
     const nicknameInput = document.getElementById('nicknameInput');
     const bioInput = document.getElementById('bioInput');
     const aboutInput = document.getElementById('aboutInput');
 
+    originalProfile.nickname = meData.nickname || '';
+    originalProfile.bio = meData.bio || '';
+    originalProfile.about = meData.about || '';
+
     if (nicknameInput) {
       // 기존 닉네임이 있으면 그대로, 없으면 빈 문자열
-      nicknameInput.value = meData.nickname || '';
+      nicknameInput.value = originalProfile.nickname;
     }
     if (bioInput) {
-      bioInput.value = meData.bio || '';
+      bioInput.value = originalProfile.bio;
     }
     if (aboutInput) {
-      aboutInput.value = meData.about || '';
+      aboutInput.value = originalProfile.about;
     }
 
     const openFollowingListBtn = document.getElementById('openFollowingListBtn');
@@ -800,8 +811,13 @@ function setupUserEditForm() {
     }
 
     // ===== 변경할 내용이 하나도 없는 경우 막기 =====
-    // 닉네임, 한 줄 소개, 자기소개, 새 비밀번호 중 아무 것도 입력되지 않았으면 제출 X
-    if (!nickname && !bio && !about && !newPw) {
+    // 기존 값과 비교해 변경된 내용이 없고 새 비밀번호도 없으면 제출 X
+    const hasProfileChange =
+      nickname !== (originalProfile.nickname || '') ||
+      bio !== (originalProfile.bio || '') ||
+      about !== (originalProfile.about || '');
+
+    if (!hasProfileChange && !newPw) {
       if (messageSpan) {
         messageSpan.classList.add('text-danger');
         messageSpan.textContent = '변경할 내용을 입력해주세요.';
