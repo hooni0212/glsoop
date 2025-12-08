@@ -11,6 +11,9 @@ const allowedOrigins = [
   'https://glsoop.com',
 ];
 
+// Cloudflare Tunnel(trycloudflare.com 등)로 노출될 때도 API와 리소스가 정상 동작하도록 허용할 도메인 패턴
+const allowedOriginSuffixes = ['.trycloudflare.com'];
+
 // ✅ CORS 옵션
 const corsOptions = {
   origin(origin, callback) {
@@ -19,7 +22,10 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    if (allowedOrigins.includes(origin)) {
+    if (
+      allowedOrigins.includes(origin) ||
+      allowedOriginSuffixes.some((suffix) => origin.endsWith(suffix))
+    ) {
       return callback(null, true);
     }
 
@@ -35,7 +41,7 @@ function applySecurity(app) {
   app.use(
     helmet({
       crossOriginEmbedderPolicy: false,
-      crossOriginResourcePolicy: { policy: 'same-origin' },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     })
   );
 
@@ -48,17 +54,25 @@ function applySecurity(app) {
         scriptSrc: [
           "'self'",
           'https://cdn.jsdelivr.net', // 부트스트랩 JS
+          'https://cdn.quilljs.com', // Quill 에디터 스크립트
           'https://static.cloudflareinsights.com', // (원하면) Cloudflare beacon
         ],
         styleSrc: [
           "'self'",
           "'unsafe-inline'",
           'https://cdn.jsdelivr.net', // 부트스트랩 CSS
+          'https://cdn.quilljs.com', // Quill 에디터 테마
           'https://fonts.googleapis.com',
         ],
-        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-        imgSrc: ["'self'", 'data:'],
-        connectSrc: ["'self'"], // 필요 시 API/WS 도메인 추가
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: ["'self'", 'data:', 'https://cdn.quilljs.com'],
+        connectSrc: [
+          "'self'",
+          'https://cdn.jsdelivr.net',
+          'https://static.cloudflareinsights.com',
+          'https://fonts.googleapis.com',
+          'https://fonts.gstatic.com',
+        ],
       },
     })
   );
