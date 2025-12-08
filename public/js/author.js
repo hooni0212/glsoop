@@ -6,6 +6,12 @@ let authorOffset = 0;         // 지금까지 불러온 글 개수(다음 요청
 let authorLoading = false;    // 현재 글을 로딩 중인지 여부(중복 요청 방지)
 let authorDone = false;       // 더 이상 불러올 글이 없는지 여부
 let currentAuthorId = null;   // 현재 작가(유저)의 ID
+let authorFollowState = {
+  isLoggedIn: false,
+  isOwnProfile: false,
+  isFollowing: false,
+};
+let authorFollowProcessing = false;
 
 // 페이지가 완전히 로드되면 작가 페이지 초기화 + 프로필 카드 스티키 처리 설정
 document.addEventListener('DOMContentLoaded', () => {
@@ -112,12 +118,109 @@ async function loadAuthorProfile(authorId) {
     // 통계 정보: 글 수, 총 좋아요 수
     const postCountEl = document.getElementById('authorPostCount');
     const likeCountEl = document.getElementById('authorLikeCount');
+    const followerCountEl = document.getElementById('authorFollowerCount');
+    const followingCountEl = document.getElementById('authorFollowingCount');
 
     if (postCountEl) postCountEl.textContent = user.postCount || 0;
     if (likeCountEl) likeCountEl.textContent = user.totalLikes || 0;
+    if (followerCountEl) followerCountEl.textContent = user.followerCount || 0;
+    if (followingCountEl) followingCountEl.textContent = user.followingCount || 0;
+
+    authorFollowState = {
+      isLoggedIn: !!data.viewer?.isLoggedIn,
+      isOwnProfile: !!data.viewer?.isOwnProfile,
+      isFollowing: !!data.viewer?.isFollowing,
+    };
+    updateAuthorFollowUI();
   } catch (e) {
     console.error(e);
     alert('작가 정보를 불러오는 중 오류가 발생했습니다.');
+  }
+}
+
+/**
+ * 팔로우 버튼 상태/UI 갱신
+ */
+function updateAuthorFollowUI() {
+  const followBtn = document.getElementById('authorFollowBtn');
+  const hintEl = document.getElementById('authorFollowHint');
+
+  if (!followBtn) return;
+
+  if (!followBtn.dataset.bound) {
+    followBtn.addEventListener('click', handleAuthorFollowToggle);
+    followBtn.dataset.bound = 'true';
+  }
+
+  followBtn.classList.remove('btn-primary', 'btn-outline-primary', 'btn-outline-secondary');
+  followBtn.disabled = false;
+
+  if (!authorFollowState.isLoggedIn) {
+    followBtn.textContent = '로그인 후 팔로우';
+    followBtn.classList.add('btn-outline-secondary');
+    followBtn.disabled = true;
+    if (hintEl)
+      hintEl.textContent = '팔로우하려면 로그인해주세요.';
+    return;
+  }
+
+  if (authorFollowState.isOwnProfile) {
+    followBtn.textContent = '내 프로필입니다';
+    followBtn.classList.add('btn-outline-secondary');
+    followBtn.disabled = true;
+    if (hintEl)
+      hintEl.textContent = '내 페이지에서는 팔로우 버튼이 비활성화됩니다.';
+    return;
+  }
+
+  if (authorFollowState.isFollowing) {
+    followBtn.textContent = '팔로잉';
+    followBtn.classList.add('btn-primary');
+    if (hintEl)
+      hintEl.textContent = '팔로잉을 해제하면 새 소식을 받지 않게 돼요.';
+  } else {
+    followBtn.textContent = '팔로우';
+    followBtn.classList.add('btn-outline-primary');
+    if (hintEl)
+      hintEl.textContent = '팔로우해서 작가의 소식을 받아보세요!';
+  }
+}
+
+/**
+ * 팔로우/언팔로우 토글 요청
+ */
+async function handleAuthorFollowToggle() {
+  if (authorFollowProcessing) return;
+  if (!authorFollowState.isLoggedIn || authorFollowState.isOwnProfile) return;
+  if (!currentAuthorId) return;
+
+  authorFollowProcessing = true;
+  const followBtn = document.getElementById('authorFollowBtn');
+  const followerCountEl = document.getElementById('authorFollowerCount');
+
+  if (followBtn) {
+    followBtn.disabled = true;
+    followBtn.textContent = '처리 중...';
+  }
+
+  try {
+    const res = await fetch(`/api/users/${currentAuthorId}/follow`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || '팔로우 처리 중 오류가 발생했습니다.');
+    }
+
+    authorFollowState.isFollowing = !!data.following;
+    if (followerCountEl) followerCountEl.textContent = data.followerCount ?? 0;
+    updateAuthorFollowUI();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || '팔로우 요청 중 문제가 발생했습니다.');
+  } finally {
+    authorFollowProcessing = false;
   }
 }
 

@@ -151,13 +151,29 @@
                   <dt class="text-muted small mb-0">받은 공감 수</dt>
                   <dd class="mb-0" id="authorLikeCount">0</dd>
                 </div>
+                <div class="d-flex justify-content-between mt-1">
+                  <dt class="text-muted small mb-0">팔로워</dt>
+                  <dd class="mb-0" id="authorFollowerCount">0</dd>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                  <dt class="text-muted small mb-0">팔로잉</dt>
+                  <dd class="mb-0" id="authorFollowingCount">0</dd>
+                </div>
               </dl>
 
-              <!-- 안내 문구: 다시 이 페이지로 오는 방법 설명 -->
-              <p class="mt-3 text-muted small mb-0">
-                홈 피드에서 이 작가의 카드를 눌러도<br />
-                이 페이지로 다시 올 수 있어요.
-              </p>
+              <div class="mt-3">
+                <button
+                  id="authorFollowBtn"
+                  type="button"
+                  class="btn btn-outline-primary w-100"
+                  aria-live="polite"
+                >
+                  팔로우
+                </button>
+                <p class="text-muted small mb-0 mt-2" id="authorFollowHint">
+                  홈 피드에서 이 작가의 카드를 눌러도 이 페이지로 다시 올 수 있어요.
+                </p>
+              </div>
             </div>
           </div>
         </div>

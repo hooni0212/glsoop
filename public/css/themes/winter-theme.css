@@ -15,6 +15,13 @@ body.winter-theme {
       #C7D2E3 100%
     );
   color: #1E2A33;
+  --author-surface: rgba(227, 240, 255, 0.65);
+  --author-card-bg: rgba(255, 255, 255, 0.94);
+  --author-card-shadow: 0 12px 32px rgba(34, 70, 104, 0.2);
+  --author-card-shadow-compact: 0 8px 18px rgba(34, 70, 104, 0.14);
+  --author-text-muted: #4a5b6b;
+  --author-divider: rgba(45, 83, 132, 0.18);
+  --author-accent: #2f6c8a;
 }
 
 /* base.css에서 body에 깔아둔 배경보다 우선되도록
