@@ -402,9 +402,19 @@ try {
         isEditMode = false; // 실패 시 새 글 모드로 전환
       } else {
         const post = data.post;
-        // 제목/본문 세팅
+        // 제목/본문/폰트 세팅
         titleInput.value = post.title || '';
-        quill.root.innerHTML = post.content || '';
+
+        // 글 내용에 숨겨진 폰트 메타 태그가 있으면 파싱해서 select/에디터에 반영
+        const { cleanHtml, fontKey } = extractFontFromContent(post.content || '');
+        const resolvedFontKey = fontKey || 'serif';
+
+        if (fontSelectEl) {
+          fontSelectEl.value = resolvedFontKey;
+        }
+
+        applyEditorFont(resolvedFontKey);
+        quill.root.innerHTML = cleanHtml || '';
 
         // 서버에서 hashtags를 내려줄 경우, 인풋/칩에 반영
         if (hashtagsInput) {
@@ -481,6 +491,9 @@ try {
   saveBtn.addEventListener('click', async () => {
     const title = titleInput.value.trim();         // 제목(텍스트)
     const contentHtml = quill.root.innerHTML.trim(); // 본문(HTML)
+    const selectedFontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
+    const fontMetaPrefix = `<!--FONT:${selectedFontKey}-->`;
+    const contentWithFontMeta = fontMetaPrefix + contentHtml;
     const plainText = quill.getText().trim();      // 본문(plain text)
     const length = plainText.length;
 
@@ -525,7 +538,7 @@ try {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
-          content: contentHtml,
+          content: contentWithFontMeta,
           hashtags: hashtagsRaw, // ✅ 서버로 해시태그 문자열 함께 전송
         }),
       });
