@@ -154,6 +154,10 @@ function setupAccountSettingsForm() {
         messageSpan.textContent = data.message || '계정 정보가 저장되었습니다.';
       }
 
+      setTimeout(() => {
+        window.location.href = '/html/mypage.html';
+      }, 800);
+
       if (currentPwField) currentPwField.value = '';
       if (newPwField) newPwField.value = '';
       if (newPwConfirmField) newPwConfirmField.value = '';
