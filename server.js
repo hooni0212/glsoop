@@ -5,6 +5,7 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
+const { applySecurity } = require('./middleware/security');
 
 // 환경 변수 및 메일/JWT 설정, DB는 각각 모듈에서 처리
 require('./config');
@@ -19,6 +20,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 2. 공통 미들웨어
+applySecurity(app);
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());

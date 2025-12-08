@@ -7,6 +7,13 @@
 body.autumn-theme {
   background-color: #FBF3E8; /* 따뜻한 베이지 */
   color: #3B2A22;
+  --author-surface: rgba(251, 243, 232, 0.8);
+  --author-card-bg: rgba(255, 249, 240, 0.96);
+  --author-card-shadow: 0 12px 32px rgba(140, 74, 47, 0.18);
+  --author-card-shadow-compact: 0 8px 18px rgba(140, 74, 47, 0.12);
+  --author-text-muted: #6c513f;
+  --author-divider: rgba(140, 74, 47, 0.2);
+  --author-accent: #c57136;
 }
 
 /* =========================
