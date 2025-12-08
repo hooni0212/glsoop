@@ -11,6 +11,7 @@
  */
 let myPostsLoaded = false;
 let likedPostsLoaded = false;
+let followingsLoaded = false;
 
 // DOM이 완전히 로드되면 마이페이지 초기화
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadMyPage();             // 내 정보 + 기본 탭(내가 쓴 글) 데이터 로드
   setupUserEditForm();      // 내 정보 수정 모달 폼 처리
   setupMyPostCardEvents();  // 내가 쓴 글 카드에서 수정/삭제 버튼 처리
+  setupFollowingListEvents(); // 팔로잉 목록 카드 내 언팔로우 처리
 });
 
 /**
@@ -75,6 +77,9 @@ async function loadMyPage() {
         ? meData.nickname
         : meData.name;
 
+    const followerCount = Number(meData.followerCount) || 0;
+    const followingCount = Number(meData.followingCount) || 0;
+
     // 한 줄 소개(bio)가 있는 경우에만 줄 추가
     const bioHtml = meData.bio
       ? `<p class="mb-1 text-muted small">한 줄 소개: ${escapeHtml(
@@ -100,6 +105,17 @@ async function loadMyPage() {
           <p class="mb-1">이메일: ${escapeHtml(meData.email)}</p>
           ${bioHtml}
           ${aboutHtml}
+          <div class="d-flex gap-3 flex-wrap mt-2 small text-muted">
+            <span>팔로워 <strong id="mypageFollowerCount">${followerCount}</strong></span>
+            <span>팔로잉 <strong id="mypageFollowingCount">${followingCount}</strong></span>
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              id="openFollowingListBtn"
+            >
+              팔로잉 목록 보기
+            </button>
+          </div>
         </div>
         <button
           type="button"
@@ -126,6 +142,17 @@ async function loadMyPage() {
     }
     if (aboutInput) {
       aboutInput.value = meData.about || '';
+    }
+
+    const openFollowingListBtn = document.getElementById('openFollowingListBtn');
+    if (openFollowingListBtn && !openFollowingListBtn.dataset.bound) {
+      openFollowingListBtn.addEventListener('click', async () => {
+        switchMyPageTab('followings');
+        if (!followingsLoaded) {
+          await loadMyFollowings();
+        }
+      });
+      openFollowingListBtn.dataset.bound = 'true';
     }
 
     // 기본 탭: "내가 쓴 글" 목록 로드
@@ -162,8 +189,9 @@ async function loadMyPage() {
 function setupMyPageTabs() {
   const tabMy = document.getElementById('tabMyPosts');      // "내가 쓴 글" 탭 버튼
   const tabLiked = document.getElementById('tabLikedPosts'); // "공감한 글" 탭 버튼
+  const tabFollowings = document.getElementById('tabFollowings'); // "팔로잉" 탭 버튼
 
-  if (!tabMy || !tabLiked) return;
+  if (!tabMy || !tabLiked || !tabFollowings) return;
 
   // "내가 쓴 글" 탭 클릭 시
   tabMy.addEventListener('click', async () => {
@@ -180,34 +208,42 @@ function setupMyPageTabs() {
       await loadLikedPosts(); // 아직 로드 안 됐으면 서버에서 데이터 가져오기
     }
   });
+
+  // "팔로잉" 탭 클릭 시
+  tabFollowings.addEventListener('click', async () => {
+    switchMyPageTab('followings');
+    if (!followingsLoaded) {
+      await loadMyFollowings();
+    }
+  });
 }
 
 /**
  * 실제 탭/섹션 전환
  *
- * @param {'my'|'liked'} target - 'my'면 내가 쓴 글, 'liked'면 공감한 글 탭/섹션 표시
+ * @param {'my'|'liked'|'followings'} target - 탭/섹션 표시
  */
 function switchMyPageTab(target) {
   const tabMy = document.getElementById('tabMyPosts');
   const tabLiked = document.getElementById('tabLikedPosts');
+  const tabFollowings = document.getElementById('tabFollowings');
   const mySection = document.getElementById('myPostsSection');
   const likedSection = document.getElementById('likedPostsSection');
+  const followingsSection = document.getElementById('followingsSection');
 
-  if (!tabMy || !tabLiked || !mySection || !likedSection) return;
+  if (!tabMy || !tabLiked || !tabFollowings || !mySection || !likedSection || !followingsSection) return;
 
-  if (target === 'my') {
-    // 내가 쓴 글 탭 활성화
-    tabMy.classList.add('active');
-    tabLiked.classList.remove('active');
-    mySection.classList.remove('d-none');   // 내가 쓴 글 영역 보이기
-    likedSection.classList.add('d-none');   // 공감한 글 영역 숨기기
-  } else {
-    // 공감한 글 탭 활성화
-    tabMy.classList.remove('active');
-    tabLiked.classList.add('active');
-    mySection.classList.add('d-none');      // 내가 쓴 글 영역 숨기기
-    likedSection.classList.remove('d-none'); // 공감한 글 영역 보이기
-  }
+  const isMyTab = target === 'my';
+  const isLikedTab = target === 'liked';
+  const isFollowingsTab = target === 'followings';
+
+  tabMy.classList.toggle('active', isMyTab);
+  tabLiked.classList.toggle('active', isLikedTab);
+  tabFollowings.classList.toggle('active', isFollowingsTab);
+
+  mySection.classList.toggle('d-none', !isMyTab);
+  likedSection.classList.toggle('d-none', !isLikedTab);
+  followingsSection.classList.toggle('d-none', !isFollowingsTab);
 }
 
 /* ======================
@@ -261,6 +297,61 @@ function renderPostCard(post, options = {}) {
       }
     </div>
   `;
+}
+
+/**
+ * 팔로잉 목록 카드 렌더링
+ * @param {Object} user - 팔로잉한 사용자 정보
+ * @returns {string}
+ */
+function renderFollowingCard(user) {
+  const displayName = getDisplayName(user);
+  const bioHtml = user.bio
+    ? `<p class="mb-1 text-muted small">${escapeHtml(user.bio)}</p>`
+    : '';
+  const aboutHtml = user.about
+    ? `<p class="mb-1 small" style="white-space: pre-line;">${escapeHtml(
+        user.about
+      )}</p>`
+    : '';
+
+  return `
+    <div class="card mb-3 shadow-sm mypage-following-card" data-user-id="${user.id}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+          <div class="flex-fill">
+            <h6 class="mb-1">${escapeHtml(displayName)}</h6>
+            <p class="mb-1 text-muted small">${escapeHtml(user.email)}</p>
+            ${bioHtml}
+            ${aboutHtml}
+            <p class="mb-0 text-muted small">팔로워 ${user.followerCount || 0}</p>
+          </div>
+          <div class="d-flex flex-column gap-2 align-items-end">
+            <a
+              class="btn btn-outline-primary btn-sm"
+              href="/html/author.html?authorId=${encodeURIComponent(user.id)}"
+            >
+              프로필 보기
+            </a>
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-sm unfollow-btn"
+              data-user-id="${user.id}"
+            >
+              언팔로우
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function getDisplayName(user = {}) {
+  if (user.nickname && user.nickname.trim().length > 0) {
+    return user.nickname;
+  }
+  return user.name || '';
 }
 
 /* ======================
@@ -425,12 +516,135 @@ async function loadLikedPosts() {
           )}`;
         });
       });
-  
+
   } catch (err) {
     console.error(err);
     likedBox.innerHTML =
       '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
   }
+}
+
+/* ======================
+ *  내가 팔로잉하는 사람들 로딩
+ * ====================== */
+
+/**
+ * "팔로잉" 목록 로딩
+ * - GET /api/me/followings 호출
+ * - 목록이 없으면 안내 문구, 있으면 카드 렌더링
+ */
+async function loadMyFollowings() {
+  const followingsBox = document.getElementById('followingsList');
+  if (!followingsBox) return;
+
+  followingsBox.innerHTML =
+    '<p class="text-muted">팔로잉 목록을 불러오는 중입니다...</p>';
+
+  try {
+    const res = await fetch('/api/me/followings');
+
+    if (!res.ok) {
+      followingsBox.innerHTML =
+        '<p class="text-danger">팔로잉 목록을 불러오는 중 오류가 발생했습니다.</p>';
+      return;
+    }
+
+    const data = await res.json();
+    if (!data.ok) {
+      followingsBox.innerHTML = `<p class="text-danger">${
+        data.message || '팔로잉 목록을 불러오지 못했습니다.'
+      }</p>`;
+      return;
+    }
+
+    const followings = data.followings || [];
+    if (!followings.length) {
+      followingsBox.innerHTML =
+        '<p class="text-muted">아직 팔로잉한 사람이 없습니다.</p>';
+      followingsLoaded = true;
+      return;
+    }
+
+    const cardsHtml = followings
+      .map((user) => renderFollowingCard(user))
+      .join('');
+
+    followingsBox.innerHTML = cardsHtml;
+    followingsLoaded = true;
+  } catch (err) {
+    console.error(err);
+    followingsBox.innerHTML =
+      '<p class="text-danger">팔로잉 목록을 불러오는 중 오류가 발생했습니다.</p>';
+  }
+}
+
+/* ======================
+ *  팔로잉 카드 이벤트 (언팔로우)
+ * ====================== */
+
+function setupFollowingListEvents() {
+  const followingsBox = document.getElementById('followingsList');
+  if (!followingsBox) return;
+
+  followingsBox.addEventListener('click', async (e) => {
+    const target = e.target;
+    if (!target.classList.contains('unfollow-btn')) return;
+
+    const userId = target.getAttribute('data-user-id');
+    if (!userId) return;
+
+    if (!confirm('이 사용자를 언팔로우하시겠어요?')) {
+      return;
+    }
+
+    const originalText = target.textContent;
+    target.disabled = true;
+    target.textContent = '처리 중...';
+
+    try {
+      const res = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        alert(data.message || '언팔로우 중 오류가 발생했습니다.');
+        target.disabled = false;
+        target.textContent = originalText;
+        return;
+      }
+
+      const stillFollowing = !!data.following;
+      const followingCountEl = document.getElementById('mypageFollowingCount');
+
+      if (!stillFollowing) {
+        // 팔로우가 해제된 경우 카드 제거
+        const card = target.closest('.mypage-following-card');
+        if (card) {
+          card.remove();
+        }
+
+        // 상단 팔로잉 카운트 갱신
+        if (followingCountEl) {
+          const current = Number(followingCountEl.textContent) || 0;
+          followingCountEl.textContent = Math.max(current - 1, 0);
+        }
+
+        // 카드가 모두 사라졌다면 안내 문구 노출
+        if (!followingsBox.querySelector('.mypage-following-card')) {
+          followingsBox.innerHTML =
+            '<p class="text-muted">아직 팔로잉한 사람이 없습니다.</p>';
+        }
+      } else {
+        // 여전히 팔로잉 상태라면 버튼만 복원
+        target.disabled = false;
+        target.textContent = originalText;
+      }
+    } catch (err) {
+      console.error(err);
+      alert('언팔로우 처리 중 오류가 발생했습니다.');
+      target.disabled = false;
+      target.textContent = originalText;
+    }
+  });
 }
 
 /* ======================

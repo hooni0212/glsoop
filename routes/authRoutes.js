@@ -498,7 +498,9 @@ router.get('/me', authRequired, (req, res) => {
       about,
       email,
       is_admin,
-      is_verified
+      is_verified,
+      (SELECT COUNT(*) FROM follows f1 WHERE f1.followee_id = users.id)   AS follower_count,
+      (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = users.id) AS following_count
     FROM users
     WHERE id = ?
     `,
@@ -527,6 +529,54 @@ router.get('/me', authRequired, (req, res) => {
         email: row.email,
         isAdmin: !!row.is_admin,
         isVerified: !!row.is_verified,
+        followerCount: row.follower_count || 0,
+        followingCount: row.following_count || 0,
+      });
+    }
+  );
+});
+
+// 7-1-1) 내가 팔로잉 중인 사용자 목록 조회
+router.get('/me/followings', authRequired, (req, res) => {
+  const userId = req.user.id;
+
+  db.all(
+    `
+    SELECT
+      u.id,
+      u.name,
+      u.nickname,
+      u.bio,
+      u.about,
+      u.email,
+      (SELECT COUNT(*) FROM follows f2 WHERE f2.followee_id = u.id) AS follower_count
+    FROM follows f
+    INNER JOIN users u ON u.id = f.followee_id
+    WHERE f.follower_id = ?
+    ORDER BY (u.nickname IS NULL OR u.nickname = ''), u.nickname, u.name
+    `,
+    [userId],
+    (err, rows) => {
+      if (err) {
+        console.error(err);
+        return res
+          .status(500)
+          .json({ ok: false, message: '팔로잉 목록을 불러오는 중 오류가 발생했습니다.' });
+      }
+
+      const followings = (rows || []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        nickname: row.nickname,
+        bio: row.bio || null,
+        about: row.about || null,
+        email: row.email,
+        followerCount: row.follower_count || 0,
+      }));
+
+      return res.json({
+        ok: true,
+        followings,
       });
     }
   );
