@@ -1,5 +1,5 @@
 /* 로그인 전용 겨울 무드 레이어 */
-.page-login .auth-hero {
+.page-login .auth-hero { 
   position: relative;
   color: #1e2a33;
 }
@@ -7,6 +7,16 @@
 .page-login .auth-hero > .container {
   position: relative;
   z-index: 2;
+}
+
+.page-login .auth-shell {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.8rem;
+  align-items: stretch;
+  max-width: 1080px;
+  position: relative;
+  z-index: 1;
 }
 
 .page-login .auth-hero::after {
@@ -27,6 +37,55 @@
   color: #2f6c8a;
 }
 
+.page-login .auth-aside {
+  background: linear-gradient(145deg, rgba(47, 108, 138, 0.08), rgba(47, 108, 138, 0.02));
+  border: 1px solid rgba(47, 108, 138, 0.12);
+  border-radius: 18px;
+  padding: 1.5rem 1.6rem;
+  box-shadow: 0 14px 32px rgba(34, 70, 104, 0.12);
+  backdrop-filter: blur(6px);
+}
+
+.page-login .auth-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #2f6c8a;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(47, 108, 138, 0.2);
+  box-shadow: 0 8px 18px rgba(34, 70, 104, 0.12);
+}
+
+.page-login .auth-meta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.page-login .auth-pill {
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(47, 108, 138, 0.14);
+  box-shadow: 0 10px 22px rgba(34, 70, 104, 0.12);
+}
+
+.page-login .auth-pill__label {
+  display: block;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(47, 108, 138, 0.8);
+  margin-bottom: 0.15rem;
+  font-weight: 700;
+}
+
 .page-login .auth-card {
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(47, 108, 138, 0.12);
@@ -36,6 +95,14 @@
   padding: 1.8rem;
   position: relative;
   z-index: 1;
+}
+
+.page-login .auth-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.4rem;
 }
 
 .page-login .auth-card .form-control {
@@ -133,5 +200,16 @@
 @media (max-width: 576px) {
   .page-login .auth-card {
     padding: 1.35rem;
+  }
+
+  .page-login .auth-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (min-width: 768px) {
+  .page-login .auth-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
