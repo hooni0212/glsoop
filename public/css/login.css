@@ -1,7 +1,8 @@
 /* 로그인 전용 겨울 무드 레이어 */
-.page-login .auth-hero { 
+.page-login .auth-hero {
   position: relative;
   color: #1e2a33;
+  padding-bottom: 5rem;
 }
 
 .page-login .auth-hero > .container {
