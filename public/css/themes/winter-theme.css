@@ -40,6 +40,22 @@ body.winter-theme::before {
     radial-gradient(circle at 50% 80%, rgba(255,255,255,0.16) 0, transparent 60%);
 }
 
+/* 2-1. 눈이 잘 보이도록 흐릿한 질감 레이어 추가 */
+body.winter-theme::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.35) 0.6px, transparent 0.6px),
+    radial-gradient(rgba(28, 58, 86, 0.07) 0.8px, transparent 0.8px),
+    radial-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+  background-size: 120px 120px, 90px 90px, 50px 50px;
+  mix-blend-mode: overlay;
+  opacity: 0.55;
+}
+
 /* 3. 네비게이션 & 푸터 겨울 톤 */
 body.winter-theme .custom-navbar,
 body.winter-theme .custom-footer {
