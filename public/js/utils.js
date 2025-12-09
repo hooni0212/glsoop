@@ -194,19 +194,27 @@ function extractFontFromContent(html) {
   }
 
   const str = String(html);
+// 1) <!--FONT:...--> 형태 우선 파싱 (선행 공백 허용)
+const commentMatch = str.match(/^\s*<!--FONT:(serif|sans|hand)-->/);
 
-  // 문자열 맨 앞(선행 공백 포함)에서 <!--FONT:xxx--> 형식 찾기
-  // 저장/전달 과정에서 공백이 삽입되는 경우도 대비해 \s* 허용
-  const m = str.match(/^\s*<!--FONT:(serif|sans|hand)-->/);
-  if (!m) {
-    // 메타 태그가 없으면 원본 그대로 사용하고 fontKey는 null
-    return { cleanHtml: str, fontKey: null };
-  }
+// 2) 숨겨둔 <span class="gls-font-meta" data-font="...">...</span> 백업 메타도 파싱
+//    - 일부 CDN/옵션에서 HTML 주석이 제거될 수 있어 보조 수단으로 사용
+//    - aria-hidden, style 등 추가 속성은 존재할 수도 있으니 data-font만 확실히 체크
+const spanMatch = str.match(
+  /^\s*<span[^>]*class=["']?gls-font-meta[^>]*data-font=["'](serif|sans|hand)["'][^>]*><\/span>/
+);
 
-  // m[0] : 전체 매칭 문자열 ("<!--FONT:serif-->")
-  // m[1] : 그룹 캡처된 fontKey ("serif" 등)
-  const cleanHtml = str.replace(m[0], '').trim();
-  const fontKey = m[1];
+// 우선순위: 주석 메타 > span 메타
+const metaMatch = commentMatch || spanMatch;
+
+if (!metaMatch) {
+  return { cleanHtml : str, fontKey: null};
+}
+
+  // metaMatch[0] : 전체 매칭 문자열 ("<!--FONT:serif-->" 또는 "<span ...>")
+  // metaMatch[1] : 캡처된 fontKey ("serif" 등)
+  const cleanHtml = str.replace(metaMatch[0], '').trim();
+  const fontKey = metaMatch[1];
 
   return { cleanHtml, fontKey };
 }
