@@ -1,0 +1,137 @@
+/* 로그인 전용 겨울 무드 레이어 */
+.page-login .auth-hero {
+  position: relative;
+  color: #1e2a33;
+}
+
+.page-login .auth-hero > .container {
+  position: relative;
+  z-index: 2;
+}
+
+.page-login .auth-hero::after {
+  /* 살짝 흐릿한 빛줄기 */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.35) 0, transparent 35%),
+              radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.22) 0, transparent 40%),
+              linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page-login .auth-eyebrow {
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  color: #2f6c8a;
+}
+
+.page-login .auth-card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(47, 108, 138, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 20px 40px rgba(34, 70, 104, 0.16);
+  backdrop-filter: blur(8px);
+  padding: 1.8rem;
+  position: relative;
+  z-index: 1;
+}
+
+.page-login .auth-card .form-control {
+  border-radius: 12px;
+  border-color: rgba(47, 108, 138, 0.28);
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.page-login .auth-card .form-control:focus {
+  box-shadow: 0 0 0 0.18rem rgba(47, 108, 138, 0.2);
+  border-color: #2f6c8a;
+}
+
+.page-login .auth-card .btn-success {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.page-login .auth-card .btn-success:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(34, 70, 104, 0.24);
+}
+
+/* 눈이 흩날리는 레이어 (CodePen 참고한 박스섀도우 흐름) */
+.page-login .snowfall {
+  position: absolute;
+  inset: -10% -10% -15% -10%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.65;
+  background-repeat: repeat;
+  background-size: 240px 240px;
+  z-index: 0;
+  animation-name: snowFloat;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.page-login .snowfall::after,
+.page-login .snowfall::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+  background-size: inherit;
+  opacity: 0.8;
+}
+
+.page-login .snowfall::before {
+  filter: blur(1px);
+}
+
+.page-login .snowfall-near {
+  background-image: radial-gradient(3px 3px at 20px 30px, rgba(255, 255, 255, 0.9), transparent),
+                    radial-gradient(2px 2px at 140px 120px, rgba(255, 255, 255, 0.85), transparent),
+                    radial-gradient(3px 3px at 220px 210px, rgba(255, 255, 255, 0.95), transparent);
+  animation-duration: 16s;
+}
+
+.page-login .snowfall-near::after {
+  background-image: radial-gradient(3px 3px at 60px 90px, rgba(255, 255, 255, 0.8), transparent),
+                    radial-gradient(2.5px 2.5px at 180px 40px, rgba(255, 255, 255, 0.85), transparent);
+}
+
+.page-login .snowfall-mid {
+  background-image: radial-gradient(2.5px 2.5px at 40px 10px, rgba(255, 255, 255, 0.75), transparent),
+                    radial-gradient(2px 2px at 200px 170px, rgba(255, 255, 255, 0.7), transparent),
+                    radial-gradient(2.5px 2.5px at 120px 230px, rgba(255, 255, 255, 0.7), transparent);
+  animation-duration: 24s;
+  opacity: 0.55;
+}
+
+.page-login .snowfall-mid::after {
+  background-image: radial-gradient(2px 2px at 90px 140px, rgba(255, 255, 255, 0.65), transparent),
+                    radial-gradient(2.5px 2.5px at 210px 80px, rgba(255, 255, 255, 0.65), transparent);
+}
+
+.page-login .snowfall-far {
+  background-image: radial-gradient(1.8px 1.8px at 80px 180px, rgba(255, 255, 255, 0.55), transparent),
+                    radial-gradient(1.6px 1.6px at 190px 60px, rgba(255, 255, 255, 0.5), transparent),
+                    radial-gradient(1.5px 1.5px at 250px 210px, rgba(255, 255, 255, 0.45), transparent);
+  animation-duration: 32s;
+  opacity: 0.45;
+}
+
+.page-login .snowfall-far::after {
+  background-image: radial-gradient(1.6px 1.6px at 30px 200px, rgba(255, 255, 255, 0.5), transparent),
+                    radial-gradient(1.5px 1.5px at 170px 140px, rgba(255, 255, 255, 0.45), transparent);
+}
+
+@keyframes snowFloat {
+  0% { transform: translate3d(0, -6%, 0); }
+  100% { transform: translate3d(8%, 108%, 0); }
+}
+
+@media (max-width: 576px) {
+  .page-login .auth-card {
+    padding: 1.35rem;
+  }
+}
