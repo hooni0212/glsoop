@@ -3,8 +3,8 @@
   position: relative;
   color: #1e2a33;
   /* 푸터가 바로 닿지 않도록 여백을 크게 부여 */
-  padding-bottom: 10rem;
-  min-height: 115vh;
+  padding-bottom: 6.5rem;
+  min-height: 108vh;
 }
 
 .page-login .auth-hero > .container {
