@@ -14,6 +14,7 @@ body.winter-theme {
       #DDE7F3 75%,
       #C7D2E3 100%
     );
+  background-attachment: fixed;
   color: #1E2A33;
   --author-surface: rgba(227, 240, 255, 0.65);
   --author-card-bg: rgba(255, 255, 255, 0.94);
