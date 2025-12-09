@@ -76,6 +76,23 @@ body.autumn-theme .btn-success:hover {
   transform: translateY(-2px);
 }
 
+body.autumn-theme .btn-outline-success {
+  color: #B96A30;
+  border-color: rgba(217, 138, 74, 0.75);
+  background-color: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 8px 18px rgba(140, 74, 47, 0.18);
+}
+
+body.autumn-theme .btn-outline-success:hover,
+body.autumn-theme .btn-outline-success:focus-visible,
+body.autumn-theme .btn-outline-success.active,
+body.autumn-theme .btn-outline-success:active {
+  color: #ffffff;
+  background-color: #D98A4A;
+  border-color: #D98A4A;
+  box-shadow: 0 12px 28px rgba(140, 74, 47, 0.26);
+}
+
 /* =========================
    4. quote-card
 ========================= */

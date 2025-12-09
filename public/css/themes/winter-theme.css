@@ -89,6 +89,35 @@ body.winter-theme .hero-card .hero-cta-btn:focus-visible {
   box-shadow: 0 18px 42px rgba(34, 70, 104, 0.75);
 }
 
+/* 공통 버튼 (success / outline-success) 겨울톤 */
+body.winter-theme .btn-success {
+  background-color: #2F6C8A;
+  border: none;
+  box-shadow: 0 10px 24px rgba(34, 70, 104, 0.55);
+}
+
+body.winter-theme .btn-success:hover {
+  background-color: #275874;
+  transform: translateY(-2px);
+}
+
+body.winter-theme .btn-outline-success {
+  color: #2F6C8A;
+  border-color: rgba(47, 108, 138, 0.75);
+  background-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 18px rgba(34, 70, 104, 0.15);
+}
+
+body.winter-theme .btn-outline-success:hover,
+body.winter-theme .btn-outline-success:focus-visible,
+body.winter-theme .btn-outline-success.active,
+body.winter-theme .btn-outline-success:active {
+  color: #ffffff;
+  background-color: #2F6C8A;
+  border-color: #2F6C8A;
+  box-shadow: 0 12px 28px rgba(34, 70, 104, 0.25);
+}
+
 /* 5. quote-card(인스타 감성 카드) 겨울톤 보정 */
 body.winter-theme .quote-card {
   background-color: #FFFFFF;
