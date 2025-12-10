@@ -6,16 +6,9 @@
 
 /* 1. 전체 배경 & 텍스트 컬러 */
 body.winter-theme {
-  /* 차가운 겨울 하늘 느낌 그라디언트 */
-  background:
-    radial-gradient(circle at top,
-      #F5FBFF 0%,
-      #E3F0FF 40%,
-      #DDE7F3 75%,
-      #C7D2E3 100%
-    );
-  background-attachment: fixed;
   color: #1E2A33;
+
+  /* 글/카드 톤 변수들 그대로 유지 */
   --author-surface: rgba(227, 240, 255, 0.65);
   --author-card-bg: rgba(255, 255, 255, 0.94);
   --author-card-shadow: 0 12px 32px rgba(34, 70, 104, 0.2);
@@ -23,7 +16,50 @@ body.winter-theme {
   --author-text-muted: #4a5b6b;
   --author-divider: rgba(45, 83, 132, 0.18);
   --author-accent: #2f6c8a;
+
+  /* 배경 레이어:
+     1~3: 안개/하이라이트
+     4: 나무 이미지 (가로 타일)
+     5: 맨 아래 큰 하늘 그라디언트 */
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(255,255,255,0.25) 0, transparent 60%),
+    radial-gradient(circle at 80% 15%, rgba(255,255,255,0.18) 0, transparent 55%),
+    radial-gradient(circle at 50% 80%, rgba(255,255,255,0.16) 0, transparent 60%),
+    url('/img/snowingtree.jpg'),
+    radial-gradient(circle at top,
+      #F5FBFF 0%,
+      #E3F0FF 40%,
+      #DDE7F3 75%,
+      #C7D2E3 100%
+    );
+
+  /* 각 레이어 반복 방식 */
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat-x,      /* ⬅️ 나무 이미지는 가로 방향으로만 타일 */
+    no-repeat;
+
+  /* 각 레이어 위치 */
+  background-position:
+    10% 20%,        /* 위쪽 왼쪽 하이라이트 */
+    80% 15%,        /* 위쪽 오른쪽 하이라이트 */
+    50% 80%,        /* 아래쪽 중앙 하이라이트 */
+    bottom center,  /* 나무는 아래쪽에서 시작 */
+    top center;     /* 하늘 그라디언트 */
+
+  /* 각 레이어 크기 */
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto 100vh,      /* 나무 높이 (원하면 50vh~60vh 사이로 조절) */
+    cover;
+
+  background-attachment: fixed; /* 스크롤해도 배경은 고정 */
 }
+
 
 /* base.css에서 body에 깔아둔 배경보다 우선되도록
    (body에 winter-theme가 붙어있으니 이 쪽이 이김) */
