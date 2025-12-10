@@ -65,15 +65,41 @@ body.autumn-theme .hero-subtitle {
 
 body.autumn-theme .hero-cta-btn,
 body.autumn-theme .btn-success {
-  background-color: #D98A4A; /* 단풍 오렌지 */
-  border: none;
-  box-shadow: 0 10px 24px rgba(140, 74, 47, 0.55);
+  color: #B96A30;
+  background-color: transparent;
+  border: 1px solid rgba(217, 138, 74, 0.85);
+  box-shadow: 0 10px 24px rgba(140, 74, 47, 0.25);
 }
 
 body.autumn-theme .hero-cta-btn:hover,
-body.autumn-theme .btn-success:hover {
-  background-color: #C57136;
+body.autumn-theme .hero-cta-btn:focus-visible,
+body.autumn-theme .hero-cta-btn:active,
+body.autumn-theme .btn-success:hover,
+body.autumn-theme .btn-success:focus-visible,
+body.autumn-theme .btn-success.active,
+body.autumn-theme .btn-success:active {
+  color: #ffffff;
+  background-color: #D98A4A;
+  border-color: #D98A4A;
   transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(140, 74, 47, 0.32);
+}
+
+body.autumn-theme .btn-outline-success {
+  color: #B96A30;
+  border-color: rgba(217, 138, 74, 0.75);
+  background-color: transparent;
+  box-shadow: 0 8px 18px rgba(140, 74, 47, 0.16);
+}
+
+body.autumn-theme .btn-outline-success:hover,
+body.autumn-theme .btn-outline-success:focus-visible,
+body.autumn-theme .btn-outline-success.active,
+body.autumn-theme .btn-outline-success:active {
+  color: #ffffff;
+  background-color: #D98A4A;
+  border-color: #D98A4A;
+  box-shadow: 0 12px 28px rgba(140, 74, 47, 0.26);
 }
 
 /* =========================
@@ -98,13 +124,26 @@ body.autumn-theme .gls-author-badge {
 }
 
 body.autumn-theme .gls-tag-btn {
-  background-color: #FCEBD8;
+  background-color: transparent;
   border-color: #E5B38D;
   color: #8C4A2F;
 }
 
 body.autumn-theme .gls-tag-btn:hover {
   background-color: #F6D7B7;
+  color: #6C3824;
+}
+
+/* 선택된 해시태그 칩 (작성/검색 영역) */
+body.autumn-theme .hashtag-chip {
+  background-color: #FCEBD8;
+  color: #8C4A2F;
+  border: 1px solid #E5B38D;
+}
+body.autumn-theme .hashtag-chip .hashtag-chip-remove {
+  color: #8C4A2F;
+}
+body.autumn-theme .hashtag-chip .hashtag-chip-remove:hover {
   color: #6C3824;
 }
 

@@ -14,6 +14,7 @@ body.winter-theme {
       #DDE7F3 75%,
       #C7D2E3 100%
     );
+  background-attachment: fixed;
   color: #1E2A33;
   --author-surface: rgba(227, 240, 255, 0.65);
   --author-card-bg: rgba(255, 255, 255, 0.94);
@@ -38,6 +39,22 @@ body.winter-theme::before {
     radial-gradient(circle at 10% 20%, rgba(255,255,255,0.25) 0, transparent 60%),
     radial-gradient(circle at 80% 15%, rgba(255,255,255,0.18) 0, transparent 55%),
     radial-gradient(circle at 50% 80%, rgba(255,255,255,0.16) 0, transparent 60%);
+}
+
+/* 2-1. 눈이 잘 보이도록 흐릿한 질감 레이어 추가 */
+body.winter-theme::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.35) 0.6px, transparent 0.6px),
+    radial-gradient(rgba(28, 58, 86, 0.07) 0.8px, transparent 0.8px),
+    radial-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+  background-size: 120px 120px, 90px 90px, 50px 50px;
+  mix-blend-mode: overlay;
+  opacity: 0.55;
 }
 
 /* 3. 네비게이션 & 푸터 겨울 톤 */
@@ -65,11 +82,79 @@ body.winter-theme .hero-card {
 body.winter-theme .hero-card .hero-cta-btn {
   background-color: #2F6C8A;
   box-shadow: 0 10px 24px rgba(34, 70, 104, 0.55);
+  color: #ffffff;
+  text-decoration: none;
 }
 body.winter-theme .hero-card .hero-cta-btn:hover,
 body.winter-theme .hero-card .hero-cta-btn:focus-visible {
   background-color: #275874;
   box-shadow: 0 18px 42px rgba(34, 70, 104, 0.75);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+/* 공통 버튼 (success / outline-success) 겨울톤 */
+body.winter-theme .btn-success {
+  color: #2F6C8A;
+  background-color: transparent;
+  border: 1px solid rgba(47, 108, 138, 0.75);
+  box-shadow: 0 10px 24px rgba(34, 70, 104, 0.25);
+}
+
+body.winter-theme .btn-success:hover,
+body.winter-theme .btn-success:focus-visible,
+body.winter-theme .btn-success.active,
+body.winter-theme .btn-success:active {
+  color: #ffffff;
+  background-color: #2F6C8A;
+  border-color: #2F6C8A;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(34, 70, 104, 0.35);
+}
+
+body.winter-theme .btn-outline-success {
+  color: #2F6C8A;
+  border-color: rgba(47, 108, 138, 0.75);
+  background-color: transparent;
+  box-shadow: 0 8px 18px rgba(34, 70, 104, 0.12);
+}
+
+body.winter-theme .btn-outline-success:hover,
+body.winter-theme .btn-outline-success:focus-visible,
+body.winter-theme .btn-outline-success.active,
+body.winter-theme .btn-outline-success:active {
+  color: #ffffff;
+  background-color: #2F6C8A;
+  border-color: #2F6C8A;
+  box-shadow: 0 12px 28px rgba(34, 70, 104, 0.25);
+}
+
+/* 해시태그 칩 겨울톤 */
+body.winter-theme .gls-tag-btn {
+  background-color: transparent;
+  border-color: #C3D7E6;
+  color: #1F4D68;
+  box-shadow: none;
+}
+
+body.winter-theme .gls-tag-btn:hover,
+body.winter-theme .gls-tag-btn:focus-visible {
+  background-color: #E6F0F7;
+  border-color: #B6CCDE;
+  color: #174059;
+}
+
+/* 선택된 해시태그 칩 (작성/검색 영역) */
+body.winter-theme .hashtag-chip {
+  background-color: #E6F0F7;
+  color: #1F4D68;
+  border: 1px solid #C3D7E6;
+}
+body.winter-theme .hashtag-chip .hashtag-chip-remove {
+  color: #3A5870;
+}
+body.winter-theme .hashtag-chip .hashtag-chip-remove:hover {
+  color: #1F4D68;
 }
 
 /* 5. quote-card(인스타 감성 카드) 겨울톤 보정 */

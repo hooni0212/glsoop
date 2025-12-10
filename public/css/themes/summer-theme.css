@@ -70,15 +70,41 @@ body.summer-theme .hero-subtitle {
 
 body.summer-theme .hero-cta-btn,
 body.summer-theme .btn-success {
-  background-color: #00C39A;  /* 청록 메인 */
-  border: none;
-  box-shadow: 0 10px 26px rgba(0, 195, 154, 0.65);
+  color: #009F83;
+  background-color: transparent;
+  border: 1px solid rgba(0, 195, 154, 0.85);
+  box-shadow: 0 10px 26px rgba(0, 195, 154, 0.28);
 }
 
 body.summer-theme .hero-cta-btn:hover,
-body.summer-theme .btn-success:hover {
-  background-color: #00A982;
+body.summer-theme .hero-cta-btn:focus-visible,
+body.summer-theme .hero-cta-btn:active,
+body.summer-theme .btn-success:hover,
+body.summer-theme .btn-success:focus-visible,
+body.summer-theme .btn-success.active,
+body.summer-theme .btn-success:active {
+  color: #ffffff;
+  background-color: #00C39A;
+  border-color: #00C39A;
   transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 195, 154, 0.32);
+}
+
+body.summer-theme .btn-outline-success {
+  color: #009F83;
+  border-color: rgba(0, 195, 154, 0.75);
+  background-color: transparent;
+  box-shadow: 0 8px 18px rgba(0, 169, 255, 0.16);
+}
+
+body.summer-theme .btn-outline-success:hover,
+body.summer-theme .btn-outline-success:focus-visible,
+body.summer-theme .btn-outline-success.active,
+body.summer-theme .btn-outline-success:active {
+  color: #ffffff;
+  background-color: #00C39A;
+  border-color: #00C39A;
+  box-shadow: 0 12px 28px rgba(0, 195, 154, 0.28);
 }
 
 /* =========================
@@ -103,7 +129,7 @@ body.summer-theme .gls-author-badge {
 }
 
 body.summer-theme .gls-tag-btn {
-  background-color: #E5F7FF;
+  background-color: transparent;
   border-color: #9FD9FF;
   color: #007BB8;
 }
@@ -112,6 +138,19 @@ body.summer-theme .gls-tag-btn:hover {
   background-color: #D1F4F1;
   border-color: #61D3C0;
   color: #006280;
+}
+
+/* 선택된 해시태그 칩 (작성/검색 영역) */
+body.summer-theme .hashtag-chip {
+  background-color: #E5F7FF;
+  color: #007BB8;
+  border: 1px solid #9FD9FF;
+}
+body.summer-theme .hashtag-chip .hashtag-chip-remove {
+  color: #2D6F68;
+}
+body.summer-theme .hashtag-chip .hashtag-chip-remove:hover {
+  color: #007BB8;
 }
 
 /* =========================
