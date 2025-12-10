@@ -82,11 +82,15 @@ body.winter-theme .hero-card {
 body.winter-theme .hero-card .hero-cta-btn {
   background-color: #2F6C8A;
   box-shadow: 0 10px 24px rgba(34, 70, 104, 0.55);
+  color: #ffffff;
+  text-decoration: none;
 }
 body.winter-theme .hero-card .hero-cta-btn:hover,
 body.winter-theme .hero-card .hero-cta-btn:focus-visible {
   background-color: #275874;
   box-shadow: 0 18px 42px rgba(34, 70, 104, 0.75);
+  color: #ffffff;
+  text-decoration: none;
 }
 
 /* 공통 버튼 (success / outline-success) 겨울톤 */
