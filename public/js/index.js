@@ -303,7 +303,7 @@ function setupCardInteractions(card, post) {
   }
 
   // 4) 해시태그 칩 클릭 → AND 필터 적용
-  const hashtagChips = card.querySelectorAll('.gls-hashtag-chip');
+  const hashtagChips = card.querySelectorAll('.hashtag-pill, .gls-hashtag-chip');
   hashtagChips.forEach((chip) => {
     const tag = chip.getAttribute('data-tag') || chip.dataset.tag;
     if (!tag) return;
