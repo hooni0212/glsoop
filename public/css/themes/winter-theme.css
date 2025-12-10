@@ -127,15 +127,15 @@ body.winter-theme .btn-outline-success:active {
 
 /* 해시태그 칩 겨울톤 */
 body.winter-theme .gls-tag-btn {
-  background-color: #E6F0F7;
+  background-color: transparent;
   border-color: #C3D7E6;
   color: #1F4D68;
-  box-shadow: 0 4px 10px rgba(34, 70, 104, 0.15);
+  box-shadow: none;
 }
 
 body.winter-theme .gls-tag-btn:hover,
 body.winter-theme .gls-tag-btn:focus-visible {
-  background-color: #D5E6F2;
+  background-color: #E6F0F7;
   border-color: #B6CCDE;
   color: #174059;
 }

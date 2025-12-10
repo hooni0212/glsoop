@@ -127,7 +127,7 @@ body.spring-theme .gls-author-badge {
 }
 
 body.spring-theme .gls-tag-btn {
-  background-color: #FFF3F6;
+  background-color: transparent;
   border-color: #FFC4D6;
   color: #C7527A;
 }

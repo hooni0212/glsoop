@@ -124,7 +124,7 @@ body.autumn-theme .gls-author-badge {
 }
 
 body.autumn-theme .gls-tag-btn {
-  background-color: #FCEBD8;
+  background-color: transparent;
   border-color: #E5B38D;
   color: #8C4A2F;
 }
