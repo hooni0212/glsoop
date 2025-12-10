@@ -205,6 +205,9 @@ function renderPostDetail(container, post) {
     // 글귀 카드 폰트 자동 조절 + (있다면) 공통 상호작용 함수 호출
     enhanceStandardPostCard(card, post);
 
+    // 해시태그 클릭 시 메인 피드에서 해당 태그 검색하도록 연결
+    setupHashtagSearch(card);
+
     // 상세 페이지에서는 내용이 항상 전체 보이도록 강제
     const feedContent = card.querySelector('.feed-post-content');
     if (feedContent) {
@@ -225,6 +228,33 @@ function renderPostDetail(container, post) {
       window.location.href = '/index.html';
     });
   }
+}
+
+/**
+ * 해시태그 버튼을 클릭하면 메인 피드에서 해당 태그로 검색하도록 리다이렉트
+ * - .hashtag-pill, .gls-tag-btn, .gls-hashtag-chip 모두 지원
+ */
+function setupHashtagSearch(scopeEl) {
+  if (!scopeEl) return;
+
+  const tagButtons = scopeEl.querySelectorAll(
+    '.hashtag-pill, .gls-tag-btn, .gls-hashtag-chip'
+  );
+
+  tagButtons.forEach((btn) => {
+    if (btn.dataset.tagNavBound) return;
+
+    const tag = btn.getAttribute('data-tag') || btn.dataset.tag;
+    if (!tag) return;
+
+    btn.dataset.tagNavBound = '1';
+    btn.style.cursor = 'pointer';
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.location.href = `/index.html?tag=${encodeURIComponent(tag)}`;
+    });
+  });
 }
 
 /**
@@ -341,6 +371,9 @@ function renderRelatedPosts(box, posts, currentPostId) {
     if (typeof enhanceStandardPostCard === 'function') {
       enhanceStandardPostCard(card, post);
     }
+
+    // 관련 글 카드 해시태그도 메인 피드 검색으로 연결
+    setupHashtagSearch(card);
 
     // (2) 카드 전체 클릭 → 상세 페이지로 이동
     card.style.cursor = 'pointer';
