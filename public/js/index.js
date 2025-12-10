@@ -508,10 +508,15 @@ function setupCardInteractions(card, post) {
 
     // 태그 뱃지 HTML
     const tagsHtml = currentTags
-      .map(
-        (t) =>
-          `<span class="badge text-bg-success me-1">#${escapeHtml(t)}</span>`
-      )
+      .map((t) => {
+        const safeTag = escapeHtml(t);
+        return `
+          <span class="badge text-bg-success d-inline-flex align-items-center gap-1 me-1" data-tag="${safeTag}">
+            <span>#${safeTag}</span>
+            <button type="button" class="btn-close btn-close-white btn-sm tag-filter-remove" aria-label="${safeTag} 태그 제거" data-tag="${safeTag}"></button>
+          </span>
+        `;
+      })
       .join('');
 
     // 바 전체 HTML
@@ -528,6 +533,15 @@ function setupCardInteractions(card, post) {
     if (clearBtn) {
       clearBtn.addEventListener('click', clearTagFilters);
     }
+
+    // 개별 태그 제거 버튼 이벤트
+    bar.querySelectorAll('.tag-filter-remove').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const tag = btn.dataset.tag;
+        removeTagFilter(tag);
+      });
+    });
   }
 
   /**
@@ -547,6 +561,37 @@ function setupCardInteractions(card, post) {
     }
 
     // 필터 바 갱신(숨기기)
+    renderTagFilterBar();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadMoreFeed();
+  }
+
+  /**
+   * 특정 태그 필터만 해제
+   * - 태그를 목록에서 제거하고 남은 태그 조건으로 다시 로드
+   */
+  function removeTagFilter(tag) {
+    if (!tag) return;
+    if (!currentTags.includes(tag)) return;
+
+    currentTags = currentTags.filter((t) => t !== tag);
+
+    // 남은 태그가 없으면 전체 필터 초기화로 위임
+    if (!currentTags.length) {
+      clearTagFilters();
+      return;
+    }
+
+    feedOffset = 0;
+    feedDone = false;
+
+    const feedBox = document.getElementById('feedPosts');
+    if (feedBox) {
+      feedBox.dataset.initialized = '';
+      const label = currentTags.map((t) => `#${escapeHtml(t)}`).join(', ');
+      feedBox.innerHTML = `<p class="text-muted">${label} 태그를 포함한 글을 불러오는 중입니다...</p>`;
+    }
+
     renderTagFilterBar();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     loadMoreFeed();
