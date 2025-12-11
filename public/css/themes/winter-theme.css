@@ -248,6 +248,18 @@ body.winter-theme .btn-secondary:active {
   border-color: #2f6c8a;
 }
 
+body.winter-theme .btn-ghost {
+  border-color: rgba(207, 217, 228, 0.8);
+  color: #4b5563;
+}
+
+body.winter-theme .btn-ghost:hover,
+body.winter-theme .btn-ghost:focus-visible {
+  background: rgba(227, 240, 255, 0.6);
+  color: #1f3b52;
+  border-color: rgba(189, 205, 219, 0.9);
+}
+
 body.winter-theme .btn-danger {
   color: #c0392b;
   border-color: #c0392b;
@@ -269,6 +281,35 @@ body.winter-theme .post-bookmark-toggle:focus-visible {
 
 body.winter-theme .bookmark-list-item:hover {
   background: rgba(230, 240, 247, 0.9);
+}
+
+body.winter-theme .mypage-tab-bar {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(47, 108, 138, 0.28);
+}
+
+body.winter-theme .mypage-tab {
+  background: rgba(47, 108, 138, 0.08);
+  color: #486276;
+}
+
+body.winter-theme .mypage-tab:hover,
+body.winter-theme .mypage-tab:focus-visible {
+  background: rgba(47, 108, 138, 0.14);
+  color: #1f3b52;
+}
+
+body.winter-theme .mypage-tab.is-active {
+  background: #ffffff;
+  color: #1f3b52;
+  border-color: rgba(47, 108, 138, 0.35);
+  box-shadow: 0 10px 24px rgba(34, 70, 104, 0.14);
+}
+
+body.winter-theme .mypage-tab-panel {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(47, 108, 138, 0.28);
+  box-shadow: 0 16px 34px rgba(34, 70, 104, 0.12);
 }
 
 body.winter-theme .modal-content {

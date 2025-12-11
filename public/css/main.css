@@ -258,6 +258,85 @@ a:hover {
   border-color: #c0392b;
 }
 
+.btn-ghost {
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #d0d5dd;
+  box-shadow: none;
+}
+
+.btn-ghost:hover,
+.btn-ghost:focus-visible {
+  background: rgba(209, 213, 219, 0.35);
+  color: #374151;
+  border-color: #cbd5e1;
+}
+
+/* =========================
+   5-1. 마이페이지 탭 바
+========================= */
+
+.mypage-tab-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.45rem;
+  padding: 0.35rem 0.6rem 0;
+  margin-bottom: -1px;
+  background: rgba(255, 255, 255, 0.72);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  position: relative;
+  z-index: 1;
+}
+
+.mypage-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.15rem;
+  border-radius: 14px 14px 0 0;
+  border: 1px solid transparent;
+  background: rgba(148, 163, 184, 0.12);
+  color: #6b7280;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  position: relative;
+  top: 1px;
+}
+
+.mypage-tab .tab-icon {
+  font-size: 0.95rem;
+}
+
+.mypage-tab:hover,
+.mypage-tab:focus-visible {
+  background: rgba(148, 163, 184, 0.2);
+  color: #475569;
+  transform: translateY(-1px);
+}
+
+.mypage-tab.is-active {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-bottom: none;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  top: 0;
+  z-index: 2;
+}
+
+.mypage-tab-panel {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+  padding: 1.25rem 1.1rem;
+  position: relative;
+  z-index: 0;
+}
+
 
 /* =========================
    6. 카드 / 글 목록 공통
