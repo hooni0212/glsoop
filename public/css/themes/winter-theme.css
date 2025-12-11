@@ -193,6 +193,34 @@ body.winter-theme .hashtag-chip .hashtag-chip-remove:hover {
   color: #1F4D68;
 }
 
+/* 북마크 페이지 & 북마크 버튼 */
+body.winter-theme .bookmark-panel {
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 28px rgba(34, 70, 104, 0.18);
+  border: 1px solid rgba(47, 108, 138, 0.18);
+}
+
+body.winter-theme .post-bookmark-toggle {
+  border-color: rgba(47, 108, 138, 0.35);
+  color: #1f4d68;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+body.winter-theme .post-bookmark-toggle:hover,
+body.winter-theme .post-bookmark-toggle:focus-visible {
+  background: #e6f0f7;
+  color: #174059;
+  border-color: rgba(47, 108, 138, 0.55);
+}
+
+body.winter-theme .bookmark-list-item:hover {
+  background: rgba(230, 240, 247, 0.9);
+}
+
+body.winter-theme .modal-content {
+  background: rgba(255, 255, 255, 0.96);
+}
+
 /* 선택된 해시태그 필터 바 배지 (상단 "적용 중인 태그" 영역) */
 .page-index.winter-theme #tagFilterBar .badge.text-bg-success {
   background-color: #E6F0F7 !important;          /* 부드러운 파스텔 블루 */

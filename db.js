@@ -116,6 +116,43 @@ db.serialize(() => {
       FOREIGN KEY (hashtag_id) REFERENCES hashtags(id) ON DELETE CASCADE
     )
   `);
+
+  // 4-6) 북마크 폴더(리스트)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bookmark_lists (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id     INTEGER NOT NULL,
+      name        TEXT NOT NULL,
+      description TEXT,
+      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, name),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  // 4-7) 북마크 항목 (폴더 안의 글)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bookmark_items (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      list_id     INTEGER NOT NULL,
+      post_id     INTEGER NOT NULL,
+      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(list_id, post_id),
+      FOREIGN KEY (list_id) REFERENCES bookmark_lists(id) ON DELETE CASCADE,
+      FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 인덱스
+  db.run(
+    'CREATE INDEX IF NOT EXISTS idx_bookmark_lists_user ON bookmark_lists(user_id)'
+  );
+  db.run(
+    'CREATE INDEX IF NOT EXISTS idx_bookmark_items_list ON bookmark_items(list_id)'
+  );
+  db.run(
+    'CREATE INDEX IF NOT EXISTS idx_bookmark_items_post ON bookmark_items(post_id)'
+  );
 });
 
 module.exports = db;

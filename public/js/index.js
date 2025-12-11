@@ -469,6 +469,7 @@ function setupCardInteractions(card, post) {
     // 좋아요 버튼 / 해시태그 클릭 시에는 상세 이동 막기
     if (e.target.closest('.like-btn')) return;
     if (e.target.closest('.gls-tag-btn')) return;
+    if (e.target.closest('.post-bookmark-toggle')) return;
   
     // 현재 카드에서 좋아요 상태/개수 읽기
     let likeCount = 0;

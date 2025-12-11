@@ -843,6 +843,44 @@ a:hover {
   margin-top: 12px;
 }
 
+.post-action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  gap: 8px;
+}
+
+.post-bookmark-toggle {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  color: #2f2f2f;
+  border-radius: 8px;
+  padding: 4px 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+}
+
+.post-bookmark-toggle:hover,
+.post-bookmark-toggle:focus-visible {
+  background: #f3f6ff;
+  border-color: rgba(0, 0, 0, 0.14);
+  color: #1d3a5c;
+}
+
+.page-bookmarks .bookmarks-shell {
+  margin-top: 80px;
+}
+
+.bookmark-panel {
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+}
+
+.bookmark-list-item .badge {
+  min-width: 36px;
+}
+
 .post-category-row {
   margin-bottom: 6px;
 }

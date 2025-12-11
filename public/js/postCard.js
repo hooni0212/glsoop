@@ -108,6 +108,15 @@ function buildStandardPostCardHTML(post, options = {}) {
   const hashtagHtml = buildHashtagHtml(post);
   const categoryHtml = renderCategoryBadge(post);
   const { cleanHtml, quoteFontClass } = extractContentWithFont(post);
+  const bookmarkBtn = `
+    <button
+      type="button"
+      class="btn btn-sm post-bookmark-toggle"
+      data-post-id="${post.id}"
+      aria-label="북마크 추가"
+    >
+      📑
+    </button>`;
 
   // 카드에 붙일 추가 클래스
   const extraClass = cardExtraClass ? ` ${cardExtraClass}` : '';
@@ -179,6 +188,7 @@ function buildStandardPostCardHTML(post, options = {}) {
                      : ''
                  }
                  ${hashtagHtml || ''}
+                 <div class="post-action-row">${bookmarkBtn}</div>
                </div>`
             : ''
         }
@@ -361,6 +371,7 @@ function setupCardInteractions(cardEl, post) {
     // 카드 안의 다른 버튼 클릭은 무시
     if (e.target.closest('.like-btn')) return;
     if (e.target.closest('.gls-tag-btn')) return;
+    if (e.target.closest('.post-bookmark-toggle')) return;
     if (e.target.closest('.edit-post-btn')) return;
     if (e.target.closest('.delete-post-btn')) return;
 
