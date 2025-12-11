@@ -95,6 +95,7 @@ try {
 
   // ✅ 폰트 선택 요소 (select)
   const fontSelectEl = document.getElementById('fontSelect');
+  const categorySelectEl = document.getElementById('categorySelect');
 
   // 에디터 상단 에러 영역 (Bootstrap alert 등)
   const editorAlertEl = document.getElementById('editorAlert');
@@ -416,6 +417,10 @@ try {
         applyEditorFont(resolvedFontKey);
         quill.root.innerHTML = cleanHtml || '';
 
+        if (categorySelectEl) {
+          categorySelectEl.value = post.category || 'short';
+        }
+
         // 서버에서 hashtags를 내려줄 경우, 인풋/칩에 반영
         if (hashtagsInput) {
           if (Array.isArray(post.hashtags)) {
@@ -492,6 +497,9 @@ try {
     const title = titleInput.value.trim();         // 제목(텍스트)
     const contentHtml = quill.root.innerHTML.trim(); // 본문(HTML)
     const selectedFontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
+    const selectedCategory = categorySelectEl
+      ? categorySelectEl.value || 'short'
+      : 'short';
     const fontMetaPrefix = `<!--FONT:${selectedFontKey}-->`;
     const contentWithFontMeta = fontMetaPrefix + contentHtml;
     const plainText = quill.getText().trim();      // 본문(plain text)
@@ -540,6 +548,7 @@ try {
           title,
           content: contentWithFontMeta,
           hashtags: hashtagsRaw, // ✅ 서버로 해시태그 문자열 함께 전송
+          category: selectedCategory,
         }),
       });
 

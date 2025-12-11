@@ -135,7 +135,7 @@
               <!-- 상단: 제목 입력 + 폰트 선택 한 줄 정렬(데스크톱 기준) -->
               <div class="row g-3 align-items-end mb-3">
                 <!-- 제목 입력 -->
-                <div class="col-12 col-md-8">
+                <div class="col-12 col-md-6">
                   <label for="postTitle" class="form-label">제목</label>
                   <input
                     type="text"
@@ -146,12 +146,22 @@
                 </div>
 
                 <!-- 폰트 선택 (select) -->
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-3">
                   <label for="fontSelect" class="form-label">폰트</label>
                   <select id="fontSelect" class="form-select form-select-sm">
                     <option value="serif">감성 명조체 (기본)</option>
                     <option value="sans">담백한 고딕체</option>
                     <option value="hand">손글씨 느낌</option>
+                  </select>
+                </div>
+
+                <!-- 카테고리 선택 -->
+                <div class="col-12 col-md-3">
+                  <label for="categorySelect" class="form-label">글 종류</label>
+                  <select id="categorySelect" class="form-select form-select-sm">
+                    <option value="poem">시</option>
+                    <option value="essay">에세이/일기</option>
+                    <option value="short" selected>짧은 구절</option>
                   </select>
                 </div>
               </div>

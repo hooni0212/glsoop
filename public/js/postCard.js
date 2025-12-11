@@ -68,6 +68,22 @@ function extractContentWithFont(post) {
   return { cleanHtml, quoteFontClass };
 }
 
+function getCategoryLabel(category) {
+  if (!category) return '';
+  if (category === 'poem') return '시';
+  if (category === 'essay') return '에세이/일기';
+  if (category === 'short') return '짧은 구절';
+  return '';
+}
+
+function renderCategoryBadge(post) {
+  const label = getCategoryLabel(post?.category);
+  if (!label) return '';
+
+  const cls = `gls-category-badge gls-category-${post.category}`;
+  return `<span class="${cls}">${label}</span>`;
+}
+
 /**
  * ⭐ 공통 카드 HTML 생성 함수
  * - 인덱스 피드 / 관련 글 / 마이페이지 등에서 모두 같은 구조를 쓰기 위해 사용
@@ -106,6 +122,7 @@ function buildStandardPostCardHTML(post, options = {}) {
         <!-- 상단 메타 영역: 작성자 / 날짜 / 공감 버튼 -->
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="d-flex align-items-center gap-3" >
+            ${renderCategoryBadge(post)}
             <span class="badge bg-light text-muted border gls-author-badge">
               ${escapeHtml(author)}
             </span>

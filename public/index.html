@@ -151,6 +151,13 @@
         </div>
       </div>
 
+      <div class="category-filters" role="group" aria-label="카테고리 필터">
+        <button type="button" class="btn btn-outline-secondary active" data-category-filter="all" aria-current="true">전체</button>
+        <button type="button" class="btn btn-outline-secondary" data-category-filter="poem">시</button>
+        <button type="button" class="btn btn-outline-secondary" data-category-filter="essay">에세이/일기</button>
+        <button type="button" class="btn btn-outline-secondary" data-category-filter="short">짧은 구절</button>
+      </div>
+
       <!-- 홈 피드 카드들이 들어갈 영역
            - 기본 상태: "피드를 불러오는 중입니다..." 안내 문구
            - index.js(Glsoop.FeedPage)가 /api/posts/feed를 호출하여

@@ -19,6 +19,7 @@ Glsoop.FeedPage = (function () {
   let feedDone = false;      // 더 이상 가져올 글이 없는지 여부
   let currentSort = 'latest'; // 현재 정렬 옵션 (latest | popular)
   let currentFeedType = 'all'; // 현재 피드 유형 (all | following)
+  let currentCategory = null; // 현재 카테고리 필터 (null | poem | essay | short)
   let feedSession = 0;       // 정렬/필터 전환 시 세션 토큰 (응답 혼선 방지)
 
   // 여러 태그 AND 조건용 필터 목록
@@ -33,15 +34,18 @@ Glsoop.FeedPage = (function () {
     // 2) 피드 탭(최신/인기/팔로잉) 이벤트 등록
     setupFeedTabs();
 
-    // 3) 피드 초기화 (첫 로드 + 스크롤 이벤트 등록)
+    // 3) 카테고리 필터(전체/시/에세이/짧은 구절) 이벤트 등록
+    setupCategoryFilters();
+
+    // 4) 피드 초기화 (첫 로드 + 스크롤 이벤트 등록)
     initFeed();
 
-    // 4) 태그가 이미 붙어 있다면 상단 필터 바 표시
+    // 5) 태그가 이미 붙어 있다면 상단 필터 바 표시
     if (currentTags.length > 0) {
       renderTagFilterBar();
     }
 
-    // 5) 히어로 CTA 잎사귀 애니메이션 세팅
+    // 6) 히어로 CTA 잎사귀 애니메이션 세팅
     setupHeroCtaLeaves();
   }
 
@@ -96,14 +100,55 @@ Glsoop.FeedPage = (function () {
           }
         });
 
-        resetFeedStateForTab(nextSort, nextType);
+        resetFeedState({ sort: nextSort, type: nextType });
       });
     });
   }
 
-  function resetFeedStateForTab(sort, type) {
+  function setupCategoryFilters() {
+    const categoryButtons = document.querySelectorAll('[data-category-filter]');
+    if (!categoryButtons.length) return;
+
+    const activeBtn =
+      document.querySelector('[data-category-filter].active') || categoryButtons[0];
+    if (activeBtn) {
+      currentCategory = normalizeCategoryValue(activeBtn.dataset.categoryFilter);
+    }
+
+    categoryButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const nextCategory = normalizeCategoryValue(btn.dataset.categoryFilter);
+        if (nextCategory === currentCategory) return;
+
+        categoryButtons.forEach((b) => {
+          const isActive = b === btn;
+          b.classList.toggle('active', isActive);
+          if (isActive) {
+            b.setAttribute('aria-current', 'true');
+          } else {
+            b.removeAttribute('aria-current');
+          }
+        });
+
+        resetFeedState({ category: nextCategory });
+      });
+    });
+  }
+
+  function normalizeCategoryValue(raw) {
+    if (!raw || raw === 'all') return null;
+    if (raw === 'poem' || raw === 'essay' || raw === 'short') return raw;
+    return null;
+  }
+
+  function resetFeedState({
+    sort = currentSort,
+    type = currentFeedType,
+    category = currentCategory,
+  } = {}) {
     currentSort = sort;
     currentFeedType = type;
+    currentCategory = category;
     feedSession += 1;
     feedOffset = 0;
     feedDone = false;
@@ -135,7 +180,11 @@ Glsoop.FeedPage = (function () {
       return;
     }
 
-    resetFeedStateForTab(currentSort, currentFeedType);
+    resetFeedState({
+      sort: currentSort,
+      type: currentFeedType,
+      category: currentCategory,
+    });
 
     // 스크롤 끝 근처에서 추가 로드하도록 이벤트 등록
     window.addEventListener('scroll', handleFeedScroll);
@@ -168,7 +217,7 @@ Glsoop.FeedPage = (function () {
   // === 서버에서 글 목록 추가 로드 ===
   /**
    * /api/posts에서 글 목록 추가로 가져오기
-   * - offset, limit, sort, type, tags를 쿼리로 전달
+   * - offset, limit, sort, type, category, tags를 쿼리로 전달
    * - 첫 페이지에서 글이 없거나 에러가 나면 안내 문구 표시
    */
   async function loadMoreFeed() {
@@ -180,6 +229,7 @@ Glsoop.FeedPage = (function () {
     const sessionKey = feedSession;
     const requestSort = currentSort;
     const requestType = currentFeedType;
+    const requestCategory = currentCategory;
     const requestTags = [...currentTags];
     const requestOffset = feedOffset;
 
@@ -192,6 +242,10 @@ Glsoop.FeedPage = (function () {
 
       if (requestType === 'following') {
         params.set('type', 'following');
+      }
+
+      if (requestCategory) {
+        params.set('category', requestCategory);
       }
 
       // 현재 태그 필터가 있으면 함께 보내기 (?tags=a,b,c)
@@ -435,7 +489,8 @@ function setupCardInteractions(card, post) {
         content: post.content,
         created_at: post.created_at,
         hashtags: post.hashtags,
-  
+        category: post.category || null,
+
         // 작가 정보
         author_id: post.author_id || null,
         author_name: post.author_name || null,

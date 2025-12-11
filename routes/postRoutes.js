@@ -27,12 +27,24 @@ const { JWT_SECRET } = require('../config');
 const { authRequired } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 
+const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
+
+function normalizeCategory(input, { fallback = 'short', allowNull = false } = {}) {
+  const value = typeof input === 'string' ? input.trim() : '';
+  if (ALLOWED_CATEGORIES.includes(value)) {
+    return value;
+  }
+
+  return allowNull ? null : fallback;
+}
+
 const router = express.Router();
 
 // 9-1) 글 작성
 router.post('/posts', authRequired, (req, res) => {
-  const { title, content, hashtags } = req.body;
+  const { title, content, hashtags, category } = req.body;
   const userId = req.user.id;
+  const normalizedCategory = normalizeCategory(category);
 
   if (!title || !content) {
     return res
@@ -42,8 +54,8 @@ router.post('/posts', authRequired, (req, res) => {
 
   // 본문 저장 후 해시태그를 별도 테이블에 기록
   db.run(
-    'INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)',
-    [userId, title, content],
+    'INSERT INTO posts (user_id, title, content, category) VALUES (?, ?, ?, ?)',
+    [userId, title, content, normalizedCategory],
     function (err) {
       if (err) {
         console.error(err);
@@ -78,9 +90,10 @@ router.post('/posts', authRequired, (req, res) => {
 // 9-2) 글 수정
 router.put('/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
-  const { title, content, hashtags } = req.body;
+  const { title, content, hashtags, category } = req.body;
   const userId = req.user.id;
   const isAdmin = !!req.user.isAdmin;
+  const normalizedCategory = normalizeCategory(category);
 
   if (!title || !content) {
     return res
@@ -111,8 +124,8 @@ router.put('/posts/:id', authRequired, (req, res) => {
 
     // 본문 갱신 후 해시태그 매핑을 재작성
     db.run(
-      'UPDATE posts SET title = ?, content = ? WHERE id = ?',
-      [title, content, postId],
+      'UPDATE posts SET title = ?, content = ?, category = ? WHERE id = ?',
+      [title, content, normalizedCategory, postId],
       function (err2) {
         if (err2) {
           console.error(err2);
@@ -151,6 +164,7 @@ router.get('/posts/my', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
+      p.category AS category,
       p.created_at,
       p.user_id                AS author_id,
       u.name                   AS author_name,
@@ -202,6 +216,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
+      p.category AS category,
       p.created_at,
       p.user_id                AS author_id,
       u.name                   AS author_name,
@@ -267,6 +282,9 @@ function handleFeedRequest(req, res) {
   const typeParam = String(req.query.type || 'all');
   const feedType = typeParam === 'following' ? 'following' : 'all';
 
+  const categoryParam = String(req.query.category || '').trim();
+  const category = normalizeCategory(categoryParam, { allowNull: true });
+
   // 쿼리 파라미터로 전달된 태그 목록 정리
   let tags = [];
   if (req.query.tags) {
@@ -291,6 +309,7 @@ function handleFeedRequest(req, res) {
         sort,
         followingCount: 0,
         tags,
+        category: category || null,
       },
     });
   }
@@ -304,6 +323,7 @@ function handleFeedRequest(req, res) {
         p.title,
         p.content,
         p.created_at,
+        p.category AS category,
         u.id       AS author_id,
         u.name     AS author_name,
         u.nickname AS author_nickname,
@@ -347,9 +367,14 @@ function handleFeedRequest(req, res) {
 
     if (feedType === 'following') {
       conditions.push(
-        'p.user_id IN (SELECT followee_id FROM follows WHERE follower_id = ?)' 
+        'p.user_id IN (SELECT followee_id FROM follows WHERE follower_id = ?)'
       );
       params.push(userId);
+    }
+
+    if (category) {
+      conditions.push('p.category = ?');
+      params.push(category);
     }
 
     const whereClause = conditions.length
@@ -390,6 +415,7 @@ function handleFeedRequest(req, res) {
           sort,
           followingCount,
           tags,
+          category: category || null,
         },
       });
     });
@@ -489,6 +515,7 @@ router.get('/posts/:id/related', (req, res) => {
           p.id,
           p.title,
           p.content,
+          p.category AS category,
           p.created_at,
           u.id       AS author_id,
           u.name     AS author_name,
@@ -598,6 +625,7 @@ router.get('/posts/:id', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
+      p.category AS category,
       p.created_at,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
     FROM posts p
@@ -631,6 +659,7 @@ router.get('/posts/:id', authRequired, (req, res) => {
           id: row.id,
           title: row.title,
           content: row.content,
+          category: row.category,
           created_at: row.created_at,
           hashtags: tags,
         },
@@ -799,6 +828,7 @@ router.get('/posts/:id/detail', (req, res) => {
       p.id,
       p.title,
       p.content,
+      p.category AS category,
       p.created_at,
       u.id       AS author_id,
       u.name     AS author_name,
@@ -869,6 +899,7 @@ router.get('/posts/:id/detail', (req, res) => {
         id: row.id,
         title: row.title,
         content: row.content,
+        category: row.category,
         created_at: row.created_at,
         author_id: row.author_id,
         author_name: row.author_name,

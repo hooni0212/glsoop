@@ -33,10 +33,43 @@ db.serialize(() => {
       user_id    INTEGER NOT NULL,
       title      TEXT NOT NULL,
       content    TEXT NOT NULL,
+      category   TEXT DEFAULT 'short',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
+
+  // 게시글 카테고리(시/에세이/짧은 구절) 컬럼이 없으면 추가
+  db.all('PRAGMA table_info(posts)', (err, columns) => {
+    if (err) {
+      console.error('posts 테이블 스키마 조회 실패:', err);
+      return;
+    }
+
+    const hasCategory = Array.isArray(columns)
+      ? columns.some((col) => col.name === 'category')
+      : false;
+
+    if (!hasCategory) {
+      db.run(
+        "ALTER TABLE posts ADD COLUMN category TEXT DEFAULT 'short'",
+        (alterErr) => {
+          if (alterErr) {
+            console.error('posts.category 컬럼 추가 실패:', alterErr);
+          } else {
+            db.run(
+              "UPDATE posts SET category = 'short' WHERE category IS NULL OR category = ''",
+              (updateErr) => {
+                if (updateErr) {
+                  console.error('기존 posts.category 기본값 설정 실패:', updateErr);
+                }
+              }
+            );
+          }
+        }
+      );
+    }
+  });
 
   // 4-3) 좋아요 테이블
   // - 복합 PK(user_id, post_id)로 중복 좋아요 방지
