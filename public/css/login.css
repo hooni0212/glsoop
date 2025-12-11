@@ -1,3 +1,10 @@
+/* =============================================================
+   로그인/회원가입 계열 공통 스타일 (public/css/login.css)
+   - page-login(page-reset/page-forgot 등) 테마 레이아웃을 제어
+   - hero 배경, 2단 카드 배치, 계정 폼 강조 색상을 여기서 관리
+   - 관련 페이지: html/login.html, html/signup.html, html/forgot-password.html, html/reset-password.html
+   ============================================================= */
+
 /* 로그인 전용 겨울 무드 레이어 */
 .page-login .auth-hero {
   position: relative;
