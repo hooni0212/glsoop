@@ -346,13 +346,14 @@ body.winter-theme .post-category-label {
 }
 
 body.winter-theme .gls-save-btn {
+  background: #ffffff;
   color: #2f6c8a;
   border-color: #2f6c8a;
 }
 
 body.winter-theme .gls-save-btn:hover,
 body.winter-theme .gls-save-btn:focus-visible {
-  background: rgba(47, 108, 138, 0.12);
+  background: rgba(255, 255, 255, 0.92);
   color: #225066;
   border-color: #2f6c8a;
 }
