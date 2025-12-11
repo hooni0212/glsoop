@@ -193,6 +193,129 @@ body.winter-theme .hashtag-chip .hashtag-chip-remove:hover {
   color: #1F4D68;
 }
 
+/* 북마크 페이지 & 북마크 버튼 */
+body.winter-theme .bookmark-panel {
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 28px rgba(34, 70, 104, 0.18);
+  border: 1px solid rgba(47, 108, 138, 0.18);
+}
+
+body.winter-theme .bookmark-folder-item.is-active {
+  border-color: #2f6c8a;
+  background: linear-gradient(135deg, rgba(47, 108, 138, 0.12), #ffffff);
+  box-shadow: 0 14px 30px rgba(34, 70, 104, 0.18);
+}
+
+body.winter-theme .bookmark-folder-item.is-active::before {
+  background: #2f6c8a;
+}
+
+body.winter-theme .bookmark-empty-state {
+  background: rgba(230, 240, 247, 0.75);
+  border-color: rgba(47, 108, 138, 0.25);
+  color: #3a5870;
+}
+
+body.winter-theme .btn-primary {
+  background: #2f6c8a;
+  border-color: #2f6c8a;
+  box-shadow: 0 12px 26px rgba(47, 108, 138, 0.26);
+}
+
+body.winter-theme .btn-primary:hover,
+body.winter-theme .btn-primary:focus-visible {
+  filter: brightness(0.92);
+  background: #2f6c8a;
+  border-color: #2f6c8a;
+}
+
+body.winter-theme .btn-secondary {
+  color: #2f6c8a;
+  border-color: #2f6c8a;
+  box-shadow: 0 10px 22px rgba(47, 108, 138, 0.18);
+}
+
+body.winter-theme .btn-secondary:hover,
+body.winter-theme .btn-secondary:focus-visible {
+  background: rgba(47, 108, 138, 0.08);
+  color: #2f6c8a;
+}
+
+body.winter-theme .btn-secondary.active,
+body.winter-theme .btn-secondary:active {
+  background: #2f6c8a;
+  color: #ffffff;
+  border-color: #2f6c8a;
+}
+
+body.winter-theme .btn-ghost {
+  border-color: rgba(207, 217, 228, 0.8);
+  color: #4b5563;
+}
+
+body.winter-theme .btn-ghost:hover,
+body.winter-theme .btn-ghost:focus-visible {
+  background: rgba(227, 240, 255, 0.6);
+  color: #1f3b52;
+  border-color: rgba(189, 205, 219, 0.9);
+}
+
+body.winter-theme .btn-danger {
+  color: #c0392b;
+  border-color: #c0392b;
+  box-shadow: 0 10px 22px rgba(192, 57, 43, 0.18);
+}
+
+body.winter-theme .post-bookmark-toggle {
+  border-color: rgba(47, 108, 138, 0.35);
+  color: #1f4d68;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+body.winter-theme .post-bookmark-toggle:hover,
+body.winter-theme .post-bookmark-toggle:focus-visible {
+  background: #e6f0f7;
+  color: #174059;
+  border-color: rgba(47, 108, 138, 0.55);
+}
+
+body.winter-theme .bookmark-list-item:hover {
+  background: rgba(230, 240, 247, 0.9);
+}
+
+body.winter-theme .mypage-tab-bar {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(47, 108, 138, 0.28);
+}
+
+body.winter-theme .mypage-tab {
+  background: rgba(47, 108, 138, 0.08);
+  color: #486276;
+}
+
+body.winter-theme .mypage-tab:hover,
+body.winter-theme .mypage-tab:focus-visible {
+  background: rgba(47, 108, 138, 0.14);
+  color: #1f3b52;
+}
+
+body.winter-theme .mypage-tab.is-active {
+  background: #ffffff;
+  color: #1f3b52;
+  border-color: rgba(47, 108, 138, 0.35);
+  box-shadow: 0 10px 24px rgba(34, 70, 104, 0.14);
+}
+
+body.winter-theme .mypage-tab-panel {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(47, 108, 138, 0.28);
+  box-shadow: 0 16px 34px rgba(34, 70, 104, 0.12);
+}
+
+body.winter-theme .modal-content {
+  background: rgba(255, 255, 255, 0.96);
+}
+
 /* 선택된 해시태그 필터 바 배지 (상단 "적용 중인 태그" 영역) */
 .page-index.winter-theme #tagFilterBar .badge.text-bg-success {
   background-color: #E6F0F7 !important;          /* 부드러운 파스텔 블루 */
@@ -317,4 +440,43 @@ body.winter-theme .card {
     width: 2px;
     height: 2px;
   }
+}
+
+/* 피드 탭 & 저장 버튼 테마 매핑 */
+body.winter-theme .feed-tabs .feed-tab {
+  color: #2f6c8a;
+  border-color: rgba(47, 108, 138, 0.25);
+  background: rgba(47, 108, 138, 0.08);
+}
+
+body.winter-theme .feed-tabs .feed-tab.feed-tab-active,
+body.winter-theme .feed-tabs .feed-tab.active {
+  background: #2f6c8a;
+  border-color: #2f6c8a;
+  color: #fff;
+}
+
+body.winter-theme .nav-category-item:hover,
+body.winter-theme .nav-category-item:focus-visible {
+  background: rgba(47, 108, 138, 0.14);
+  color: #225066;
+}
+
+body.winter-theme .post-category-label {
+  background: rgba(47, 108, 138, 0.08);
+  border-color: rgba(47, 108, 138, 0.26);
+  color: #225066;
+}
+
+body.winter-theme .gls-save-btn {
+  background: #ffffff;
+  color: #2f6c8a;
+  border-color: #2f6c8a;
+}
+
+body.winter-theme .gls-save-btn:hover,
+body.winter-theme .gls-save-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.92);
+  color: #225066;
+  border-color: #2f6c8a;
 }

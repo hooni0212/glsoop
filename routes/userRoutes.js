@@ -9,6 +9,59 @@ const { authRequired, adminRequired } = require('../middleware/auth');
 
 const router = express.Router();
 
+function applyFollowState(targetUserId, viewerId, shouldFollow, callback) {
+  db.get(
+    `SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?`,
+    [viewerId, targetUserId],
+    (err, exists) => {
+      if (err) return callback(err);
+
+      const finalize = () => {
+        db.get(
+          `SELECT COUNT(*) AS follower_count FROM follows WHERE followee_id = ?`,
+          [targetUserId],
+          (err2, countRow) => {
+            if (err2) return callback(err2);
+            callback(null, {
+              following: shouldFollow,
+              followerCount: countRow?.follower_count || 0,
+            });
+          }
+        );
+      };
+
+      if (shouldFollow) {
+        if (exists) return finalize();
+
+        db.run(
+          `INSERT INTO follows (follower_id, followee_id) VALUES (?, ?)`,
+          [viewerId, targetUserId],
+          (err3) => {
+            if (err3 && err3.code === 'SQLITE_CONSTRAINT') {
+              return finalize();
+            }
+
+            if (err3) return callback(err3);
+
+            finalize();
+          }
+        );
+      } else {
+        if (!exists) return finalize();
+
+        db.run(
+          `DELETE FROM follows WHERE follower_id = ? AND followee_id = ?`,
+          [viewerId, targetUserId],
+          (err4) => {
+            if (err4) return callback(err4);
+            finalize();
+          }
+        );
+      }
+    }
+  );
+}
+
 // 8-1) 작가 공개 프로필 조회
 router.get('/users/:id/profile', (req, res) => {
   const authorId = req.params.id;
@@ -183,65 +236,111 @@ router.post('/users/:id/follow', authRequired, (req, res) => {
             });
           }
 
-          const handleResult = () => {
-            db.get(
-              `SELECT COUNT(*) AS follower_count FROM follows WHERE followee_id = ?`,
-              [targetUserId],
-              (err3, countRow) => {
-                if (err3) {
-                  console.error(err3);
-                  return res.status(500).json({
-                    ok: false,
-                    message: '팔로워 수 갱신 중 DB 오류가 발생했습니다.',
-                  });
-                }
+          applyFollowState(targetUserId, viewerId, !exists, (toggleErr, result) => {
+            if (toggleErr) {
+              console.error(toggleErr);
+              return res.status(500).json({
+                ok: false,
+                message: '팔로우 처리 중 오류가 발생했습니다.',
+              });
+            }
 
-                return res.json({
-                  ok: true,
-                  following: !exists,
-                  followerCount: countRow?.follower_count || 0,
-                });
-              }
-            );
-          };
-
-          if (exists) {
-            db.run(
-              `DELETE FROM follows WHERE follower_id = ? AND followee_id = ?`,
-              [viewerId, targetUserId],
-              (err4) => {
-                if (err4) {
-                  console.error(err4);
-                  return res.status(500).json({
-                    ok: false,
-                    message: '언팔로우 처리 중 DB 오류가 발생했습니다.',
-                  });
-                }
-
-                handleResult();
-              }
-            );
-          } else {
-            db.run(
-              `INSERT INTO follows (follower_id, followee_id) VALUES (?, ?)`,
-              [viewerId, targetUserId],
-              (err5) => {
-                if (err5) {
-                  console.error(err5);
-                  return res.status(500).json({
-                    ok: false,
-                    message: '팔로우 처리 중 DB 오류가 발생했습니다.',
-                  });
-                }
-
-                handleResult();
-              }
-            );
-          }
+            return res.json({
+              ok: true,
+              following: result.following,
+              followerCount: result.followerCount,
+            });
+          });
         }
       );
     }
   );
+});
+
+router.post('/follow/:userId', authRequired, (req, res) => {
+  const targetUserId = parseInt(req.params.userId, 10);
+  const viewerId = req.user.id;
+
+  if (Number.isNaN(targetUserId)) {
+    return res.status(400).json({ ok: false, message: '잘못된 요청입니다.' });
+  }
+
+  if (targetUserId === viewerId) {
+    return res
+      .status(400)
+      .json({ ok: false, message: '자기 자신을 팔로우할 수 없습니다.' });
+  }
+
+  db.get('SELECT id FROM users WHERE id = ?', [targetUserId], (err, userRow) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({
+        ok: false,
+        message: '사용자 조회 중 오류가 발생했습니다.',
+      });
+    }
+
+    if (!userRow) {
+      return res
+        .status(404)
+        .json({ ok: false, message: '해당 사용자를 찾을 수 없습니다.' });
+    }
+
+    applyFollowState(targetUserId, viewerId, true, (stateErr, result) => {
+      if (stateErr) {
+        console.error(stateErr);
+        return res.status(500).json({
+          ok: false,
+          message: '팔로우 처리 중 오류가 발생했습니다.',
+        });
+      }
+
+      return res.json({ ok: true, ...result });
+    });
+  });
+});
+
+router.delete('/follow/:userId', authRequired, (req, res) => {
+  const targetUserId = parseInt(req.params.userId, 10);
+  const viewerId = req.user.id;
+
+  if (Number.isNaN(targetUserId)) {
+    return res.status(400).json({ ok: false, message: '잘못된 요청입니다.' });
+  }
+
+  if (targetUserId === viewerId) {
+    return res
+      .status(400)
+      .json({ ok: false, message: '자기 자신을 팔로우할 수 없습니다.' });
+  }
+
+  db.get('SELECT id FROM users WHERE id = ?', [targetUserId], (err, userRow) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({
+        ok: false,
+        message: '사용자 조회 중 오류가 발생했습니다.',
+      });
+    }
+
+    if (!userRow) {
+      return res
+        .status(404)
+        .json({ ok: false, message: '해당 사용자를 찾을 수 없습니다.' });
+    }
+
+    applyFollowState(targetUserId, viewerId, false, (stateErr, result) => {
+      if (stateErr) {
+        console.error(stateErr);
+        return res.status(500).json({
+          ok: false,
+          message: '언팔로우 처리 중 오류가 발생했습니다.',
+        });
+      }
+
+      return res.json({ ok: true, ...result });
+    });
+  });
 });
 
 // 8-2) 특정 작가의 글 목록 (무한스크롤용)

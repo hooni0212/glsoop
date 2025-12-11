@@ -60,6 +60,27 @@
 
       <!-- 네비게이션 메뉴 영역 -->
       <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-lg-3 category-dropdown-nav">
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle"
+              href="#"
+              id="categoryDropdown"
+              role="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              카테고리
+            </a>
+            <ul class="dropdown-menu nav-category-menu" aria-labelledby="categoryDropdown">
+              <li><a class="dropdown-item nav-category-item" href="/index.html">전체</a></li>
+              <li><a class="dropdown-item nav-category-item" href="/html/category.html?category=poem">시</a></li>
+              <li><a class="dropdown-item nav-category-item" href="/html/category.html?category=essay">에세이/일기</a></li>
+              <li><a class="dropdown-item nav-category-item" href="/html/category.html?category=short">짧은 구절</a></li>
+            </ul>
+          </li>
+        </ul>
+
         <!-- 로그인 전: 로그인/회원가입만 보이는 영역 -->
         <ul class="navbar-nav ms-auto before-login">
           <li class="nav-item">
@@ -118,35 +139,30 @@
         <h4 class="mb-0">내 글 관리</h4>
       </div>
 
-      <!-- 탭 버튼: "내가 쓴 글" / "내가 공감한 글" -->
-      <!-- mypage.js → setupMyPageTabs() 에서 클릭 이벤트로 탭 전환 -->
-      <div class="btn-group mb-3" role="group" aria-label="마이페이지 글 탭">
-        <button
-          type="button"
-          class="btn btn-outline-success active"
-          id="tabMyPosts"
-        >
-          내가 쓴 글
+      <!-- 크롬 스타일 탭 바: 내가 쓴 글 / 공감한 글 / 팔로잉 / 북마크 -->
+      <!-- bookmark 탭은 별도 페이지로 이동 (bookmarks.html) -->
+      <div class="mypage-tab-bar" role="tablist">
+        <button type="button" class="mypage-tab is-active" id="tabMyPosts">
+          <span class="tab-icon" aria-hidden="true">✏️</span>
+          <span>내가 쓴 글</span>
         </button>
-        <button
-          type="button"
-          class="btn btn-outline-success"
-          id="tabLikedPosts"
-        >
-          내가 공감한 글
+        <button type="button" class="mypage-tab" id="tabLikedPosts">
+          <span class="tab-icon" aria-hidden="true">❤️</span>
+          <span>내가 공감한 글</span>
         </button>
-        <button
-          type="button"
-          class="btn btn-outline-success"
-          id="tabFollowings"
-        >
-          내가 팔로잉
+        <button type="button" class="mypage-tab" id="tabFollowings">
+          <span class="tab-icon" aria-hidden="true">👀</span>
+          <span>내가 팔로잉</span>
         </button>
+        <a class="mypage-tab" id="tabBookmarks" href="/html/bookmarks.html">
+          <span class="tab-icon" aria-hidden="true">🔖</span>
+          <span>북마크</span>
+        </a>
       </div>
 
       <!-- 내가 쓴 글 섹션 -->
       <!-- mypage.js → loadMyPosts() 결과가 #myPosts 안에 렌더링 -->
-      <div id="myPostsSection">
+      <div id="myPostsSection" class="mypage-tab-panel">
         <div id="myPosts">
           <p class="text-muted">글 목록을 불러오는 중입니다...</p>
         </div>
@@ -154,14 +170,14 @@
 
       <!-- 내가 공감한 글 섹션 (초기에는 d-none으로 숨김) -->
       <!-- mypage.js → loadLikedPosts() 결과가 #likedPosts 안에 렌더링 -->
-      <div id="likedPostsSection" class="d-none">
+      <div id="likedPostsSection" class="d-none mypage-tab-panel">
         <div id="likedPosts">
           <p class="text-muted">공감한 글을 불러오는 중입니다...</p>
         </div>
       </div>
 
       <!-- 내가 팔로잉하는 사람들 섹션 (초기에는 d-none) -->
-      <div id="followingsSection" class="d-none">
+      <div id="followingsSection" class="d-none mypage-tab-panel">
         <div id="followingsList">
           <p class="text-muted">팔로잉 목록을 불러오는 중입니다...</p>
         </div>

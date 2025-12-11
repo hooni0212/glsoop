@@ -67,6 +67,33 @@
 
       <!-- 실제 네비게이션 메뉴 영역 -->
       <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-lg-3 category-dropdown-nav">
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle"
+              href="#"
+              id="categoryDropdown"
+              role="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              카테고리
+            </a>
+            <ul class="dropdown-menu nav-category-menu" aria-labelledby="categoryDropdown">
+              <li><a class="dropdown-item nav-category-item" href="/index.html">전체</a></li>
+              <li>
+                <a class="dropdown-item nav-category-item" href="/html/category.html?category=poem">시</a>
+              </li>
+              <li>
+                <a class="dropdown-item nav-category-item" href="/html/category.html?category=essay">에세이/일기</a>
+              </li>
+              <li>
+                <a class="dropdown-item nav-category-item" href="/html/category.html?category=short">짧은 구절</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+
         <!-- 로그인 전: 로그인 / 회원가입 메뉴 -->
         <ul class="navbar-nav ms-auto before-login">
           <li class="nav-item">
@@ -135,7 +162,7 @@
               <!-- 상단: 제목 입력 + 폰트 선택 한 줄 정렬(데스크톱 기준) -->
               <div class="row g-3 align-items-end mb-3">
                 <!-- 제목 입력 -->
-                <div class="col-12 col-md-8">
+                <div class="col-12 col-md-6">
                   <label for="postTitle" class="form-label">제목</label>
                   <input
                     type="text"
@@ -146,12 +173,23 @@
                 </div>
 
                 <!-- 폰트 선택 (select) -->
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-3">
                   <label for="fontSelect" class="form-label">폰트</label>
                   <select id="fontSelect" class="form-select form-select-sm">
                     <option value="serif">감성 명조체 (기본)</option>
                     <option value="sans">담백한 고딕체</option>
                     <option value="hand">손글씨 느낌</option>
+                  </select>
+                </div>
+
+                <!-- 카테고리 선택 -->
+                <div class="col-12 col-md-3">
+                  <label for="categorySelect" class="form-label">글 종류</label>
+                  <select id="categorySelect" class="form-select form-select-sm" required>
+                    <option value="" selected disabled>카테고리 선택</option>
+                    <option value="poem">시</option>
+                    <option value="essay">에세이/일기</option>
+                    <option value="short">짧은 구절</option>
                   </select>
                 </div>
               </div>
@@ -168,18 +206,27 @@
                 </div>
               </div>
 
-              <!-- 해시태그 입력 영역 -->
+              <!-- 해시태그 입력 영역 + 저장 버튼 한 줄 배치 -->
               <div class="mb-1">
-                <label for="postHashtags" class="form-label">해시태그</label>
-                <input
-                  type="text"
-                  id="postHashtags"
-                  class="form-control"
-                  placeholder="#힐링 #일상 처럼 써 주세요 (쉼표나 띄어쓰기로 구분)"
-                />
-                <!-- 사용 예시 안내 -->
-                <div class="form-text">
-                  예) <code>#힐링 #밤산책 #공부기록</code> — <code>#</code>은 써도 되고 안 써도 괜찮아요.
+                <div class="row g-2 align-items-end hashtag-save-row">
+                  <div class="col-12 col-md-9 col-lg-8">
+                    <label for="postHashtags" class="form-label">해시태그</label>
+                    <input
+                      type="text"
+                      id="postHashtags"
+                      class="form-control"
+                      placeholder="#태그 입력 후 Enter로 추가"
+                    />
+                    <!-- 사용 예시 안내 -->
+                    <div class="form-text">
+                      예) <code>#힐링 #밤산책 #공부기록</code> — 앞에 <code>#</code>를 붙이고 Enter를 눌러 해시태그를 추가하세요.
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-3 col-lg-4 d-flex justify-content-md-end">
+                    <button id="saveBtn" class="btn gls-save-btn px-4 mt-2 mt-md-4">
+                      저장하기
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -220,14 +267,6 @@
         </div>
         <!-- 오른쪽 끝 -->
 
-      </div>
-
-      <!-- 하단: 저장 버튼 -->
-      <!-- 오른쪽 정렬 -->
-      <div class="mt-4 d-flex justify-content-end">
-        <button id="saveBtn" class="btn btn-success px-4">
-          저장하기
-        </button>
       </div>
 
     </div>
