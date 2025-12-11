@@ -1,4 +1,5 @@
 // utils/hashtags.js
+// - 게시글 저장/수정 시 전달된 해시태그 문자열을 정리하고 DB에 반영
 const db = require('../db');
 
 // 해시태그 문자열 정리
@@ -17,6 +18,7 @@ function normalizeHashtagName(raw) {
 }
 
 // 해당 게시글의 해시태그 매핑을 모두 재저장
+// - 기존 매핑 삭제 → 태그 테이블에 없는 태그는 생성 → 새 매핑 저장 순서
 function saveHashtagsForPostFromInput(postId, hashtagsInput, callback) {
   let rawList = [];
 
