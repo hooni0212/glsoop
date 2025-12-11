@@ -28,14 +28,30 @@ const { authRequired } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
+const CATEGORY_SQL =
+  "CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END";
 
-function normalizeCategory(input, { fallback = 'short', allowNull = false } = {}) {
+function parseCategory(input) {
   const value = typeof input === 'string' ? input.trim() : '';
-  if (ALLOWED_CATEGORIES.includes(value)) {
-    return value;
-  }
+  return ALLOWED_CATEGORIES.includes(value) ? value : null;
+}
 
-  return allowNull ? null : fallback;
+function coalesceCategory(input) {
+  return parseCategory(input) || 'short';
+}
+
+function requireValidCategory(input, res) {
+  const parsed = parseCategory(input);
+  if (!parsed) {
+    if (res) {
+      res.status(400).json({
+        ok: false,
+        message: '카테고리를 선택해주세요. (시/에세이/짧은 구절)',
+      });
+    }
+    return null;
+  }
+  return parsed;
 }
 
 const router = express.Router();
@@ -44,7 +60,9 @@ const router = express.Router();
 router.post('/posts', authRequired, (req, res) => {
   const { title, content, hashtags, category } = req.body;
   const userId = req.user.id;
-  const normalizedCategory = normalizeCategory(category);
+  const normalizedCategory = requireValidCategory(category, res);
+
+  if (!normalizedCategory) return;
 
   if (!title || !content) {
     return res
@@ -93,7 +111,9 @@ router.put('/posts/:id', authRequired, (req, res) => {
   const { title, content, hashtags, category } = req.body;
   const userId = req.user.id;
   const isAdmin = !!req.user.isAdmin;
-  const normalizedCategory = normalizeCategory(category);
+  const normalizedCategory = requireValidCategory(category, res);
+
+  if (!normalizedCategory) return;
 
   if (!title || !content) {
     return res
@@ -164,7 +184,7 @@ router.get('/posts/my', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
-      p.category AS category,
+      ${CATEGORY_SQL} AS category,
       p.created_at,
       p.user_id                AS author_id,
       u.name                   AS author_name,
@@ -216,7 +236,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
-      p.category AS category,
+      ${CATEGORY_SQL} AS category,
       p.created_at,
       p.user_id                AS author_id,
       u.name                   AS author_name,
@@ -283,7 +303,7 @@ function handleFeedRequest(req, res) {
   const feedType = typeParam === 'following' ? 'following' : 'all';
 
   const categoryParam = String(req.query.category || '').trim();
-  const category = normalizeCategory(categoryParam, { allowNull: true });
+  const category = parseCategory(categoryParam);
 
   // 쿼리 파라미터로 전달된 태그 목록 정리
   let tags = [];
@@ -323,7 +343,7 @@ function handleFeedRequest(req, res) {
         p.title,
         p.content,
         p.created_at,
-        p.category AS category,
+        ${CATEGORY_SQL} AS category,
         u.id       AS author_id,
         u.name     AS author_name,
         u.nickname AS author_nickname,
@@ -515,7 +535,7 @@ router.get('/posts/:id/related', (req, res) => {
           p.id,
           p.title,
           p.content,
-          p.category AS category,
+          ${CATEGORY_SQL} AS category,
           p.created_at,
           u.id       AS author_id,
           u.name     AS author_name,
@@ -625,7 +645,7 @@ router.get('/posts/:id', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
-      p.category AS category,
+      ${CATEGORY_SQL} AS category,
       p.created_at,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
     FROM posts p
@@ -828,7 +848,7 @@ router.get('/posts/:id/detail', (req, res) => {
       p.id,
       p.title,
       p.content,
-      p.category AS category,
+      ${CATEGORY_SQL} AS category,
       p.created_at,
       u.id       AS author_id,
       u.name     AS author_name,

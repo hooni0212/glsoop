@@ -67,6 +67,33 @@
 
       <!-- 실제 네비게이션 메뉴 영역 -->
       <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-lg-3 category-dropdown-nav">
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle"
+              href="#"
+              id="categoryDropdown"
+              role="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              카테고리
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="categoryDropdown">
+              <li><a class="dropdown-item" href="/index.html">전체</a></li>
+              <li>
+                <a class="dropdown-item" href="/html/category.html?category=poem">시</a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/html/category.html?category=essay">에세이/일기</a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/html/category.html?category=short">짧은 구절</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+
         <!-- 로그인 전: 로그인 / 회원가입 메뉴 -->
         <ul class="navbar-nav ms-auto before-login">
           <li class="nav-item">
@@ -158,10 +185,11 @@
                 <!-- 카테고리 선택 -->
                 <div class="col-12 col-md-3">
                   <label for="categorySelect" class="form-label">글 종류</label>
-                  <select id="categorySelect" class="form-select form-select-sm">
+                  <select id="categorySelect" class="form-select form-select-sm" required>
+                    <option value="" selected disabled>카테고리 선택</option>
                     <option value="poem">시</option>
                     <option value="essay">에세이/일기</option>
-                    <option value="short" selected>짧은 구절</option>
+                    <option value="short">짧은 구절</option>
                   </select>
                 </div>
               </div>

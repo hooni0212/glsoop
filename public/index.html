@@ -50,6 +50,33 @@
 
       <!-- 네비게이션 메뉴(로그인 전/후 상태에 따라 노출) -->
       <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-lg-3 category-dropdown-nav">
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle"
+              href="#"
+              id="categoryDropdown"
+              role="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              카테고리
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="categoryDropdown">
+              <li><a class="dropdown-item" href="/index.html">전체</a></li>
+              <li>
+                <a class="dropdown-item" href="/html/category.html?category=poem">시</a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/html/category.html?category=essay">에세이/일기</a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/html/category.html?category=short">짧은 구절</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+
         <!-- 로그인 전: 로그인 / 회원가입 버튼 -->
         <ul class="navbar-nav ms-auto before-login">
           <li class="nav-item">
@@ -149,13 +176,6 @@
             팔로잉
           </button>
         </div>
-      </div>
-
-      <div class="category-filters" role="group" aria-label="카테고리 필터">
-        <button type="button" class="btn btn-outline-secondary active" data-category-filter="all" aria-current="true">전체</button>
-        <button type="button" class="btn btn-outline-secondary" data-category-filter="poem">시</button>
-        <button type="button" class="btn btn-outline-secondary" data-category-filter="essay">에세이/일기</button>
-        <button type="button" class="btn btn-outline-secondary" data-category-filter="short">짧은 구절</button>
       </div>
 
       <!-- 홈 피드 카드들이 들어갈 영역

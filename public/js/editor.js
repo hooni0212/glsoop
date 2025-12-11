@@ -497,9 +497,7 @@ try {
     const title = titleInput.value.trim();         // 제목(텍스트)
     const contentHtml = quill.root.innerHTML.trim(); // 본문(HTML)
     const selectedFontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
-    const selectedCategory = categorySelectEl
-      ? categorySelectEl.value || 'short'
-      : 'short';
+    const selectedCategory = categorySelectEl ? categorySelectEl.value : '';
     const fontMetaPrefix = `<!--FONT:${selectedFontKey}-->`;
     const contentWithFontMeta = fontMetaPrefix + contentHtml;
     const plainText = quill.getText().trim();      // 본문(plain text)
@@ -523,6 +521,11 @@ try {
 
     if (!plainText) {
       showEditorError('내용을 입력해주세요.');
+      return;
+    }
+
+    if (!selectedCategory) {
+      showEditorError('카테고리를 선택해주세요.');
       return;
     }
 

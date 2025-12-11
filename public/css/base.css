@@ -99,6 +99,34 @@ a:hover {
   transform: translateY(-1px);
 }
 
+.category-dropdown-nav .dropdown-menu {
+  border-radius: 12px;
+  padding: 0.5rem 0;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+  min-width: 12rem;
+}
+
+.category-dropdown-nav .dropdown-item {
+  font-weight: 500;
+  padding: 0.55rem 1rem;
+}
+
+.category-dropdown-nav .dropdown-item:active,
+.category-dropdown-nav .dropdown-item:focus,
+.category-dropdown-nav .dropdown-item:hover {
+  background-color: rgba(46, 139, 87, 0.12);
+}
+
+@media (max-width: 991px) {
+  .category-dropdown-nav {
+    margin-top: 0.5rem;
+  }
+
+  .category-dropdown-nav .dropdown-menu {
+    box-shadow: none;
+  }
+}
+
 /* 로그인/회원가입/로그아웃 버튼 */
 .navbar .btn {
   border-radius: 999px;

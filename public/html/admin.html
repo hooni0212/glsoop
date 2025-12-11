@@ -61,6 +61,27 @@
 
       <!-- 네비게이션 링크 영역 -->
       <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-lg-3 category-dropdown-nav">
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle"
+              href="#"
+              id="categoryDropdown"
+              role="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              카테고리
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="categoryDropdown">
+              <li><a class="dropdown-item" href="/index.html">전체</a></li>
+              <li><a class="dropdown-item" href="/html/category.html?category=poem">시</a></li>
+              <li><a class="dropdown-item" href="/html/category.html?category=essay">에세이/일기</a></li>
+              <li><a class="dropdown-item" href="/html/category.html?category=short">짧은 구절</a></li>
+            </ul>
+          </li>
+        </ul>
+
         <!-- 로그인 전 노출되는 메뉴 -->
         <ul class="navbar-nav ms-auto before-login">
           <li class="nav-item">
