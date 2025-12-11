@@ -3,6 +3,7 @@
    - page-login(page-reset/page-forgot 등) 테마 레이아웃을 제어
    - hero 배경, 2단 카드 배치, 계정 폼 강조 색상을 여기서 관리
    - 관련 페이지: html/login.html, html/signup.html, html/forgot-password.html, html/reset-password.html
+   - 섹션 번호: 0 히어로, 1 카드, 2 폼/버튼, 3 푸터, 4 반응형 순으로 배치
    ============================================================= */
 
 /* 로그인 전용 겨울 무드 레이어 */
