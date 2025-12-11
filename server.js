@@ -1,6 +1,10 @@
 // server.js
 
 // 1. 필수 모듈 로드
+// - Express: 기본 웹 서버
+// - path: 정적 파일 경로 구성
+// - bodyParser / cookieParser: JSON, 폼 데이터, 쿠키 파싱
+// - applySecurity: Helmet + CORS 등 공통 보안 헤더 설정
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
@@ -8,6 +12,7 @@ const cookieParser = require('cookie-parser');
 const { applySecurity } = require('./middleware/security');
 
 // 환경 변수 및 메일/JWT 설정, DB는 각각 모듈에서 처리
+// (실제 DB 연결 로직은 db.js, 이메일/JWT 키는 config.js에서 초기화됨)
 require('./config');
 require('./db');
 
@@ -17,16 +22,18 @@ const userRoutes = require('./routes/userRoutes');
 const postRoutes = require('./routes/postRoutes');
 
 const app = express();
+// 로컬 개발은 3000, 배포 환경에서는 포트 환경 변수 사용
 const PORT = process.env.PORT || 3000;
 
 // 2. 공통 미들웨어
+// - 보안 헤더 및 CORS 설정을 먼저 적용
 applySecurity(app);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// API 응답 캐시 방지
+// API 응답 캐시 방지 (브라우저 캐시로 인한 데이터 일관성 문제 방지)
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.set('Pragma', 'no-cache');

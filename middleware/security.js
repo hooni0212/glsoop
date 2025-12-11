@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 
 // ✅ 허용 origin 목록
+// - 로컬 개발 & 실제 서비스 도메인을 명시
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',

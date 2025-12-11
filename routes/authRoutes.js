@@ -1,4 +1,5 @@
 // routes/authRoutes.js
+// - 회원가입, 인증, 로그인/로그아웃, 프로필 수정 등 인증 관련 API를 담당
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -22,12 +23,15 @@ router.post('/signup', async (req, res) => {
   }
 
   try {
+    // 1) 비밀번호 해시 + 이메일 소문자 정규화
     const hashed = await bcrypt.hash(pw, 10);
     const normalizedEmail = email.trim().toLowerCase();
 
+    // 2) 이메일 인증 토큰 생성 (1시간 유효)
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString();
 
+    // 3) 신규 사용자 저장
     db.run(
       `
       INSERT INTO users (
@@ -121,6 +125,7 @@ router.get('/verify-email', (req, res) => {
     `);
   }
 
+  // 1) 토큰으로 사용자 조회 + 만료 시간 확인
   db.get(
     `
     SELECT id, verification_expires, is_verified
@@ -185,6 +190,7 @@ router.get('/verify-email', (req, res) => {
         `);
       }
 
+      // 2) 검증 완료로 상태 업데이트
       db.run(
         `
         UPDATE users
@@ -257,6 +263,7 @@ router.post('/password-reset-request', (req, res) => {
         });
       }
 
+      // 유효 시간 1시간짜리 재설정 토큰 생성
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
 
@@ -279,6 +286,7 @@ router.post('/password-reset-request', (req, res) => {
             'host'
           )}/html/reset-password.html?token=${token}`;
 
+          // 사용자가 존재할 때만 안내 메일 전송
           transporter.sendMail(
             {
               from: `"글숲" <${process.env.GMAIL_USER}>`,
@@ -342,6 +350,7 @@ router.post('/password-reset', async (req, res) => {
     });
   }
 
+  // 1) 토큰으로 사용자와 만료 시간 확인
   db.get(
     'SELECT id, reset_expires FROM users WHERE reset_token = ?',
     [token],
@@ -370,6 +379,7 @@ router.post('/password-reset', async (req, res) => {
       }
 
       try {
+        // 2) 비밀번호 해시 후 토큰 삭제
         const hashedPw = await bcrypt.hash(newPw, 10);
 
         db.run(
@@ -414,6 +424,7 @@ router.post('/login', (req, res) => {
       .json({ ok: false, message: '이메일과 비밀번호를 입력하세요.' });
   }
 
+  // 입력된 이메일을 소문자로 정리
   const normalizedEmail = email.trim().toLowerCase();
 
   db.get(
@@ -519,6 +530,7 @@ router.get('/me', authRequired, (req, res) => {
           .json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
       }
 
+      // 기본 프로필 + 팔로워/팔로잉 집계 응답
       res.json({
         ok: true,
         id: row.id,
@@ -583,6 +595,7 @@ router.get('/me/followings', authRequired, (req, res) => {
 });
 
 // 7-2) 내 정보 수정
+// - 닉네임/소개/비밀번호 변경을 한 번의 요청에서 처리
 router.put('/me', authRequired, (req, res) => {
   const userId = req.user.id;
   const { nickname, currentPw, newPw, bio, about } = req.body || {};

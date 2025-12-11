@@ -1,4 +1,5 @@
 // routes/userRoutes.js
+// - 사용자 프로필/팔로우 및 관리자 전용 사용자 관리 API
 const express = require('express');
 const jwt = require('jsonwebtoken');
 
@@ -14,6 +15,7 @@ router.get('/users/:id/profile', (req, res) => {
 
   let viewerId = null;
   const token = req.cookies.token;
+  // 로그인한 사용자가 있으면 viewerId로 구분 (팔로우 여부, 소유 여부 판단용)
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
@@ -50,6 +52,7 @@ router.get('/users/:id/profile', (req, res) => {
           .json({ ok: false, message: '해당 작가를 찾을 수 없습니다.' });
       }
 
+      // 게시글 수/누적 좋아요를 먼저 집계
       db.get(
         `
         SELECT
@@ -69,6 +72,7 @@ router.get('/users/:id/profile', (req, res) => {
           });
         }
 
+        // 팔로워/팔로잉 수 집계 후, 로그인한 사용자의 팔로우 여부까지 확인
         db.get(
           `
           SELECT

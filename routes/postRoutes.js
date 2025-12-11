@@ -1,4 +1,5 @@
 // routes/postRoutes.js
+// - 글 CRUD, 피드, 추천, 좋아요, 해시태그 필터 관련 API 집합
 
 // ================== 1. 글 작성/수정/삭제 ==================
 // POST   /api/posts
@@ -39,6 +40,7 @@ router.post('/posts', authRequired, (req, res) => {
       .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
   }
 
+  // 본문 저장 후 해시태그를 별도 테이블에 기록
   db.run(
     'INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)',
     [userId, title, content],
@@ -86,6 +88,7 @@ router.put('/posts/:id', authRequired, (req, res) => {
       .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
   }
 
+  // 수정 권한 확인(작성자 또는 관리자만 허용)
   db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (err, row) => {
     if (err) {
       console.error(err);
@@ -106,6 +109,7 @@ router.put('/posts/:id', authRequired, (req, res) => {
         .json({ ok: false, message: '이 글을 수정할 권한이 없습니다.' });
     }
 
+    // 본문 갱신 후 해시태그 매핑을 재작성
     db.run(
       'UPDATE posts SET title = ?, content = ? WHERE id = ?',
       [title, content, postId],
@@ -247,6 +251,7 @@ router.get('/posts/feed', (req, res) => {
     }
   }
 
+  // 페이지네이션 기본값
   let limit = parseInt(req.query.limit, 10);
   let offset = parseInt(req.query.offset, 10);
 
@@ -257,6 +262,7 @@ router.get('/posts/feed', (req, res) => {
     offset = 0;
   }
 
+  // 쿼리 파라미터로 전달된 태그 목록 정리
   let tags = [];
   if (req.query.tags) {
     tags = String(req.query.tags)
@@ -269,6 +275,7 @@ router.get('/posts/feed', (req, res) => {
   }
   const tagCount = tags.length;
 
+  // 공통 SELECT 절: 좋아요 개수와 해시태그 문자열 포함
   const baseSelect = `
     SELECT
       p.id,
@@ -407,7 +414,8 @@ router.get('/posts/:id/related', (req, res) => {
     }
   }
 
-  db.get(
+    // 기준 글의 작성자/태그 정보를 가져와 관련 글 매칭에 사용
+    db.get(
     `
     SELECT
       p.id,
@@ -502,7 +510,8 @@ router.get('/posts/:id/related', (req, res) => {
           const now = Date.now();
           const ONE_DAY = 1000 * 60 * 60 * 24;
 
-          const scored = rows.map((p) => {
+            // 해시태그 겹침 + 같은 작가 + 최신순을 가중치로 점수 계산
+            const scored = rows.map((p) => {
             const postTags = (p.hashtags || '')
               .split(',')
               .map((t) => t.trim().toLowerCase())
@@ -646,6 +655,7 @@ router.delete('/posts/:id', authRequired, (req, res) => {
 });
 
 // 9-9) 좋아요 토글
+// - 이미 누른 경우 삭제, 아니면 추가 후 현재 좋아요 수 반환
 router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
   const postId = req.params.id;
   const userId = req.user.id;
