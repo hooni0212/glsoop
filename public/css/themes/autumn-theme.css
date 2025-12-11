@@ -187,6 +187,18 @@ body.autumn-theme .feed-tabs .feed-tab.active {
   color: #fff;
 }
 
+body.autumn-theme .nav-category-item:hover,
+body.autumn-theme .nav-category-item:focus-visible {
+  background: rgba(197, 113, 54, 0.14);
+  color: #8a431f;
+}
+
+body.autumn-theme .post-category-label {
+  background: rgba(197, 113, 54, 0.08);
+  border-color: rgba(197, 113, 54, 0.24);
+  color: #8a431f;
+}
+
 body.autumn-theme .gls-save-btn {
   color: #9b4c24;
   border-color: #c57136;

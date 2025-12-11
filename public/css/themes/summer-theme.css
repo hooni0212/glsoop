@@ -193,6 +193,18 @@ body.summer-theme .feed-tabs .feed-tab.active {
   color: #fff;
 }
 
+body.summer-theme .nav-category-item:hover,
+body.summer-theme .nav-category-item:focus-visible {
+  background: rgba(0, 169, 130, 0.12);
+  color: #00775f;
+}
+
+body.summer-theme .post-category-label {
+  background: rgba(0, 169, 130, 0.08);
+  border-color: rgba(0, 169, 130, 0.22);
+  color: #00775f;
+}
+
 body.summer-theme .gls-save-btn {
   color: #007a61;
   border-color: #00a982;

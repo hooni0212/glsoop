@@ -333,6 +333,18 @@ body.winter-theme .feed-tabs .feed-tab.active {
   color: #fff;
 }
 
+body.winter-theme .nav-category-item:hover,
+body.winter-theme .nav-category-item:focus-visible {
+  background: rgba(47, 108, 138, 0.14);
+  color: #225066;
+}
+
+body.winter-theme .post-category-label {
+  background: rgba(47, 108, 138, 0.08);
+  border-color: rgba(47, 108, 138, 0.26);
+  color: #225066;
+}
+
 body.winter-theme .gls-save-btn {
   color: #2f6c8a;
   border-color: #2f6c8a;

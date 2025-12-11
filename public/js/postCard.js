@@ -80,7 +80,7 @@ function renderCategoryBadge(post) {
   const label = getCategoryLabel(post?.category);
   if (!label) return '';
 
-  const cls = `gls-category-badge gls-category-${post.category}`;
+  const cls = `post-category-label gls-category-badge gls-category-${post.category}`;
   return `<span class="${cls}">${label}</span>`;
 }
 
@@ -106,6 +106,7 @@ function buildStandardPostCardHTML(post, options = {}) {
     post.user_liked === 1 || post.user_liked === true ? true : false;
 
   const hashtagHtml = buildHashtagHtml(post);
+  const categoryHtml = renderCategoryBadge(post);
   const { cleanHtml, quoteFontClass } = extractContentWithFont(post);
 
   // 카드에 붙일 추가 클래스
@@ -122,7 +123,6 @@ function buildStandardPostCardHTML(post, options = {}) {
         <!-- 상단 메타 영역: 작성자 / 날짜 / 공감 버튼 -->
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="d-flex align-items-center gap-3" >
-            ${renderCategoryBadge(post)}
             <span class="badge bg-light text-muted border gls-author-badge">
               ${escapeHtml(author)}
             </span>
@@ -170,7 +170,18 @@ function buildStandardPostCardHTML(post, options = {}) {
         </div>
 
         <!-- 해시태그 버튼들 -->
-        ${hashtagHtml}
+        ${
+          categoryHtml || hashtagHtml
+            ? `<div class="post-bottom-meta">
+                 ${
+                   categoryHtml
+                     ? `<div class="post-category-row">${categoryHtml}</div>`
+                     : ''
+                 }
+                 ${hashtagHtml || ''}
+               </div>`
+            : ''
+        }
       </div>
     </div>
   `;

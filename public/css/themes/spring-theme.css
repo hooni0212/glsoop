@@ -131,6 +131,18 @@ body.spring-theme .feed-tabs .feed-tab.active {
   color: #fff;
 }
 
+body.spring-theme .nav-category-item:hover,
+body.spring-theme .nav-category-item:focus-visible {
+  background: rgba(199, 82, 122, 0.12);
+  color: #a33b5f;
+}
+
+body.spring-theme .post-category-label {
+  background: rgba(199, 82, 122, 0.08);
+  border-color: rgba(199, 82, 122, 0.24);
+  color: #a33b5f;
+}
+
 body.spring-theme .gls-save-btn {
   color: #c7527a;
   border-color: #c7527a;
