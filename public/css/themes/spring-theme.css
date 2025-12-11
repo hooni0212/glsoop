@@ -5,8 +5,9 @@
 
 /* 0. 전체 배경 & 기본 텍스트 */
 body.spring-theme {
-  background-color: #FFF9F9; /* 아주 옅은 핑크 + 화이트 */
   color: #34343A;
+
+  /* 작가/카드 공통 변수 (봄톤) */
   --author-surface: rgba(255, 247, 250, 0.65);
   --author-card-bg: rgba(255, 250, 252, 0.96);
   --author-card-shadow: 0 12px 32px rgba(255, 157, 184, 0.16);
@@ -14,19 +15,92 @@ body.spring-theme {
   --author-text-muted: #7a5b66;
   --author-divider: rgba(199, 82, 122, 0.18);
   --author-accent: #c7527a;
+
+  /* 배경 레이어 (겨울 구조 그대로, 색만 봄톤으로) */
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(255,255,255,0.25) 0, transparent 60%),
+    radial-gradient(circle at 80% 15%, rgba(255,255,255,0.18) 0, transparent 55%),
+    radial-gradient(circle at 50% 80%, rgba(255,255,255,0.16) 0, transparent 60%),
+    url('/img/snowingtree.jpg'),
+    radial-gradient(circle at top,
+      #FFF5F8 0%,
+      #FFE9F0 40%,
+      #FFF7FA 75%,
+      #FDECF5 100%
+    );
+
+  /* 각 레이어 반복 방식 */
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat-x,     /* 나무 이미지는 가로 방향 타일 */
+    no-repeat;
+
+  /* 각 레이어 위치 */
+  background-position:
+    10% 20%,        /* 위쪽 왼쪽 하이라이트 */
+    80% 15%,        /* 위쪽 오른쪽 하이라이트 */
+    50% 80%,        /* 아래쪽 중앙 하이라이트 */
+    bottom center,  /* 나무는 아래쪽에서 시작 */
+    top center;     /* 하늘 그라디언트 */
+
+  /* 각 레이어 크기 */
+  background-size:
+    auto,
+    auto,
+    auto,
+    auto 100vh,     /* 나무 높이 (원하면 50~60vh로 조절 가능) */
+    cover;
+
+  background-attachment: fixed; /* 스크롤해도 배경 고정 */
 }
 
 /* =========================
-   1. 네비게이션 바
+   0-1. 안개/질감 레이어 (봄톤)
 ========================= */
 
-body.spring-theme .custom-navbar {
-  /* 벚꽃 분홍 + 연두 */
+/* 살짝 흐린 안개/빛 레이어 */
+body.spring-theme::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(255,255,255,0.35) 0, transparent 60%),
+    radial-gradient(circle at 80% 15%, rgba(255,245,248,0.28) 0, transparent 55%),
+    radial-gradient(circle at 50% 80%, rgba(255,240,245,0.25) 0, transparent 60%);
+}
+
+/* 봄 느낌의 부드러운 질감 레이어 */
+body.spring-theme::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.4) 0.6px, transparent 0.6px),
+    radial-gradient(rgba(255, 182, 193, 0.08) 0.8px, transparent 0.8px),
+    radial-gradient(rgba(255, 255, 255, 0.25) 1px, transparent 1px);
+  background-size: 120px 120px, 90px 90px, 50px 50px;
+  mix-blend-mode: screen;
+  opacity: 0.5;
+}
+
+/* =========================
+   1. 네비게이션 바 & 푸터
+========================= */
+
+body.spring-theme .custom-navbar,
+body.spring-theme .custom-footer {
+  /* 벚꽃 분홍 + 연두 그라디언트 */
   background: linear-gradient(90deg, #FF9DB8, #87D37C);
   box-shadow: 0 6px 18px rgba(255, 157, 184, 0.35);
 }
 
-/* 로고: 봄 느낌 분홍빛 그라디언트 */
+/* 네비 브랜드 글씨: 봄 느낌 분홍빛 그라디언트 */
 body.spring-theme .custom-navbar .navbar-brand {
   background: linear-gradient(120deg, #FFF5F8, #FFE4EE);
   -webkit-background-clip: text;
@@ -34,10 +108,20 @@ body.spring-theme .custom-navbar .navbar-brand {
   color: transparent;
 }
 
+/* 푸터 텍스트/링크 */
+body.spring-theme .custom-footer {
+  color: #FFFDFE;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+body.spring-theme .footer-links a {
+  color: #FFFDFE;
+}
+
 /* =========================
    2. 히어로 섹션
 ========================= */
 
+/* 히어로 섹션: 아주 옅은 분홍 배경 */
 body.spring-theme .hero-section {
   background: radial-gradient(
     circle at top,
@@ -66,7 +150,22 @@ body.spring-theme .hero-subtitle {
    3. 버튼 (CTA, success 공통)
 ========================= */
 
-body.spring-theme .hero-cta-btn,
+body.spring-theme .hero-card .hero-cta-btn {
+  background-color: #87D37C;
+  box-shadow: 0 10px 24px rgba(135, 211, 124, 0.45);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+body.spring-theme .hero-card .hero-cta-btn:hover,
+body.spring-theme .hero-card .hero-cta-btn:focus-visible {
+  background-color: #76BE6C;
+  box-shadow: 0 18px 42px rgba(135, 211, 124, 0.6);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+/* 공통 버튼 (success / outline-success) 봄톤 */
 body.spring-theme .btn-success {
   color: #76BE6C;
   background-color: transparent;
@@ -74,9 +173,6 @@ body.spring-theme .btn-success {
   box-shadow: 0 10px 24px rgba(135, 211, 124, 0.28);
 }
 
-body.spring-theme .hero-cta-btn:hover,
-body.spring-theme .hero-cta-btn:focus-visible,
-body.spring-theme .hero-cta-btn:active,
 body.spring-theme .btn-success:hover,
 body.spring-theme .btn-success:focus-visible,
 body.spring-theme .btn-success.active,
@@ -106,14 +202,20 @@ body.spring-theme .btn-outline-success:active {
 }
 
 /* =========================
-   4. 메인 피드 카드 (quote-card)
+   4. 메인 카드 (quote-card / card)
 ========================= */
 
+/* 인스타 감성 카드 */
 body.spring-theme .quote-card {
   background-color: #FFF7FA; /* 연한 핑크 종이 */
   background-image: none;
   color: #34343A;
   box-shadow: 0 10px 24px rgba(255, 157, 184, 0.18);
+}
+
+/* 메인 카드(피드/포스트) */
+body.spring-theme .card {
+  box-shadow: 0 10px 24px rgba(255, 157, 184, 0.12);
 }
 
 /* =========================
@@ -126,14 +228,18 @@ body.spring-theme .gls-author-badge {
   color: #C7527A !important;
 }
 
+/* 카드/검색에서 사용되는 태그 버튼 */
 body.spring-theme .gls-tag-btn {
   background-color: transparent;
   border-color: #FFC4D6;
   color: #C7527A;
+  box-shadow: none;
 }
 
-body.spring-theme .gls-tag-btn:hover {
+body.spring-theme .gls-tag-btn:hover,
+body.spring-theme .gls-tag-btn:focus-visible {
   background-color: #FFE4EE;
+  border-color: #FFB2C9;
   color: #A63F63;
 }
 
@@ -150,6 +256,28 @@ body.spring-theme .hashtag-chip .hashtag-chip-remove:hover {
   color: #A63F63;
 }
 
+/* 상단 "적용 중인 태그" 필터 바 배지 */
+.page-index.spring-theme #tagFilterBar .badge.text-bg-success {
+  background-color: #FFF3F6 !important;   /* 부드러운 봄 핑크 */
+  color: #C7527A !important;              /* 메인 분홍 텍스트 */
+  border-radius: 999px;
+  border: 1px solid #FFC4D6;
+  padding: 0.35rem 0.7rem;
+  box-shadow: 0 2px 6px rgba(255, 157, 184, 0.18);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* 필터 바 안의 X 버튼(개별 태그 제거) 색 보정 */
+.page-index.spring-theme #tagFilterBar .badge.text-bg-success .tag-filter-remove {
+  filter: none;
+  opacity: 0.7;
+}
+.page-index.spring-theme #tagFilterBar .badge.text-bg-success .tag-filter-remove:hover {
+  opacity: 1;
+}
+
 /* =========================
    6. 좋아요 하트
 ========================= */
@@ -160,18 +288,4 @@ body.spring-theme .like-btn .like-heart {
 
 body.spring-theme .like-btn.liked .like-heart {
   color: #FF6B8F;
-}
-
-/* =========================
-   7. 푸터
-========================= */
-
-body.spring-theme .custom-footer {
-  background: linear-gradient(90deg, #FF9DB8, #87D37C);
-  color: #FFFDFE;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-body.spring-theme .footer-links a {
-  color: #FFFDFE;
 }
