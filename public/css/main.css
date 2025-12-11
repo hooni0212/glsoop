@@ -659,6 +659,23 @@ a:hover {
   }
 }
 
+.gls-save-btn {
+  background: #fff;
+  color: var(--author-accent, #2e8b57);
+  border: 1px solid var(--author-accent, #2e8b57);
+  border-radius: 999px;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+}
+
+.gls-save-btn:hover,
+.gls-save-btn:focus-visible {
+  color: var(--author-accent, #2e8b57);
+  background: rgba(46, 139, 87, 0.08);
+  border-color: var(--author-accent, #2e8b57);
+}
+
 /* 미리보기 하단 메타 정보 */
 .preview-meta {
   border-top: 1px dashed rgba(0, 0, 0, 0.05);
@@ -793,20 +810,30 @@ a:hover {
 
 .feed-tabs {
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.feed-tabs .nav-link {
+.feed-tabs .feed-tab {
   border-radius: 999px;
-  color: #3d3d3d;
+  color: var(--author-accent, #2e8b57);
   background: #f2f5f3;
-  border: 1px solid #e1e6e3;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   padding: 6px 14px;
+  transition: all 0.15s ease;
 }
 
-.feed-tabs .nav-link.active {
-  background: #198754;
+.feed-tabs .feed-tab:hover,
+.feed-tabs .feed-tab:focus-visible {
+  color: var(--author-accent, #2e8b57);
+  border-color: var(--author-accent, #2e8b57);
+  background: rgba(46, 139, 87, 0.08);
+}
+
+.feed-tabs .feed-tab.feed-tab-active,
+.feed-tabs .feed-tab.active {
+  background: var(--author-accent, #2e8b57);
   color: #fff;
-  border-color: #198754;
+  border-color: var(--author-accent, #2e8b57);
 }
 
 

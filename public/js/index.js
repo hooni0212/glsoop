@@ -93,6 +93,7 @@ Glsoop.FeedPage = (function () {
         tabButtons.forEach((tab) => {
           const isActive = tab === btn;
           tab.classList.toggle('active', isActive);
+          tab.classList.toggle('feed-tab-active', isActive);
           if (isActive) {
             tab.setAttribute('aria-current', 'true');
           } else {

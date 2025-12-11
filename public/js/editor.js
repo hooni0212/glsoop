@@ -177,15 +177,25 @@ try {
 
   /**
    * 입력된 태그 문자열을 정규화
-   * - 앞뒤 공백 제거
-   * - '#'으로 시작하면 '#' 제거
-   * - 빈 문자열이면 ''
+   * - 앞뒤 공백 제거 후, 해시태그(#)가 필수인 경우 처리
+   * - requireHash가 true일 때는 '#'으로 시작하고 1글자 이상이어야 인식
+   * - 허용되지 않으면 '' 반환
    */
-  function normalizeTag(raw) {
+  function normalizeTag(raw, requireHash = true) {
     if (!raw) return '';
     let t = String(raw).trim();
     if (!t) return '';
-    if (t.startsWith('#')) t = t.slice(1);
+
+    if (requireHash) {
+      if (!t.startsWith('#')) return '';
+      t = t.slice(1);
+      if (!t.trim()) return '';
+    } else {
+      if (t.startsWith('#')) {
+        t = t.slice(1);
+      }
+    }
+
     return t;
   }
 
@@ -250,14 +260,15 @@ try {
    * - 정규화하고, 중복 아니면 리스트에 push
    * - 인풋 및 칩 UI 동기화
    */
-  function addTag(raw) {
-    const t = normalizeTag(raw);
-    if (!t) return;
-    if (hashtagList.includes(t)) return; // 중복 태그 방지
+  function addTag(raw, { requireHash = true } = {}) {
+    const t = normalizeTag(raw, requireHash);
+    if (!t) return false;
+    if (hashtagList.includes(t)) return false; // 중복 태그 방지
     hashtagList.push(t);
     syncHashtagInputFromList();
     renderHashtagChips();
     updatePreviewMeta();
+    return true;
   }
 
   /**
@@ -265,7 +276,7 @@ try {
    * - 공백/쉼표 기준으로 split
    * - normalizeTag 후 중복 제거
    */
-  function parseHashtagInputToList() {
+  function parseHashtagInputToList(requireHash = true) {
     if (!hashtagsInput) return;
     const raw = hashtagsInput.value || '';
     if (!raw.trim()) {
@@ -277,7 +288,7 @@ try {
 
     const tokens = raw
       .split(/[,\s]+/)
-      .map(normalizeTag)
+      .map((t) => normalizeTag(t, requireHash))
       .filter((t) => t.length > 0);
 
     // 중복 제거를 위해 Set 사용
@@ -287,23 +298,59 @@ try {
     updatePreviewMeta();
   }
 
+  function commitHashtagInput({ requireHash = true, clearInput = false } = {}) {
+    if (!hashtagsInput) return;
+    const raw = hashtagsInput.value || '';
+    if (!raw.trim()) return;
+
+    const tokens = raw.split(/[,\s]+/).filter(Boolean);
+    let added = false;
+
+    tokens.forEach((token) => {
+      added = addTag(token, { requireHash }) || added;
+    });
+
+    if (!added) {
+      // 유효한 태그가 없었으면 입력값만 정리
+      if (clearInput) hashtagsInput.value = '';
+      return;
+    }
+
+    if (clearInput) {
+      hashtagsInput.value = '';
+    } else {
+      syncHashtagInputFromList();
+    }
+  }
+
   // 인풋에서 Enter/스페이스/쉼표/Tab을 누를 때 태그 추가 시도
   if (hashtagsInput) {
+    let isComposingTag = false;
+
+    hashtagsInput.addEventListener('compositionstart', () => {
+      isComposingTag = true;
+    });
+
+    hashtagsInput.addEventListener('compositionend', () => {
+      isComposingTag = false;
+    });
+
     hashtagsInput.addEventListener('keydown', (e) => {
+      if (isComposingTag) return;
       if (['Enter', ' ', ',', 'Tab'].includes(e.key)) {
         const val = hashtagsInput.value;
         const parts = val.split(/[,\s]+/);
         const last = parts[parts.length - 1];
         if (last && last.trim().length > 0) {
           e.preventDefault(); // 기본 줄바꿈 등 막기
-          addTag(last);
+          commitHashtagInput({ clearInput: true });
         }
       }
     });
 
     // 포커스를 잃을 때 인풋 전체를 파싱해서 리스트/칩 반영
     hashtagsInput.addEventListener('blur', () => {
-      parseHashtagInputToList();
+      commitHashtagInput({ clearInput: true });
     });
   }
 
@@ -425,15 +472,12 @@ try {
         if (hashtagsInput) {
           if (Array.isArray(post.hashtags)) {
             // 배열이면 그대로 normalize해서 리스트에 넣기
-            hashtagList = post.hashtags
-              .map(normalizeTag)
-              .filter((t) => t.length > 0);
-            syncHashtagInputFromList();
-            renderHashtagChips();
+            hashtagList = [];
+            post.hashtags.forEach((tag) => addTag(tag, { requireHash: false }));
           } else if (post.hashtags) {
             // 문자열이면 인풋에 넣고, 파싱해서 칩 생성
             hashtagsInput.value = post.hashtags;
-            parseHashtagInputToList();
+            parseHashtagInputToList(false);
           }
         }
 

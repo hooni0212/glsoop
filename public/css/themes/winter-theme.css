@@ -318,3 +318,29 @@ body.winter-theme .card {
     height: 2px;
   }
 }
+
+/* 피드 탭 & 저장 버튼 테마 매핑 */
+body.winter-theme .feed-tabs .feed-tab {
+  color: #2f6c8a;
+  border-color: rgba(47, 108, 138, 0.25);
+  background: rgba(47, 108, 138, 0.08);
+}
+
+body.winter-theme .feed-tabs .feed-tab.feed-tab-active,
+body.winter-theme .feed-tabs .feed-tab.active {
+  background: #2f6c8a;
+  border-color: #2f6c8a;
+  color: #fff;
+}
+
+body.winter-theme .gls-save-btn {
+  color: #2f6c8a;
+  border-color: #2f6c8a;
+}
+
+body.winter-theme .gls-save-btn:hover,
+body.winter-theme .gls-save-btn:focus-visible {
+  background: rgba(47, 108, 138, 0.12);
+  color: #225066;
+  border-color: #2f6c8a;
+}

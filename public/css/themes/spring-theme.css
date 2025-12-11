@@ -117,6 +117,32 @@ body.spring-theme .footer-links a {
   color: #FFFDFE;
 }
 
+/* 피드 탭 & 저장 버튼 테마 매핑 */
+body.spring-theme .feed-tabs .feed-tab {
+  color: #c7527a;
+  border-color: rgba(199, 82, 122, 0.25);
+  background: rgba(199, 82, 122, 0.08);
+}
+
+body.spring-theme .feed-tabs .feed-tab.feed-tab-active,
+body.spring-theme .feed-tabs .feed-tab.active {
+  background: #c7527a;
+  border-color: #c7527a;
+  color: #fff;
+}
+
+body.spring-theme .gls-save-btn {
+  color: #c7527a;
+  border-color: #c7527a;
+}
+
+body.spring-theme .gls-save-btn:hover,
+body.spring-theme .gls-save-btn:focus-visible {
+  background: rgba(199, 82, 122, 0.12);
+  color: #c7527a;
+  border-color: #c7527a;
+}
+
 /* =========================
    2. 히어로 섹션
 ========================= */

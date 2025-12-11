@@ -178,3 +178,29 @@ body.summer-theme .custom-footer {
 body.summer-theme .footer-links a {
   color: #F9FFFF;
 }
+
+/* 피드 탭 & 저장 버튼 테마 매핑 */
+body.summer-theme .feed-tabs .feed-tab {
+  color: #00a982;
+  border-color: rgba(0, 169, 130, 0.24);
+  background: rgba(0, 169, 130, 0.08);
+}
+
+body.summer-theme .feed-tabs .feed-tab.feed-tab-active,
+body.summer-theme .feed-tabs .feed-tab.active {
+  background: #00a982;
+  border-color: #00a982;
+  color: #fff;
+}
+
+body.summer-theme .gls-save-btn {
+  color: #007a61;
+  border-color: #00a982;
+}
+
+body.summer-theme .gls-save-btn:hover,
+body.summer-theme .gls-save-btn:focus-visible {
+  background: rgba(0, 169, 130, 0.12);
+  color: #006a55;
+  border-color: #00a982;
+}
