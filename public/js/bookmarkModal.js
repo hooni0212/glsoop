@@ -32,11 +32,11 @@
               <div class="bookmark-modal-list list-group mb-3"></div>
               <div class="d-flex gap-2 align-items-center">
                 <input type="text" class="form-control" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
-                <button class="btn btn-outline-primary" type="button" id="bookmarkNewListSubmit">추가</button>
+                <button class="btn btn-primary" type="button" id="bookmarkNewListSubmit">추가</button>
               </div>
             </div>
             <div class="modal-footer">
-              <a href="/html/bookmarks.html" class="btn btn-outline-secondary">북마크 페이지로 이동</a>
+              <a href="/html/bookmarks.html" class="btn btn-secondary">북마크 페이지로 이동</a>
               <button type="button" class="btn btn-primary" data-bs-dismiss="modal">완료</button>
             </div>
           </div>

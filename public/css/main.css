@@ -202,19 +202,60 @@ a:hover {
    5. 공통 버튼 스타일
 ========================= */
 
-.btn-primary,
-.btn-success {
-  border-radius: 999px;
-  padding: 0.55rem 1.4rem;
+.btn {
+  border-radius: 10px;
   font-weight: 600;
-  border: none;
+  transition: all 0.15s ease;
 }
 
-.btn-success {
-  background-color: #2e8b57;
+.btn-primary {
+  background: var(--author-accent, #2e8b57);
+  border: 1px solid var(--author-accent, #2e8b57);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(46, 139, 87, 0.18);
 }
-.btn-success:hover {
-  background-color: #267349;
+
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  background: var(--author-accent, #2e8b57);
+  border-color: var(--author-accent, #2e8b57);
+  color: #fff;
+  filter: brightness(0.92);
+}
+
+.btn-secondary {
+  background: #ffffff;
+  color: var(--author-accent, #2e8b57);
+  border: 1px solid var(--author-accent, #2e8b57);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus-visible {
+  background: rgba(46, 139, 87, 0.08);
+  color: var(--author-accent, #2e8b57);
+  border-color: var(--author-accent, #2e8b57);
+}
+
+.btn-secondary.active,
+.btn-secondary:active {
+  background: var(--author-accent, #2e8b57);
+  color: #fff;
+  border-color: var(--author-accent, #2e8b57);
+}
+
+.btn-danger {
+  background: #ffffff;
+  color: #c0392b;
+  border: 1px solid #c0392b;
+  box-shadow: 0 8px 18px rgba(192, 57, 43, 0.15);
+}
+
+.btn-danger:hover,
+.btn-danger:focus-visible {
+  background: rgba(192, 57, 43, 0.08);
+  color: #c0392b;
+  border-color: #c0392b;
 }
 
 
@@ -887,6 +928,101 @@ a:hover {
 
 .bookmark-list-item .badge {
   min-width: 36px;
+}
+
+.bookmark-folder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bookmark-folder-item {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.18s ease;
+}
+
+.bookmark-folder-item:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+}
+
+.bookmark-folder-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 3px;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.bookmark-folder-item.is-active {
+  border-color: var(--author-accent, #2e8b57);
+  background: linear-gradient(135deg, rgba(46, 139, 87, 0.08), #ffffff);
+  box-shadow: 0 12px 26px rgba(46, 139, 87, 0.15);
+}
+
+.bookmark-folder-item.is-active::before {
+  background: var(--author-accent, #2e8b57);
+}
+
+.bookmark-folder-name {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.bookmark-folder-desc {
+  color: #6c757d;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bookmark-folder-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bookmark-folder-count {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.bookmark-folder-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.bookmark-empty-state {
+  text-align: center;
+  padding: 28px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px dashed rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  color: #6c757d;
+}
+
+.bookmark-empty-state .emoji {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 8px;
 }
 
 .post-category-row {

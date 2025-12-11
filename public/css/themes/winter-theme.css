@@ -200,6 +200,60 @@ body.winter-theme .bookmark-panel {
   border: 1px solid rgba(47, 108, 138, 0.18);
 }
 
+body.winter-theme .bookmark-folder-item.is-active {
+  border-color: #2f6c8a;
+  background: linear-gradient(135deg, rgba(47, 108, 138, 0.12), #ffffff);
+  box-shadow: 0 14px 30px rgba(34, 70, 104, 0.18);
+}
+
+body.winter-theme .bookmark-folder-item.is-active::before {
+  background: #2f6c8a;
+}
+
+body.winter-theme .bookmark-empty-state {
+  background: rgba(230, 240, 247, 0.75);
+  border-color: rgba(47, 108, 138, 0.25);
+  color: #3a5870;
+}
+
+body.winter-theme .btn-primary {
+  background: #2f6c8a;
+  border-color: #2f6c8a;
+  box-shadow: 0 12px 26px rgba(47, 108, 138, 0.26);
+}
+
+body.winter-theme .btn-primary:hover,
+body.winter-theme .btn-primary:focus-visible {
+  filter: brightness(0.92);
+  background: #2f6c8a;
+  border-color: #2f6c8a;
+}
+
+body.winter-theme .btn-secondary {
+  color: #2f6c8a;
+  border-color: #2f6c8a;
+  box-shadow: 0 10px 22px rgba(47, 108, 138, 0.18);
+}
+
+body.winter-theme .btn-secondary:hover,
+body.winter-theme .btn-secondary:focus-visible {
+  background: rgba(47, 108, 138, 0.08);
+  color: #2f6c8a;
+}
+
+body.winter-theme .btn-secondary.active,
+body.winter-theme .btn-secondary:active {
+  background: #2f6c8a;
+  color: #ffffff;
+  border-color: #2f6c8a;
+}
+
+body.winter-theme .btn-danger {
+  color: #c0392b;
+  border-color: #c0392b;
+  box-shadow: 0 10px 22px rgba(192, 57, 43, 0.18);
+}
+
 body.winter-theme .post-bookmark-toggle {
   border-color: rgba(47, 108, 138, 0.35);
   color: #1f4d68;
