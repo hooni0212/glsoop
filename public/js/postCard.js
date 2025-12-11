@@ -68,6 +68,22 @@ function extractContentWithFont(post) {
   return { cleanHtml, quoteFontClass };
 }
 
+function getCategoryLabel(category) {
+  if (!category) return '';
+  if (category === 'poem') return '시';
+  if (category === 'essay') return '에세이/일기';
+  if (category === 'short') return '짧은 구절';
+  return '';
+}
+
+function renderCategoryBadge(post) {
+  const label = getCategoryLabel(post?.category);
+  if (!label) return '';
+
+  const cls = `post-category-label gls-category-badge gls-category-${post.category}`;
+  return `<span class="${cls}">${label}</span>`;
+}
+
 /**
  * ⭐ 공통 카드 HTML 생성 함수
  * - 인덱스 피드 / 관련 글 / 마이페이지 등에서 모두 같은 구조를 쓰기 위해 사용
@@ -90,7 +106,38 @@ function buildStandardPostCardHTML(post, options = {}) {
     post.user_liked === 1 || post.user_liked === true ? true : false;
 
   const hashtagHtml = buildHashtagHtml(post);
+  const categoryHtml = renderCategoryBadge(post);
   const { cleanHtml, quoteFontClass } = extractContentWithFont(post);
+  const bookmarkIcon = `
+    <svg
+      class="post-bookmark-icon"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M7.5 4.25h9a1.25 1.25 0 0 1 1.25 1.25v14.5l-5.75-3.4-5.75 3.4V5.5A1.25 1.25 0 0 1 7.5 4.25Z"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"
+      />
+    </svg>`;
+
+  const bookmarkBtn = `
+    <button
+      type="button"
+      class="btn btn-sm post-bookmark-toggle"
+      data-post-id="${post.id}"
+      aria-label="북마크 추가"
+    >
+      ${bookmarkIcon}
+    </button>`;
 
   // 카드에 붙일 추가 클래스
   const extraClass = cardExtraClass ? ` ${cardExtraClass}` : '';
@@ -153,7 +200,19 @@ function buildStandardPostCardHTML(post, options = {}) {
         </div>
 
         <!-- 해시태그 버튼들 -->
-        ${hashtagHtml}
+        ${
+          categoryHtml || hashtagHtml
+            ? `<div class="post-bottom-meta">
+                 ${
+                   categoryHtml
+                     ? `<div class="post-category-row">${categoryHtml}</div>`
+                     : ''
+                 }
+                 ${hashtagHtml || ''}
+                 <div class="post-action-row">${bookmarkBtn}</div>
+               </div>`
+            : ''
+        }
       </div>
     </div>
   `;
@@ -333,6 +392,7 @@ function setupCardInteractions(cardEl, post) {
     // 카드 안의 다른 버튼 클릭은 무시
     if (e.target.closest('.like-btn')) return;
     if (e.target.closest('.gls-tag-btn')) return;
+    if (e.target.closest('.post-bookmark-toggle')) return;
     if (e.target.closest('.edit-post-btn')) return;
     if (e.target.closest('.delete-post-btn')) return;
 

@@ -27,12 +27,42 @@ const { JWT_SECRET } = require('../config');
 const { authRequired } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 
+const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
+const CATEGORY_SQL =
+  "CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END";
+
+function parseCategory(input) {
+  const value = typeof input === 'string' ? input.trim() : '';
+  return ALLOWED_CATEGORIES.includes(value) ? value : null;
+}
+
+function coalesceCategory(input) {
+  return parseCategory(input) || 'short';
+}
+
+function requireValidCategory(input, res) {
+  const parsed = parseCategory(input);
+  if (!parsed) {
+    if (res) {
+      res.status(400).json({
+        ok: false,
+        message: '카테고리를 선택해주세요. (시/에세이/짧은 구절)',
+      });
+    }
+    return null;
+  }
+  return parsed;
+}
+
 const router = express.Router();
 
 // 9-1) 글 작성
 router.post('/posts', authRequired, (req, res) => {
-  const { title, content, hashtags } = req.body;
+  const { title, content, hashtags, category } = req.body;
   const userId = req.user.id;
+  const normalizedCategory = requireValidCategory(category, res);
+
+  if (!normalizedCategory) return;
 
   if (!title || !content) {
     return res
@@ -42,8 +72,8 @@ router.post('/posts', authRequired, (req, res) => {
 
   // 본문 저장 후 해시태그를 별도 테이블에 기록
   db.run(
-    'INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)',
-    [userId, title, content],
+    'INSERT INTO posts (user_id, title, content, category) VALUES (?, ?, ?, ?)',
+    [userId, title, content, normalizedCategory],
     function (err) {
       if (err) {
         console.error(err);
@@ -78,9 +108,12 @@ router.post('/posts', authRequired, (req, res) => {
 // 9-2) 글 수정
 router.put('/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
-  const { title, content, hashtags } = req.body;
+  const { title, content, hashtags, category } = req.body;
   const userId = req.user.id;
   const isAdmin = !!req.user.isAdmin;
+  const normalizedCategory = requireValidCategory(category, res);
+
+  if (!normalizedCategory) return;
 
   if (!title || !content) {
     return res
@@ -111,8 +144,8 @@ router.put('/posts/:id', authRequired, (req, res) => {
 
     // 본문 갱신 후 해시태그 매핑을 재작성
     db.run(
-      'UPDATE posts SET title = ?, content = ? WHERE id = ?',
-      [title, content, postId],
+      'UPDATE posts SET title = ?, content = ?, category = ? WHERE id = ?',
+      [title, content, normalizedCategory, postId],
       function (err2) {
         if (err2) {
           console.error(err2);
@@ -151,6 +184,7 @@ router.get('/posts/my', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
+      ${CATEGORY_SQL} AS category,
       p.created_at,
       p.user_id                AS author_id,
       u.name                   AS author_name,
@@ -202,6 +236,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
+      ${CATEGORY_SQL} AS category,
       p.created_at,
       p.user_id                AS author_id,
       u.name                   AS author_name,
@@ -237,8 +272,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
   );
 });
 
-// 9-5) 피드 조회 (전체 + 해시태그 필터 + 좋아요 여부)
-router.get('/posts/feed', (req, res) => {
+function handleFeedRequest(req, res) {
   let userId = null;
 
   const token = req.cookies.token;
@@ -262,6 +296,15 @@ router.get('/posts/feed', (req, res) => {
     offset = 0;
   }
 
+  const sortParam = String(req.query.sort || 'latest');
+  const sort = sortParam === 'popular' ? 'popular' : 'latest';
+
+  const typeParam = String(req.query.type || 'all');
+  const feedType = typeParam === 'following' ? 'following' : 'all';
+
+  const categoryParam = String(req.query.category || '').trim();
+  const category = parseCategory(categoryParam);
+
   // 쿼리 파라미터로 전달된 태그 목록 정리
   let tags = [];
   if (req.query.tags) {
@@ -275,120 +318,153 @@ router.get('/posts/feed', (req, res) => {
   }
   const tagCount = tags.length;
 
-  // 공통 SELECT 절: 좋아요 개수와 해시태그 문자열 포함
-  const baseSelect = `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.created_at,
-      u.id      AS author_id,
-      u.name     AS author_name,
-      u.nickname AS author_nickname,
-      u.email    AS author_email,
-      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
-      GROUP_CONCAT(DISTINCT h.name) AS hashtags
-  `;
-
-  const baseFromJoin = `
-    FROM posts p
-    JOIN users u ON p.user_id = u.id
-    LEFT JOIN post_hashtags ph ON ph.post_id = p.id
-    LEFT JOIN hashtags h ON h.id = ph.hashtag_id
-  `;
-
-  const baseOrder = `
-    GROUP BY p.id
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?
-  `;
-
-  let sql;
-  let params = [];
-
-  if (userId) {
-    if (tagCount > 0) {
-      const placeholders = tags.map(() => '?').join(', ');
-      sql = `
-        ${baseSelect},
-        CASE
-          WHEN EXISTS (
-            SELECT 1 FROM likes l2
-            WHERE l2.post_id = p.id AND l2.user_id = ?
-          ) THEN 1
-          ELSE 0
-        END AS user_liked
-        ${baseFromJoin}
-        WHERE p.id IN (
-          SELECT ph2.post_id
-          FROM post_hashtags ph2
-          JOIN hashtags h2 ON h2.id = ph2.hashtag_id
-          WHERE h2.name IN (${placeholders})
-          GROUP BY ph2.post_id
-          HAVING COUNT(DISTINCT h2.name) = ?
-        )
-        ${baseOrder}
-      `;
-      params = [userId, ...tags, tagCount, limit, offset];
-    } else {
-      sql = `
-        ${baseSelect},
-        CASE
-          WHEN EXISTS (
-            SELECT 1 FROM likes l2
-            WHERE l2.post_id = p.id AND l2.user_id = ?
-          ) THEN 1
-          ELSE 0
-        END AS user_liked
-        ${baseFromJoin}
-        ${baseOrder}
-      `;
-      params = [userId, limit, offset];
-    }
-  } else {
-    if (tagCount > 0) {
-      const placeholders = tags.map(() => '?').join(', ');
-      sql = `
-        ${baseSelect},
-        0 AS user_liked
-        ${baseFromJoin}
-        WHERE p.id IN (
-          SELECT ph2.post_id
-          FROM post_hashtags ph2
-          JOIN hashtags h2 ON h2.id = ph2.hashtag_id
-          WHERE h2.name IN (${placeholders})
-          GROUP BY ph2.post_id
-          HAVING COUNT(DISTINCT h2.name) = ?
-        )
-        ${baseOrder}
-      `;
-      params = [...tags, tagCount, limit, offset];
-    } else {
-      sql = `
-        ${baseSelect},
-        0 AS user_liked
-        ${baseFromJoin}
-        ${baseOrder}
-      `;
-      params = [limit, offset];
-    }
+  if (feedType === 'following' && !userId) {
+    return res.status(401).json({
+      ok: false,
+      message: '로그인이 필요한 요청입니다.',
+      posts: [],
+      hasMore: false,
+      context: {
+        feedType,
+        sort,
+        followingCount: 0,
+        tags,
+        category: category || null,
+      },
+    });
   }
 
-  db.all(sql, params, (err, rows) => {
-    if (err) {
-      console.error(err);
-      return res
-        .status(500)
-        .json({ ok: false, message: '피드 조회 중 DB 오류가 발생했습니다.' });
+  const runQuery = (followingCount = null) => {
+    const params = [];
+
+    const selectClause = `
+      SELECT
+        p.id,
+        p.title,
+        p.content,
+        p.created_at,
+        ${CATEGORY_SQL} AS category,
+        u.id       AS author_id,
+        u.name     AS author_name,
+        u.nickname AS author_nickname,
+        u.email    AS author_email,
+        IFNULL(lc.like_count, 0) AS like_count,
+        ${
+          userId
+            ? 'CASE WHEN my.user_id IS NULL THEN 0 ELSE 1 END'
+            : '0'
+        } AS user_liked,
+        GROUP_CONCAT(DISTINCT h.name) AS hashtags
+    `;
+
+    const joins = [
+      'FROM posts p',
+      'JOIN users u ON p.user_id = u.id',
+      'LEFT JOIN post_hashtags ph ON ph.post_id = p.id',
+      'LEFT JOIN hashtags h ON h.id = ph.hashtag_id',
+      'LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM likes GROUP BY post_id) lc ON lc.post_id = p.id',
+    ];
+
+    if (userId) {
+      joins.push('LEFT JOIN likes my ON my.post_id = p.id AND my.user_id = ?');
+      params.push(userId);
     }
 
-    return res.json({
-      ok: true,
-      posts: rows,
-      hasMore: rows.length === limit,
+    const conditions = [];
+
+    if (tagCount > 0) {
+      const placeholders = tags.map(() => '?').join(', ');
+      conditions.push(`p.id IN (
+          SELECT ph2.post_id
+          FROM post_hashtags ph2
+          JOIN hashtags h2 ON h2.id = ph2.hashtag_id
+          WHERE h2.name IN (${placeholders})
+          GROUP BY ph2.post_id
+          HAVING COUNT(DISTINCT h2.name) = ?
+        )`);
+      params.push(...tags, tagCount);
+    }
+
+    if (feedType === 'following') {
+      conditions.push(
+        'p.user_id IN (SELECT followee_id FROM follows WHERE follower_id = ?)'
+      );
+      params.push(userId);
+    }
+
+    if (category) {
+      conditions.push('p.category = ?');
+      params.push(category);
+    }
+
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(' AND ')}`
+      : '';
+
+    const orderClause =
+      sort === 'popular'
+        ? 'ORDER BY like_count DESC, p.created_at DESC'
+        : 'ORDER BY p.created_at DESC';
+
+    const sql = `
+      ${selectClause}
+      ${joins.join('\n')}
+      ${whereClause}
+      GROUP BY p.id
+      ${orderClause}
+      LIMIT ? OFFSET ?
+    `;
+
+    params.push(limit, offset);
+
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({
+          ok: false,
+          message: '피드 조회 중 DB 오류가 발생했습니다.',
+        });
+      }
+
+      return res.json({
+        ok: true,
+        posts: rows,
+        hasMore: rows.length === limit,
+        context: {
+          feedType,
+          sort,
+          followingCount,
+          tags,
+          category: category || null,
+        },
+      });
     });
-  });
-});
+  };
+
+  if (feedType === 'following') {
+    db.get(
+      'SELECT COUNT(*) AS cnt FROM follows WHERE follower_id = ?',
+      [userId],
+      (err, row) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({
+            ok: false,
+            message: '팔로잉 정보를 확인하는 중 오류가 발생했습니다.',
+          });
+        }
+
+        runQuery(row?.cnt || 0);
+      }
+    );
+  } else {
+    runQuery(null);
+  }
+}
+
+// 9-5) 피드 조회 (전체 + 해시태그 필터 + 좋아요 여부)
+router.get('/posts/feed', handleFeedRequest);
+router.get('/posts', handleFeedRequest);
 
 // 9-6) 관련 글 추천
 router.get('/posts/:id/related', (req, res) => {
@@ -459,6 +535,7 @@ router.get('/posts/:id/related', (req, res) => {
           p.id,
           p.title,
           p.content,
+          ${CATEGORY_SQL} AS category,
           p.created_at,
           u.id       AS author_id,
           u.name     AS author_name,
@@ -568,6 +645,7 @@ router.get('/posts/:id', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
+      ${CATEGORY_SQL} AS category,
       p.created_at,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
     FROM posts p
@@ -601,6 +679,7 @@ router.get('/posts/:id', authRequired, (req, res) => {
           id: row.id,
           title: row.title,
           content: row.content,
+          category: row.category,
           created_at: row.created_at,
           hashtags: tags,
         },
@@ -769,6 +848,7 @@ router.get('/posts/:id/detail', (req, res) => {
       p.id,
       p.title,
       p.content,
+      ${CATEGORY_SQL} AS category,
       p.created_at,
       u.id       AS author_id,
       u.name     AS author_name,
@@ -839,6 +919,7 @@ router.get('/posts/:id/detail', (req, res) => {
         id: row.id,
         title: row.title,
         content: row.content,
+        category: row.category,
         created_at: row.created_at,
         author_id: row.author_id,
         author_name: row.author_name,

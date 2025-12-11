@@ -110,7 +110,7 @@ async function loadMyPage() {
             <span>팔로잉 <strong id="mypageFollowingCount">${followingCount}</strong></span>
             <button
               type="button"
-              class="btn btn-outline-primary btn-sm"
+              class="btn btn-secondary btn-sm"
               id="openFollowingListBtn"
             >
               팔로잉 목록 보기
@@ -119,7 +119,7 @@ async function loadMyPage() {
         </div>
         <button
           type="button"
-          class="btn btn-outline-secondary btn-sm"
+          class="btn btn-ghost btn-sm"
           data-bs-toggle="modal"
           data-bs-target="#userEditModal"
         >
@@ -190,6 +190,7 @@ function setupMyPageTabs() {
   const tabMy = document.getElementById('tabMyPosts');      // "내가 쓴 글" 탭 버튼
   const tabLiked = document.getElementById('tabLikedPosts'); // "공감한 글" 탭 버튼
   const tabFollowings = document.getElementById('tabFollowings'); // "팔로잉" 탭 버튼
+  const tabBookmarks = document.getElementById('tabBookmarks'); // "북마크" 탭 버튼 (bookmarks.html로 이동)
 
   if (!tabMy || !tabLiked || !tabFollowings) return;
 
@@ -216,6 +217,16 @@ function setupMyPageTabs() {
       await loadMyFollowings();
     }
   });
+
+  // "북마크" 탭 → 별도 북마크 페이지 이동
+  if (tabBookmarks && !tabBookmarks.dataset.bound) {
+    tabBookmarks.addEventListener('click', (e) => {
+      // 같은 탭 바 레이아웃을 사용하지만, 실제로는 전용 페이지로 이동
+      e.preventDefault();
+      window.location.href = '/html/bookmarks.html';
+    });
+    tabBookmarks.dataset.bound = 'true';
+  }
 }
 
 /**
@@ -227,6 +238,7 @@ function switchMyPageTab(target) {
   const tabMy = document.getElementById('tabMyPosts');
   const tabLiked = document.getElementById('tabLikedPosts');
   const tabFollowings = document.getElementById('tabFollowings');
+  const tabBookmarks = document.getElementById('tabBookmarks');
   const mySection = document.getElementById('myPostsSection');
   const likedSection = document.getElementById('likedPostsSection');
   const followingsSection = document.getElementById('followingsSection');
@@ -237,9 +249,12 @@ function switchMyPageTab(target) {
   const isLikedTab = target === 'liked';
   const isFollowingsTab = target === 'followings';
 
-  tabMy.classList.toggle('active', isMyTab);
-  tabLiked.classList.toggle('active', isLikedTab);
-  tabFollowings.classList.toggle('active', isFollowingsTab);
+  tabMy.classList.toggle('is-active', isMyTab);
+  tabLiked.classList.toggle('is-active', isLikedTab);
+  tabFollowings.classList.toggle('is-active', isFollowingsTab);
+  if (tabBookmarks) {
+    tabBookmarks.classList.remove('is-active');
+  }
 
   mySection.classList.toggle('d-none', !isMyTab);
   likedSection.classList.toggle('d-none', !isLikedTab);
@@ -606,7 +621,7 @@ function setupFollowingListEvents() {
     target.textContent = '처리 중...';
 
     try {
-      const res = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+      const res = await fetch(`/api/follow/${userId}`, { method: 'DELETE' });
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data.ok) {

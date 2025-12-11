@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>카테고리별 글 | 글숲</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="../css/main.css" />
+  <link rel="stylesheet" href="./css/snow.css" />
+  <link rel="stylesheet" href="/css/themes/spring-theme.css" />
+  <link rel="stylesheet" href="/css/themes/summer-theme.css" />
+  <link rel="stylesheet" href="/css/themes/autumn-theme.css" />
+  <link rel="stylesheet" href="/css/themes/winter-theme.css" />
+</head>
+<body class="winter-theme page-index">
+  <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
+    <div class="container">
+      <a class="navbar-brand" href="/index.html">글숲</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-lg-3 category-dropdown-nav">
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link dropdown-toggle"
+              href="#"
+              id="categoryDropdown"
+              role="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              카테고리
+            </a>
+            <ul class="dropdown-menu nav-category-menu" aria-labelledby="categoryDropdown">
+              <li><a class="dropdown-item nav-category-item" href="/index.html">전체</a></li>
+              <li><a class="dropdown-item nav-category-item" href="/html/category.html?category=poem">시</a></li>
+              <li><a class="dropdown-item nav-category-item" href="/html/category.html?category=essay">에세이/일기</a></li>
+              <li><a class="dropdown-item nav-category-item" href="/html/category.html?category=short">짧은 구절</a></li>
+            </ul>
+          </li>
+        </ul>
+
+        <ul class="navbar-nav ms-auto before-login">
+          <li class="nav-item"><a class="nav-link" href="/html/login.html">로그인</a></li>
+          <li class="nav-item"><a class="nav-link" href="/html/signup.html">회원가입</a></li>
+        </ul>
+
+        <ul class="navbar-nav ms-auto after-login" style="display: none;">
+          <li class="nav-item"><span class="nav-link" id="navUserName"></span></li>
+          <li class="nav-item"><a class="nav-link" href="/html/mypage.html">마이페이지</a></li>
+          <li class="nav-item"><a class="nav-link" href="/html/editor.html">글쓰기</a></li>
+          <li class="nav-item">
+            <button class="btn btn-outline-light ms-2" id="logoutBtn" type="button">로그아웃</button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <section class="page-section">
+    <div class="container" style="max-width: 900px;">
+      <div class="d-flex flex-column flex-md-row align-items-md-end gap-2 mb-3 mt-4">
+        <div>
+          <p class="text-uppercase text-muted small mb-1">카테고리 전용 피드</p>
+          <h3 class="mb-0" id="categoryPageTitle">카테고리</h3>
+        </div>
+        <div class="ms-md-auto text-muted" id="categorySortHint">최신순</div>
+      </div>
+      <div id="categoryFeed">
+        <p class="text-muted">피드를 불러오는 중입니다...</p>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/header.js"></script>
+  <script src="/js/postCard.js"></script>
+  <script src="/js/category.js"></script>
+</body>
+</html>

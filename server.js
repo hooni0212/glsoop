@@ -20,6 +20,7 @@ require('./db');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const postRoutes = require('./routes/postRoutes');
+const bookmarkRoutes = require('./routes/bookmarkRoutes');
 
 const app = express();
 // 로컬 개발은 3000, 배포 환경에서는 포트 환경 변수 사용
@@ -48,6 +49,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', authRoutes);
 app.use('/api', userRoutes);
 app.use('/api', postRoutes);
+app.use('/api', bookmarkRoutes);
 
 // 4. 루트 페이지
 app.get('/', (req, res) => {
