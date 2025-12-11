@@ -141,28 +141,37 @@
 
       <!-- 탭 버튼: "내가 쓴 글" / "내가 공감한 글" -->
       <!-- mypage.js → setupMyPageTabs() 에서 클릭 이벤트로 탭 전환 -->
-      <div class="btn-group mb-3" role="group" aria-label="마이페이지 글 탭">
-        <button
-          type="button"
-          class="btn btn-outline-success active"
-          id="tabMyPosts"
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-3 mypage-tab-row">
+        <div class="btn-group" role="group" aria-label="마이페이지 글 탭">
+          <button
+            type="button"
+            class="btn btn-outline-success active"
+            id="tabMyPosts"
+          >
+            내가 쓴 글
+          </button>
+          <button
+            type="button"
+            class="btn btn-outline-success"
+            id="tabLikedPosts"
+          >
+            내가 공감한 글
+          </button>
+          <button
+            type="button"
+            class="btn btn-outline-success"
+            id="tabFollowings"
+          >
+            내가 팔로잉
+          </button>
+        </div>
+        <a
+          class="btn btn-outline-success ms-md-auto"
+          href="/html/bookmarks.html"
+          role="button"
         >
-          내가 쓴 글
-        </button>
-        <button
-          type="button"
-          class="btn btn-outline-success"
-          id="tabLikedPosts"
-        >
-          내가 공감한 글
-        </button>
-        <button
-          type="button"
-          class="btn btn-outline-success"
-          id="tabFollowings"
-        >
-          내가 팔로잉
-        </button>
+          북마크
+        </a>
       </div>
 
       <!-- 내가 쓴 글 섹션 -->

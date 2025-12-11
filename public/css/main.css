@@ -853,17 +853,25 @@ a:hover {
 .post-bookmark-toggle {
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: #ffffff;
-  color: #2f2f2f;
-  border-radius: 8px;
-  padding: 4px 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+  color: var(--author-accent, #2f2f2f);
+  border-radius: 6px;
+  padding: 6px 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.post-bookmark-toggle .post-bookmark-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .post-bookmark-toggle:hover,
 .post-bookmark-toggle:focus-visible {
-  background: #f3f6ff;
+  background: #f4f7ff;
   border-color: rgba(0, 0, 0, 0.14);
-  color: #1d3a5c;
+  color: var(--author-accent, #1d3a5c);
 }
 
 .page-bookmarks .bookmarks-shell {

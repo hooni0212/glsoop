@@ -108,6 +108,27 @@ function buildStandardPostCardHTML(post, options = {}) {
   const hashtagHtml = buildHashtagHtml(post);
   const categoryHtml = renderCategoryBadge(post);
   const { cleanHtml, quoteFontClass } = extractContentWithFont(post);
+  const bookmarkIcon = `
+    <svg
+      class="post-bookmark-icon"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M7.5 4.25h9a1.25 1.25 0 0 1 1.25 1.25v14.5l-5.75-3.4-5.75 3.4V5.5A1.25 1.25 0 0 1 7.5 4.25Z"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"
+      />
+    </svg>`;
+
   const bookmarkBtn = `
     <button
       type="button"
@@ -115,7 +136,7 @@ function buildStandardPostCardHTML(post, options = {}) {
       data-post-id="${post.id}"
       aria-label="북마크 추가"
     >
-      📑
+      ${bookmarkIcon}
     </button>`;
 
   // 카드에 붙일 추가 클래스
