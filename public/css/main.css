@@ -762,3 +762,21 @@ a:hover {
   margin-left: auto;
   margin-right: auto;
 }
+
+.feed-tabs {
+  gap: 8px;
+}
+
+.feed-tabs .nav-link {
+  border-radius: 999px;
+  color: #3d3d3d;
+  background: #f2f5f3;
+  border: 1px solid #e1e6e3;
+  padding: 6px 14px;
+}
+
+.feed-tabs .nav-link.active {
+  background: #198754;
+  color: #fff;
+  border-color: #198754;
+}

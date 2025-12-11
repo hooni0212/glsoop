@@ -237,8 +237,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
   );
 });
 
-// 9-5) 피드 조회 (전체 + 해시태그 필터 + 좋아요 여부)
-router.get('/posts/feed', (req, res) => {
+function handleFeedRequest(req, res) {
   let userId = null;
 
   const token = req.cookies.token;
@@ -262,6 +261,12 @@ router.get('/posts/feed', (req, res) => {
     offset = 0;
   }
 
+  const sortParam = String(req.query.sort || 'latest');
+  const sort = sortParam === 'popular' ? 'popular' : 'latest';
+
+  const typeParam = String(req.query.type || 'all');
+  const feedType = typeParam === 'following' ? 'following' : 'all';
+
   // 쿼리 파라미터로 전달된 태그 목록 정리
   let tags = [];
   if (req.query.tags) {
@@ -275,120 +280,145 @@ router.get('/posts/feed', (req, res) => {
   }
   const tagCount = tags.length;
 
-  // 공통 SELECT 절: 좋아요 개수와 해시태그 문자열 포함
-  const baseSelect = `
-    SELECT
-      p.id,
-      p.title,
-      p.content,
-      p.created_at,
-      u.id      AS author_id,
-      u.name     AS author_name,
-      u.nickname AS author_nickname,
-      u.email    AS author_email,
-      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
-      GROUP_CONCAT(DISTINCT h.name) AS hashtags
-  `;
-
-  const baseFromJoin = `
-    FROM posts p
-    JOIN users u ON p.user_id = u.id
-    LEFT JOIN post_hashtags ph ON ph.post_id = p.id
-    LEFT JOIN hashtags h ON h.id = ph.hashtag_id
-  `;
-
-  const baseOrder = `
-    GROUP BY p.id
-    ORDER BY p.created_at DESC
-    LIMIT ? OFFSET ?
-  `;
-
-  let sql;
-  let params = [];
-
-  if (userId) {
-    if (tagCount > 0) {
-      const placeholders = tags.map(() => '?').join(', ');
-      sql = `
-        ${baseSelect},
-        CASE
-          WHEN EXISTS (
-            SELECT 1 FROM likes l2
-            WHERE l2.post_id = p.id AND l2.user_id = ?
-          ) THEN 1
-          ELSE 0
-        END AS user_liked
-        ${baseFromJoin}
-        WHERE p.id IN (
-          SELECT ph2.post_id
-          FROM post_hashtags ph2
-          JOIN hashtags h2 ON h2.id = ph2.hashtag_id
-          WHERE h2.name IN (${placeholders})
-          GROUP BY ph2.post_id
-          HAVING COUNT(DISTINCT h2.name) = ?
-        )
-        ${baseOrder}
-      `;
-      params = [userId, ...tags, tagCount, limit, offset];
-    } else {
-      sql = `
-        ${baseSelect},
-        CASE
-          WHEN EXISTS (
-            SELECT 1 FROM likes l2
-            WHERE l2.post_id = p.id AND l2.user_id = ?
-          ) THEN 1
-          ELSE 0
-        END AS user_liked
-        ${baseFromJoin}
-        ${baseOrder}
-      `;
-      params = [userId, limit, offset];
-    }
-  } else {
-    if (tagCount > 0) {
-      const placeholders = tags.map(() => '?').join(', ');
-      sql = `
-        ${baseSelect},
-        0 AS user_liked
-        ${baseFromJoin}
-        WHERE p.id IN (
-          SELECT ph2.post_id
-          FROM post_hashtags ph2
-          JOIN hashtags h2 ON h2.id = ph2.hashtag_id
-          WHERE h2.name IN (${placeholders})
-          GROUP BY ph2.post_id
-          HAVING COUNT(DISTINCT h2.name) = ?
-        )
-        ${baseOrder}
-      `;
-      params = [...tags, tagCount, limit, offset];
-    } else {
-      sql = `
-        ${baseSelect},
-        0 AS user_liked
-        ${baseFromJoin}
-        ${baseOrder}
-      `;
-      params = [limit, offset];
-    }
+  if (feedType === 'following' && !userId) {
+    return res.status(401).json({
+      ok: false,
+      message: '로그인이 필요한 요청입니다.',
+      posts: [],
+      hasMore: false,
+      context: {
+        feedType,
+        sort,
+        followingCount: 0,
+        tags,
+      },
+    });
   }
 
-  db.all(sql, params, (err, rows) => {
-    if (err) {
-      console.error(err);
-      return res
-        .status(500)
-        .json({ ok: false, message: '피드 조회 중 DB 오류가 발생했습니다.' });
+  const runQuery = (followingCount = null) => {
+    const params = [];
+
+    const selectClause = `
+      SELECT
+        p.id,
+        p.title,
+        p.content,
+        p.created_at,
+        u.id       AS author_id,
+        u.name     AS author_name,
+        u.nickname AS author_nickname,
+        u.email    AS author_email,
+        IFNULL(lc.like_count, 0) AS like_count,
+        ${
+          userId
+            ? 'CASE WHEN my.user_id IS NULL THEN 0 ELSE 1 END'
+            : '0'
+        } AS user_liked,
+        GROUP_CONCAT(DISTINCT h.name) AS hashtags
+    `;
+
+    const joins = [
+      'FROM posts p',
+      'JOIN users u ON p.user_id = u.id',
+      'LEFT JOIN post_hashtags ph ON ph.post_id = p.id',
+      'LEFT JOIN hashtags h ON h.id = ph.hashtag_id',
+      'LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM likes GROUP BY post_id) lc ON lc.post_id = p.id',
+    ];
+
+    if (userId) {
+      joins.push('LEFT JOIN likes my ON my.post_id = p.id AND my.user_id = ?');
+      params.push(userId);
     }
 
-    return res.json({
-      ok: true,
-      posts: rows,
-      hasMore: rows.length === limit,
+    const conditions = [];
+
+    if (tagCount > 0) {
+      const placeholders = tags.map(() => '?').join(', ');
+      conditions.push(`p.id IN (
+          SELECT ph2.post_id
+          FROM post_hashtags ph2
+          JOIN hashtags h2 ON h2.id = ph2.hashtag_id
+          WHERE h2.name IN (${placeholders})
+          GROUP BY ph2.post_id
+          HAVING COUNT(DISTINCT h2.name) = ?
+        )`);
+      params.push(...tags, tagCount);
+    }
+
+    if (feedType === 'following') {
+      conditions.push(
+        'p.user_id IN (SELECT followee_id FROM follows WHERE follower_id = ?)' 
+      );
+      params.push(userId);
+    }
+
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(' AND ')}`
+      : '';
+
+    const orderClause =
+      sort === 'popular'
+        ? 'ORDER BY like_count DESC, p.created_at DESC'
+        : 'ORDER BY p.created_at DESC';
+
+    const sql = `
+      ${selectClause}
+      ${joins.join('\n')}
+      ${whereClause}
+      GROUP BY p.id
+      ${orderClause}
+      LIMIT ? OFFSET ?
+    `;
+
+    params.push(limit, offset);
+
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({
+          ok: false,
+          message: '피드 조회 중 DB 오류가 발생했습니다.',
+        });
+      }
+
+      return res.json({
+        ok: true,
+        posts: rows,
+        hasMore: rows.length === limit,
+        context: {
+          feedType,
+          sort,
+          followingCount,
+          tags,
+        },
+      });
     });
-  });
-});
+  };
+
+  if (feedType === 'following') {
+    db.get(
+      'SELECT COUNT(*) AS cnt FROM follows WHERE follower_id = ?',
+      [userId],
+      (err, row) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({
+            ok: false,
+            message: '팔로잉 정보를 확인하는 중 오류가 발생했습니다.',
+          });
+        }
+
+        runQuery(row?.cnt || 0);
+      }
+    );
+  } else {
+    runQuery(null);
+  }
+}
+
+// 9-5) 피드 조회 (전체 + 해시태그 필터 + 좋아요 여부)
+router.get('/posts/feed', handleFeedRequest);
+router.get('/posts', handleFeedRequest);
 
 // 9-6) 관련 글 추천
 router.get('/posts/:id/related', (req, res) => {

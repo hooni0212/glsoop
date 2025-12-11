@@ -606,7 +606,7 @@ function setupFollowingListEvents() {
     target.textContent = '처리 중...';
 
     try {
-      const res = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+      const res = await fetch(`/api/follow/${userId}`, { method: 'DELETE' });
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data.ok) {

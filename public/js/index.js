@@ -17,6 +17,9 @@ Glsoop.FeedPage = (function () {
   let feedOffset = 0;        // 서버에서 글을 가져올 때 시작 위치(offset)
   let feedLoading = false;   // 현재 글을 가져오는 중인지 여부
   let feedDone = false;      // 더 이상 가져올 글이 없는지 여부
+  let currentSort = 'latest'; // 현재 정렬 옵션 (latest | popular)
+  let currentFeedType = 'all'; // 현재 피드 유형 (all | following)
+  let feedSession = 0;       // 정렬/필터 전환 시 세션 토큰 (응답 혼선 방지)
 
   // 여러 태그 AND 조건용 필터 목록
   // 예: ['힐링', '위로'] → 이 두 태그를 모두 포함한 글만 보기
@@ -27,15 +30,18 @@ Glsoop.FeedPage = (function () {
     // 1) URL 쿼리에서 태그 읽기 (?tag=힐링 또는 ?tags=힐링,위로)
     parseTagsFromURL();
 
-    // 2) 피드 초기화 (첫 로드 + 스크롤 이벤트 등록)
+    // 2) 피드 탭(최신/인기/팔로잉) 이벤트 등록
+    setupFeedTabs();
+
+    // 3) 피드 초기화 (첫 로드 + 스크롤 이벤트 등록)
     initFeed();
 
-    // 3) 태그가 이미 붙어 있다면 상단 필터 바 표시
+    // 4) 태그가 이미 붙어 있다면 상단 필터 바 표시
     if (currentTags.length > 0) {
       renderTagFilterBar();
     }
 
-    // 4) 히어로 CTA 잎사귀 애니메이션 세팅
+    // 5) 히어로 CTA 잎사귀 애니메이션 세팅
     setupHeroCtaLeaves();
   }
 
@@ -62,6 +68,61 @@ Glsoop.FeedPage = (function () {
     }
   }
 
+  function setupFeedTabs() {
+    const tabButtons = document.querySelectorAll('[data-feed-tab]');
+    if (!tabButtons.length) return;
+
+    const activeTab =
+      document.querySelector('[data-feed-tab].active') || tabButtons[0];
+    if (activeTab) {
+      currentSort = activeTab.dataset.sort || 'latest';
+      currentFeedType = activeTab.dataset.type || 'all';
+    }
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const nextSort = btn.dataset.sort || 'latest';
+        const nextType = btn.dataset.type || 'all';
+
+        if (nextSort === currentSort && nextType === currentFeedType) return;
+
+        tabButtons.forEach((tab) => {
+          const isActive = tab === btn;
+          tab.classList.toggle('active', isActive);
+          if (isActive) {
+            tab.setAttribute('aria-current', 'true');
+          } else {
+            tab.removeAttribute('aria-current');
+          }
+        });
+
+        resetFeedStateForTab(nextSort, nextType);
+      });
+    });
+  }
+
+  function resetFeedStateForTab(sort, type) {
+    currentSort = sort;
+    currentFeedType = type;
+    feedSession += 1;
+    feedOffset = 0;
+    feedDone = false;
+    feedLoading = false;
+
+    const feedBox = document.getElementById('feedPosts');
+    if (feedBox) {
+      feedBox.dataset.initialized = '';
+      const loadingLabel =
+        currentFeedType === 'following'
+          ? '팔로잉 피드를 불러오는 중입니다...'
+          : '피드를 불러오는 중입니다...';
+      feedBox.innerHTML = `<p class="text-muted">${loadingLabel}</p>`;
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadMoreFeed();
+  }
+
   /**
    * 피드 초기화
    * - 첫 페이지 글 로드
@@ -74,11 +135,7 @@ Glsoop.FeedPage = (function () {
       return;
     }
 
-    // 초기 로딩 메시지
-    feedBox.innerHTML = '<p class="text-muted">피드를 불러오는 중입니다...</p>';
-
-    // 첫 페이지 로딩
-    await loadMoreFeed();
+    resetFeedStateForTab(currentSort, currentFeedType);
 
     // 스크롤 끝 근처에서 추가 로드하도록 이벤트 등록
     window.addEventListener('scroll', handleFeedScroll);
@@ -110,8 +167,8 @@ Glsoop.FeedPage = (function () {
 
   // === 서버에서 글 목록 추가 로드 ===
   /**
-   * /api/posts/feed에서 글 목록 추가로 가져오기
-   * - offset, limit, tags를 쿼리로 전달
+   * /api/posts에서 글 목록 추가로 가져오기
+   * - offset, limit, sort, type, tags를 쿼리로 전달
    * - 첫 페이지에서 글이 없거나 에러가 나면 안내 문구 표시
    */
   async function loadMoreFeed() {
@@ -120,34 +177,58 @@ Glsoop.FeedPage = (function () {
     if (feedLoading || feedDone) return; // 중복 호출 방지
 
     feedLoading = true;
+    const sessionKey = feedSession;
+    const requestSort = currentSort;
+    const requestType = currentFeedType;
+    const requestTags = [...currentTags];
+    const requestOffset = feedOffset;
 
     try {
       const params = new URLSearchParams({
-        offset: String(feedOffset),
+        offset: String(requestOffset),
         limit: String(FEED_LIMIT),
+        sort: requestSort,
       });
 
-      // 현재 태그 필터가 있으면 함께 보내기 (?tags=a,b,c)
-      if (currentTags.length > 0) {
-        params.set('tags', currentTags.join(','));
+      if (requestType === 'following') {
+        params.set('type', 'following');
       }
 
-      const res = await fetch('/api/posts/feed?' + params.toString());
+      // 현재 태그 필터가 있으면 함께 보내기 (?tags=a,b,c)
+      if (requestTags.length > 0) {
+        params.set('tags', requestTags.join(','));
+      }
+
+      const res = await fetch('/api/posts?' + params.toString());
       if (!res.ok) {
         // 첫 로드에서 실패하면 에러 메시지 표시
-        if (feedOffset === 0) {
-          feedBox.innerHTML =
-            '<p class="text-danger">피드를 불러오는 중 오류가 발생했습니다.</p>';
+        if (requestOffset === 0 && sessionKey === feedSession) {
+          const baseMsg =
+            requestType === 'following'
+              ? '팔로잉 피드를 불러오는 중 오류가 발생했습니다.'
+              : '피드를 불러오는 중 오류가 발생했습니다.';
+          feedBox.innerHTML = `<p class="text-danger">${baseMsg}</p>`;
         }
+
+        if (res.status === 401 && requestType === 'following' && sessionKey === feedSession) {
+          feedBox.innerHTML =
+            '<p class="text-muted">로그인 후 팔로잉 피드를 볼 수 있습니다.</p>';
+          feedDone = true;
+        }
+
         feedLoading = false;
         return;
       }
 
       const data = await res.json();
 
+      if (sessionKey !== feedSession) {
+        return;
+      }
+
       if (!data.ok) {
         // API 레벨에서 실패한 경우
-        if (feedOffset === 0) {
+        if (requestOffset === 0) {
           feedBox.innerHTML = `<p class="text-danger">${
             data.message || '피드를 불러올 수 없습니다.'
           }</p>`;
@@ -157,10 +238,18 @@ Glsoop.FeedPage = (function () {
       }
 
       const posts = data.posts || [];
+      const context = data.context || {};
+      const followingCount = context.followingCount;
 
       // 첫 로드인데 글이 아예 없는 경우
-      if (feedOffset === 0 && posts.length === 0) {
-        if (currentTags.length > 0) {
+      if (requestOffset === 0 && posts.length === 0) {
+        if (currentFeedType === 'following') {
+          const message =
+            typeof followingCount === 'number' && followingCount === 0
+              ? '아직 팔로우한 작가가 없습니다. 작가 페이지에서 마음에 드는 작가를 팔로우해 보세요.'
+              : '팔로우한 작가들의 글이 아직 없습니다.';
+          feedBox.innerHTML = `<p class="text-muted">${message}</p>`;
+        } else if (currentTags.length > 0) {
           const label = currentTags
             .map((t) => `#${escapeHtml(t)}`)
             .join(', ');
@@ -186,8 +275,13 @@ Glsoop.FeedPage = (function () {
 
       // offset 갱신
       feedOffset += posts.length;
-      // 한 번에 받은 글 수가 FEED_LIMIT보다 작으면 더 이상 글이 없는 것으로 판단
-      if (posts.length < FEED_LIMIT) {
+
+      const hasMore =
+        typeof data.hasMore === 'boolean'
+          ? data.hasMore
+          : posts.length === FEED_LIMIT;
+
+      if (!hasMore) {
         feedDone = true;
       }
     } catch (e) {
@@ -456,6 +550,7 @@ function setupCardInteractions(card, post) {
     }
 
     // 피드 상태 리셋
+    feedSession += 1;
     feedOffset = 0;
     feedDone = false;
 

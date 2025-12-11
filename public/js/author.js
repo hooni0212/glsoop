@@ -204,8 +204,9 @@ async function handleAuthorFollowToggle() {
   }
 
   try {
-    const res = await fetch(`/api/users/${currentAuthorId}/follow`, {
-      method: 'POST',
+    const method = authorFollowState.isFollowing ? 'DELETE' : 'POST';
+    const res = await fetch(`/api/follow/${currentAuthorId}`, {
+      method,
     });
     const data = await res.json();
 
