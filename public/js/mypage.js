@@ -306,6 +306,10 @@ function renderPostCard(post, options = {}) {
  */
 function renderFollowingCard(user) {
   const displayName = getDisplayName(user);
+  const maskedEmail = maskEmail(user.email || '');
+  const emailHtml = maskedEmail
+    ? `<p class="mb-1 text-muted small">${escapeHtml(maskedEmail)}</p>`
+    : '';
   const bioHtml = user.bio
     ? `<p class="mb-1 text-muted small">${escapeHtml(user.bio)}</p>`
     : '';
@@ -321,7 +325,7 @@ function renderFollowingCard(user) {
         <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
           <div class="flex-fill">
             <h6 class="mb-1">${escapeHtml(displayName)}</h6>
-            <p class="mb-1 text-muted small">${escapeHtml(user.email)}</p>
+            ${emailHtml}
             ${bioHtml}
             ${aboutHtml}
             <p class="mb-0 text-muted small">팔로워 ${user.followerCount || 0}</p>
