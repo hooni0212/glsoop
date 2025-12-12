@@ -172,8 +172,15 @@ async function loadGrowthMiniWidget() {
     const data = await res.json();
     if (!data.ok || !data.summary) throw new Error('growth summary invalid');
 
-    const { level = 0, todayXp = 0, streakDays = 0, title = '성장' } = data.summary;
-    summaryText.textContent = `Lv.${level} ${title} · 오늘 XP +${todayXp} · 연속 ${streakDays}일 글쓰기 중`;
+    const {
+      level = 0,
+      todayXp = 0,
+      streakDays = 0,
+      currentXp = 0,
+      nextLevelXp = 0,
+      title = '성장',
+    } = data.summary;
+    summaryText.textContent = `Lv.${level} ${title} · ${currentXp} / ${nextLevelXp} XP · 오늘 +${todayXp} XP · 연속 ${streakDays}일 글쓰기`;
     widget.classList.remove('d-none');
   } catch (error) {
     console.error(error);

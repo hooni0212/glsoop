@@ -515,12 +515,21 @@ body.winter-theme .page-growth .forest-map-detail-panel {
   box-shadow: 0 16px 38px rgba(34, 70, 104, 0.12);
 }
 
+body.winter-theme .page-growth .growth-section-title {
+  color: #143b56;
+}
+
 body.winter-theme .growth-level-ring {
   background: conic-gradient(#5fc3dc var(--xp-progress, 0deg), rgba(255, 255, 255, 0.3) var(--xp-progress, 0deg));
 }
 
 body.winter-theme .growth-level-progress-bar {
   background: linear-gradient(90deg, #5fc3dc, #7bc4b2);
+}
+
+body.winter-theme .forest-map-detail-label {
+  background: rgba(47, 108, 138, 0.14);
+  color: #0f2d44;
 }
 
 body.winter-theme .growth-today-pill .value,
@@ -569,11 +578,12 @@ body.winter-theme .achievement-card.is-in-progress {
   border-color: rgba(47, 108, 138, 0.45);
 }
 
-body.winter-theme .achievement-progress-bar {
+body.winter-theme .achievement-progress-bar,
+body.winter-theme .forest-map-detail-progress-bar {
   background: linear-gradient(90deg, #5fc3dc, #7bc4b2);
 }
 
-body.winter-theme .filter-btn.is-active {
+body.winter-theme .achievement-filter-btn.is-active {
   background: linear-gradient(135deg, #5fc3dc, #7bc4b2);
   color: #0f2d44;
   box-shadow: 0 12px 22px rgba(47, 108, 138, 0.18);
@@ -589,7 +599,7 @@ body.winter-theme .quest-item.is-completed {
   border-color: rgba(67, 190, 140, 0.6);
 }
 
-body.winter-theme .growth-section .achievement-filters .filter-btn {
+body.winter-theme .growth-section .achievement-filters .achievement-filter-btn {
   border-color: rgba(47, 108, 138, 0.35);
 }
 
@@ -597,4 +607,9 @@ body.winter-theme .mypage-growth-mini {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(234, 243, 251, 0.94));
   border-color: rgba(47, 108, 138, 0.3);
   box-shadow: 0 14px 30px rgba(34, 70, 104, 0.12);
+}
+
+body.winter-theme .mypage-growth-link:hover,
+body.winter-theme .mypage-growth-link:focus-visible {
+  color: #0f2d44;
 }

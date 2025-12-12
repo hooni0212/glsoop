@@ -104,10 +104,10 @@
           </div>
         </div>
 
-        <div class="growth-today-card card glass-card mt-3">
+        <div class="growth-today-card card glass-card mt-4">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-              <h3 class="mb-0">오늘의 기록</h3>
+              <h3 class="growth-section-title mb-0">오늘의 기록</h3>
               <span class="text-muted small" id="growthWeeklyPosts">이번 주 작성 글: 0개</span>
             </div>
             <ul class="growth-today-list" id="growthTodayList">
@@ -129,6 +129,7 @@
             <div class="forest-map-path"></div>
             <div class="forest-map-achievements" id="forestMapAchievements"></div>
             <div class="forest-map-detail-panel" id="forestMapDetail">
+              <div class="forest-map-detail-label">선택한 업적</div>
               <p class="text-muted mb-1">업적을 선택하면 상세 정보가 여기에 표시됩니다.</p>
             </div>
           </div>
@@ -140,12 +141,20 @@
           <div class="col-lg-4">
             <div class="growth-quests card glass-card h-100">
               <div class="card-body">
-                <h3 class="mb-3">오늘 / 이번 주 퀘스트</h3>
-                <ul class="growth-quest-list" id="growthQuestList">
-                  <li class="quest-item">오늘 글 1개 쓰기</li>
-                  <li class="quest-item">다른 사람 글 3개 공감하기</li>
-                  <li class="quest-item">북마크 폴더에 글 1개 저장하기</li>
-                </ul>
+                <h3 class="growth-section-title mb-3">오늘 / 이번 주 퀘스트</h3>
+                <div class="quest-group mb-3">
+                  <div class="quest-group-title">오늘의 퀘스트</div>
+                  <ul class="growth-quest-list quest-list quest-list-today" id="growthQuestListToday">
+                    <li class="quest-item">오늘 글 1개 쓰기</li>
+                    <li class="quest-item">다른 사람 글 3개 공감하기</li>
+                  </ul>
+                </div>
+                <div class="quest-group">
+                  <div class="quest-group-title">이번 주 퀘스트</div>
+                  <ul class="growth-quest-list quest-list quest-list-week" id="growthQuestListWeek">
+                    <li class="quest-item">북마크 폴더에 글 1개 저장하기</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
@@ -153,12 +162,12 @@
             <div class="growth-achievement-list card glass-card h-100">
               <div class="card-body">
                 <div class="achievement-list-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                  <h3 class="mb-0">업적 목록</h3>
+                  <h3 class="growth-section-title mb-0">업적 목록</h3>
                   <div class="achievement-filters" id="achievementFilters" role="group" aria-label="업적 필터">
-                    <button type="button" class="filter-btn is-active" data-filter="all">전체</button>
-                    <button type="button" class="filter-btn" data-filter="in_progress">진행 중</button>
-                    <button type="button" class="filter-btn" data-filter="completed">완료</button>
-                    <button type="button" class="filter-btn" data-filter="locked">잠금</button>
+                    <button type="button" class="achievement-filter-btn is-active" data-filter="all">전체</button>
+                    <button type="button" class="achievement-filter-btn" data-filter="in_progress">진행 중</button>
+                    <button type="button" class="achievement-filter-btn" data-filter="completed">완료</button>
+                    <button type="button" class="achievement-filter-btn" data-filter="locked">잠금</button>
                   </div>
                 </div>
                 <div class="achievement-grid" id="achievementGrid"></div>

@@ -131,16 +131,17 @@ function renderAchievementDetail(achievement) {
   const progressPercent = achievement.target ? Math.min(100, Math.round((achievement.progress / achievement.target) * 100)) : 0;
   detail.innerHTML = `
     <div class="forest-map-detail">
+      <div class="forest-map-detail-label">선택한 업적</div>
       <div class="d-flex align-items-center gap-3 mb-2">
         <div class="forest-map-detail-icon">${achievement.icon || '🌿'}</div>
         <div>
-          <p class="text-muted small mb-1">${achievement.category || ''}</p>
-          <h4 class="mb-1">${achievement.name}</h4>
-          <p class="mb-0 text-muted">${achievement.description || ''}</p>
+          <p class="text-muted small forest-map-detail-category mb-1">${achievement.category || ''}</p>
+          <h4 class="mb-1 forest-map-detail-title">${achievement.name}</h4>
+          <p class="mb-0 text-muted forest-map-detail-desc">${achievement.description || ''}</p>
         </div>
       </div>
-      <div class="progress" role="progressbar" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100">
-        <div class="progress-bar" style="width: ${progressPercent}%"></div>
+      <div class="forest-map-detail-progress" role="progressbar" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100">
+        <div class="forest-map-detail-progress-bar" style="width: ${progressPercent}%"></div>
       </div>
       <div class="d-flex justify-content-between align-items-center mt-2 small text-muted">
         <span>${achievement.progress || 0} / ${achievement.target || 0}</span>
@@ -181,7 +182,7 @@ function renderAchievementGrid(filter = 'all') {
 }
 
 function bindAchievementFilters() {
-  const filters = document.querySelectorAll('#achievementFilters .filter-btn');
+  const filters = document.querySelectorAll('#achievementFilters .achievement-filter-btn');
   filters.forEach((btn) => {
     btn.addEventListener('click', () => {
       filters.forEach((b) => b.classList.remove('is-active'));
@@ -193,15 +194,32 @@ function bindAchievementFilters() {
 }
 
 function hydrateQuestListFromAchievements() {
-  const questList = document.getElementById('growthQuestList');
-  if (!questList || !achievementCache.length) return;
-  questList.innerHTML = '';
-  achievementCache.slice(0, 3).forEach((achievement) => {
-    const li = document.createElement('li');
-    li.className = `quest-item ${achievement.status === 'completed' ? 'is-completed' : ''}`;
-    li.textContent = achievement.name;
-    questList.appendChild(li);
-  });
+  const questToday = document.getElementById('growthQuestListToday');
+  const questWeek = document.getElementById('growthQuestListWeek');
+  if ((!questToday && !questWeek) || !achievementCache.length) return;
+
+  const todayItems = achievementCache.slice(0, 2);
+  const weekItems = achievementCache.slice(2, 5);
+
+  if (questToday) {
+    questToday.innerHTML = '';
+    todayItems.forEach((achievement) => {
+      const li = document.createElement('li');
+      li.className = `quest-item ${achievement.status === 'completed' ? 'is-completed' : ''}`;
+      li.textContent = achievement.name;
+      questToday.appendChild(li);
+    });
+  }
+
+  if (questWeek) {
+    questWeek.innerHTML = '';
+    weekItems.forEach((achievement) => {
+      const li = document.createElement('li');
+      li.className = `quest-item ${achievement.status === 'completed' ? 'is-completed' : ''}`;
+      li.textContent = achievement.name;
+      questWeek.appendChild(li);
+    });
+  }
 }
 
 function statusClass(status) {
