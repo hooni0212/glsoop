@@ -203,7 +203,7 @@ a:hover {
 ========================= */
 
 .btn {
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 600;
   transition: all 0.15s ease;
 }
@@ -224,24 +224,25 @@ a:hover {
 }
 
 .btn-secondary {
-  background: #ffffff;
-  color: var(--author-accent, #2e8b57);
-  border: 1px solid var(--author-accent, #2e8b57);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--author-accent, #2f6c8a);
+  border: 1px solid var(--author-accent, #2f6c8a);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.06);
 }
 
 .btn-secondary:hover,
 .btn-secondary:focus-visible {
-  background: rgba(46, 139, 87, 0.08);
-  color: var(--author-accent, #2e8b57);
-  border-color: var(--author-accent, #2e8b57);
+  background: var(--author-accent, #2f6c8a);
+  color: #ffffff;
+  border-color: var(--author-accent, #2f6c8a);
+  box-shadow: 0 12px 26px rgba(47, 108, 138, 0.14);
 }
 
 .btn-secondary.active,
 .btn-secondary:active {
-  background: var(--author-accent, #2e8b57);
+  background: var(--author-accent, #2f6c8a);
   color: #fff;
-  border-color: var(--author-accent, #2e8b57);
+  border-color: var(--author-accent, #2f6c8a);
 }
 
 .btn-danger {
@@ -259,51 +260,69 @@ a:hover {
 }
 
 .btn-ghost {
-  background: transparent;
-  color: #6b7280;
-  border: 1px solid #d0d5dd;
+  background: rgba(255, 255, 255, 0.42);
+  color: #52606d;
+  border: 1px solid #d7dde5;
   box-shadow: none;
 }
 
 .btn-ghost:hover,
 .btn-ghost:focus-visible {
-  background: rgba(209, 213, 219, 0.35);
-  color: #374151;
-  border-color: #cbd5e1;
+  background: rgba(231, 235, 240, 0.8);
+  color: #1f2933;
+  border-color: #c3cddb;
 }
 
 /* =========================
    5-1. 마이페이지 탭 바
 ========================= */
 
+.mypage-tab-container {
+  background: linear-gradient(145deg, rgba(30, 58, 82, 0.62), rgba(15, 118, 110, 0.52));
+  border-radius: 18px;
+  padding: 0.75rem;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  margin-bottom: 1.5rem;
+}
+
 .mypage-tab-bar {
   display: flex;
   align-items: flex-end;
-  gap: 0.45rem;
-  padding: 0.35rem 0.6rem 0;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem 0;
   margin-bottom: -1px;
-  background: rgba(255, 255, 255, 0.72);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
   position: relative;
   z-index: 1;
+  flex-wrap: wrap;
+}
+
+.mypage-tab-content {
+  position: relative;
 }
 
 .mypage-tab {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.55rem 1.15rem;
-  border-radius: 14px 14px 0 0;
-  border: 1px solid transparent;
-  background: rgba(148, 163, 184, 0.12);
-  color: #6b7280;
+  padding: 0.6rem 1.2rem;
+  border-radius: 16px 16px 0 0;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(148, 163, 184, 0.16);
+  color: #5b6470;
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
   text-decoration: none;
   transition: all 0.15s ease;
   position: relative;
-  top: 1px;
+  top: 2px;
+  min-width: 150px;
 }
 
 .mypage-tab .tab-icon {
@@ -312,29 +331,34 @@ a:hover {
 
 .mypage-tab:hover,
 .mypage-tab:focus-visible {
-  background: rgba(148, 163, 184, 0.2);
-  color: #475569;
+  background: rgba(148, 163, 184, 0.28);
+  color: #3b4a5a;
   transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(51, 65, 85, 0.16);
+  outline: none;
 }
 
 .mypage-tab.is-active {
-  background: #ffffff;
-  color: #1f2937;
-  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid rgba(99, 135, 173, 0.32);
   border-bottom: none;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
   top: 0;
   z-index: 2;
 }
 
 .mypage-tab-panel {
-  background: #ffffff;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  border-radius: 0 0 16px 16px;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+  background: #fdfefe;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 18px;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
   padding: 1.25rem 1.1rem;
   position: relative;
   z-index: 0;
+  margin-top: -1px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 

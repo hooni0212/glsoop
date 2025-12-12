@@ -139,47 +139,51 @@
         <h4 class="mb-0">내 글 관리</h4>
       </div>
 
-      <!-- 크롬 스타일 탭 바: 내가 쓴 글 / 공감한 글 / 팔로잉 / 북마크 -->
-      <!-- bookmark 탭은 별도 페이지로 이동 (bookmarks.html) -->
-      <div class="mypage-tab-bar" role="tablist">
-        <button type="button" class="mypage-tab is-active" id="tabMyPosts">
-          <span class="tab-icon" aria-hidden="true">✏️</span>
-          <span>내가 쓴 글</span>
-        </button>
-        <button type="button" class="mypage-tab" id="tabLikedPosts">
-          <span class="tab-icon" aria-hidden="true">❤️</span>
-          <span>내가 공감한 글</span>
-        </button>
-        <button type="button" class="mypage-tab" id="tabFollowings">
-          <span class="tab-icon" aria-hidden="true">👀</span>
-          <span>내가 팔로잉</span>
-        </button>
-        <a class="mypage-tab" id="tabBookmarks" href="/html/bookmarks.html">
-          <span class="tab-icon" aria-hidden="true">🔖</span>
-          <span>북마크</span>
-        </a>
-      </div>
-
-      <!-- 내가 쓴 글 섹션 -->
-      <!-- mypage.js → loadMyPosts() 결과가 #myPosts 안에 렌더링 -->
-      <div id="myPostsSection" class="mypage-tab-panel">
-        <div id="myPosts">
-          <p class="text-muted">글 목록을 불러오는 중입니다...</p>
+      <div class="mypage-tab-container">
+        <!-- 크롬 스타일 탭 바: 내가 쓴 글 / 공감한 글 / 팔로잉 / 북마크 -->
+        <!-- bookmark 탭은 별도 페이지로 이동 (bookmarks.html) -->
+        <div class="mypage-tab-bar" role="tablist">
+          <button type="button" class="mypage-tab is-active" id="tabMyPosts">
+            <span class="tab-icon" aria-hidden="true">✏️</span>
+            <span>내가 쓴 글</span>
+          </button>
+          <button type="button" class="mypage-tab" id="tabLikedPosts">
+            <span class="tab-icon" aria-hidden="true">❤️</span>
+            <span>내가 공감한 글</span>
+          </button>
+          <button type="button" class="mypage-tab" id="tabFollowings">
+            <span class="tab-icon" aria-hidden="true">👀</span>
+            <span>내가 팔로잉</span>
+          </button>
+          <a class="mypage-tab" id="tabBookmarks" href="/html/bookmarks.html">
+            <span class="tab-icon" aria-hidden="true">🔖</span>
+            <span>북마크</span>
+          </a>
         </div>
-      </div>
 
-      <!-- 내가 공감한 글 섹션 (초기에는 d-none으로 숨김) -->
-      <!-- mypage.js → loadLikedPosts() 결과가 #likedPosts 안에 렌더링 -->
-      <div id="likedPostsSection" class="d-none mypage-tab-panel">
-        <div id="likedPosts">
-          <p class="text-muted">공감한 글을 불러오는 중입니다...</p>
-        </div>
-      </div>
+        <div class="mypage-tab-content">
+          <!-- 내가 쓴 글 섹션 -->
+          <!-- mypage.js → loadMyPosts() 결과가 #myPosts 안에 렌더링 -->
+          <div id="myPostsSection" class="mypage-tab-panel">
+            <div id="myPosts">
+              <p class="text-muted">글 목록을 불러오는 중입니다...</p>
+            </div>
+          </div>
 
-      <!-- 내가 팔로잉하는 사람들 섹션 (초기에는 d-none) -->
-      <div id="followingsSection" class="d-none mypage-tab-panel">
-        <div id="followingsList">
-          <p class="text-muted">팔로잉 목록을 불러오는 중입니다...</p>
+          <!-- 내가 공감한 글 섹션 (초기에는 d-none으로 숨김) -->
+          <!-- mypage.js → loadLikedPosts() 결과가 #likedPosts 안에 렌더링 -->
+          <div id="likedPostsSection" class="d-none mypage-tab-panel">
+            <div id="likedPosts">
+              <p class="text-muted">공감한 글을 불러오는 중입니다...</p>
+            </div>
+          </div>
+
+          <!-- 내가 팔로잉하는 사람들 섹션 (초기에는 d-none) -->
+          <div id="followingsSection" class="d-none mypage-tab-panel">
+            <div id="followingsList">
+              <p class="text-muted">팔로잉 목록을 불러오는 중입니다...</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
