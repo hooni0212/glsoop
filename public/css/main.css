@@ -1056,9 +1056,12 @@ a:hover {
   transition: all 0.18s ease;
 }
 
-.bookmark-folder-item:hover {
-  border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+.bookmark-folder-item:hover,
+.bookmark-folder-item:focus-visible {
+  border-color: rgba(46, 139, 87, 0.24);
+  background: linear-gradient(135deg, rgba(46, 139, 87, 0.08), #ffffff);
+  box-shadow: 0 11px 24px rgba(46, 139, 87, 0.14);
+  outline: none;
 }
 
 .bookmark-folder-item::before {
@@ -1073,10 +1076,15 @@ a:hover {
   transition: background 0.2s ease;
 }
 
+.bookmark-folder-item:hover::before,
+.bookmark-folder-item:focus-visible::before {
+  background: rgba(46, 139, 87, 0.3);
+}
+
 .bookmark-folder-item.is-active {
   border-color: var(--author-accent, #2e8b57);
-  background: linear-gradient(135deg, rgba(46, 139, 87, 0.08), #ffffff);
-  box-shadow: 0 12px 26px rgba(46, 139, 87, 0.15);
+  background: linear-gradient(135deg, rgba(46, 139, 87, 0.14), #ffffff);
+  box-shadow: 0 12px 26px rgba(46, 139, 87, 0.17);
 }
 
 .bookmark-folder-item.is-active::before {
