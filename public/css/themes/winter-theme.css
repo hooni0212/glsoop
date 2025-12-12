@@ -232,30 +232,32 @@ body.winter-theme .btn-primary:focus-visible {
 body.winter-theme .btn-secondary {
   color: #2f6c8a;
   border-color: #2f6c8a;
-  box-shadow: 0 12px 26px rgba(47, 108, 138, 0.18);
+  background: transparent;
+  box-shadow: none;
 }
 
 body.winter-theme .btn-secondary:hover,
 body.winter-theme .btn-secondary:focus-visible {
-  background: #2f6c8a;
-  color: #ffffff;
+  background: rgba(47, 108, 138, 0.12);
+  color: #1f2c3a;
 }
 
 body.winter-theme .btn-secondary.active,
 body.winter-theme .btn-secondary:active {
-  background: #2f6c8a;
-  color: #ffffff;
+  background: rgba(47, 108, 138, 0.18);
+  color: #102131;
   border-color: #2f6c8a;
 }
 
 body.winter-theme .btn-ghost {
+  background: transparent;
   border-color: rgba(207, 217, 228, 0.8);
   color: #415165;
 }
 
 body.winter-theme .btn-ghost:hover,
 body.winter-theme .btn-ghost:focus-visible {
-  background: rgba(227, 240, 255, 0.7);
+  background: rgba(227, 240, 255, 0.55);
   color: #0f2d44;
   border-color: rgba(189, 205, 219, 0.95);
 }

@@ -108,13 +108,6 @@ async function loadMyPage() {
           <div class="d-flex gap-3 flex-wrap mt-2 small text-muted">
             <span>팔로워 <strong id="mypageFollowerCount">${followerCount}</strong></span>
             <span>팔로잉 <strong id="mypageFollowingCount">${followingCount}</strong></span>
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              id="openFollowingListBtn"
-            >
-              팔로잉 목록 보기
-            </button>
           </div>
         </div>
         <button
@@ -142,17 +135,6 @@ async function loadMyPage() {
     }
     if (aboutInput) {
       aboutInput.value = meData.about || '';
-    }
-
-    const openFollowingListBtn = document.getElementById('openFollowingListBtn');
-    if (openFollowingListBtn && !openFollowingListBtn.dataset.bound) {
-      openFollowingListBtn.addEventListener('click', async () => {
-        switchMyPageTab('followings');
-        if (!followingsLoaded) {
-          await loadMyFollowings();
-        }
-      });
-      openFollowingListBtn.dataset.bound = 'true';
     }
 
     // 기본 탭: "내가 쓴 글" 목록 로드
