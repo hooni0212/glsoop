@@ -304,4 +304,9 @@ router.put('/quest-campaigns/:id/items', async (req, res) => {
   }
 });
 
+// 네임스페이스 내부 미정의 라우트는 JSON 404로 안내
+router.use((req, res) => {
+  return res.status(404).json({ ok: false, message: `Unknown admin route: ${req.method} ${req.originalUrl}` });
+});
+
 module.exports = router;
