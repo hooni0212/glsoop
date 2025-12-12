@@ -59,7 +59,7 @@ function renderGrowthSummary(summary) {
   if (levelTitle) levelTitle.textContent = summary.title || '새싹';
   if (levelXp) levelXp.textContent = percentLabel;
   if (ring) ring.style.setProperty('--xp-progress', degree);
-  if (progressBar) progressBar.style.setProperty('width', `${Math.round(percent * 100)}%`);
+  if (progressBar) animateProgressWidth(progressBar, Math.round(percent * 100));
   if (todayXp) todayXp.textContent = `+${summary.todayXp || 0}`;
   if (todayXpDetail) todayXpDetail.textContent = `+${summary.todayXp || 0}`;
   if (streakLabel) streakLabel.textContent = `연속 ${summary.streakDays || 0}일째`;
@@ -149,6 +149,8 @@ function renderAchievementDetail(achievement) {
       </div>
     </div>
   `;
+  const bar = detail.querySelector('.forest-map-detail-progress-bar');
+  animateProgressWidth(bar, progressPercent);
 }
 
 function renderAchievementGrid(filter = 'all') {
@@ -178,6 +180,8 @@ function renderAchievementGrid(filter = 'all') {
     `;
     card.addEventListener('click', () => renderAchievementDetail(achievement));
     grid.appendChild(card);
+    const bar = card.querySelector('.achievement-progress-bar');
+    animateProgressWidth(bar, progressPercent);
   });
 }
 
@@ -189,6 +193,16 @@ function bindAchievementFilters() {
       btn.classList.add('is-active');
       const filter = btn.dataset.filter || 'all';
       renderAchievementGrid(filter);
+    });
+  });
+}
+
+function animateProgressWidth(element, percent) {
+  if (!element) return;
+  element.style.width = '0%';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      element.style.width = `${percent}%`;
     });
   });
 }
