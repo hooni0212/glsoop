@@ -25,6 +25,33 @@ db.serialize(() => {
     )
   `);
 
+  // users 확장 컬럼이 없다면 추가 (레벨/XP/스트릭)
+  db.all('PRAGMA table_info(users)', (err, columns) => {
+    if (err) {
+      console.error('users 테이블 스키마 조회 실패:', err);
+      return;
+    }
+
+    const ensureColumn = (name, ddl) => {
+      const hasColumn = Array.isArray(columns)
+        ? columns.some((col) => col.name === name)
+        : false;
+      if (!hasColumn) {
+        db.run(`ALTER TABLE users ADD COLUMN ${ddl}`, (alterErr) => {
+          if (alterErr) {
+            console.error(`users.${name} 컬럼 추가 실패:`, alterErr);
+          }
+        });
+      }
+    };
+
+    ensureColumn('level', 'level INTEGER DEFAULT 1');
+    ensureColumn('xp', 'xp INTEGER DEFAULT 0');
+    ensureColumn('streak_days', 'streak_days INTEGER DEFAULT 0');
+    ensureColumn('max_streak_days', 'max_streak_days INTEGER DEFAULT 0');
+    ensureColumn('last_post_date', "last_post_date TEXT");
+  });
+
   // 4-2) 글(포스트) 테이블
   // - 작성자(user_id) 기준 외래키로 연결
   db.run(`
@@ -153,6 +180,156 @@ db.serialize(() => {
   db.run(
     'CREATE INDEX IF NOT EXISTS idx_bookmark_items_post ON bookmark_items(post_id)'
   );
+
+  // XP 로그: 경험치 변화를 기록
+  db.run(`
+    CREATE TABLE IF NOT EXISTS xp_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL,
+      delta      INTEGER NOT NULL,
+      reason     TEXT NOT NULL,
+      meta       TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+  db.run('CREATE INDEX IF NOT EXISTS idx_xp_log_user_date ON xp_log(user_id, created_at)');
+
+  // 업적 정의 테이블
+  db.run(`
+    CREATE TABLE IF NOT EXISTS achievements (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      code           TEXT UNIQUE NOT NULL,
+      name           TEXT NOT NULL,
+      description    TEXT,
+      category       TEXT,
+      target_value   INTEGER NOT NULL,
+      position_index INTEGER,
+      extra_json     TEXT
+    )
+  `);
+
+  // 사용자 업적 진행도 테이블
+  db.run(`
+    CREATE TABLE IF NOT EXISTS user_achievements (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id         INTEGER NOT NULL,
+      achievement_id  INTEGER NOT NULL,
+      progress_value  INTEGER NOT NULL DEFAULT 0,
+      unlocked_at     DATETIME,
+      UNIQUE(user_id, achievement_id),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (achievement_id) REFERENCES achievements(id)
+    )
+  `);
+
+  // 업적 시드 데이터 삽입
+  const seedAchievements = [
+    {
+      code: 'first_post',
+      name: '첫 걸음',
+      description: '첫 글을 작성했습니다.',
+      category: 'habit',
+      target_value: 1,
+      position_index: 1,
+      extra_json: JSON.stringify({ icon: '🌱' }),
+    },
+    {
+      code: 'posts_10',
+      name: '조심스러운 시작',
+      description: '글 10개를 작성했습니다.',
+      category: 'count_posts',
+      target_value: 10,
+      position_index: 2,
+      extra_json: JSON.stringify({ icon: '🌿' }),
+    },
+    {
+      code: 'posts_50',
+      name: '단단한 나무',
+      description: '글 50개를 작성했습니다.',
+      category: 'count_posts',
+      target_value: 50,
+      position_index: 3,
+      extra_json: JSON.stringify({ icon: '🌳' }),
+    },
+    {
+      code: 'first_like',
+      name: '따뜻한 첫 공감',
+      description: '처음으로 공감을 받았습니다.',
+      category: 'likes',
+      target_value: 1,
+      position_index: 4,
+      extra_json: JSON.stringify({ icon: '✨' }),
+    },
+    {
+      code: 'likes_10_single',
+      name: '공감이 쌓이는 글',
+      description: '한 글에 공감을 10개 받았습니다.',
+      category: 'likes',
+      target_value: 10,
+      position_index: 5,
+      extra_json: JSON.stringify({ icon: '💙' }),
+    },
+    {
+      code: 'streak_3',
+      name: '리듬 찾기',
+      description: '3일 연속 글을 작성했습니다.',
+      category: 'streak',
+      target_value: 3,
+      position_index: 6,
+      extra_json: JSON.stringify({ icon: '🔥' }),
+    },
+    {
+      code: 'streak_7',
+      name: '꾸준한 발걸음',
+      description: '7일 연속 글을 작성했습니다.',
+      category: 'streak',
+      target_value: 7,
+      position_index: 7,
+      extra_json: JSON.stringify({ icon: '🌠' }),
+    },
+    {
+      code: 'streak_30',
+      name: '숲의 주인',
+      description: '30일 연속 글을 작성했습니다.',
+      category: 'streak',
+      target_value: 30,
+      position_index: 8,
+      extra_json: JSON.stringify({ icon: '🏆' }),
+    },
+    {
+      code: 'first_bookmark',
+      name: '첫 보금자리',
+      description: '내 글이 처음으로 북마크되었습니다.',
+      category: 'bookmark',
+      target_value: 1,
+      position_index: 9,
+      extra_json: JSON.stringify({ icon: '📌' }),
+    },
+  ];
+
+  seedAchievements.forEach((ach) => {
+    db.run(
+      `INSERT OR IGNORE INTO achievements
+        (code, name, description, category, target_value, position_index, extra_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        ach.code,
+        ach.name,
+        ach.description,
+        ach.category,
+        ach.target_value,
+        ach.position_index,
+        ach.extra_json || null,
+      ],
+      (seedErr) => {
+        if (seedErr) {
+          console.error(`업적 시드 삽입 실패 (${ach.code}):`, seedErr);
+        }
+      }
+    );
+  });
 });
 
 module.exports = db;

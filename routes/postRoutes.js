@@ -26,6 +26,7 @@ const db = require('../db');
 const { JWT_SECRET } = require('../config');
 const { authRequired } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
+const { handlePostCreated, handleLikeAdded } = require('../utils/growth');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
 const CATEGORY_SQL =
@@ -85,21 +86,30 @@ router.post('/posts', authRequired, (req, res) => {
       const newPostId = this.lastID;
 
       saveHashtagsForPostFromInput(newPostId, hashtags, (tagErr) => {
-        if (tagErr) {
-          console.error('해시태그 저장 중 오류:', tagErr);
+        const finalize = async () => {
+          try {
+            await handlePostCreated(userId, newPostId);
+          } catch (growthErr) {
+            console.error('post growth 처리 실패:', growthErr);
+          }
+
+          if (tagErr) {
+            return res.json({
+              ok: true,
+              message:
+                '글은 저장되었지만, 해시태그 저장 중 오류가 발생했습니다.',
+              postId: newPostId,
+            });
+          }
+
           return res.json({
             ok: true,
-            message:
-              '글은 저장되었지만, 해시태그 저장 중 오류가 발생했습니다.',
+            message: '글이 저장되었습니다.',
             postId: newPostId,
           });
-        }
+        };
 
-        return res.json({
-          ok: true,
-          message: '글이 저장되었습니다.',
-          postId: newPostId,
-        });
+        finalize();
       });
     }
   );
@@ -739,89 +749,108 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
   const postId = req.params.id;
   const userId = req.user.id;
 
-  db.get(
-    'SELECT 1 FROM likes WHERE user_id = ? AND post_id = ?',
-    [userId, postId],
-    (err, row) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({
-          ok: false,
-          message: '좋아요 상태 확인 중 DB 오류가 발생했습니다.',
-        });
-      }
-
-      if (row) {
-        db.run(
-          'DELETE FROM likes WHERE user_id = ? AND post_id = ?',
-          [userId, postId],
-          function (err2) {
-            if (err2) {
-              console.error(err2);
-              return res.status(500).json({
-                ok: false,
-                message: '좋아요 취소 중 DB 오류가 발생했습니다.',
-              });
-            }
-
-            db.get(
-              'SELECT COUNT(*) AS cnt FROM likes WHERE post_id = ?',
-              [postId],
-              (err3, row2) => {
-                if (err3) {
-                  console.error(err3);
-                  return res.status(500).json({
-                    ok: false,
-                    message: '좋아요 수 조회 중 DB 오류가 발생했습니다.',
-                  });
-                }
-
-                return res.json({
-                  ok: true,
-                  liked: false,
-                  likeCount: row2.cnt || 0,
-                });
-              }
-            );
-          }
-        );
-      } else {
-        db.run(
-          'INSERT INTO likes (user_id, post_id) VALUES (?, ?)',
-          [userId, postId],
-          function (err2) {
-            if (err2) {
-              console.error(err2);
-              return res.status(500).json({
-                ok: false,
-                message: '좋아요 추가 중 DB 오류가 발생했습니다.',
-              });
-            }
-
-            db.get(
-              'SELECT COUNT(*) AS cnt FROM likes WHERE post_id = ?',
-              [postId],
-              (err3, row2) => {
-                if (err3) {
-                  console.error(err3);
-                  return res.status(500).json({
-                    ok: false,
-                    message: '좋아요 수 조회 중 DB 오류가 발생했습니다.',
-                  });
-                }
-
-                return res.json({
-                  ok: true,
-                  liked: true,
-                  likeCount: row2.cnt || 0,
-                });
-              }
-            );
-          }
-        );
-      }
+  db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (postErr, post) => {
+    if (postErr) {
+      console.error(postErr);
+      return res.status(500).json({
+        ok: false,
+        message: '글 조회 중 오류가 발생했습니다.',
+      });
     }
-  );
+    if (!post) {
+      return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+    }
+
+    db.get(
+      'SELECT 1 FROM likes WHERE user_id = ? AND post_id = ?',
+      [userId, postId],
+      (err, row) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({
+            ok: false,
+            message: '좋아요 상태 확인 중 DB 오류가 발생했습니다.',
+          });
+        }
+
+        if (row) {
+          db.run(
+            'DELETE FROM likes WHERE user_id = ? AND post_id = ?',
+            [userId, postId],
+            function (err2) {
+              if (err2) {
+                console.error(err2);
+                return res.status(500).json({
+                  ok: false,
+                  message: '좋아요 취소 중 DB 오류가 발생했습니다.',
+                });
+              }
+
+              db.get(
+                'SELECT COUNT(*) AS cnt FROM likes WHERE post_id = ?',
+                [postId],
+                (err3, row2) => {
+                  if (err3) {
+                    console.error(err3);
+                    return res.status(500).json({
+                      ok: false,
+                      message: '좋아요 수 조회 중 DB 오류가 발생했습니다.',
+                    });
+                  }
+
+                  return res.json({
+                    ok: true,
+                    liked: false,
+                    likeCount: row2.cnt || 0,
+                  });
+                }
+              );
+            }
+          );
+        } else {
+          db.run(
+            'INSERT INTO likes (user_id, post_id) VALUES (?, ?)',
+            [userId, postId],
+            function (err2) {
+              if (err2) {
+                console.error(err2);
+                return res.status(500).json({
+                  ok: false,
+                  message: '좋아요 추가 중 DB 오류가 발생했습니다.',
+                });
+              }
+
+              db.get(
+                'SELECT COUNT(*) AS cnt FROM likes WHERE post_id = ?',
+                [postId],
+                async (err3, row2) => {
+                  if (err3) {
+                    console.error(err3);
+                    return res.status(500).json({
+                      ok: false,
+                      message: '좋아요 수 조회 중 DB 오류가 발생했습니다.',
+                    });
+                  }
+
+                  try {
+                    await handleLikeAdded(userId, post.user_id, postId);
+                  } catch (growthErr) {
+                    console.error('like growth 처리 실패:', growthErr);
+                  }
+
+                  return res.json({
+                    ok: true,
+                    liked: true,
+                    likeCount: row2.cnt || 0,
+                  });
+                }
+              );
+            }
+          );
+        }
+      }
+    );
+  });
 });
 // 9-10) 공개 글 상세 조회 (좋아요 개수 + 내가 눌렀는지 여부까지)
 router.get('/posts/:id/detail', (req, res) => {
