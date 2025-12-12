@@ -53,7 +53,7 @@ app.use('/api', userRoutes);
 app.use('/api', postRoutes);
 app.use('/api', bookmarkRoutes);
 app.use('/api', growthRoutes);
-app.use('/api', adminRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 4. 루트 페이지
 app.get('/', (req, res) => {

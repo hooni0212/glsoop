@@ -5,7 +5,7 @@ const { allAsync, getAsync, runAsync } = require('../utils/questService');
 
 const router = express.Router();
 
-router.get('/admin/users', authRequired, adminRequired, async (req, res) => {
+router.get('/users', authRequired, adminRequired, async (req, res) => {
   const { search = '', filter = 'all', sort = 'id', page = 1, adminOnly } = req.query;
   const pageSize = 20;
   const offset = (Number(page) - 1) * pageSize;
@@ -45,7 +45,7 @@ router.get('/admin/users', authRequired, adminRequired, async (req, res) => {
   }
 });
 
-router.delete('/admin/users/:id', authRequired, adminRequired, (req, res) => {
+router.delete('/users/:id', authRequired, adminRequired, (req, res) => {
   const targetUserId = req.params.id;
   db.serialize(() => {
     db.run('DELETE FROM likes WHERE user_id = ?', [targetUserId]);
@@ -64,16 +64,16 @@ router.delete('/admin/users/:id', authRequired, adminRequired, (req, res) => {
   });
 });
 
-router.get('/admin/posts', authRequired, adminRequired, async (req, res) => {
+router.get('/posts', authRequired, adminRequired, async (req, res) => {
   const {
     search = '',
     category = 'all',
     sort = 'recent',
     page = 1,
     range = 'all',
-    limit = 20,
+    limit = 48,
   } = req.query;
-  const pageSize = Math.min(Math.max(Number(limit) || 20, 1), 200);
+  const pageSize = Math.min(Math.max(Number(limit) || 48, 1), 200);
   const offset = (Number(page) - 1) * pageSize;
   const where = [];
   const params = [];
@@ -95,7 +95,7 @@ router.get('/admin/posts', authRequired, adminRequired, async (req, res) => {
 
   const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const sortSql =
-    sort === 'oldest'
+    sort === 'oldest' || sort === 'old'
       ? 'p.created_at ASC'
       : sort === 'likes'
       ? 'like_count DESC, p.created_at DESC'
@@ -116,14 +116,20 @@ router.get('/admin/posts', authRequired, adminRequired, async (req, res) => {
        LIMIT ${pageSize} OFFSET ${offset}`,
       params
     );
-    return res.json({ ok: true, posts: rows, total: totalRow?.cnt || 0, page: Number(page), pageSize });
+    return res.json({
+      ok: true,
+      items: rows,
+      total: totalRow?.cnt || 0,
+      page: Number(page),
+      limit: pageSize,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ ok: false, message: '글 목록 조회 중 오류가 발생했습니다.' });
   }
 });
 
-router.get('/admin/posts/:id', authRequired, adminRequired, async (req, res) => {
+router.get('/posts/:id', authRequired, adminRequired, async (req, res) => {
   const postId = req.params.id;
   try {
     const row = await getAsync(
@@ -145,7 +151,7 @@ router.get('/admin/posts/:id', authRequired, adminRequired, async (req, res) => 
   }
 });
 
-router.delete('/admin/posts/:id', authRequired, adminRequired, (req, res) => {
+router.delete('/posts/:id', authRequired, adminRequired, (req, res) => {
   const postId = req.params.id;
   db.serialize(() => {
     db.run('DELETE FROM likes WHERE post_id = ?', [postId]);
@@ -162,17 +168,17 @@ router.delete('/admin/posts/:id', authRequired, adminRequired, (req, res) => {
 });
 
 // Quest templates CRUD
-router.get('/admin/quest-templates', authRequired, adminRequired, async (req, res) => {
+router.get('/quest-templates', authRequired, adminRequired, async (req, res) => {
   try {
     const rows = await allAsync('SELECT * FROM quest_templates ORDER BY id DESC');
-    res.json({ ok: true, templates: rows });
+    res.json({ ok: true, items: rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 조회 중 오류가 발생했습니다.' });
   }
 });
 
-router.post('/admin/quest-templates', authRequired, adminRequired, async (req, res) => {
+router.post('/quest-templates', authRequired, adminRequired, async (req, res) => {
   const { name, description, condition_type, category, target_value, reward_xp, is_active = 1 } = req.body;
   if (!name || !condition_type || !target_value) {
     return res.status(400).json({ ok: false, message: '필수 입력이 누락되었습니다.' });
@@ -190,7 +196,7 @@ router.post('/admin/quest-templates', authRequired, adminRequired, async (req, r
   }
 });
 
-router.put('/admin/quest-templates/:id', authRequired, adminRequired, async (req, res) => {
+router.put('/quest-templates/:id', authRequired, adminRequired, async (req, res) => {
   const { name, description, condition_type, category, target_value, reward_xp, is_active = 1 } = req.body;
   const templateId = req.params.id;
   try {
@@ -205,7 +211,7 @@ router.put('/admin/quest-templates/:id', authRequired, adminRequired, async (req
   }
 });
 
-router.delete('/admin/quest-templates/:id', authRequired, adminRequired, async (req, res) => {
+router.delete('/quest-templates/:id', authRequired, adminRequired, async (req, res) => {
   try {
     await runAsync('DELETE FROM quest_templates WHERE id = ?', [req.params.id]);
     res.json({ ok: true });
@@ -216,21 +222,21 @@ router.delete('/admin/quest-templates/:id', authRequired, adminRequired, async (
 });
 
 // Campaigns
-router.get('/admin/quest-campaigns', authRequired, adminRequired, async (req, res) => {
+router.get('/quest-campaigns', authRequired, adminRequired, async (req, res) => {
   try {
     const campaigns = await allAsync('SELECT * FROM quest_campaigns ORDER BY priority DESC, id DESC');
     const items = await allAsync(
       `SELECT qci.*, qt.name AS template_name FROM quest_campaign_items qci
        JOIN quest_templates qt ON qt.id = qci.template_id`
     );
-    res.json({ ok: true, campaigns, items });
+    res.json({ ok: true, items: campaigns, campaignItems: items });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '캠페인 조회 중 오류가 발생했습니다.' });
   }
 });
 
-router.post('/admin/quest-campaigns', authRequired, adminRequired, async (req, res) => {
+router.post('/quest-campaigns', authRequired, adminRequired, async (req, res) => {
   const { name, description, campaign_type = 'event', start_at, end_at, is_active = 0, priority = 1 } = req.body;
   if (!name) return res.status(400).json({ ok: false, message: '캠페인 이름이 필요합니다.' });
   try {
@@ -246,7 +252,7 @@ router.post('/admin/quest-campaigns', authRequired, adminRequired, async (req, r
   }
 });
 
-router.put('/admin/quest-campaigns/:id', authRequired, adminRequired, async (req, res) => {
+router.put('/quest-campaigns/:id', authRequired, adminRequired, async (req, res) => {
   const { name, description, campaign_type = 'event', start_at, end_at, is_active = 0, priority = 1 } = req.body;
   const campaignId = req.params.id;
   try {
@@ -261,7 +267,7 @@ router.put('/admin/quest-campaigns/:id', authRequired, adminRequired, async (req
   }
 });
 
-router.delete('/admin/quest-campaigns/:id', authRequired, adminRequired, async (req, res) => {
+router.delete('/quest-campaigns/:id', authRequired, adminRequired, async (req, res) => {
   try {
     await runAsync('DELETE FROM quest_campaigns WHERE id = ?', [req.params.id]);
     res.json({ ok: true });
@@ -271,7 +277,7 @@ router.delete('/admin/quest-campaigns/:id', authRequired, adminRequired, async (
   }
 });
 
-router.put('/admin/quest-campaigns/:id/items', authRequired, adminRequired, async (req, res) => {
+router.put('/quest-campaigns/:id/items', authRequired, adminRequired, async (req, res) => {
   const { items } = req.body;
   const campaignId = req.params.id;
   if (!Array.isArray(items)) return res.status(400).json({ ok: false, message: 'items 배열이 필요합니다.' });

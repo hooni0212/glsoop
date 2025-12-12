@@ -306,27 +306,26 @@ Glsoop.AdminPage = (function () {
 
     try {
       const res = await fetch(`/api/admin/posts?${params.toString()}`);
-      let data;
-      try {
-        data = await res.json();
-      } catch (parseErr) {
-        console.error('admin posts 응답 파싱 실패:', parseErr);
-      }
-
       if (res.status === 401 || res.status === 403) {
-        alert(data?.message || '로그인/권한을 다시 확인해주세요.');
+        const txt = await res.text();
+        alert(txt || '로그인/권한을 다시 확인해주세요.');
         window.location.href = '/html/login.html';
         return;
       }
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
+      }
 
-      if (!res.ok || !data?.ok) {
+      const data = await res.json();
+      if (!data?.ok) {
         grid.innerHTML = `<p class="text-danger">${
           data?.message || '글 목록을 불러오는 중 오류가 발생했습니다.'
         }</p>`;
         return;
       }
 
-      const posts = data.posts || [];
+      const posts = data.items || data.posts || [];
       if (!posts.length) {
         grid.innerHTML = '<p class="text-muted">등록된 글이 없습니다.</p>';
       } else {
@@ -334,15 +333,15 @@ Glsoop.AdminPage = (function () {
       }
 
       if (pagination) {
-        pagination.innerHTML = buildPagination(data.page, data.pageSize, data.total);
+        pagination.innerHTML = buildPagination(data.page, data.limit || data.pageSize, data.total);
         pagination.onclick = handlePaginationClick;
       }
 
       grid.onclick = (e) => handlePostGridClick(e, grid);
     } catch (e) {
       console.error('admin posts 로드 실패:', e);
-      grid.innerHTML =
-        '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
+      const msg = typeof e?.message === 'string' ? e.message : '글 목록을 불러오는 중 오류가 발생했습니다.';
+      grid.innerHTML = `<p class="text-danger">${escapeHtml(msg)}</p>`;
     }
   }
 
@@ -433,13 +432,18 @@ Glsoop.AdminPage = (function () {
     if (!modal) return;
     try {
       const res = await fetch(`/api/admin/posts/${postId}`);
-      const data = await res.json();
       if (res.status === 401 || res.status === 403) {
-        alert('관리자 권한을 다시 확인해주세요.');
+        const txt = await res.text();
+        alert(txt || '관리자 권한을 다시 확인해주세요.');
         window.location.href = '/html/login.html';
         return;
       }
-      if (!res.ok || !data.ok || !data.post) {
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
+      }
+      const data = await res.json();
+      if (!data.ok || !data.post) {
         alert(data?.message || '글 정보를 불러오지 못했습니다.');
         return;
       }
@@ -471,8 +475,12 @@ Glsoop.AdminPage = (function () {
     if (!ok) return;
     try {
       const delRes = await fetch(`/api/admin/posts/${postId}`, { method: 'DELETE' });
+      if (!delRes.ok) {
+        const txt = await delRes.text();
+        throw new Error(`status=${delRes.status} body=${txt.slice(0, 200)}`);
+      }
       const delData = await delRes.json();
-      if (!delRes.ok || !delData.ok) {
+      if (!delData.ok) {
         alert(delData.message || '글 삭제에 실패했습니다.');
         return;
       }
@@ -494,14 +502,23 @@ Glsoop.AdminPage = (function () {
     box.innerHTML = '<p class="text-muted">템플릿을 불러오는 중입니다...</p>';
     try {
       const res = await fetch('/api/admin/quest-templates');
+      if (res.status === 401 || res.status === 403) {
+        const txt = await res.text();
+        box.innerHTML = `<p class="text-danger">${txt || '권한을 다시 확인해주세요.'}</p>`;
+        return;
+      }
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
+      }
       const data = await res.json();
-      if (!res.ok || !data.ok) {
+      if (!data.ok) {
         box.innerHTML = `<p class="text-danger">${
           data?.message || '템플릿 조회에 실패했습니다.'
         }</p>`;
         return;
       }
-      questState.templates = data.templates || [];
+      questState.templates = data.items || data.templates || [];
       box.innerHTML = buildTemplateEditor();
       bindTemplateEvents();
     } catch (err) {
@@ -692,15 +709,24 @@ Glsoop.AdminPage = (function () {
     box.innerHTML = '<p class="text-muted">캠페인을 불러오는 중입니다...</p>';
     try {
       const res = await fetch('/api/admin/quest-campaigns');
+      if (res.status === 401 || res.status === 403) {
+        const txt = await res.text();
+        box.innerHTML = `<p class="text-danger">${txt || '권한을 다시 확인해주세요.'}</p>`;
+        return;
+      }
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
+      }
       const data = await res.json();
-      if (!res.ok || !data.ok) {
+      if (!data.ok) {
         box.innerHTML = `<p class="text-danger">${
           data?.message || '캠페인 조회에 실패했습니다.'
         }</p>`;
         return;
       }
-      questState.campaigns = data.campaigns || [];
-      questState.campaignItems = data.items || [];
+      questState.campaigns = data.items || data.campaigns || [];
+      questState.campaignItems = data.campaignItems || [];
       box.innerHTML = buildCampaignEditor();
       bindCampaignEvents();
     } catch (err) {
