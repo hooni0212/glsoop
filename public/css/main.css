@@ -516,6 +516,34 @@ a:hover {
   transform: scale(1.4);
 }
 
+/* =========================
+   Admin: sidebar tabs
+========================= */
+
+.admin-sidebar .admin-tabs .nav-link {
+  cursor: pointer;
+  border-radius: 0.8rem;
+  text-align: left;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  transition: background-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.admin-sidebar .admin-tabs .nav-link:hover {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.admin-sidebar .admin-tabs .nav-link.active {
+  background: linear-gradient(120deg, #e7f0ff, #f3f8ff);
+  color: #0a3d62;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+  border-color: rgba(10, 61, 98, 0.28);
+}
+
 
 /* =========================
    9. 마이페이지 공감 하트

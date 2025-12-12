@@ -28,7 +28,10 @@ Glsoop.AdminPage = (function () {
       return;
     }
 
-    // 1. 내 정보 확인 + 관리자 여부 체크
+    // 1. 탭 전환 핸들러 설정
+    setupTabSwitching();
+
+    // 2. 내 정보 확인 + 관리자 여부 체크
     const me = await fetchMeAsAdmin();
     if (!me) return; // 함수 내부에서 이미 리다이렉트 처리
 
@@ -44,11 +47,35 @@ Glsoop.AdminPage = (function () {
     // 실제 관리자 컨텐츠 영역 보여주기
     contentBox.style.display = 'block';
 
-    // 2. 회원 목록 로드
+    // 3. 회원 목록 로드
     await loadUsers(usersBox);
 
-    // 3. 글 목록 로드
+    // 4. 글 목록 로드
     await loadPosts(postsBox);
+  }
+
+  /**
+   * 좌측 탭 버튼 클릭 시 패널 전환
+   */
+  function setupTabSwitching() {
+    const tabButtons = document.querySelectorAll('.admin-tabs .nav-link');
+    const panels = document.querySelectorAll('.tab-panel');
+
+    if (!tabButtons.length || !panels.length) return;
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-target');
+        if (!targetId) return;
+
+        tabButtons.forEach((b) => b.classList.toggle('active', b === btn));
+
+        panels.forEach((panel) => {
+          const isTarget = panel.id === targetId;
+          panel.classList.toggle('d-none', !isTarget);
+        });
+      });
+    });
   }
 
   /**

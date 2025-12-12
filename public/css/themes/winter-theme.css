@@ -618,3 +618,22 @@ body.winter-theme .mypage-growth-link:hover,
 body.winter-theme .mypage-growth-link:focus-visible {
   color: #0f2d44;
 }
+
+/* Admin sidebar tabs - winter tint */
+body.winter-theme .admin-sidebar .admin-tabs .nav-link {
+  background: rgba(236, 245, 255, 0.55);
+  border-color: rgba(22, 50, 83, 0.12);
+  color: #0b2c4a;
+}
+
+body.winter-theme .admin-sidebar .admin-tabs .nav-link:hover {
+  background: rgba(245, 251, 255, 0.92);
+  box-shadow: 0 8px 18px rgba(12, 25, 44, 0.12);
+}
+
+body.winter-theme .admin-sidebar .admin-tabs .nav-link.active {
+  background: linear-gradient(140deg, rgba(229, 242, 255, 0.98), #e7f3ff);
+  border-color: rgba(11, 44, 74, 0.24);
+  color: #0a2f58;
+  box-shadow: 0 12px 24px rgba(12, 25, 44, 0.14);
+}
