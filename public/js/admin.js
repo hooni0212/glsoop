@@ -306,8 +306,20 @@ Glsoop.AdminPage = (function () {
 
     try {
       const res = await fetch(`/api/admin/posts?${params.toString()}`);
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        console.error('admin posts 응답 파싱 실패:', parseErr);
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        alert(data?.message || '로그인/권한을 다시 확인해주세요.');
+        window.location.href = '/html/login.html';
+        return;
+      }
+
+      if (!res.ok || !data?.ok) {
         grid.innerHTML = `<p class="text-danger">${
           data?.message || '글 목록을 불러오는 중 오류가 발생했습니다.'
         }</p>`;
@@ -328,7 +340,7 @@ Glsoop.AdminPage = (function () {
 
       grid.onclick = (e) => handlePostGridClick(e, grid);
     } catch (e) {
-      console.error(e);
+      console.error('admin posts 로드 실패:', e);
       grid.innerHTML =
         '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
     }
