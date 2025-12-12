@@ -5,7 +5,15 @@ const { allAsync, getAsync, runAsync } = require('../utils/questService');
 
 const router = express.Router();
 
-router.get('/users', authRequired, adminRequired, async (req, res) => {
+// 모든 관리자 라우트에 인증/관리자 검증을 공통 적용
+router.use(authRequired, adminRequired);
+
+// 헬스 체크: admin 네임스페이스가 정상적으로 연결되었는지 확인
+router.get('/', (req, res) => {
+  res.json({ ok: true, message: 'admin api ready' });
+});
+
+router.get('/users', async (req, res) => {
   const { search = '', filter = 'all', sort = 'id', page = 1, adminOnly } = req.query;
   const pageSize = 20;
   const offset = (Number(page) - 1) * pageSize;
@@ -45,7 +53,7 @@ router.get('/users', authRequired, adminRequired, async (req, res) => {
   }
 });
 
-router.delete('/users/:id', authRequired, adminRequired, (req, res) => {
+router.delete('/users/:id', (req, res) => {
   const targetUserId = req.params.id;
   db.serialize(() => {
     db.run('DELETE FROM likes WHERE user_id = ?', [targetUserId]);
@@ -64,7 +72,7 @@ router.delete('/users/:id', authRequired, adminRequired, (req, res) => {
   });
 });
 
-router.get('/posts', authRequired, adminRequired, async (req, res) => {
+router.get('/posts', async (req, res) => {
   const {
     search = '',
     category = 'all',
@@ -129,7 +137,7 @@ router.get('/posts', authRequired, adminRequired, async (req, res) => {
   }
 });
 
-router.get('/posts/:id', authRequired, adminRequired, async (req, res) => {
+router.get('/posts/:id', async (req, res) => {
   const postId = req.params.id;
   try {
     const row = await getAsync(
@@ -151,7 +159,7 @@ router.get('/posts/:id', authRequired, adminRequired, async (req, res) => {
   }
 });
 
-router.delete('/posts/:id', authRequired, adminRequired, (req, res) => {
+router.delete('/posts/:id', (req, res) => {
   const postId = req.params.id;
   db.serialize(() => {
     db.run('DELETE FROM likes WHERE post_id = ?', [postId]);
@@ -168,7 +176,7 @@ router.delete('/posts/:id', authRequired, adminRequired, (req, res) => {
 });
 
 // Quest templates CRUD
-router.get('/quest-templates', authRequired, adminRequired, async (req, res) => {
+router.get('/quest-templates', async (req, res) => {
   try {
     const rows = await allAsync('SELECT * FROM quest_templates ORDER BY id DESC');
     res.json({ ok: true, items: rows });
@@ -178,7 +186,7 @@ router.get('/quest-templates', authRequired, adminRequired, async (req, res) => 
   }
 });
 
-router.post('/quest-templates', authRequired, adminRequired, async (req, res) => {
+router.post('/quest-templates', async (req, res) => {
   const { name, description, condition_type, category, target_value, reward_xp, is_active = 1 } = req.body;
   if (!name || !condition_type || !target_value) {
     return res.status(400).json({ ok: false, message: '필수 입력이 누락되었습니다.' });
@@ -196,7 +204,7 @@ router.post('/quest-templates', authRequired, adminRequired, async (req, res) =>
   }
 });
 
-router.put('/quest-templates/:id', authRequired, adminRequired, async (req, res) => {
+router.put('/quest-templates/:id', async (req, res) => {
   const { name, description, condition_type, category, target_value, reward_xp, is_active = 1 } = req.body;
   const templateId = req.params.id;
   try {
@@ -211,7 +219,7 @@ router.put('/quest-templates/:id', authRequired, adminRequired, async (req, res)
   }
 });
 
-router.delete('/quest-templates/:id', authRequired, adminRequired, async (req, res) => {
+router.delete('/quest-templates/:id', async (req, res) => {
   try {
     await runAsync('DELETE FROM quest_templates WHERE id = ?', [req.params.id]);
     res.json({ ok: true });
@@ -222,7 +230,7 @@ router.delete('/quest-templates/:id', authRequired, adminRequired, async (req, r
 });
 
 // Campaigns
-router.get('/quest-campaigns', authRequired, adminRequired, async (req, res) => {
+router.get('/quest-campaigns', async (req, res) => {
   try {
     const campaigns = await allAsync('SELECT * FROM quest_campaigns ORDER BY priority DESC, id DESC');
     const items = await allAsync(
@@ -236,7 +244,7 @@ router.get('/quest-campaigns', authRequired, adminRequired, async (req, res) => 
   }
 });
 
-router.post('/quest-campaigns', authRequired, adminRequired, async (req, res) => {
+router.post('/quest-campaigns', async (req, res) => {
   const { name, description, campaign_type = 'event', start_at, end_at, is_active = 0, priority = 1 } = req.body;
   if (!name) return res.status(400).json({ ok: false, message: '캠페인 이름이 필요합니다.' });
   try {
@@ -252,7 +260,7 @@ router.post('/quest-campaigns', authRequired, adminRequired, async (req, res) =>
   }
 });
 
-router.put('/quest-campaigns/:id', authRequired, adminRequired, async (req, res) => {
+router.put('/quest-campaigns/:id', async (req, res) => {
   const { name, description, campaign_type = 'event', start_at, end_at, is_active = 0, priority = 1 } = req.body;
   const campaignId = req.params.id;
   try {
@@ -267,7 +275,7 @@ router.put('/quest-campaigns/:id', authRequired, adminRequired, async (req, res)
   }
 });
 
-router.delete('/quest-campaigns/:id', authRequired, adminRequired, async (req, res) => {
+router.delete('/quest-campaigns/:id', async (req, res) => {
   try {
     await runAsync('DELETE FROM quest_campaigns WHERE id = ?', [req.params.id]);
     res.json({ ok: true });
@@ -277,7 +285,7 @@ router.delete('/quest-campaigns/:id', authRequired, adminRequired, async (req, r
   }
 });
 
-router.put('/quest-campaigns/:id/items', authRequired, adminRequired, async (req, res) => {
+router.put('/quest-campaigns/:id/items', async (req, res) => {
   const { items } = req.body;
   const campaignId = req.params.id;
   if (!Array.isArray(items)) return res.status(400).json({ ok: false, message: 'items 배열이 필요합니다.' });

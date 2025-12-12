@@ -312,6 +312,10 @@ Glsoop.AdminPage = (function () {
         window.location.href = '/html/login.html';
         return;
       }
+      if (res.status === 404) {
+        const txt = await res.text();
+        throw new Error(`관리자 글 API를 찾을 수 없습니다. status=404 body=${txt.slice(0, 200)}`);
+      }
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
@@ -438,6 +442,10 @@ Glsoop.AdminPage = (function () {
         window.location.href = '/html/login.html';
         return;
       }
+      if (res.status === 404) {
+        const txt = await res.text();
+        throw new Error(`관리자 템플릿 API가 없습니다. status=404 body=${txt.slice(0, 200)}`);
+      }
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
@@ -496,32 +504,36 @@ Glsoop.AdminPage = (function () {
     }
   }
 
-  async function loadQuestTemplates() {
-    const box = document.getElementById('questTemplates');
-    if (!box) return;
-    box.innerHTML = '<p class="text-muted">템플릿을 불러오는 중입니다...</p>';
-    try {
-      const res = await fetch('/api/admin/quest-templates');
-      if (res.status === 401 || res.status === 403) {
-        const txt = await res.text();
-        box.innerHTML = `<p class="text-danger">${txt || '권한을 다시 확인해주세요.'}</p>`;
-        return;
-      }
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
-      }
-      const data = await res.json();
-      if (!data.ok) {
-        box.innerHTML = `<p class="text-danger">${
-          data?.message || '템플릿 조회에 실패했습니다.'
-        }</p>`;
-        return;
-      }
-      questState.templates = data.items || data.templates || [];
-      box.innerHTML = buildTemplateEditor();
-      bindTemplateEvents();
-    } catch (err) {
+    async function loadQuestTemplates() {
+      const box = document.getElementById('questTemplates');
+      if (!box) return;
+      box.innerHTML = '<p class="text-muted">템플릿을 불러오는 중입니다...</p>';
+      try {
+        const res = await fetch('/api/admin/quest-templates');
+        if (res.status === 401 || res.status === 403) {
+          const txt = await res.text();
+          box.innerHTML = `<p class="text-danger">${txt || '권한을 다시 확인해주세요.'}</p>`;
+          return;
+        }
+        if (res.status === 404) {
+          const txt = await res.text();
+          throw new Error(`관리자 템플릿 API가 없습니다. status=404 body=${txt.slice(0, 200)}`);
+        }
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
+        }
+        const data = await res.json();
+        if (!data.ok) {
+          box.innerHTML = `<p class="text-danger">${
+            data?.message || '템플릿 조회에 실패했습니다.'
+          }</p>`;
+          return;
+        }
+        questState.templates = data.items || data.templates || [];
+        box.innerHTML = buildTemplateEditor();
+        bindTemplateEvents();
+      } catch (err) {
       console.error(err);
       box.innerHTML = '<p class="text-danger">템플릿 조회 중 오류가 발생했습니다.</p>';
     }
@@ -714,6 +726,10 @@ Glsoop.AdminPage = (function () {
         box.innerHTML = `<p class="text-danger">${txt || '권한을 다시 확인해주세요.'}</p>`;
         return;
       }
+      if (res.status === 404) {
+        const txt = await res.text();
+        throw new Error(`관리자 캠페인 API가 없습니다. status=404 body=${txt.slice(0, 200)}`);
+      }
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
@@ -729,7 +745,7 @@ Glsoop.AdminPage = (function () {
       questState.campaignItems = data.campaignItems || [];
       box.innerHTML = buildCampaignEditor();
       bindCampaignEvents();
-    } catch (err) {
+      } catch (err) {
       console.error(err);
       box.innerHTML = '<p class="text-danger">캠페인 조회 중 오류가 발생했습니다.</p>';
     }
