@@ -501,3 +501,100 @@ body.winter-theme .gls-save-btn:focus-visible {
   color: #225066;
   border-color: #2f6c8a;
 }
+
+/* 성장 / 숲 지도 페이지 겨울 테마 */
+body.winter-theme .page-growth {
+  background: linear-gradient(135deg, rgba(222, 238, 248, 0.55), rgba(210, 230, 245, 0.6));
+}
+
+body.winter-theme .page-growth .glass-card,
+body.winter-theme .page-growth .growth-today-pill,
+body.winter-theme .page-growth .forest-map-detail-panel {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(234, 243, 251, 0.95));
+  border-color: rgba(47, 108, 138, 0.35);
+  box-shadow: 0 16px 38px rgba(34, 70, 104, 0.12);
+}
+
+body.winter-theme .growth-level-ring {
+  background: conic-gradient(#5fc3dc var(--xp-progress, 0deg), rgba(255, 255, 255, 0.3) var(--xp-progress, 0deg));
+}
+
+body.winter-theme .growth-level-progress-bar {
+  background: linear-gradient(90deg, #5fc3dc, #7bc4b2);
+}
+
+body.winter-theme .growth-today-pill .value,
+body.winter-theme .growth-today-pill .sub {
+  color: #0f2d44;
+}
+
+body.winter-theme .forest-map-node {
+  background: rgba(246, 251, 255, 0.95);
+  border-color: rgba(47, 108, 138, 0.32);
+  box-shadow: 0 12px 26px rgba(34, 70, 104, 0.12);
+}
+
+body.winter-theme .forest-map-node.is-completed {
+  background: linear-gradient(140deg, rgba(224, 244, 239, 0.95), rgba(209, 238, 230, 0.96));
+  border-color: rgba(67, 190, 140, 0.6);
+}
+
+body.winter-theme .forest-map-node.is-in-progress {
+  background: linear-gradient(140deg, rgba(228, 243, 252, 0.96), rgba(214, 234, 247, 0.96));
+  border-color: rgba(47, 108, 138, 0.45);
+}
+
+body.winter-theme .forest-map-node.is-locked {
+  background: rgba(234, 240, 246, 0.9);
+}
+
+body.winter-theme .forest-map-node.is-selected {
+  border-color: #2f6c8a;
+  box-shadow: 0 16px 34px rgba(34, 70, 104, 0.16);
+}
+
+body.winter-theme .achievement-card {
+  background: rgba(246, 251, 255, 0.95);
+  border-color: rgba(47, 108, 138, 0.32);
+  box-shadow: 0 14px 30px rgba(34, 70, 104, 0.12);
+}
+
+body.winter-theme .achievement-card.is-completed {
+  background: linear-gradient(145deg, rgba(224, 244, 239, 0.96), rgba(210, 238, 230, 0.96));
+  border-color: rgba(67, 190, 140, 0.6);
+}
+
+body.winter-theme .achievement-card.is-in-progress {
+  background: linear-gradient(145deg, rgba(228, 243, 252, 0.96), rgba(214, 234, 247, 0.96));
+  border-color: rgba(47, 108, 138, 0.45);
+}
+
+body.winter-theme .achievement-progress-bar {
+  background: linear-gradient(90deg, #5fc3dc, #7bc4b2);
+}
+
+body.winter-theme .filter-btn.is-active {
+  background: linear-gradient(135deg, #5fc3dc, #7bc4b2);
+  color: #0f2d44;
+  box-shadow: 0 12px 22px rgba(47, 108, 138, 0.18);
+}
+
+body.winter-theme .quest-item {
+  background: linear-gradient(135deg, rgba(248, 252, 255, 0.96), rgba(234, 242, 249, 0.96));
+  border-color: rgba(47, 108, 138, 0.28);
+}
+
+body.winter-theme .quest-item.is-completed {
+  background: linear-gradient(135deg, rgba(224, 244, 239, 0.96), rgba(210, 238, 230, 0.96));
+  border-color: rgba(67, 190, 140, 0.6);
+}
+
+body.winter-theme .growth-section .achievement-filters .filter-btn {
+  border-color: rgba(47, 108, 138, 0.35);
+}
+
+body.winter-theme .mypage-growth-mini {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(234, 243, 251, 0.94));
+  border-color: rgba(47, 108, 138, 0.3);
+  box-shadow: 0 14px 30px rgba(34, 70, 104, 0.12);
+}

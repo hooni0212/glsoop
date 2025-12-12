@@ -137,6 +137,8 @@ async function loadMyPage() {
       aboutInput.value = meData.about || '';
     }
 
+    await loadGrowthMiniWidget();
+
     // 기본 탭: "내가 쓴 글" 목록 로드
     await loadMyPosts();
   } catch (e) {
@@ -156,6 +158,27 @@ async function loadMyPage() {
       likedBox2.innerHTML =
         '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
     }
+  }
+}
+
+async function loadGrowthMiniWidget() {
+  const widget = document.getElementById('mypageGrowthMini');
+  const summaryText = document.querySelector('.mypage-growth-summary-text');
+  if (!widget || !summaryText) return;
+
+  try {
+    const res = await fetch('/api/growth/summary', { cache: 'no-store' });
+    if (!res.ok) throw new Error('growth summary failed');
+    const data = await res.json();
+    if (!data.ok || !data.summary) throw new Error('growth summary invalid');
+
+    const { level = 0, todayXp = 0, streakDays = 0, title = '성장' } = data.summary;
+    summaryText.textContent = `Lv.${level} ${title} · 오늘 XP +${todayXp} · 연속 ${streakDays}일 글쓰기 중`;
+    widget.classList.remove('d-none');
+  } catch (error) {
+    console.error(error);
+    summaryText.textContent = '성장 정보를 불러오지 못했습니다.';
+    widget.classList.remove('d-none');
   }
 }
 
