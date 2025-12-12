@@ -276,87 +276,89 @@ a:hover {
 /* =========================
    5-1. 마이페이지 탭 바
 ========================= */
+.mypage-section {
+  margin-top: 1.5rem;
+}
 
-.mypage-tab-container {
-  background: linear-gradient(145deg, rgba(30, 58, 82, 0.62), rgba(15, 118, 110, 0.52));
+.mypage-section-title {
+  font-weight: 700;
+}
+
+.mypage-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  background: rgba(255, 255, 255, 0.35);
   border-radius: 18px;
-  padding: 0.75rem;
-  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  margin-bottom: 1.5rem;
-}
-
-.mypage-tab-bar {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem 0;
-  margin-bottom: -1px;
-  background: rgba(255, 255, 255, 0.75);
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  position: relative;
-  z-index: 1;
   flex-wrap: wrap;
-}
-
-.mypage-tab-content {
-  position: relative;
+  margin-bottom: 0.75rem;
 }
 
 .mypage-tab {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 1.2rem;
-  border-radius: 16px 16px 0 0;
-  border: 1px solid rgba(148, 163, 184, 0.32);
-  background: rgba(148, 163, 184, 0.16);
-  color: #5b6470;
+  gap: 0.45rem;
+  padding: 0.55rem 1.05rem;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 144, 156, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+  color: #4b5563;
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
   text-decoration: none;
-  transition: all 0.15s ease;
-  position: relative;
-  top: 2px;
-  min-width: 150px;
+  transition: background-color 0.18s ease, border-color 0.18s ease,
+    color 0.18s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  min-width: 0;
+  line-height: 1.2;
 }
 
 .mypage-tab .tab-icon {
   font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 .mypage-tab:hover,
 .mypage-tab:focus-visible {
-  background: rgba(148, 163, 184, 0.28);
-  color: #3b4a5a;
+  background: rgba(255, 255, 255, 0.52);
+  color: #1f2937;
+  border-color: rgba(120, 144, 156, 0.5);
   transform: translateY(-1px);
-  box-shadow: 0 10px 18px rgba(51, 65, 85, 0.16);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
   outline: none;
 }
 
+.mypage-tab:focus-visible {
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.4), 0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
 .mypage-tab.is-active {
-  background: #f8fafc;
+  background: rgba(255, 255, 255, 0.88);
   color: #0f172a;
-  border: 1px solid rgba(99, 135, 173, 0.32);
-  border-bottom: none;
-  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
-  top: 0;
-  z-index: 2;
+  border-color: rgba(120, 144, 156, 0.55);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.14);
+  transform: translateY(-1px);
+}
+
+.mypage-tab-panels {
+  position: relative;
 }
 
 .mypage-tab-panel {
-  background: #fdfefe;
-  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(255, 255, 255, 0.93);
+  border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 18px;
   box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
   padding: 1.25rem 1.1rem;
   position: relative;
   z-index: 0;
-  margin-top: -1px;
+  margin-top: 0.35rem;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
