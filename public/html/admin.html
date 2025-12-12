@@ -119,43 +119,94 @@
     </div>
   </nav>
 
-  <!-- 관리자 페이지 메인 섹션 -->
-  <!-- nav-height만큼 위에 고정된 네비게이션이 있으므로 py-5 + mt-5로 여백 확보 -->
-  <section class="py-5 mt-5">
-    <div class="container" style="max-width: 900px;">
-      <h2 class="mb-4">관리자 페이지</h2>
-
-      <!-- 관리자 상태 영역 -->
-      <!-- /api/me 요청 결과에 따라 관리자 여부 / 안내 문구 보여줌 -->
-      <div id="adminStatus" class="mb-3">
-        <p class="text-muted">접근 권한을 확인하는 중입니다...</p>
-      </div>
-
-      <!-- 실제 관리자 내용(회원/글 관리) -->
-      <!-- 기본은 display:none; → admin.js에서 관리자 확인 후 표시 -->
-      <div id="adminContent" style="display:none;">
-        <p class="mb-3 text-muted">
-          회원과 게시글을 이 페이지에서 관리할 수 있습니다.
-        </p>
-
-        <!-- 회원 관리 섹션 -->
-        <div class="mb-4">
-          <h4 class="mb-3">회원 관리</h4>
-          <!-- 회원 목록 테이블이 JS로 렌더링되는 영역 -->
-          <div id="adminUsers">
-            <p class="text-muted">회원 목록을 불러오는 중입니다...</p>
+  <section class="py-5 mt-5 admin-shell">
+    <div class="container admin-container">
+      <div class="d-flex flex-column flex-lg-row gap-4">
+        <aside class="admin-sidebar card glass-card p-3">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+              <p class="text-muted small mb-0">관리자</p>
+              <h4 class="mb-0">글숲 운영실</h4>
+            </div>
+            <span class="badge bg-light text-dark">v2</span>
           </div>
-        </div>
+          <div id="adminStatus" class="mb-3">
+            <p class="text-muted">접근 권한을 확인하는 중입니다...</p>
+          </div>
+          <div class="nav flex-column nav-pills admin-tabs" role="tablist" aria-orientation="vertical">
+            <button class="nav-link active" data-target="usersTab" type="button">Users</button>
+            <button class="nav-link" data-target="postsTab" type="button">Posts</button>
+            <button class="nav-link" data-target="questsTab" type="button">Quests</button>
+          </div>
+        </aside>
 
-        <!-- 회원 관리와 글 관리 사이 구분선 -->
-        <hr class="my-4" />
+        <div class="flex-fill">
+          <div id="adminContent" class="admin-content" style="display:none;">
+            <div class="tab-panel" id="usersTab">
+              <div class="admin-panel card glass-card mb-4">
+                <div class="card-body">
+                  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3 sticky-admin-toolbar">
+                    <div>
+                      <h3 class="mb-0">회원 관리</h3>
+                      <p class="text-muted small mb-0">검색·정렬·필터로 회원을 관리하세요.</p>
+                    </div>
+                    <div class="admin-filter-group" id="adminUsersFilters"></div>
+                  </div>
+                  <div id="adminUsers">
+                    <p class="text-muted">회원 목록을 불러오는 중입니다...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        <!-- 글 관리 섹션 -->
-        <div>
-          <h4 class="mb-3">글 관리</h4>
-          <!-- 관리자용 글 카드 목록이 JS로 렌더링되는 영역 -->
-          <div id="adminPosts">
-            <p class="text-muted">글 목록을 불러오는 중입니다...</p>
+            <div class="tab-panel d-none" id="postsTab">
+              <div class="admin-panel card glass-card mb-4">
+                <div class="card-body">
+                  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3 sticky-admin-toolbar">
+                    <div>
+                      <h3 class="mb-0">글 관리</h3>
+                      <p class="text-muted small mb-0">검색·필터 후 글을 미리보기하고 삭제하세요.</p>
+                    </div>
+                    <div class="admin-filter-group" id="adminPostsFilters"></div>
+                  </div>
+                  <div id="adminPosts">
+                    <p class="text-muted">글 목록을 불러오는 중입니다...</p>
+                  </div>
+                </div>
+              </div>
+              <div id="postPreviewDrawer" class="post-preview drawer d-none"></div>
+            </div>
+
+            <div class="tab-panel d-none" id="questsTab">
+              <div class="admin-panel card glass-card mb-4">
+                <div class="card-body">
+                  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3 sticky-admin-toolbar">
+                    <div>
+                      <h3 class="mb-0">퀘스트 템플릿</h3>
+                      <p class="text-muted small mb-0">조건·보상 기반 템플릿을 관리합니다.</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" id="addTemplateBtn">새 템플릿</button>
+                  </div>
+                  <div id="questTemplates">
+                    <p class="text-muted">템플릿을 불러오는 중입니다...</p>
+                  </div>
+                </div>
+              </div>
+              <div class="admin-panel card glass-card">
+                <div class="card-body">
+                  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3 sticky-admin-toolbar">
+                    <div>
+                      <h3 class="mb-0">캠페인 관리</h3>
+                      <p class="text-muted small mb-0">활성 캠페인과 기간을 설정합니다.</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" id="addCampaignBtn">새 캠페인</button>
+                  </div>
+                  <div id="questCampaigns">
+                    <p class="text-muted">캠페인을 불러오는 중입니다...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

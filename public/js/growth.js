@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await ensureAuthenticated();
   await loadGrowthSummary();
   await loadGrowthAchievements();
+  await loadActiveQuests();
   bindAchievementFilters();
 });
 
@@ -19,6 +20,18 @@ async function ensureAuthenticated() {
     alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
     window.location.href = '/html/login.html';
     throw new Error('Unauthenticated');
+  }
+}
+
+async function loadActiveQuests() {
+  try {
+    const res = await fetch('/api/quests/active', { cache: 'no-store' });
+    if (!res.ok) throw new Error('active quests request failed');
+    const data = await res.json();
+    if (!data.ok || !Array.isArray(data.campaigns)) throw new Error('invalid active quests response');
+    renderQuestGroups(data.campaigns);
+  } catch (error) {
+    console.error(error);
   }
 }
 
@@ -87,7 +100,6 @@ async function loadGrowthAchievements() {
     renderForestMapNodes(achievementCache);
     renderAchievementGrid('all');
     renderAchievementDetail(achievementCache[0]);
-    hydrateQuestListFromAchievements();
   } catch (error) {
     console.error(error);
     const map = document.getElementById('forestMapAchievements');
@@ -234,6 +246,26 @@ function hydrateQuestListFromAchievements() {
       questWeek.appendChild(li);
     });
   }
+}
+
+function renderQuestGroups(campaigns = []) {
+  const questToday = document.getElementById('growthQuestListToday');
+  const questWeek = document.getElementById('growthQuestListWeek');
+  if (questToday) questToday.innerHTML = '';
+  if (questWeek) questWeek.innerHTML = '';
+
+  const addItem = (parent, quest) => {
+    const li = document.createElement('li');
+    li.className = `quest-item ${quest.status === 'completed' ? 'is-completed' : ''}`;
+    li.textContent = `${quest.name} (${quest.progress || 0}/${quest.target || 0})`;
+    parent.appendChild(li);
+  };
+
+  campaigns.forEach((campaign) => {
+    const bucket = campaign.campaignType === 'weekly' ? questWeek : questToday;
+    if (!bucket) return;
+    (campaign.quests || []).forEach((quest) => addItem(bucket, quest));
+  });
 }
 
 function statusClass(status) {

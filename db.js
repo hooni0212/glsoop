@@ -330,6 +330,62 @@ db.serialize(() => {
       }
     );
   });
+
+  // 퀘스트/캠페인 운영 테이블
+  db.run(`
+    CREATE TABLE IF NOT EXISTS quest_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      condition_type TEXT NOT NULL,
+      category TEXT,
+      target_value INTEGER NOT NULL,
+      reward_xp INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS quest_campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      campaign_type TEXT DEFAULT 'event',
+      start_at DATETIME,
+      end_at DATETIME,
+      is_active INTEGER DEFAULT 0,
+      priority INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS quest_campaign_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL,
+      template_id INTEGER NOT NULL,
+      sort_order INTEGER DEFAULT 0,
+      FOREIGN KEY (campaign_id) REFERENCES quest_campaigns(id) ON DELETE CASCADE,
+      FOREIGN KEY (template_id) REFERENCES quest_templates(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS user_quest_state (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      campaign_id INTEGER NOT NULL,
+      template_id INTEGER NOT NULL,
+      progress INTEGER DEFAULT 0,
+      reset_key TEXT,
+      completed_at DATETIME,
+      UNIQUE(user_id, campaign_id, template_id, reset_key),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (campaign_id) REFERENCES quest_campaigns(id),
+      FOREIGN KEY (template_id) REFERENCES quest_templates(id)
+    )
+  `);
 });
 
 module.exports = db;

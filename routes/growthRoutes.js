@@ -4,6 +4,7 @@ const {
   fetchGrowthSummary,
   fetchUserAchievements,
 } = require('../utils/growth');
+const { getActiveQuestsForUser } = require('../utils/questService');
 
 const router = express.Router();
 
@@ -28,6 +29,18 @@ router.get('/growth/achievements', authRequired, async (req, res) => {
     return res
       .status(500)
       .json({ ok: false, message: '업적 정보를 불러오지 못했습니다.' });
+  }
+});
+
+router.get('/quests/active', authRequired, async (req, res) => {
+  try {
+    const campaigns = await getActiveQuestsForUser(req.user.id);
+    return res.json({ ok: true, campaigns });
+  } catch (error) {
+    console.error('active quests error:', error);
+    return res
+      .status(500)
+      .json({ ok: false, message: '활성 퀘스트를 불러오지 못했습니다.' });
   }
 });
 
