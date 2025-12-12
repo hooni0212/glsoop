@@ -65,8 +65,15 @@ router.delete('/admin/users/:id', authRequired, adminRequired, (req, res) => {
 });
 
 router.get('/admin/posts', authRequired, adminRequired, async (req, res) => {
-  const { search = '', category = 'all', sort = 'recent', page = 1, range = 'all' } = req.query;
-  const pageSize = 20;
+  const {
+    search = '',
+    category = 'all',
+    sort = 'recent',
+    page = 1,
+    range = 'all',
+    limit = 20,
+  } = req.query;
+  const pageSize = Math.min(Math.max(Number(limit) || 20, 1), 200);
   const offset = (Number(page) - 1) * pageSize;
   const where = [];
   const params = [];

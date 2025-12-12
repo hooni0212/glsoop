@@ -175,6 +175,24 @@
                 </div>
               </div>
               <div id="postPreviewDrawer" class="post-preview drawer d-none"></div>
+              <div id="adminPostModal" class="admin-modal d-none" role="dialog" aria-modal="true">
+                <div class="admin-modal__overlay" data-dismiss="adminPostModal"></div>
+                <div class="admin-modal__dialog glass-card">
+                  <div class="admin-modal__header">
+                    <div>
+                      <p class="text-muted small mb-1">글 미리보기</p>
+                      <h5 id="adminPostModalTitle" class="mb-0"></h5>
+                      <div id="adminPostModalMeta" class="small text-muted"></div>
+                    </div>
+                    <button class="btn-close" type="button" data-dismiss="adminPostModal" aria-label="닫기"></button>
+                  </div>
+                  <div id="adminPostModalBody" class="admin-modal__body"></div>
+                  <div class="admin-modal__footer d-flex justify-content-end gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dismiss="adminPostModal">닫기</button>
+                    <button class="btn btn-outline-danger btn-sm" type="button" id="adminPostModalDelete">이 글 삭제</button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="tab-panel d-none" id="questsTab">

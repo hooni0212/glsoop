@@ -4,23 +4,30 @@
 window.Glsoop = window.Glsoop || {};
 
 Glsoop.AdminPage = (function () {
+  const postsState = {
+    page: 1,
+    limit: 48,
+    search: '',
+    category: 'all',
+    sort: 'recent',
+    range: 'all',
+  };
+
+  const questState = {
+    templates: [],
+    campaigns: [],
+    campaignItems: [],
+  };
+
   /**
    * 엔트리 포인트
-   * - DOM 요소 찾기
-   * - 관리자 권한 확인
-   * - 유저 목록 / 글 목록 로드
    */
   async function init() {
-    // 상단 상태 메시지 박스
     const statusBox = document.getElementById('adminStatus');
-    // 실제 관리자 컨텐츠 전체를 감싸는 영역 (기본은 display: none;일 수 있음)
     const contentBox = document.getElementById('adminContent');
-    // 회원 목록이 들어갈 영역
     const usersBox = document.getElementById('adminUsers');
-    // 게시글 목록이 들어갈 영역
     const postsBox = document.getElementById('adminPosts');
 
-    // 필수 DOM 요소가 없으면 관리자 페이지 동작 불가
     if (!statusBox || !contentBox || !usersBox || !postsBox) {
       console.error(
         'adminStatus / adminContent / adminUsers / adminPosts 요소를 찾을 수 없습니다.'
@@ -28,39 +35,32 @@ Glsoop.AdminPage = (function () {
       return;
     }
 
-    // 1. 탭 전환 핸들러 설정
     setupTabSwitching();
+    setupModalEvents();
 
-    // 2. 내 정보 확인 + 관리자 여부 체크
     const me = await fetchMeAsAdmin();
-    if (!me) return; // 함수 내부에서 이미 리다이렉트 처리
+    if (!me) return;
 
-    // 관리자 안내 메시지 출력
     statusBox.innerHTML = `
       <p class="mb-1">
         <strong>${escapeHtml(me.name)}</strong> 님, 관리자 권한으로 접속했습니다.
       </p>
       <p class="text-muted mb-0">
-        회원과 게시글을 이 페이지에서 관리할 수 있습니다.
+        회원과 게시글, 퀘스트를 이 페이지에서 관리할 수 있습니다.
       </p>
     `;
-    // 실제 관리자 컨텐츠 영역 보여주기
     contentBox.style.display = 'block';
 
-    // 3. 회원 목록 로드
     await loadUsers(usersBox);
-
-    // 4. 글 목록 로드
+    setupPostsUi(postsBox);
     await loadPosts(postsBox);
+    await loadQuestTemplates();
+    await loadQuestCampaigns();
   }
 
-  /**
-   * 좌측 탭 버튼 클릭 시 패널 전환
-   */
   function setupTabSwitching() {
     const tabButtons = document.querySelectorAll('.admin-tabs .nav-link');
     const panels = document.querySelectorAll('.tab-panel');
-
     if (!tabButtons.length || !panels.length) return;
 
     tabButtons.forEach((btn) => {
@@ -69,7 +69,6 @@ Glsoop.AdminPage = (function () {
         if (!targetId) return;
 
         tabButtons.forEach((b) => b.classList.toggle('active', b === btn));
-
         panels.forEach((panel) => {
           const isTarget = panel.id === targetId;
           panel.classList.toggle('d-none', !isTarget);
@@ -78,40 +77,40 @@ Glsoop.AdminPage = (function () {
     });
   }
 
-  /**
-   * /api/me 호출해서 관리자 여부 확인
-   * - 로그인 안 되어 있으면: 로그인 페이지로 이동
-   * - 로그인은 되어 있는데 관리자 아님: 메인으로 이동
-   * - 정상 관리자일 경우 me 데이터 반환
-   */
+  function setupModalEvents() {
+    document.body.addEventListener('click', (e) => {
+      const dismissTarget = e.target.getAttribute?.('data-dismiss');
+      if (dismissTarget === 'adminPostModal') {
+        closePostModal();
+      }
+      if (e.target.id === 'adminPostModalDelete') {
+        const modal = document.getElementById('adminPostModal');
+        const postId = modal?.dataset?.postId;
+        const card = document.querySelector(`.admin-post-card[data-post-id="${postId}"]`);
+        confirmAndDeletePost(postId, card);
+      }
+    });
+  }
+
   async function fetchMeAsAdmin() {
     try {
       const meRes = await fetch('/api/me');
-
       if (!meRes.ok) {
-        // 세션 / 토큰 없음 → 로그인 필요
         alert('로그인이 필요한 페이지입니다.');
         window.location.href = '/html/login.html';
         return null;
       }
-
       const meData = await meRes.json();
-
       if (!meData.ok) {
-        // API에서 ok=false → 로그인 정보 문제
         alert('로그인이 필요한 페이지입니다.');
         window.location.href = '/html/login.html';
         return null;
       }
-
       if (!meData.isAdmin) {
-        // 관리자 플래그가 false라면 접근 차단
         alert('관리자만 접근할 수 있는 페이지입니다.');
         window.location.href = '/index.html';
         return null;
       }
-
-      // 정상적인 관리자 정보 반환
       return meData;
     } catch (e) {
       console.error(e);
@@ -121,51 +120,29 @@ Glsoop.AdminPage = (function () {
     }
   }
 
-  /**
-   * 회원 목록 불러오기 & 렌더링
-   * - GET /api/admin/users
-   * - 테이블 형태로 회원들을 보여줌
-   * - 삭제 버튼은 이벤트 위임으로 처리
-   */
   async function loadUsers(usersBox) {
     try {
       const res = await fetch('/api/admin/users');
-
       if (!res.ok) {
         usersBox.innerHTML =
           '<p class="text-danger">회원 목록을 불러오는 중 오류가 발생했습니다.</p>';
         return;
       }
-
       const data = await res.json();
-
       if (!data.ok) {
         usersBox.innerHTML = `<p class="text-danger">${
           data.message || '회원 목록을 불러오지 못했습니다.'
         }</p>`;
         return;
       }
-
-      const users = data.users;
-
-      // 가입된 회원이 하나도 없는 경우
-      if (!users || users.length === 0) {
-        usersBox.innerHTML =
-          '<p class="text-muted">현재 가입된 회원이 없습니다.</p>';
+      const users = data.users || [];
+      if (!users.length) {
+        usersBox.innerHTML = '<p class="text-muted">현재 가입된 회원이 없습니다.</p>';
         return;
       }
-
-      // 테이블 HTML 생성 후 삽입
       usersBox.innerHTML = buildUsersTableHtml(users);
-
-      // 삭제 버튼 이벤트 위임
       const tbody = usersBox.querySelector('tbody');
-      if (!tbody) return;
-
-      // tbody 하위에서 발생하는 클릭 이벤트를 handleUserTableClick으로 전달
-      tbody.addEventListener('click', (e) =>
-        handleUserTableClick(e, tbody, usersBox)
-      );
+      tbody?.addEventListener('click', (e) => handleUserTableClick(e, tbody, usersBox));
     } catch (e) {
       console.error(e);
       usersBox.innerHTML =
@@ -173,32 +150,20 @@ Glsoop.AdminPage = (function () {
     }
   }
 
-  /**
-   * 회원 테이블 HTML 생성
-   * - 관리자 여부 / 이메일 인증 여부를 뱃지로 표시
-   * - 각 행에 "삭제" 버튼 추가
-   */
   function buildUsersTableHtml(users) {
     const rowsHtml = users
       .map((u) => {
-        // is_admin 플래그에 따라 "관리자" 뱃지
         const isAdminBadge = u.is_admin
           ? '<span class="badge bg-danger ms-1">관리자</span>'
           : '';
-
-        // is_verified 값에 따라 이메일 인증 상태 뱃지
         const isVerifiedBadge =
           u.is_verified && Number(u.is_verified) === 1
             ? '<span class="badge bg-success ms-1">인증완료</span>'
             : '<span class="badge bg-secondary ms-1">미인증</span>';
-
-        // 닉네임이 없으면 회색 "-" 표시
         const nicknameText =
           u.nickname && String(u.nickname).trim().length > 0
             ? escapeHtml(u.nickname)
             : '<span class="text-muted">-</span>';
-
-        // 각 회원 한 줄(row) HTML
         return `
           <tr data-user-id="${u.id}">
             <td>${u.id}</td>
@@ -219,7 +184,6 @@ Glsoop.AdminPage = (function () {
       })
       .join('');
 
-    // 전체 테이블 감싸는 HTML
     return `
       <div class="table-responsive">
         <table class="table align-middle">
@@ -241,48 +205,25 @@ Glsoop.AdminPage = (function () {
     `;
   }
 
-  /**
-   * 회원 삭제 버튼 클릭 처리 (이벤트 위임)
-   * - 실제 클릭은 tbody에서 일어나고,
-   *   admin-delete-user-btn 클래스를 가진 버튼인지 확인 후 처리
-   */
   async function handleUserTableClick(e, tbody, usersBox) {
     const target = e.target;
     if (!target.classList.contains('admin-delete-user-btn')) return;
-
-    // 클릭된 버튼이 속한 tr 찾기
     const tr = target.closest('tr');
     if (!tr) return;
-
     const userId = tr.getAttribute('data-user-id');
     if (!userId) return;
-
-    const sure = confirm(
-      `정말로 이 회원(ID: ${userId})을 삭제할까요?\n` +
-        `(이 회원이 작성한 글과 공감도 함께 삭제됩니다.)`
-    );
-    if (!sure) return;
-
+    const ok = confirm('정말 이 회원을 삭제하시겠습니까? 관련 글/공감도 함께 삭제됩니다.');
+    if (!ok) return;
     try {
-      // 관리자 전용 회원 삭제 API
-      const delRes = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-      });
+      const delRes = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
       const delData = await delRes.json();
-
       if (!delRes.ok || !delData.ok) {
         alert(delData.message || '회원 삭제에 실패했습니다.');
         return;
       }
-
-      alert('회원이 삭제되었습니다.');
-      // 해당 행 제거
       tr.remove();
-
-      // 더 이상 행이 없으면 "회원 없음" 메시지로 교체
       if (!tbody.children.length) {
-        usersBox.innerHTML =
-          '<p class="text-muted">현재 가입된 회원이 없습니다.</p>';
+        usersBox.innerHTML = '<p class="text-muted">현재 가입된 회원이 없습니다.</p>';
       }
     } catch (err) {
       console.error(err);
@@ -290,160 +231,700 @@ Glsoop.AdminPage = (function () {
     }
   }
 
-  /**
-   * 전체 글 불러오기 & 종이 카드 렌더링 + 삭제
-   * - GET /api/posts/feed (관리자용 별도 API를 만들 수도 있지만 여기선 공용 피드 활용)
-   */
+  function setupPostsUi(postsBox) {
+    if (!postsBox) return;
+    const filterBox = document.getElementById('adminPostsFilters');
+    if (filterBox) {
+      filterBox.innerHTML = `
+        <div class="admin-toolbar">
+          <input type="search" class="form-control form-control-sm" id="adminPostsSearch" placeholder="제목/작성자 검색" value="${
+            postsState.search
+          }" />
+          <select class="form-select form-select-sm" id="adminPostsCategory">
+            <option value="all">전체</option>
+            <option value="poem">시</option>
+            <option value="essay">에세이</option>
+            <option value="short">짧은 구절</option>
+          </select>
+          <select class="form-select form-select-sm" id="adminPostsRange">
+            <option value="all">전체 기간</option>
+            <option value="7">최근 7일</option>
+            <option value="30">최근 30일</option>
+          </select>
+          <select class="form-select form-select-sm" id="adminPostsSort">
+            <option value="recent">최신순</option>
+            <option value="oldest">오래된순</option>
+            <option value="likes">공감 많은순</option>
+          </select>
+          <select class="form-select form-select-sm" id="adminPostsLimit">
+            <option value="24">24개씩</option>
+            <option value="48" selected>48개씩</option>
+            <option value="96">96개씩</option>
+          </select>
+          <button class="btn btn-sm btn-outline-primary" id="adminPostsApply" type="button">적용</button>
+        </div>
+      `;
+      filterBox.addEventListener('click', (e) => {
+        if (e.target.id === 'adminPostsApply') {
+          const searchInput = document.getElementById('adminPostsSearch');
+          const category = document.getElementById('adminPostsCategory');
+          const sort = document.getElementById('adminPostsSort');
+          const range = document.getElementById('adminPostsRange');
+          const limit = document.getElementById('adminPostsLimit');
+          postsState.search = searchInput?.value?.trim() || '';
+          postsState.category = category?.value || 'all';
+          postsState.sort = sort?.value || 'recent';
+          postsState.range = range?.value || 'all';
+          postsState.limit = Number(limit?.value) || 48;
+          postsState.page = 1;
+          loadPosts(postsBox);
+        }
+      });
+    }
+
+    postsBox.innerHTML = `
+      <div id="adminPostsGrid" class="admin-posts-grid"></div>
+      <div id="adminPostsPagination" class="admin-pagination"></div>
+    `;
+  }
+
   async function loadPosts(postsBox) {
+    const grid = postsBox?.querySelector('#adminPostsGrid');
+    const pagination = postsBox?.querySelector('#adminPostsPagination');
+    if (!grid) return;
+    grid.innerHTML = '<p class="text-muted">글 목록을 불러오는 중입니다...</p>';
+    if (pagination) pagination.innerHTML = '';
+
+    const params = new URLSearchParams({
+      search: postsState.search,
+      category: postsState.category,
+      sort: postsState.sort,
+      range: postsState.range,
+      page: postsState.page,
+      limit: postsState.limit,
+    });
+
     try {
-      const res = await fetch('/api/posts/feed');
-
-      if (!res.ok) {
-        postsBox.innerHTML =
-          '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
-        return;
-      }
-
+      const res = await fetch(`/api/admin/posts?${params.toString()}`);
       const data = await res.json();
-
-      if (!data.ok) {
-        postsBox.innerHTML = `<p class="text-danger">${
-          data.message || '글 목록을 불러오지 못했습니다.'
+      if (!res.ok || !data.ok) {
+        grid.innerHTML = `<p class="text-danger">${
+          data?.message || '글 목록을 불러오는 중 오류가 발생했습니다.'
         }</p>`;
         return;
       }
 
-      const posts = data.posts;
-
-      // 등록된 글이 하나도 없을 때
-      if (!posts || posts.length === 0) {
-        postsBox.innerHTML =
-          '<p class="text-muted">등록된 글이 없습니다.</p>';
-        return;
+      const posts = data.posts || [];
+      if (!posts.length) {
+        grid.innerHTML = '<p class="text-muted">등록된 글이 없습니다.</p>';
+      } else {
+        grid.innerHTML = buildPostsHtml(posts);
       }
 
-      // 카드 목록 HTML 생성 후 삽입
-      postsBox.innerHTML = buildPostsHtml(posts);
+      if (pagination) {
+        pagination.innerHTML = buildPagination(data.page, data.pageSize, data.total);
+        pagination.onclick = handlePaginationClick;
+      }
 
-      // 글 삭제 이벤트(이벤트 위임)
-      postsBox.addEventListener('click', (e) =>
-        handlePostListClick(e, postsBox)
-      );
+      grid.onclick = (e) => handlePostGridClick(e, grid);
     } catch (e) {
       console.error(e);
-      postsBox.innerHTML =
+      grid.innerHTML =
         '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
     }
   }
 
-  /**
-   * 관리자 글 카드 목록 HTML 생성
-   * - 인스타 종이 카드(quote-card) 스타일 재활용
-   * - 제목 / 작성자 / 작성일 / 내용 표시
-   * - 아래쪽에 "삭제" 버튼
-   */
   function buildPostsHtml(posts) {
     return posts
       .map((post) => {
-        // created_at을 간단히 "YYYY-MM-DD HH:mm" 형식으로 잘라 사용
         const dateStr = post.created_at
           ? String(post.created_at).replace('T', ' ').slice(0, 16)
           : '';
-
-        // 닉네임이 있으면 우선 사용
         const nickname =
           post.author_nickname && post.author_nickname.trim().length > 0
             ? post.author_nickname.trim()
             : '';
-
-        // 닉네임이 없으면 author_name, 그것도 없으면 "익명"
         const baseName =
           nickname ||
           (post.author_name && post.author_name.trim().length > 0
             ? post.author_name.trim()
             : '익명');
-
-        // 이메일 일부 마스킹
         const maskedEmail = maskEmail(post.author_email);
         const author = maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
-
-        // 관리자 화면용 글 카드 HTML
+        const snippet = (post.content || '').replace(/<[^>]+>/g, '').slice(0, 80);
         return `
-          <div class="mb-4 admin-post-wrapper" data-post-id="${post.id}">
-            <div class="quote-card">
-              <div class="mb-3" style="width: 100%;">
-                <div class="d-flex flex-column align-items-center">
-                  <div class="paper-title mb-1" style="font-size: 1rem; font-weight: 600;">
-                    ${escapeHtml(post.title)}
-                  </div>
-                  <div class="paper-meta" style="font-size: 0.8rem; color: #777;">
-                    ${escapeHtml(author)} · ${dateStr}
-                  </div>
-                </div>
-              </div>
-              <div class="paper-content">
-                ${post.content}
-              </div>
-            </div>
-            <div class="text-end mt-2">
-              <button
-                class="btn btn-sm btn-outline-danger admin-delete-post-btn"
-                type="button"
-              >
-                삭제
+          <article class="admin-post-card" data-post-id="${post.id}">
+            <div class="admin-post-card__top">
+              <span class="badge rounded-pill bg-light text-dark admin-post-card__category">${
+                post.category || '카테고리 없음'
+              }</span>
+              <button class="btn btn-icon admin-post-card__delete" type="button" aria-label="삭제" title="삭제">
+                ×
               </button>
             </div>
-          </div>
+            <h5 class="admin-post-card__title">${escapeHtml(post.title)}</h5>
+            <p class="admin-post-card__meta">${escapeHtml(author)} · ${dateStr}</p>
+            <p class="admin-post-card__snippet">${escapeHtml(snippet)}${
+          snippet.length >= 80 ? '…' : ''
+        }</p>
+            <div class="d-flex justify-content-between align-items-center admin-post-card__footer">
+              <span class="text-muted small">❤ ${post.like_count || 0}</span>
+              <button class="btn btn-sm btn-outline-primary admin-post-card__preview" type="button">미리보기</button>
+            </div>
+          </article>
         `;
       })
       .join('');
   }
 
-  /**
-   * 관리자 글 목록 영역 클릭 처리 (삭제 버튼용)
-   * - admin-delete-post-btn 클릭 시 해당 글 삭제
-   */
-  async function handlePostListClick(e, postsBox) {
-    const target = e.target;
-    if (!target.classList.contains('admin-delete-post-btn')) return;
+  function buildPagination(page, pageSize, total) {
+    const totalPages = Math.max(Math.ceil(total / pageSize), 1);
+    const prevDisabled = page <= 1 ? 'disabled' : '';
+    const nextDisabled = page >= totalPages ? 'disabled' : '';
+    return `
+      <div class="d-flex justify-content-between align-items-center w-100">
+        <button class="btn btn-sm btn-outline-secondary" data-page="${page - 1}" ${prevDisabled}>이전</button>
+        <span class="text-muted small">${page} / ${totalPages} 페이지 · 총 ${total}건</span>
+        <button class="btn btn-sm btn-outline-secondary" data-page="${page + 1}" ${nextDisabled}>다음</button>
+      </div>
+    `;
+  }
 
-    // 삭제 버튼이 속한 글 래퍼 요소
-    const wrapper = target.closest('.admin-post-wrapper');
-    if (!wrapper) return;
+  function handlePaginationClick(e) {
+    const btn = e.target.closest('button[data-page]');
+    if (!btn || btn.disabled) return;
+    const nextPage = Number(btn.getAttribute('data-page'));
+    if (!Number.isFinite(nextPage) || nextPage < 1) return;
+    postsState.page = nextPage;
+    loadPosts(document.getElementById('adminPosts'));
+  }
 
-    const postId = wrapper.getAttribute('data-post-id');
+  function handlePostGridClick(e) {
+    const deleteBtn = e.target.closest('.admin-post-card__delete');
+    const previewBtn = e.target.closest('.admin-post-card__preview');
+    const card = e.target.closest('.admin-post-card');
+    if (!card) return;
+    const postId = card.getAttribute('data-post-id');
+
+    if (deleteBtn) {
+      confirmAndDeletePost(postId, card);
+      return;
+    }
+    if (previewBtn) {
+      openPostModal(postId);
+    }
+  }
+
+  async function openPostModal(postId) {
     if (!postId) return;
-
-    const ok = confirm('정말 이 글을 삭제하시겠습니까?');
-    if (!ok) return;
-
+    const modal = document.getElementById('adminPostModal');
+    if (!modal) return;
     try {
-      // 공용 게시글 삭제 API 사용
-      const delRes = await fetch(`/api/posts/${postId}`, {
-        method: 'DELETE',
-      });
-      const delData = await delRes.json();
+      const res = await fetch(`/api/posts/${postId}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok || !data.post) {
+        alert('글 정보를 불러오지 못했습니다.');
+        return;
+      }
+      const post = data.post;
+      modal.dataset.postId = postId;
+      document.getElementById('adminPostModalTitle').innerText = post.title || '';
+      const meta = `${post.author_nickname || post.author_name || '익명'} · ${
+        post.created_at ? String(post.created_at).replace('T', ' ').slice(0, 16) : ''
+      } · ${post.category || ''}`;
+      document.getElementById('adminPostModalMeta').innerText = meta;
+      document.getElementById('adminPostModalBody').innerHTML = post.content || '';
+      modal.classList.remove('d-none');
+    } catch (err) {
+      console.error(err);
+      alert('글 정보를 불러오는 중 오류가 발생했습니다.');
+    }
+  }
 
+  function closePostModal() {
+    const modal = document.getElementById('adminPostModal');
+    if (!modal) return;
+    modal.classList.add('d-none');
+    modal.dataset.postId = '';
+  }
+
+  async function confirmAndDeletePost(postId, card) {
+    if (!postId) return;
+    const ok = confirm(`정말 이 글(ID: ${postId})을 삭제하시겠습니까?`);
+    if (!ok) return;
+    try {
+      const delRes = await fetch(`/api/admin/posts/${postId}`, { method: 'DELETE' });
+      const delData = await delRes.json();
       if (!delRes.ok || !delData.ok) {
         alert(delData.message || '글 삭제에 실패했습니다.');
         return;
       }
-
-      // DOM에서 해당 글 카드 제거
-      wrapper.remove();
-
-      // 더 이상 admin-post-wrapper가 없으면 "등록된 글이 없습니다"로 변경
-      if (!postsBox.querySelector('.admin-post-wrapper')) {
-        postsBox.innerHTML =
-          '<p class="text-muted">등록된 글이 없습니다.</p>';
+      if (card) card.remove();
+      const grid = document.getElementById('adminPostsGrid');
+      if (grid && !grid.querySelector('.admin-post-card')) {
+        grid.innerHTML = '<p class="text-muted">등록된 글이 없습니다.</p>';
       }
+      closePostModal();
     } catch (err) {
       console.error(err);
       alert('글 삭제 중 오류가 발생했습니다.');
     }
   }
 
-  // 모듈 외부로 내보낼 것
+  async function loadQuestTemplates() {
+    const box = document.getElementById('questTemplates');
+    if (!box) return;
+    box.innerHTML = '<p class="text-muted">템플릿을 불러오는 중입니다...</p>';
+    try {
+      const res = await fetch('/api/admin/quest-templates');
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        box.innerHTML = `<p class="text-danger">${
+          data?.message || '템플릿 조회에 실패했습니다.'
+        }</p>`;
+        return;
+      }
+      questState.templates = data.templates || [];
+      box.innerHTML = buildTemplateEditor();
+      bindTemplateEvents();
+    } catch (err) {
+      console.error(err);
+      box.innerHTML = '<p class="text-danger">템플릿 조회 중 오류가 발생했습니다.</p>';
+    }
+  }
+
+  function buildTemplateEditor(editingId = '') {
+    const target = questState.templates.find((t) => String(t.id) === String(editingId));
+    const values = target || {};
+    const listHtml = questState.templates
+      .map(
+        (t) => `
+        <tr data-template-id="${t.id}">
+          <td>${escapeHtml(t.name)}</td>
+          <td><span class="badge bg-light text-dark">${escapeHtml(t.condition_type)}</span> ${
+            t.category ? `<span class="badge bg-secondary ms-1">${escapeHtml(t.category)}</span>` : ''
+          }</td>
+          <td>${t.target_value}</td>
+          <td>${t.reward_xp || 0} XP</td>
+          <td>${t.is_active ? '활성' : '비활성'}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary quest-template-edit" type="button">수정</button>
+            <button class="btn btn-sm btn-outline-danger quest-template-delete" type="button">삭제</button>
+          </td>
+        </tr>`
+      )
+      .join('');
+
+    return `
+      <form id="questTemplateForm" class="quest-form card mb-3 p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0">${editingId ? '템플릿 수정' : '새 템플릿 추가'}</h5>
+          <button class="btn btn-sm btn-outline-secondary" type="button" id="questTemplateReset">초기화</button>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label small mb-1">제목</label>
+            <input class="form-control form-control-sm" name="name" value="${escapeHtml(
+              values.name || ''
+            )}" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">조건 타입</label>
+            <select class="form-select form-select-sm" name="condition_type" required>
+              ${buildConditionOptions(values.condition_type)}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">카테고리(선택)</label>
+            <select class="form-select form-select-sm" name="category">
+              <option value="">(전체)</option>
+              <option value="poem" ${values.category === 'poem' ? 'selected' : ''}>시</option>
+              <option value="essay" ${values.category === 'essay' ? 'selected' : ''}>에세이</option>
+              <option value="short" ${values.category === 'short' ? 'selected' : ''}>짧은 구절</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">목표</label>
+            <input type="number" min="1" class="form-control form-control-sm" name="target_value" value="${
+              values.target_value || ''
+            }" required />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">보상 XP</label>
+            <input type="number" min="0" class="form-control form-control-sm" name="reward_xp" value="${
+              values.reward_xp || 0
+            }" />
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-1">설명</label>
+            <input class="form-control form-control-sm" name="description" value="${escapeHtml(
+              values.description || ''
+            )}" />
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_active" id="templateActive" ${
+                values.is_active || editingId === '' ? 'checked' : ''
+              } />
+              <label class="form-check-label" for="templateActive">활성</label>
+            </div>
+          </div>
+        </div>
+        <div class="text-end mt-3">
+          <input type="hidden" name="id" value="${editingId}" />
+          <button class="btn btn-primary btn-sm" type="submit">${editingId ? '수정 저장' : '추가'}</button>
+        </div>
+      </form>
+      <div class="table-responsive">
+        <table class="table align-middle table-sm">
+          <thead><tr><th>제목</th><th>조건</th><th>목표</th><th>보상</th><th>상태</th><th class="text-end">관리</th></tr></thead>
+          <tbody>${listHtml}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function bindTemplateEvents() {
+    const box = document.getElementById('questTemplates');
+    if (!box) return;
+    const form = box.querySelector('#questTemplateForm');
+    const resetBtn = box.querySelector('#questTemplateReset');
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const payload = Object.fromEntries(formData.entries());
+      payload.is_active = formData.get('is_active') ? 1 : 0;
+      const isEdit = payload.id;
+      const method = isEdit ? 'PUT' : 'POST';
+      const url = isEdit
+        ? `/api/admin/quest-templates/${payload.id}`
+        : '/api/admin/quest-templates';
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          alert(data.message || '저장에 실패했습니다.');
+          return;
+        }
+        await loadQuestTemplates();
+        await loadQuestCampaigns();
+      } catch (err) {
+        console.error(err);
+        alert('템플릿 저장 중 오류가 발생했습니다.');
+      }
+    });
+
+    resetBtn?.addEventListener('click', () => {
+      box.innerHTML = buildTemplateEditor();
+      bindTemplateEvents();
+    });
+
+    box.querySelectorAll('.quest-template-edit').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.closest('tr')?.dataset?.templateId;
+        box.innerHTML = buildTemplateEditor(id);
+        bindTemplateEvents();
+      });
+    });
+    box.querySelectorAll('.quest-template-delete').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.closest('tr')?.dataset?.templateId;
+        if (!id) return;
+        if (!confirm('이 템플릿을 삭제하시겠습니까?')) return;
+        try {
+          const res = await fetch(`/api/admin/quest-templates/${id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            alert(data.message || '삭제에 실패했습니다.');
+            return;
+          }
+          await loadQuestTemplates();
+          await loadQuestCampaigns();
+        } catch (err) {
+          console.error(err);
+          alert('템플릿 삭제 중 오류가 발생했습니다.');
+        }
+      });
+    });
+  }
+
+  function buildConditionOptions(selected) {
+    const options = [
+      'POST_COUNT_TOTAL',
+      'POST_COUNT_BY_CATEGORY',
+      'LIKE_GIVEN',
+      'LIKE_RECEIVED',
+      'BOOKMARK_GIVEN',
+      'BOOKMARK_RECEIVED',
+      'STREAK_DAYS',
+    ];
+    return options
+      .map(
+        (opt) => `<option value="${opt}" ${selected === opt ? 'selected' : ''}>${opt}</option>`
+      )
+      .join('');
+  }
+
+  async function loadQuestCampaigns() {
+    const box = document.getElementById('questCampaigns');
+    if (!box) return;
+    box.innerHTML = '<p class="text-muted">캠페인을 불러오는 중입니다...</p>';
+    try {
+      const res = await fetch('/api/admin/quest-campaigns');
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        box.innerHTML = `<p class="text-danger">${
+          data?.message || '캠페인 조회에 실패했습니다.'
+        }</p>`;
+        return;
+      }
+      questState.campaigns = data.campaigns || [];
+      questState.campaignItems = data.items || [];
+      box.innerHTML = buildCampaignEditor();
+      bindCampaignEvents();
+    } catch (err) {
+      console.error(err);
+      box.innerHTML = '<p class="text-danger">캠페인 조회 중 오류가 발생했습니다.</p>';
+    }
+  }
+
+  function buildCampaignEditor(editingId = '') {
+    const target = questState.campaigns.find((c) => String(c.id) === String(editingId));
+    const values = target || {};
+    const typeOptions = ['weekly', 'season', 'event'];
+    const itemsByCampaign = questState.campaignItems.reduce((acc, cur) => {
+      acc[cur.campaign_id] = acc[cur.campaign_id] || [];
+      acc[cur.campaign_id].push(cur);
+      return acc;
+    }, {});
+    const selectedItems = itemsByCampaign[values.id] || [];
+    const selection = questState.templates
+      .map((t) => {
+        const found = selectedItems.find((i) => Number(i.template_id) === Number(t.id));
+        return `
+          <div class="form-check form-check-inline mb-1">
+            <input class="form-check-input quest-campaign-template" type="checkbox" data-template-id="${t.id}" id="campaignTpl${t.id}" ${
+          found ? 'checked' : ''
+        } />
+            <label class="form-check-label" for="campaignTpl${t.id}">${escapeHtml(t.name)}</label>
+            <input type="number" class="form-control form-control-sm ms-2" style="width:80px" placeholder="순서" data-template-order="${t.id}" value="${
+          found ? found.sort_order || 0 : ''
+        }" />
+          </div>`;
+      })
+      .join('');
+
+    const listHtml = questState.campaigns
+      .map(
+        (c) => `
+        <tr data-campaign-id="${c.id}">
+          <td>${escapeHtml(c.name)}</td>
+          <td>${escapeHtml(c.campaign_type || '')}</td>
+          <td>${c.start_at || '-'} ~ ${c.end_at || '-'}</td>
+          <td>${c.is_active ? '활성' : '비활성'} (priority ${c.priority || 1})</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary quest-campaign-edit" type="button">편집</button>
+            <button class="btn btn-sm btn-outline-danger quest-campaign-delete" type="button">삭제</button>
+          </td>
+        </tr>`
+      )
+      .join('');
+
+    return `
+      <form id="questCampaignForm" class="quest-form card mb-3 p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="mb-0">${editingId ? '캠페인 수정' : '새 캠페인 추가'}</h5>
+          <button class="btn btn-sm btn-outline-secondary" type="button" id="questCampaignReset">초기화</button>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label small mb-1">이름</label>
+            <input class="form-control form-control-sm" name="name" value="${escapeHtml(
+              values.name || ''
+            )}" required />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">유형</label>
+            <select class="form-select form-select-sm" name="campaign_type">
+              ${typeOptions
+                .map(
+                  (t) => `<option value="${t}" ${
+                    (values.campaign_type || 'event') === t ? 'selected' : ''
+                  }>${t.toUpperCase()}</option>`
+                )
+                .join('')}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">시작</label>
+            <input type="datetime-local" class="form-control form-control-sm" name="start_at" value="${
+              values.start_at ? values.start_at.replace(' ', 'T') : ''
+            }" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1">종료</label>
+            <input type="datetime-local" class="form-control form-control-sm" name="end_at" value="${
+              values.end_at ? values.end_at.replace(' ', 'T') : ''
+            }" />
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small mb-1">우선순위</label>
+            <input type="number" class="form-control form-control-sm" name="priority" value="${
+              values.priority || 1
+            }" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">설명</label>
+            <input class="form-control form-control-sm" name="description" value="${escapeHtml(
+              values.description || ''
+            )}" />
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_active" id="campaignActive" ${
+                values.is_active ? 'checked' : ''
+              } />
+              <label class="form-check-label" for="campaignActive">활성</label>
+            </div>
+          </div>
+        </div>
+        <div class="mt-3">
+          <p class="small text-muted mb-1">캠페인에 포함할 템플릿을 선택하고 정렬 순서를 지정하세요.</p>
+          <div class="quest-template-select">
+            ${selection || '<p class="text-muted">등록된 템플릿이 없습니다.</p>'}
+          </div>
+        </div>
+        <div class="text-end mt-3">
+          <input type="hidden" name="id" value="${editingId}" />
+          <button class="btn btn-primary btn-sm" type="submit">${editingId ? '수정 저장' : '추가'}</button>
+        </div>
+      </form>
+      <div class="table-responsive">
+        <table class="table align-middle table-sm">
+          <thead><tr><th>이름</th><th>유형</th><th>기간</th><th>상태</th><th class="text-end">관리</th></tr></thead>
+          <tbody>${listHtml}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function bindCampaignEvents() {
+    const box = document.getElementById('questCampaigns');
+    if (!box) return;
+    const form = box.querySelector('#questCampaignForm');
+    const resetBtn = box.querySelector('#questCampaignReset');
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const payload = Object.fromEntries(formData.entries());
+      payload.is_active = formData.get('is_active') ? 1 : 0;
+      const isEdit = payload.id;
+      const method = isEdit ? 'PUT' : 'POST';
+      const url = isEdit
+        ? `/api/admin/quest-campaigns/${payload.id}`
+        : '/api/admin/quest-campaigns';
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          alert(data.message || '캠페인 저장에 실패했습니다.');
+          return;
+        }
+        if (isEdit) {
+          await saveCampaignItems(payload.id, form);
+        }
+        await loadQuestCampaigns();
+        await loadQuestTemplates();
+      } catch (err) {
+        console.error(err);
+        alert('캠페인 저장 중 오류가 발생했습니다.');
+      }
+    });
+
+    resetBtn?.addEventListener('click', () => {
+      box.innerHTML = buildCampaignEditor();
+      bindCampaignEvents();
+    });
+
+    box.querySelectorAll('.quest-campaign-edit').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.closest('tr')?.dataset?.campaignId;
+        box.innerHTML = buildCampaignEditor(id);
+        bindCampaignEvents();
+      });
+    });
+    box.querySelectorAll('.quest-campaign-delete').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.closest('tr')?.dataset?.campaignId;
+        if (!id) return;
+        if (!confirm('이 캠페인을 삭제하시겠습니까?')) return;
+        try {
+          const res = await fetch(`/api/admin/quest-campaigns/${id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            alert(data.message || '삭제에 실패했습니다.');
+            return;
+          }
+          await loadQuestCampaigns();
+        } catch (err) {
+          console.error(err);
+          alert('캠페인 삭제 중 오류가 발생했습니다.');
+        }
+      });
+    });
+  }
+
+  async function saveCampaignItems(campaignId, formEl) {
+    const selectedTemplates = Array.from(
+      formEl.querySelectorAll('.quest-template-select .quest-campaign-template')
+    )
+      .filter((el) => el.checked)
+      .map((el) => {
+        const templateId = el.getAttribute('data-template-id');
+        const orderInput = formEl.querySelector(
+          `input[data-template-order="${templateId}"]`
+        );
+        return {
+          template_id: Number(templateId),
+          sort_order: Number(orderInput?.value || 0),
+        };
+      });
+    try {
+      await fetch(`/api/admin/quest-campaigns/${campaignId}/items`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: selectedTemplates }),
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function escapeHtml(str = '') {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function maskEmail(email) {
+    if (!email || typeof email !== 'string') return '';
+    const [user, domain] = email.split('@');
+    if (!domain) return email;
+    const maskedUser = user.length <= 2 ? user[0] + '*' : user.slice(0, 2) + '***';
+    return `${maskedUser}@${domain}`;
+  }
+
   return {
     init,
   };

@@ -544,6 +544,129 @@ a:hover {
   border-color: rgba(10, 61, 98, 0.28);
 }
 
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.admin-posts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.admin-post-card {
+  position: relative;
+  padding: 0.75rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.admin-post-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+}
+
+.admin-post-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.admin-post-card__category {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+}
+
+.admin-post-card__delete {
+  border: none;
+  background: transparent;
+  color: #c53030;
+  font-size: 1rem;
+  padding: 0 0.25rem;
+}
+
+.admin-post-card__title {
+  font-size: 1rem;
+  margin-bottom: 0.2rem;
+}
+
+.admin-post-card__meta {
+  font-size: 0.82rem;
+  color: #6b7280;
+  margin-bottom: 0.35rem;
+}
+
+.admin-post-card__snippet {
+  font-size: 0.9rem;
+  color: #374151;
+  min-height: 2.5em;
+}
+
+.admin-post-card__footer .btn {
+  padding: 4px 10px;
+}
+
+.admin-pagination {
+  margin-top: 1rem;
+}
+
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
+
+.admin-modal__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.admin-modal__dialog {
+  position: relative;
+  max-width: 720px;
+  width: min(720px, 92vw);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 1rem;
+  z-index: 1051;
+}
+
+.admin-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-modal__body {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.quest-form {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+}
+
+.quest-template-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
 
 /* =========================
    9. 마이페이지 공감 하트
