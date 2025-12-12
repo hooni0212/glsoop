@@ -432,10 +432,15 @@ Glsoop.AdminPage = (function () {
     const modal = document.getElementById('adminPostModal');
     if (!modal) return;
     try {
-      const res = await fetch(`/api/posts/${postId}`);
+      const res = await fetch(`/api/admin/posts/${postId}`);
       const data = await res.json();
+      if (res.status === 401 || res.status === 403) {
+        alert('관리자 권한을 다시 확인해주세요.');
+        window.location.href = '/html/login.html';
+        return;
+      }
       if (!res.ok || !data.ok || !data.post) {
-        alert('글 정보를 불러오지 못했습니다.');
+        alert(data?.message || '글 정보를 불러오지 못했습니다.');
         return;
       }
       const post = data.post;

@@ -107,7 +107,7 @@ router.get('/admin/posts', authRequired, adminRequired, async (req, res) => {
       params
     );
     const rows = await allAsync(
-      `SELECT p.*, u.name AS author_name, u.nickname AS author_nickname,
+      `SELECT p.*, u.name AS author_name, u.nickname AS author_nickname, u.email AS author_email,
         (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count
        FROM posts p
        JOIN users u ON u.id = p.user_id
@@ -120,6 +120,28 @@ router.get('/admin/posts', authRequired, adminRequired, async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ ok: false, message: '글 목록 조회 중 오류가 발생했습니다.' });
+  }
+});
+
+router.get('/admin/posts/:id', authRequired, adminRequired, async (req, res) => {
+  const postId = req.params.id;
+  try {
+    const row = await getAsync(
+      `SELECT p.*, u.name AS author_name, u.nickname AS author_nickname, u.email AS author_email,
+        (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count
+       FROM posts p
+       JOIN users u ON u.id = p.user_id
+       WHERE p.id = ?
+       LIMIT 1`,
+      [postId]
+    );
+
+    if (!row) return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+
+    return res.json({ ok: true, post: row });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, message: '글 조회 중 오류가 발생했습니다.' });
   }
 });
 
