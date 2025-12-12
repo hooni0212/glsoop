@@ -254,17 +254,25 @@ function renderQuestGroups(campaigns = []) {
   if (questToday) questToday.innerHTML = '';
   if (questWeek) questWeek.innerHTML = '';
 
-  const addItem = (parent, quest) => {
+  const addItem = (parent, quest, campaignName) => {
     const li = document.createElement('li');
     li.className = `quest-item ${quest.status === 'completed' ? 'is-completed' : ''}`;
-    li.textContent = `${quest.name} (${quest.progress || 0}/${quest.target || 0})`;
+    li.innerHTML = `<div class="quest-item-title">${quest.name}</div><div class="quest-item-meta">${quest.progress || 0} / ${
+      quest.target || 0
+    } · ${campaignName || ''}</div>`;
     parent.appendChild(li);
   };
+
+  if (!campaigns.length) {
+    if (questToday) questToday.innerHTML = '<li class="quest-item text-muted">현재 진행 중인 퀘스트가 없습니다.</li>';
+    if (questWeek) questWeek.innerHTML = '<li class="quest-item text-muted">현재 진행 중인 퀘스트가 없습니다.</li>';
+    return;
+  }
 
   campaigns.forEach((campaign) => {
     const bucket = campaign.campaignType === 'weekly' ? questWeek : questToday;
     if (!bucket) return;
-    (campaign.quests || []).forEach((quest) => addItem(bucket, quest));
+    (campaign.quests || []).forEach((quest) => addItem(bucket, quest, campaign.name));
   });
 }
 

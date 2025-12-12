@@ -27,16 +27,22 @@ function getAsync(sql, params = []) {
   });
 }
 
-function buildResetKey(campaignType) {
+function getNowKstDate() {
   const now = new Date();
+  const kstOffsetMs = 9 * 60 * 60 * 1000;
+  return new Date(now.getTime() + kstOffsetMs);
+}
+
+function buildResetKey(campaignType) {
+  const now = getNowKstDate();
   if (campaignType === 'daily') {
     return now.toISOString().slice(0, 10);
   }
   if (campaignType === 'weekly') {
     const year = now.getUTCFullYear();
-    const oneJan = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-    const numberOfDays = Math.floor((now - oneJan) / (24 * 60 * 60 * 1000));
-    const week = Math.ceil((now.getUTCDay() + 1 + numberOfDays) / 7);
+    const firstDay = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+    const diffDays = Math.floor((now - firstDay) / (24 * 60 * 60 * 1000));
+    const week = Math.ceil((now.getUTCDay() + 1 + diffDays) / 7);
     return `${year}-W${week}`;
   }
   return 'event';
@@ -109,7 +115,7 @@ function calculateProgress(template, metrics) {
 }
 
 async function fetchActiveCampaigns() {
-  const nowIso = new Date().toISOString();
+  const nowIso = getNowKstDate().toISOString();
   const rows = await allAsync(
     `SELECT * FROM quest_campaigns
      WHERE is_active = 1
@@ -143,14 +149,14 @@ async function syncUserQuestState(userId, campaign, template, progress, resetKey
     await runAsync(
       `INSERT INTO user_quest_state (user_id, campaign_id, template_id, progress, reset_key, completed_at)
        VALUES (?, ?, ?, ?, ?, ?)` ,
-      [userId, campaign.id, template.id, progress, resetKey, completed ? new Date().toISOString() : null]
+      [userId, campaign.id, template.id, progress, resetKey, completed ? getNowKstDate().toISOString() : null]
     );
   } else {
     await runAsync(
       `UPDATE user_quest_state
        SET progress = ?, completed_at = COALESCE(completed_at, ?)
        WHERE id = ?` ,
-      [progress, completed ? new Date().toISOString() : null, existing.id]
+      [progress, completed ? getNowKstDate().toISOString() : null, existing.id]
     );
   }
   return completed;
