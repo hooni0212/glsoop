@@ -1050,7 +1050,7 @@ a:hover {
   background: #ffffff;
   border-radius: 12px;
   padding: 12px 14px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.04);
   cursor: pointer;
   position: relative;
   transition: all 0.18s ease;
@@ -1060,7 +1060,7 @@ a:hover {
 .bookmark-folder-item:focus-visible {
   border-color: rgba(46, 139, 87, 0.24);
   background: linear-gradient(135deg, rgba(46, 139, 87, 0.08), #ffffff);
-  box-shadow: 0 11px 24px rgba(46, 139, 87, 0.14);
+  box-shadow: 0 9px 20px rgba(46, 139, 87, 0.12);
   outline: none;
 }
 
@@ -1084,7 +1084,7 @@ a:hover {
 .bookmark-folder-item.is-active {
   border-color: var(--author-accent, #2e8b57);
   background: linear-gradient(135deg, rgba(46, 139, 87, 0.14), #ffffff);
-  box-shadow: 0 12px 26px rgba(46, 139, 87, 0.17);
+  box-shadow: 0 10px 22px rgba(46, 139, 87, 0.14);
 }
 
 .bookmark-folder-item.is-active::before {
