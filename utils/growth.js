@@ -58,6 +58,19 @@ function computeLevelFromXp(totalXp = 0) {
   };
 }
 
+function getKstDate(date = new Date()) {
+  return new Date(date.getTime() + 9 * 60 * 60 * 1000);
+}
+
+function getKstDateString(date = new Date()) {
+  return getKstDate(date).toISOString().slice(0, 10);
+}
+
+function getKstTimestamp() {
+  // ISO 문자열을 SQLite에서 localtime과 일관되게 사용하기 위해 Z를 제거
+  return getKstDate().toISOString().replace('Z', '');
+}
+
 async function addXp(userId, delta, reason, meta = null, options = {}) {
   const safeDelta = Number.isFinite(delta) ? delta : 0;
   if (!safeDelta || safeDelta <= 0) return 0;
@@ -65,7 +78,7 @@ async function addXp(userId, delta, reason, meta = null, options = {}) {
   let applied = safeDelta;
   const capReason = options.capReason || reason;
   if (options.dailyCap) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getKstDateString();
     const row = await dbGet(
       'SELECT COALESCE(SUM(delta), 0) AS total FROM xp_log WHERE user_id = ? AND DATE(created_at) = ? AND reason = ?',
       [userId, today, capReason]
@@ -77,12 +90,10 @@ async function addXp(userId, delta, reason, meta = null, options = {}) {
 
   if (applied <= 0) return 0;
 
-  await dbRun('INSERT INTO xp_log (user_id, delta, reason, meta) VALUES (?, ?, ?, ?)', [
-    userId,
-    applied,
-    reason,
-    meta ? JSON.stringify(meta) : null,
-  ]);
+  await dbRun(
+    'INSERT INTO xp_log (user_id, delta, reason, meta, created_at) VALUES (?, ?, ?, ?, ?)',
+    [userId, applied, reason, meta ? JSON.stringify(meta) : null, getKstTimestamp()]
+  );
 
   await dbRun('UPDATE users SET xp = COALESCE(xp, 0) + ? WHERE id = ?', [applied, userId]);
   const updated = await dbGet('SELECT xp FROM users WHERE id = ?', [userId]);
@@ -95,7 +106,7 @@ async function addXp(userId, delta, reason, meta = null, options = {}) {
 }
 
 async function updateStreakOnPost(userId) {
-  const today = new Date();
+  const today = getKstDate();
   const todayStr = today.toISOString().slice(0, 10);
   const yesterday = new Date(today.getTime());
   yesterday.setDate(today.getDate() - 1);

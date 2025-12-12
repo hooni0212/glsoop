@@ -641,10 +641,19 @@ body.winter-theme .admin-sidebar .admin-tabs .nav-link.active {
 body.winter-theme .admin-post-card {
   background: rgba(247, 252, 255, 0.9);
   box-shadow: 0 10px 22px rgba(12, 53, 83, 0.1);
+  border: 1px solid rgba(11, 44, 74, 0.08);
 }
 
 body.winter-theme .admin-post-card:hover {
   box-shadow: 0 12px 26px rgba(12, 53, 83, 0.16);
+}
+
+body.winter-theme .admin-posts-grid .admin-post-card:nth-child(even) {
+  background: linear-gradient(180deg, rgba(239, 248, 255, 0.92), rgba(255, 255, 255, 0.94));
+}
+
+body.winter-theme .admin-posts-grid .admin-post-card:nth-child(odd) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(240, 247, 255, 0.96));
 }
 
 body.winter-theme .admin-modal__body {

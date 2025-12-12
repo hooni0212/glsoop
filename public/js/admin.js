@@ -19,6 +19,22 @@ Glsoop.AdminPage = (function () {
     campaignItems: [],
   };
 
+  const CONDITION_LABELS = {
+    POST_COUNT_TOTAL: '총 글 작성',
+    POST_COUNT_BY_CATEGORY: '카테고리별 글 작성',
+    LIKE_GIVEN: '공감 남기기',
+    LIKE_RECEIVED: '공감 받기',
+    BOOKMARK_GIVEN: '북마크 추가',
+    BOOKMARK_RECEIVED: '북마크 받기',
+    STREAK_DAYS: '연속 글쓰기',
+  };
+
+  const CAMPAIGN_TYPE_LABELS = {
+    weekly: '주간',
+    season: '시즌',
+    event: '이벤트',
+  };
+
   /**
    * 엔트리 포인트
    */
@@ -164,12 +180,13 @@ Glsoop.AdminPage = (function () {
           u.nickname && String(u.nickname).trim().length > 0
             ? escapeHtml(u.nickname)
             : '<span class="text-muted">-</span>';
+        const maskedEmail = maskEmail(u.email);
         return `
           <tr data-user-id="${u.id}">
             <td>${u.id}</td>
             <td>${escapeHtml(u.name)}${isAdminBadge}</td>
             <td>${nicknameText}</td>
-            <td>${escapeHtml(u.email)}</td>
+            <td>${escapeHtml(maskedEmail || u.email || '')}</td>
             <td>${isVerifiedBadge}</td>
             <td>
               <button
@@ -426,7 +443,8 @@ Glsoop.AdminPage = (function () {
       return;
     }
     if (previewBtn) {
-      openPostModal(postId);
+      const targetUrl = `/html/post.html?id=${encodeURIComponent(postId)}`;
+      window.open(targetUrl, '_blank');
     }
   }
 
@@ -458,7 +476,11 @@ Glsoop.AdminPage = (function () {
       const post = data.post;
       modal.dataset.postId = postId;
       document.getElementById('adminPostModalTitle').innerText = post.title || '';
-      const meta = `${post.author_nickname || post.author_name || '익명'} · ${
+      const maskedEmail = maskEmail(post.author_email);
+      const authorLine = maskedEmail
+        ? `${post.author_nickname || post.author_name || '익명'} (${maskedEmail})`
+        : post.author_nickname || post.author_name || '익명';
+      const meta = `${authorLine} · ${
         post.created_at ? String(post.created_at).replace('T', ' ').slice(0, 16) : ''
       } · ${post.category || ''}`;
       document.getElementById('adminPostModalMeta').innerText = meta;
@@ -547,7 +569,9 @@ Glsoop.AdminPage = (function () {
         (t) => `
         <tr data-template-id="${t.id}">
           <td>${escapeHtml(t.name)}</td>
-          <td><span class="badge bg-light text-dark">${escapeHtml(t.condition_type)}</span> ${
+          <td><span class="badge bg-light text-dark">${escapeHtml(
+            CONDITION_LABELS[t.condition_type] || t.condition_type
+          )}</span> ${
             t.category ? `<span class="badge bg-secondary ms-1">${escapeHtml(t.category)}</span>` : ''
           }</td>
           <td>${t.target_value}</td>
@@ -710,7 +734,9 @@ Glsoop.AdminPage = (function () {
     ];
     return options
       .map(
-        (opt) => `<option value="${opt}" ${selected === opt ? 'selected' : ''}>${opt}</option>`
+        (opt) => `<option value="${opt}" ${selected === opt ? 'selected' : ''}>${
+          CONDITION_LABELS[opt] || opt
+        }</option>`
       )
       .join('');
   }
@@ -782,7 +808,7 @@ Glsoop.AdminPage = (function () {
         (c) => `
         <tr data-campaign-id="${c.id}">
           <td>${escapeHtml(c.name)}</td>
-          <td>${escapeHtml(c.campaign_type || '')}</td>
+          <td>${escapeHtml(CAMPAIGN_TYPE_LABELS[c.campaign_type] || c.campaign_type || '')}</td>
           <td>${c.start_at || '-'} ~ ${c.end_at || '-'}</td>
           <td>${c.is_active ? '활성' : '비활성'} (priority ${c.priority || 1})</td>
           <td class="text-end">
@@ -813,7 +839,7 @@ Glsoop.AdminPage = (function () {
                 .map(
                   (t) => `<option value="${t}" ${
                     (values.campaign_type || 'event') === t ? 'selected' : ''
-                  }>${t.toUpperCase()}</option>`
+                  }>${CAMPAIGN_TYPE_LABELS[t] || t}</option>`
                 )
                 .join('')}
             </select>
