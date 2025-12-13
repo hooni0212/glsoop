@@ -39,6 +39,13 @@ function toKstIsoString(date) {
   return adjusted.toISOString();
 }
 
+function toKstIsoOrNull(dateLike) {
+  if (!dateLike) return null;
+  const dateObj = new Date(dateLike);
+  if (Number.isNaN(dateObj.getTime())) return null;
+  return toKstIsoString(dateObj);
+}
+
 function getKstWeekKey(date) {
   const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const yearStart = new Date(day.getFullYear(), 0, 1);
@@ -134,7 +141,12 @@ async function fetchActiveCampaigns() {
      ORDER BY priority DESC, start_at DESC NULLS LAST, id DESC`,
     [nowIso, nowIso]
   );
-  return rows;
+
+  return rows.map((row) => ({
+    ...row,
+    start_at_kst: toKstIsoOrNull(row.start_at),
+    end_at_kst: toKstIsoOrNull(row.end_at),
+  }));
 }
 
 async function fetchCampaignTemplates(campaignId) {
@@ -205,8 +217,8 @@ async function getActiveQuestsForUser(userId) {
       name: campaign.name,
       description: campaign.description,
       campaignType,
-      startAt: campaign.start_at,
-      endAt: campaign.end_at,
+      startAt: campaign.start_at_kst || campaign.start_at,
+      endAt: campaign.end_at_kst || campaign.end_at,
       quests,
     });
   }

@@ -58,7 +58,7 @@ function formatCampaignMeta(campaigns = []) {
     ...c,
     campaignType: (c.campaignType || '').toLowerCase(),
     campaignTypeLabel: typeLabel(c.campaignType || c.campaign_type),
-    dateLabel: formatKstRange(c.startAt || c.start_at, c.endAt || c.end_at),
+    dateLabel: formatKstRange(c.startAt || c.start_at_kst || c.start_at, c.endAt || c.end_at_kst || c.end_at),
   }));
 }
 
@@ -367,7 +367,10 @@ function renderQuestGroups(campaigns = []) {
   }
 
   campaigns.forEach((campaign) => {
-    const bucket = campaign.campaignType === 'weekly' || campaign.campaignType === 'season' ? questWeek : questToday;
+    const bucket =
+      campaign.campaignType === 'weekly' || campaign.campaignType === 'season' || campaign.campaignType === 'event'
+        ? questWeek
+        : questToday;
     if (campaignStack) {
       addCampaignCard({
         ...campaign,
