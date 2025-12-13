@@ -37,17 +37,53 @@ async function loadActiveQuests() {
 
 function formatCampaignMeta(campaigns = []) {
   const typeLabel = (type) => {
-    if (type === 'weekly') return '주간';
-    if (type === 'season') return '시즌';
-    if (type === 'daily') return '일일';
-    return '이벤트';
+    const normalized = (type || '').toLowerCase();
+    if (normalized === 'weekly') return '주간';
+    if (normalized === 'season') return '시즌';
+    if (normalized === 'daily') return '일일';
+    if (normalized === 'event') return '이벤트';
+    return '캠페인';
+  };
+
+  const formatKstRange = (start, end) => {
+    if (!start && !end) return '';
+    const opts = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Seoul' };
+    const startText = start ? new Date(start).toLocaleDateString('ko-KR', opts) : '';
+    const endText = end ? new Date(end).toLocaleDateString('ko-KR', opts) : '';
+    if (startText && endText) return `${startText} ~ ${endText}`;
+    return startText || endText;
   };
 
   return campaigns.map((c) => ({
     ...c,
-    campaignTypeLabel: typeLabel(c.campaignType),
-    dateLabel: (c.startAt || c.start_at) && (c.endAt || c.end_at) ? `${c.startAt || c.start_at} ~ ${c.endAt || c.end_at}` : '',
+    campaignType: (c.campaignType || '').toLowerCase(),
+    campaignTypeLabel: typeLabel(c.campaignType || c.campaign_type),
+    dateLabel: formatKstRange(c.startAt || c.start_at, c.endAt || c.end_at),
   }));
+}
+
+function conditionLabelFromType(condition, category) {
+  switch ((condition || '').toUpperCase()) {
+    case 'POST_COUNT_TOTAL':
+      return '글 작성 수';
+    case 'POST_COUNT_BY_CATEGORY':
+      if (category === 'poem') return '시 작성';
+      if (category === 'essay') return '에세이 작성';
+      if (category === 'short') return '짧은 구절 작성';
+      return '카테고리별 작성';
+    case 'LIKE_GIVEN':
+      return '공감 남기기';
+    case 'LIKE_RECEIVED':
+      return '공감 받기';
+    case 'BOOKMARK_GIVEN':
+      return '북마크 저장';
+    case 'BOOKMARK_RECEIVED':
+      return '북마크 받기';
+    case 'STREAK_DAYS':
+      return '연속 글쓰기';
+    default:
+      return '퀘스트';
+  }
 }
 
 async function loadGrowthSummary() {
@@ -291,6 +327,7 @@ function renderQuestGroups(campaigns = []) {
         <span>${campaign.dateLabel || ''}</span>
         <span>${(campaign.quests || []).length}개 퀘스트</span>
       </div>
+      ${campaign.description ? `<p class="campaign-desc text-muted mb-0">${campaign.description}</p>` : ''}
     `;
     campaignStack.appendChild(card);
   };
@@ -299,6 +336,8 @@ function renderQuestGroups(campaigns = []) {
     const card = document.createElement('div');
     card.className = `quest-card ${quest.status === 'completed' ? 'is-completed' : ''}`;
     const progressPercent = quest.target ? Math.min(100, Math.round((quest.progress / quest.target) * 100)) : 0;
+    const conditionLabel =
+      quest.conditionTypeLabel || conditionLabelFromType(quest.conditionType, quest.category) || '';
     card.innerHTML = `
       <div class="quest-card-header">
         <span class="quest-card-title">${quest.name}</span>
@@ -307,6 +346,11 @@ function renderQuestGroups(campaigns = []) {
       <div class="quest-card-meta">
         <span>${quest.progress || 0} / ${quest.target || 0}</span>
         <span>${campaignName || ''}${campaignTypeLabel ? ` · ${campaignTypeLabel}` : ''}</span>
+      </div>
+      <div class="quest-card-meta quest-card-meta-secondary">
+        <span>${conditionLabel}</span>
+        ${quest.rewardXp ? `<span>보상 ${quest.rewardXp} XP</span>` : ''}
+        ${quest.description ? `<span class="text-muted">${quest.description}</span>` : ''}
       </div>
       <div class="quest-card-progress"><div class="quest-card-progress-bar" style="width: ${progressPercent}%"></div></div>
     `;
@@ -323,7 +367,7 @@ function renderQuestGroups(campaigns = []) {
   }
 
   campaigns.forEach((campaign) => {
-    const bucket = campaign.campaignType === 'weekly' ? questWeek : questToday;
+    const bucket = campaign.campaignType === 'weekly' || campaign.campaignType === 'season' ? questWeek : questToday;
     if (campaignStack) {
       addCampaignCard({
         ...campaign,

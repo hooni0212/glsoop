@@ -33,17 +33,27 @@ function getNowKstDate() {
   return new Date(now.getTime() + kstOffsetMs);
 }
 
+function toKstIsoString(date) {
+  const tzOffsetMinutes = date.getTimezoneOffset();
+  const adjusted = new Date(date.getTime() - tzOffsetMinutes * 60 * 1000);
+  return adjusted.toISOString();
+}
+
+function getKstWeekKey(date) {
+  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const yearStart = new Date(day.getFullYear(), 0, 1);
+  const pastDays = Math.floor((day - yearStart) / (24 * 60 * 60 * 1000));
+  const week = Math.ceil((pastDays + yearStart.getDay() + 1) / 7);
+  return `${day.getFullYear()}-W${week}`;
+}
+
 function buildResetKey(campaignType) {
   const now = getNowKstDate();
   if (campaignType === 'daily') {
-    return now.toISOString().slice(0, 10);
+    return toKstIsoString(now).slice(0, 10);
   }
   if (campaignType === 'weekly') {
-    const year = now.getUTCFullYear();
-    const firstDay = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-    const diffDays = Math.floor((now - firstDay) / (24 * 60 * 60 * 1000));
-    const week = Math.ceil((now.getUTCDay() + 1 + diffDays) / 7);
-    return `${year}-W${week}`;
+    return getKstWeekKey(now);
   }
   return 'event';
 }
@@ -115,7 +125,7 @@ function calculateProgress(template, metrics) {
 }
 
 async function fetchActiveCampaigns() {
-  const nowIso = getNowKstDate().toISOString();
+  const nowIso = toKstIsoString(getNowKstDate());
   const rows = await allAsync(
     `SELECT * FROM quest_campaigns
      WHERE is_active = 1
@@ -168,7 +178,8 @@ async function getActiveQuestsForUser(userId) {
   const results = [];
 
   for (const campaign of campaigns) {
-    const resetKey = buildResetKey(campaign.campaign_type);
+    const campaignType = (campaign.campaign_type || '').toLowerCase();
+    const resetKey = buildResetKey(campaignType);
     const templates = await fetchCampaignTemplates(campaign.id);
     const quests = [];
     for (const template of templates) {
@@ -186,14 +197,14 @@ async function getActiveQuestsForUser(userId) {
         progress,
         positionIndex: template.position_index || template.sort_order || 0,
         campaignId: campaign.id,
-        campaignType: campaign.campaign_type,
+        campaignType,
       });
     }
     results.push({
       id: campaign.id,
       name: campaign.name,
       description: campaign.description,
-      campaignType: campaign.campaign_type,
+      campaignType,
       startAt: campaign.start_at,
       endAt: campaign.end_at,
       quests,
