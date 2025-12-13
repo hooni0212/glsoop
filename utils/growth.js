@@ -66,9 +66,9 @@ function getKstDateString(date = new Date()) {
   return getKstDate(date).toISOString().slice(0, 10);
 }
 
-function getKstTimestamp() {
+function getKstTimestamp(date = new Date()) {
   // ISO 문자열을 SQLite에서 localtime과 일관되게 사용하기 위해 Z를 제거
-  return getKstDate().toISOString().replace('Z', '');
+  return getKstDate(date).toISOString().replace('Z', '');
 }
 
 async function addXp(userId, delta, reason, meta = null, options = {}) {
@@ -106,11 +106,8 @@ async function addXp(userId, delta, reason, meta = null, options = {}) {
 }
 
 async function updateStreakOnPost(userId) {
-  const today = getKstDate();
-  const todayStr = today.toISOString().slice(0, 10);
-  const yesterday = new Date(today.getTime());
-  yesterday.setDate(today.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  const todayStr = getKstDateString();
+  const yesterdayStr = getKstDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
   const row = await dbGet(
     'SELECT streak_days, max_streak_days, last_post_date FROM users WHERE id = ?',
@@ -276,15 +273,18 @@ async function fetchGrowthSummary(userId) {
   const maxStreakDays = user?.max_streak_days || 0;
   const levelInfo = computeLevelFromXp(totalXp);
 
+  const todayStr = getKstDateString();
+  const sevenDaysAgoKst = getKstTimestamp(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+
   const todayXpRow = await dbGet(
-    'SELECT COALESCE(SUM(delta), 0) AS total FROM xp_log WHERE user_id = ? AND DATE(created_at) = DATE("now", "localtime")',
-    [userId]
+    'SELECT COALESCE(SUM(delta), 0) AS total FROM xp_log WHERE user_id = ? AND DATE(created_at) = ?',
+    [userId, todayStr]
   );
   const todayXp = todayXpRow?.total || 0;
 
   const weeklyPostsRow = await dbGet(
-    'SELECT COUNT(*) AS cnt FROM posts WHERE user_id = ? AND datetime(created_at) >= datetime("now", "-7 days", "localtime")',
-    [userId]
+    'SELECT COUNT(*) AS cnt FROM posts WHERE user_id = ? AND datetime(created_at, "+9 hours") >= datetime(?, "+0 seconds")',
+    [userId, sevenDaysAgoKst]
   );
 
   return {
