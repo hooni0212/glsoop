@@ -1385,6 +1385,56 @@ a:hover {
   margin-top: 2rem;
 }
 
+.growth-hero-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.growth-stat-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+.growth-stat-card .growth-today-list {
+  margin-bottom: 0;
+}
+
+.growth-stat-rows {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.growth-stat-row {
+  display: grid;
+  grid-template-columns: 1.2fr 3fr auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.growth-stat-progress {
+  position: relative;
+  height: 8px;
+  background: rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.growth-stat-progress-bar {
+  position: absolute;
+  inset: 0;
+  width: 0;
+  background: linear-gradient(90deg, #58c7e0, #8dd7c0);
+  transition: width 0.5s ease;
+}
+
+.growth-stat-label {
+  color: #475569;
+  font-size: 0.9rem;
+}
+
 .growth-level-card .card-body {
   gap: 1.5rem;
 }
@@ -1593,6 +1643,13 @@ a:hover {
   margin-bottom: 0.5rem;
 }
 
+.forest-map-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1rem;
+  align-items: start;
+}
+
 .forest-map-detail-category {
   letter-spacing: 0.01em;
   text-transform: uppercase;
@@ -1631,6 +1688,157 @@ a:hover {
   display: grid;
   gap: 0.4rem;
   margin: 0;
+}
+
+.growth-quest-board {
+  padding: 1.1rem 1.25rem;
+}
+
+.campaign-stack {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 14px;
+  padding: 0.75rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 14px 26px rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 0.65rem;
+  min-height: 100%;
+}
+
+.campaign-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.08);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.campaign-card h5 {
+  font-size: 1rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.campaign-card .campaign-meta {
+  font-size: 0.9rem;
+  color: #475569;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.campaign-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(88, 199, 224, 0.18);
+  color: #0b1d2c;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.quest-columns {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.quest-column {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 14px;
+  padding: 0.85rem;
+  box-shadow: 0 14px 26px rgba(15, 23, 42, 0.08);
+}
+
+.quest-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.quest-column-title {
+  font-weight: 800;
+}
+
+.quest-column-sub {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.quest-card-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.quest-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+  transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.quest-card:hover,
+.quest-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px rgba(15, 23, 42, 0.1);
+  border-color: rgba(59, 130, 246, 0.35);
+  outline: none;
+}
+
+.quest-card.is-completed {
+  background: linear-gradient(145deg, rgba(236, 253, 245, 0.95), rgba(219, 243, 229, 0.95));
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.quest-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.quest-card-title {
+  font-weight: 700;
+}
+
+.quest-card-status {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.quest-card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.quest-card-progress {
+  height: 8px;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.35rem;
+}
+
+.quest-card-progress-bar {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #58c7e0, #8dd7c0);
+  transition: width 0.35s ease;
 }
 
 .quest-group {
@@ -1801,6 +2009,14 @@ a:hover {
 }
 
 @media (max-width: 768px) {
+  .growth-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .forest-map-layout {
+    grid-template-columns: 1fr;
+  }
+
   .growth-level-card .card-body {
     flex-direction: column;
     align-items: flex-start;

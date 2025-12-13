@@ -29,10 +29,25 @@ async function loadActiveQuests() {
     if (!res.ok) throw new Error('active quests request failed');
     const data = await res.json();
     if (!data.ok || !Array.isArray(data.campaigns)) throw new Error('invalid active quests response');
-    renderQuestGroups(data.campaigns);
+    renderQuestGroups(formatCampaignMeta(data.campaigns));
   } catch (error) {
     console.error(error);
   }
+}
+
+function formatCampaignMeta(campaigns = []) {
+  const typeLabel = (type) => {
+    if (type === 'weekly') return '주간';
+    if (type === 'season') return '시즌';
+    if (type === 'daily') return '일일';
+    return '이벤트';
+  };
+
+  return campaigns.map((c) => ({
+    ...c,
+    campaignTypeLabel: typeLabel(c.campaignType),
+    dateLabel: (c.startAt || c.start_at) && (c.endAt || c.end_at) ? `${c.startAt || c.start_at} ~ ${c.endAt || c.end_at}` : '',
+  }));
 }
 
 async function loadGrowthSummary() {
@@ -61,11 +76,17 @@ function renderGrowthSummary(summary) {
   const streakDetail = document.getElementById('growthStreakDetail');
   const weeklyPosts = document.getElementById('growthWeeklyPosts');
   const maxStreak = document.getElementById('growthMaxStreak');
+  const nextLevelBar = document.getElementById('growthNextLevelBar');
+  const nextLevelLabel = document.getElementById('growthNextLevelLabel');
+  const streakBar = document.getElementById('growthStreakBar');
+  const streakMaxLabel = document.getElementById('growthStreakMaxLabel');
 
   const levelText = `Lv.${summary.level}`;
   const percent = summary.nextLevelXp > 0 ? Math.min(1, summary.currentXp / summary.nextLevelXp) : 0;
   const degree = `${Math.round(percent * 360)}deg`;
   const percentLabel = `${summary.currentXp} / ${summary.nextLevelXp} XP`;
+  const remainingXp = Math.max(0, summary.nextLevelXp - summary.currentXp);
+  const streakPercent = summary.maxStreakDays > 0 ? Math.min(1, (summary.streakDays || 0) / summary.maxStreakDays) : 0;
 
   if (levelLabel) levelLabel.textContent = levelText;
   if (levelNumber) levelNumber.textContent = levelText;
@@ -77,8 +98,12 @@ function renderGrowthSummary(summary) {
   if (todayXpDetail) todayXpDetail.textContent = `+${summary.todayXp || 0}`;
   if (streakLabel) streakLabel.textContent = `연속 ${summary.streakDays || 0}일째`;
   if (streakDetail) streakDetail.textContent = `${summary.streakDays || 0}일째`;
-  if (weeklyPosts) weeklyPosts.textContent = `이번 주 작성 글: ${summary.weeklyPosts || 0}개`;
+  if (weeklyPosts) weeklyPosts.textContent = `이번 주 ${summary.weeklyPosts || 0}개`;
   if (maxStreak) maxStreak.textContent = `${summary.maxStreakDays || 0}일`;
+  if (nextLevelBar) animateProgressWidth(nextLevelBar, Math.round(percent * 100));
+  if (nextLevelLabel) nextLevelLabel.textContent = `${remainingXp} XP 남음`;
+  if (streakBar) animateProgressWidth(streakBar, Math.round(streakPercent * 100));
+  if (streakMaxLabel) streakMaxLabel.textContent = `최장 ${summary.maxStreakDays || 0}일`;
 }
 
 function renderGrowthSummaryFallback() {
@@ -251,28 +276,63 @@ function hydrateQuestListFromAchievements() {
 function renderQuestGroups(campaigns = []) {
   const questToday = document.getElementById('growthQuestListToday');
   const questWeek = document.getElementById('growthQuestListWeek');
+  const campaignStack = document.getElementById('campaignStack');
   if (questToday) questToday.innerHTML = '';
   if (questWeek) questWeek.innerHTML = '';
+  if (campaignStack) campaignStack.innerHTML = '';
 
-  const addItem = (parent, quest, campaignName) => {
-    const li = document.createElement('li');
-    li.className = `quest-item ${quest.status === 'completed' ? 'is-completed' : ''}`;
-    li.innerHTML = `<div class="quest-item-title">${quest.name}</div><div class="quest-item-meta">${quest.progress || 0} / ${
-      quest.target || 0
-    } · ${campaignName || ''}</div>`;
-    parent.appendChild(li);
+  const addCampaignCard = (campaign) => {
+    if (!campaignStack) return;
+    const card = document.createElement('div');
+    card.className = 'campaign-card';
+    card.innerHTML = `
+      <h5>${campaign.name || '이름 없는 캠페인'} <span class="campaign-type">${campaign.campaignTypeLabel || ''}</span></h5>
+      <div class="campaign-meta">
+        <span>${campaign.dateLabel || ''}</span>
+        <span>${(campaign.quests || []).length}개 퀘스트</span>
+      </div>
+    `;
+    campaignStack.appendChild(card);
+  };
+
+  const addItem = (parent, quest, campaignName, campaignTypeLabel) => {
+    const card = document.createElement('div');
+    card.className = `quest-card ${quest.status === 'completed' ? 'is-completed' : ''}`;
+    const progressPercent = quest.target ? Math.min(100, Math.round((quest.progress / quest.target) * 100)) : 0;
+    card.innerHTML = `
+      <div class="quest-card-header">
+        <span class="quest-card-title">${quest.name}</span>
+        <span class="quest-card-status">${renderStatusLabel(quest.status)}</span>
+      </div>
+      <div class="quest-card-meta">
+        <span>${quest.progress || 0} / ${quest.target || 0}</span>
+        <span>${campaignName || ''}${campaignTypeLabel ? ` · ${campaignTypeLabel}` : ''}</span>
+      </div>
+      <div class="quest-card-progress"><div class="quest-card-progress-bar" style="width: ${progressPercent}%"></div></div>
+    `;
+    parent.appendChild(card);
+    const bar = card.querySelector('.quest-card-progress-bar');
+    animateProgressWidth(bar, progressPercent);
   };
 
   if (!campaigns.length) {
-    if (questToday) questToday.innerHTML = '<li class="quest-item text-muted">현재 진행 중인 퀘스트가 없습니다.</li>';
-    if (questWeek) questWeek.innerHTML = '<li class="quest-item text-muted">현재 진행 중인 퀘스트가 없습니다.</li>';
+    if (questToday) questToday.innerHTML = '<div class="quest-card text-muted">현재 진행 중인 퀘스트가 없습니다.</div>';
+    if (questWeek) questWeek.innerHTML = '<div class="quest-card text-muted">현재 진행 중인 퀘스트가 없습니다.</div>';
+    if (campaignStack) campaignStack.innerHTML = '<div class="text-muted small">활성 캠페인이 없습니다.</div>';
     return;
   }
 
   campaigns.forEach((campaign) => {
     const bucket = campaign.campaignType === 'weekly' ? questWeek : questToday;
+    if (campaignStack) {
+      addCampaignCard({
+        ...campaign,
+        campaignTypeLabel: campaign.campaignTypeLabel || campaign.campaignType || '',
+        dateLabel: campaign.dateLabel || '',
+      });
+    }
     if (!bucket) return;
-    (campaign.quests || []).forEach((quest) => addItem(bucket, quest, campaign.name));
+    (campaign.quests || []).forEach((quest) => addItem(bucket, quest, campaign.name, campaign.campaignTypeLabel));
   });
 }
 

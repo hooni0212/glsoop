@@ -604,6 +604,42 @@ body.winter-theme .quest-item.is-completed {
   border-color: rgba(67, 190, 140, 0.6);
 }
 
+body.winter-theme .campaign-stack {
+  background: linear-gradient(180deg, rgba(238, 248, 255, 0.92), rgba(230, 243, 253, 0.95));
+  border-color: rgba(47, 108, 138, 0.28);
+}
+
+body.winter-theme .campaign-card {
+  background: rgba(246, 251, 255, 0.95);
+  border-color: rgba(47, 108, 138, 0.28);
+  box-shadow: 0 14px 28px rgba(34, 70, 104, 0.12);
+}
+
+body.winter-theme .campaign-type {
+  background: rgba(95, 195, 220, 0.16);
+  color: #0f2d44;
+}
+
+body.winter-theme .quest-column {
+  background: linear-gradient(145deg, rgba(246, 251, 255, 0.95), rgba(232, 243, 253, 0.94));
+  border-color: rgba(47, 108, 138, 0.28);
+}
+
+body.winter-theme .quest-card {
+  background: rgba(246, 251, 255, 0.95);
+  border-color: rgba(47, 108, 138, 0.26);
+}
+
+body.winter-theme .quest-card.is-completed {
+  background: linear-gradient(145deg, rgba(224, 244, 239, 0.96), rgba(210, 238, 230, 0.96));
+  border-color: rgba(67, 190, 140, 0.6);
+}
+
+body.winter-theme .quest-card-progress-bar,
+body.winter-theme .growth-stat-progress-bar {
+  background: linear-gradient(90deg, #5fc3dc, #7bc4b2);
+}
+
 body.winter-theme .growth-section .achievement-filters .achievement-filter-btn {
   border-color: rgba(47, 108, 138, 0.35);
 }
