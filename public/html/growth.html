@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>성장 · 숲 지도 | 글숲</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/themes/spring-theme.css" />
+  <link rel="stylesheet" href="/css/themes/summer-theme.css" />
+  <link rel="stylesheet" href="/css/themes/autumn-theme.css" />
+  <link rel="stylesheet" href="/css/themes/winter-theme.css" />
+</head>
+<body class="winter-theme page-growth">
+  <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
+    <div class="container">
+      <a class="navbar-brand" href="/index.html">글숲</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-lg-3 category-dropdown-nav">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="categoryDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              카테고리
+            </a>
+            <ul class="dropdown-menu nav-category-menu" aria-labelledby="categoryDropdown">
+              <li><a class="dropdown-item nav-category-item" href="/index.html">전체</a></li>
+              <li><a class="dropdown-item nav-category-item" href="/html/category.html?category=poem">시</a></li>
+              <li><a class="dropdown-item nav-category-item" href="/html/category.html?category=essay">에세이/일기</a></li>
+              <li><a class="dropdown-item nav-category-item" href="/html/category.html?category=short">짧은 구절</a></li>
+            </ul>
+          </li>
+        </ul>
+
+        <ul class="navbar-nav ms-auto before-login">
+          <li class="nav-item">
+            <a class="nav-link" href="/html/login.html">로그인</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/html/signup.html">회원가입</a>
+          </li>
+        </ul>
+
+        <ul class="navbar-nav ms-auto after-login" style="display: none;">
+          <li class="nav-item">
+            <span class="nav-link" id="navUserName"></span>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/html/mypage.html">마이페이지</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/html/editor.html">글쓰기</a>
+          </li>
+          <li class="nav-item">
+            <button class="btn btn-outline-light ms-2" id="logoutBtn" type="button">로그아웃</button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="py-5 mt-5">
+    <div class="container" style="max-width: 1100px;">
+      <header class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+          <p class="text-muted mb-1 small">나의 성장 여정</p>
+          <h2 class="mb-0">레벨 · 업적 · 숲 지도</h2>
+        </div>
+        <a class="btn btn-secondary" href="/html/mypage.html">마이페이지로 돌아가기</a>
+      </header>
+
+      <section class="growth-section growth-hero">
+        <div class="growth-hero-grid">
+          <div class="growth-level-card card glass-card">
+            <div class="card-body d-flex flex-wrap align-items-center gap-4">
+              <div class="growth-level-ring" aria-label="레벨 진행도">
+                <div class="growth-level-ring-fill"></div>
+                <div class="growth-level-core">
+                  <div class="growth-level-number">Lv.0</div>
+                  <div class="growth-level-leaf" aria-hidden="true">🍃</div>
+                </div>
+              </div>
+              <div class="growth-level-text flex-grow-1">
+                <p class="text-muted small mb-1">현재 레벨</p>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <h3 class="mb-0" id="growthLevelLabel">Lv.0</h3>
+                  <span class="badge bg-light text-dark" id="growthLevelTitle">새싹</span>
+                </div>
+                <p class="mb-1 text-muted" id="growthLevelXp">0 / 0 XP</p>
+                <div class="growth-level-progress" aria-hidden="true">
+                  <div class="growth-level-progress-bar"></div>
+                </div>
+              </div>
+              <div class="growth-today-pill">
+                <div class="label">오늘 획득 XP</div>
+                <div class="value" id="growthTodayXp">+0</div>
+                <div class="sub" id="growthStreakLabel">연속 0일째</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="growth-stat-grid">
+            <div class="growth-stat-card card glass-card">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h4 class="mb-0">오늘의 기록</h4>
+                  <span class="badge bg-light text-dark" id="growthWeeklyPosts">이번 주 0개</span>
+                </div>
+                <ul class="growth-today-list" id="growthTodayList">
+                  <li>오늘 획득 XP: <strong id="growthTodayXpDetail">+0</strong></li>
+                  <li>연속 글쓰기: <strong id="growthStreakDetail">0일째</strong></li>
+                  <li>최장 스트릭: <strong id="growthMaxStreak">0일</strong></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="growth-stat-card card glass-card">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h4 class="mb-0">누적 통계</h4>
+                  <span class="text-muted small">최근 활동에 따라 갱신돼요</span>
+                </div>
+                <div class="growth-stat-rows" id="growthStatRows">
+                  <div class="growth-stat-row">
+                    <span>다음 레벨까지</span>
+                    <div class="growth-stat-progress">
+                      <div class="growth-stat-progress-bar" id="growthNextLevelBar"></div>
+                    </div>
+                    <span class="growth-stat-label" id="growthNextLevelLabel">0 XP 남음</span>
+                  </div>
+                  <div class="growth-stat-row">
+                    <span>스트릭</span>
+                    <div class="growth-stat-progress">
+                      <div class="growth-stat-progress-bar" id="growthStreakBar"></div>
+                    </div>
+                    <span class="growth-stat-label" id="growthStreakMaxLabel">최장 0일</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="growth-section growth-quests-deck mt-4">
+        <div class="growth-quest-board card glass-card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+              <h3 class="growth-section-title mb-0">진행 중인 퀘스트</h3>
+              <p class="text-muted small mb-0">캠페인별 퀘스트를 보고 바로 진행도를 확인하세요.</p>
+            </div>
+            <div class="row g-3 align-items-stretch">
+              <div class="col-lg-4">
+                <div class="campaign-stack" id="campaignStack">
+                  <div class="text-muted small">활성 캠페인이 없습니다.</div>
+                </div>
+              </div>
+              <div class="col-lg-8">
+                <div class="quest-columns">
+                  <div class="quest-column">
+                    <div class="quest-column-header">
+                      <div class="quest-column-title">오늘의 퀘스트</div>
+                      <span class="quest-column-sub">일일 리셋</span>
+                    </div>
+                    <div class="quest-card-list" id="growthQuestListToday"></div>
+                  </div>
+                  <div class="quest-column">
+                    <div class="quest-column-header">
+                      <div class="quest-column-title">주간 · 시즌/이벤트 퀘스트</div>
+                      <span class="quest-column-sub">주간/시즌/이벤트</span>
+                    </div>
+                    <div class="quest-card-list" id="growthQuestListWeek"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="growth-section growth-forest-map mt-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <h3 class="growth-section-title mb-0">숲 지도 · 업적</h3>
+          <p class="text-muted mb-0 small">업적을 클릭하면 오른쪽 패널에서 자세히 볼 수 있어요.</p>
+        </div>
+        <div class="forest-map card glass-card">
+          <div class="card-body">
+            <div class="forest-map-path"></div>
+            <div class="forest-map-ground"></div>
+            <div class="forest-map-layout">
+              <div class="forest-map-achievements" id="forestMapAchievements"></div>
+              <div class="forest-map-detail-panel" id="forestMapDetail">
+                <div class="forest-map-detail-label">선택한 업적</div>
+                <p class="text-muted mb-1">업적을 선택하면 상세 정보가 여기에 표시됩니다.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="growth-section growth-quests-and-list mt-4">
+        <div class="growth-achievement-list card glass-card h-100">
+          <div class="card-body">
+            <div class="achievement-list-header d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+              <h3 class="growth-section-title mb-0">업적 목록</h3>
+              <div class="achievement-filters" id="achievementFilters" role="group" aria-label="업적 필터">
+                <button type="button" class="achievement-filter-btn is-active" data-filter="all">전체</button>
+                <button type="button" class="achievement-filter-btn" data-filter="in_progress">진행 중</button>
+                <button type="button" class="achievement-filter-btn" data-filter="completed">완료</button>
+                <button type="button" class="achievement-filter-btn" data-filter="locked">잠금</button>
+              </div>
+            </div>
+            <div class="achievement-grid" id="achievementGrid"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="py-4 text-center text-muted small">
+    글숲 · 성장 지도
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/header.js"></script>
+  <script src="/js/growth.js"></script>
+</body>
+</html>

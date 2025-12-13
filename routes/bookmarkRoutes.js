@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authRequired } = require('../middleware/auth');
+const { handleBookmarkAdded } = require('../utils/growth');
 
 const router = express.Router();
 
@@ -230,21 +231,40 @@ router.post('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
           .json({ ok: false, message: '이 폴더에 추가할 권한이 없습니다.' });
       }
 
-      db.run(
-        'INSERT OR IGNORE INTO bookmark_items (list_id, post_id) VALUES (?, ?)',
-        [listId, postId],
-        (err2) => {
-          if (err2) {
-            console.error(err2);
-            return res.status(500).json({
-              ok: false,
-              message: '북마크 추가 중 오류가 발생했습니다.',
-            });
-          }
-
-          return res.json({ ok: true });
+      db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (postErr, post) => {
+        if (postErr) {
+          console.error(postErr);
+          return res.status(500).json({ ok: false, message: '글 정보를 불러오지 못했습니다.' });
         }
-      );
+        if (!post) {
+          return res
+            .status(404)
+            .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+        }
+
+        db.run(
+          'INSERT OR IGNORE INTO bookmark_items (list_id, post_id) VALUES (?, ?)',
+          [listId, postId],
+          function (err2) {
+            if (err2) {
+              console.error(err2);
+              return res.status(500).json({
+                ok: false,
+                message: '북마크 추가 중 오류가 발생했습니다.',
+              });
+            }
+
+            const inserted = this.changes > 0;
+            if (inserted) {
+              handleBookmarkAdded(userId, post.user_id, postId, inserted).catch((growthErr) =>
+                console.error('bookmark growth 처리 실패:', growthErr)
+              );
+            }
+
+            return res.json({ ok: true });
+          }
+        );
+      });
     }
   );
 });

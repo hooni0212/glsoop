@@ -108,13 +108,6 @@ async function loadMyPage() {
           <div class="d-flex gap-3 flex-wrap mt-2 small text-muted">
             <span>팔로워 <strong id="mypageFollowerCount">${followerCount}</strong></span>
             <span>팔로잉 <strong id="mypageFollowingCount">${followingCount}</strong></span>
-            <button
-              type="button"
-              class="btn btn-secondary btn-sm"
-              id="openFollowingListBtn"
-            >
-              팔로잉 목록 보기
-            </button>
           </div>
         </div>
         <button
@@ -144,16 +137,7 @@ async function loadMyPage() {
       aboutInput.value = meData.about || '';
     }
 
-    const openFollowingListBtn = document.getElementById('openFollowingListBtn');
-    if (openFollowingListBtn && !openFollowingListBtn.dataset.bound) {
-      openFollowingListBtn.addEventListener('click', async () => {
-        switchMyPageTab('followings');
-        if (!followingsLoaded) {
-          await loadMyFollowings();
-        }
-      });
-      openFollowingListBtn.dataset.bound = 'true';
-    }
+    await loadGrowthMiniWidget();
 
     // 기본 탭: "내가 쓴 글" 목록 로드
     await loadMyPosts();
@@ -174,6 +158,34 @@ async function loadMyPage() {
       likedBox2.innerHTML =
         '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
     }
+  }
+}
+
+async function loadGrowthMiniWidget() {
+  const widget = document.getElementById('mypageGrowthMini');
+  const summaryText = document.querySelector('.mypage-growth-summary-text');
+  if (!widget || !summaryText) return;
+
+  try {
+    const res = await fetch('/api/growth/summary', { cache: 'no-store' });
+    if (!res.ok) throw new Error('growth summary failed');
+    const data = await res.json();
+    if (!data.ok || !data.summary) throw new Error('growth summary invalid');
+
+    const {
+      level = 0,
+      todayXp = 0,
+      streakDays = 0,
+      currentXp = 0,
+      nextLevelXp = 0,
+      title = '성장',
+    } = data.summary;
+    summaryText.textContent = `Lv.${level} ${title} · ${currentXp} / ${nextLevelXp} XP · 오늘 +${todayXp} XP · 연속 ${streakDays}일 글쓰기`;
+    widget.classList.remove('d-none');
+  } catch (error) {
+    console.error(error);
+    summaryText.textContent = '성장 정보를 불러오지 못했습니다.';
+    widget.classList.remove('d-none');
   }
 }
 

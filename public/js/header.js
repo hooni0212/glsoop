@@ -5,6 +5,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   // 페이지가 로드되면 헤더 상태(로그인/로그아웃)를 먼저 갱신
+  ensureGrowthNavLink();
   updateHeader();
 
   // 로그아웃 버튼 이벤트 등록
@@ -13,6 +14,28 @@ document.addEventListener('DOMContentLoaded', () => {
     logoutBtn.addEventListener('click', handleLogout);
   }
 });
+
+function ensureGrowthNavLink() {
+  const afterNavLists = document.querySelectorAll('.after-login');
+  afterNavLists.forEach((list) => {
+    if (list.querySelector('.nav-growth-link')) return;
+
+    const li = document.createElement('li');
+    li.className = 'nav-item';
+    const link = document.createElement('a');
+    link.href = '/html/growth.html';
+    link.className = 'nav-link nav-growth-link';
+    link.textContent = '성장';
+    li.appendChild(link);
+
+    const mypageLink = list.querySelector('a[href="/html/mypage.html"]');
+    if (mypageLink && mypageLink.parentElement?.parentElement === list) {
+      mypageLink.parentElement.insertAdjacentElement('afterend', li);
+    } else {
+      list.insertBefore(li, list.querySelector('li:nth-child(3)') || null);
+    }
+  });
+}
 
 /**
  * 헤더 영역에 로그인 상태 반영
