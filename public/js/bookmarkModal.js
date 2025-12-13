@@ -21,8 +21,8 @@
     const wrapper = document.createElement('div');
     wrapper.innerHTML = `
       <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable bookmark-modal-dialog">
+          <div class="modal-content bookmark-modal-card">
             <div class="modal-header">
               <h5 class="modal-title">북마크 폴더 선택</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -30,12 +30,12 @@
             <div class="modal-body">
               <div class="bookmark-modal-status text-muted small mb-2"></div>
               <div class="bookmark-modal-list list-group mb-3"></div>
-              <div class="d-flex gap-2 align-items-center">
+              <div class="bookmark-modal-create">
                 <input type="text" class="form-control" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
                 <button class="btn btn-primary" type="button" id="bookmarkNewListSubmit">추가</button>
               </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer bookmark-modal-footer">
               <a href="/html/bookmarks.html" class="btn btn-secondary">북마크 페이지로 이동</a>
               <button type="button" class="btn btn-primary" data-bs-dismiss="modal">완료</button>
             </div>
