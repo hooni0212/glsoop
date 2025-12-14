@@ -5,8 +5,18 @@ const sqlite3 = require('sqlite3').verbose();
 const db = new sqlite3.Database('users.db');
 
 db.serialize(() => {
-  // 4-1) 사용자 정보 테이블
-  // - 인증 상태, 비밀번호 해시, 이메일 인증/비밀번호 초기화 토큰을 모두 관리
+  db.run('PRAGMA foreign_keys = ON');
+  db.run('PRAGMA journal_mode = WAL');
+  db.run('PRAGMA synchronous = NORMAL');
+  db.run('PRAGMA busy_timeout = 5000');
+
+  db.get('PRAGMA journal_mode;', (err, row) => {
+    console.log('journal_mode =', row?.journal_mode);
+  });
+  db.get('PRAGMA foreign_keys;', (err, row) => {
+    console.log('foreign_keys =', row?.foreign_keys);
+  });  
+
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -387,5 +397,27 @@ db.serialize(() => {
     )
   `);
 });
+
+  // ✅ posts (피드/작성자별 목록)
+  db.run('CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_posts_user_created ON posts(user_id, created_at)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_posts_category_created ON posts(category, created_at)');
+
+  // ✅ likes (좋아요 수 집계 / 내가 누른 글)
+  db.run('CREATE INDEX IF NOT EXISTS idx_likes_post ON likes(post_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_likes_user_created ON likes(user_id, created_at)');
+
+  // ✅ follows (팔로워 목록 조회)
+  db.run('CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows(followee_id)');
+
+  // ✅ post_hashtags (태그 조회 + 중복 방지)
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS uq_post_hashtags ON post_hashtags(post_id, hashtag_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_post_hashtags_tag ON post_hashtags(hashtag_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_post_hashtags_post ON post_hashtags(post_id)');
+
+  // ✅ user_achievements / quest (마이페이지 위젯이 자주 치면 필요)
+  db.run('CREATE INDEX IF NOT EXISTS idx_user_ach_user ON user_achievements(user_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_user_quest_user_campaign ON user_quest_state(user_id, campaign_id, reset_key)');
+
 
 module.exports = db;
