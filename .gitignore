@@ -20,3 +20,6 @@ npm-debug.log
 *.bak
 *.db.bak_*
 *.db.safe_*
+
+.DS_Store
+._*
