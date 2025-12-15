@@ -41,7 +41,7 @@ app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const ms = Date.now() - start;
-    if (ms >= 10) {
+    if (ms >= 300) {
       console.log(`[SLOW ${ms}ms] ${req.method} ${req.originalUrl} -> ${res.statusCode}`);
     }
   });
