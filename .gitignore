@@ -1,16 +1,32 @@
-# node modules (라이브러리 폴더)
+# Node modules
 node_modules/
 
-# sqlite DB (개인정보 들어있음)
-users.db
-*.sqlite
-*.db
-
-# 환경변수 파일
+# Environment variables
 .env
 *.env
 *.env.*
 
-# 기타
+# Logs / OS
 npm-debug.log
 .DS_Store
+._*
+
+# VS Code (개인용이면 통째로 무시 추천)
+.vscode/
+
+# SQLite (local / private)
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*-wal
+*-shm
+
+# Local DB backups
+*.bak
+*.db.bak_*
+*.db.safe_*
+
+# (선택) DB를 data/로 분리할 거면
+# data/
+# !data/.gitkeep
