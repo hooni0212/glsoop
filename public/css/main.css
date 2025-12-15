@@ -14,6 +14,14 @@ body {
   height: 100%;
 }
 
+:root {
+  /* Google Fonts 요청은 display=swap으로 로드되며, 폴백 스택으로 가시성을 보완 */
+  --font-sans: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic',
+    'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Nanum Myeongjo', 'Batang', 'Times New Roman', serif;
+  --font-hand: 'Nanum Pen Script', 'Noto Sans KR', cursive;
+}
+
 /* =========================
    1. 기본 설정 (폰트, 배경, 링크)
 ========================= */
@@ -24,8 +32,7 @@ body {
 }
 
 body {
-  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
-    sans-serif;
+  font-family: var(--font-sans);
   background-color: #f0f2e9; /* 옅은 종이색 + 그레이 + 그린 */
   color: #222;
   padding-top: 110px; /* fixed navbar와 겹치지 않도록 위에 여백 */
@@ -51,7 +58,7 @@ a:hover {
 
 /* 헤더 로고 "글숲" */
 .custom-navbar .navbar-brand {
-  font-family: 'Nanum Pen Script', cursive;
+  font-family: var(--font-hand);
   font-size: 2.1rem;
   letter-spacing: 0.08em;
   line-height: 1;
@@ -455,7 +462,7 @@ a:hover {
   text-align: left;
 
   /* 타이포 */
-  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+  font-family: var(--font-serif);
   font-size: 1.6rem;
   line-height: 1.9rem;
   color: #5c5c5c;
@@ -886,7 +893,7 @@ a:hover {
 }
 
 .footer-brand {
-  font-family: 'Nanum Pen Script', cursive;
+  font-family: var(--font-hand);
   font-size: 1.8rem;
 }
 
@@ -931,16 +938,15 @@ a:hover {
 ========================= */
 
 .quote-card.quote-font-serif {
-  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+  font-family: var(--font-serif);
 }
 
 .quote-card.quote-font-sans {
-  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
-    sans-serif;
+  font-family: var(--font-sans);
 }
 
 .quote-card.quote-font-hand {
-  font-family: 'Nanum Pen Script', cursive;
+  font-family: var(--font-hand);
 }
 
 /* =========================
@@ -1095,15 +1101,15 @@ a:hover {
 
 /* 폰트 스타일 */
 .gls-font-serif {
-  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+  font-family: var(--font-serif);
 }
 
 .gls-font-hand {
-  font-family: 'Nanum Pen Script', 'Noto Sans KR', cursive;
+  font-family: var(--font-hand);
 }
 
 .gls-font-sans {
-  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* 관련 글 섹션 해시태그 */
