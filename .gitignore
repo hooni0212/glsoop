@@ -9,24 +9,24 @@ node_modules/
 # Logs / OS
 npm-debug.log
 .DS_Store
+._*
+
+# VS Code (개인용이면 통째로 무시 추천)
+.vscode/
 
 # SQLite (local / private)
 *.db
 *.db-*
 *.sqlite
 *.sqlite3
+*-wal
+*-shm
 
 # Local DB backups
 *.bak
 *.db.bak_*
 *.db.safe_*
 
-.DS_Store
-._*
-
-
-.vscode/
-
-*-wal
-*-shm
-
+# (선택) DB를 data/로 분리할 거면
+# data/
+# !data/.gitkeep
