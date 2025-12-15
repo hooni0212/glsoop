@@ -328,11 +328,11 @@ async function loadMoreAuthorPosts() {
  */
 function renderAuthorPosts(posts) {
   const listBox = document.getElementById('authorPostsList');
-  if (!listBox || !posts || posts.length === 0) return;
+  if (!listBox || !Array.isArray(posts) || posts.length === 0) return;
 
   const fragmentHtml = posts
     .map((post) => {
-      // 작성일 포맷 (utils.js의 formatKoreanDateTime 사용)
+      // 작성일 포맷
       const dateStr = post.created_at
         ? formatKoreanDateTime(post.created_at)
         : '';
@@ -341,27 +341,26 @@ function renderAuthorPosts(posts) {
       const likeCount =
         typeof post.like_count === 'number' ? post.like_count : 0;
 
-      // 현재 로그인 유저가 공감한 상태인지 여부
-      const liked =
-        post.user_liked === 1 || post.user_liked === true ? true : false;
+      // 현재 로그인 유저가 공감한 상태인지
+      const liked = post.user_liked === 1 || post.user_liked === true;
 
-      // 해시태그 버튼 HTML (아래 buildHashtagHtml)
+      // 해시태그 버튼 HTML
       const hashtagHtml = buildHashtagHtml(post);
 
-      // 폰트 메타 파싱 (<!--FONT:...--> 같은 것 파싱)
+      // 폰트 메타 파싱 + XSS 방지 sanitize
       const { cleanHtml, fontKey } = extractFontFromContent(post.content);
+      const safeHtml = sanitizePostHtml(cleanHtml);
+
       const quoteFontClass =
         fontKey === 'serif' || fontKey === 'sans' || fontKey === 'hand'
           ? `quote-font-${fontKey}`
           : '';
 
-      // 카드 전체 HTML
       return `
         <div class="card author-post-card" data-post-id="${post.id}">
           <div class="card-body">
-            <h6 class="author-post-title mb-1">${escapeHtml(
-              post.title
-            )}</h6>
+            <h6 class="author-post-title mb-1">${escapeHtml(post.title)}</h6>
+
             <div class="author-post-meta text-muted mb-1">
               <small>${dateStr}</small>
             </div>
@@ -377,6 +376,7 @@ function renderAuthorPosts(posts) {
                 <span class="like-heart">${liked ? '♥' : '♡'}</span>
                 <span class="like-count ms-1">${likeCount}</span>
               </button>
+
               <div class="ms-2">
                 ${hashtagHtml}
               </div>
@@ -386,7 +386,7 @@ function renderAuthorPosts(posts) {
             <div class="post-content mt-2 text-end">
               <div class="feed-post-content">
                 <div class="quote-card ${quoteFontClass}">
-                  ${cleanHtml}
+                  ${safeHtml}
                 </div>
               </div>
             </div>
@@ -408,6 +408,7 @@ function renderAuthorPosts(posts) {
     setupAuthorPostInteractions(card);
   });
 }
+
 
 /**
  * === 개별 작가 글 카드 인터랙션 ===

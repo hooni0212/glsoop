@@ -278,3 +278,27 @@ function buildHashtagHtml(source) {
     </div>
   `;
 }
+
+/**
+ * 글 본문 HTML sanitize (XSS 방지)
+ * - DOMPurify가 로드되어 있으면 허용 리스트 기반으로 정화
+ * - 로드되어 있지 않으면(예외) 최후의 안전장치로 escape 처리
+ */
+function sanitizePostHtml(html) {
+  const raw = String(html || '');
+
+  // DOMPurify가 없으면(로딩 누락 등) 안전하게 텍스트로 표시
+  if (typeof DOMPurify === 'undefined' || !DOMPurify?.sanitize) {
+    return escapeHtml(raw);
+  }
+
+  return DOMPurify.sanitize(raw, {
+    ALLOWED_TAGS: [
+      'p','br','span','strong','em','b','i','u','s',
+      'blockquote','ul','ol','li',
+      'a','h1','h2','h3','pre','code'
+    ],
+    ALLOWED_ATTR: ['class', 'style', 'href', 'target', 'rel'],
+    ALLOW_DATA_ATTR: true,
+  });
+}
