@@ -2,7 +2,7 @@
 // - SQLite3 연결 및 주요 테이블 생성
 const sqlite3 = require('sqlite3').verbose();
 
-const db = new sqlite3.Database('users.db');
+const db = new sqlite3.Database('data/live/users.db');
 
 db.serialize(() => {
   db.run('PRAGMA foreign_keys = ON');
