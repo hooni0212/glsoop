@@ -432,3 +432,96 @@ git checkout -b feature/다시-정리한-브랜치
      → 나중에 문제 생겨도 원인 찾기, 되돌리기가 훨씬 편해진다.
 
 ---
+
+## 11. SQLite DB 백업 프로토콜 (WAL 모드 기준) 🗄️
+
+> 글숲은 `PRAGMA journal_mode = WAL` 을 사용한다.
+> WAL 모드에서는 DB 변경분이 `users.db` 본파일에 바로 반영되지 않고
+> `users.db-wal` / `users.db-shm` 에 남아 있을 수 있다.
+> 따라서 `cp users.db ...` 만으로는 **최신 변경분이 백업에서 누락될 수 있음**.
+
+---
+
+### 11-1. 파일 의미 (정상 동작)
+
+| 파일             | 의미                                   |
+| -------------- | ------------------------------------ |
+| `users.db`     | 기본 DB 파일(스키마/데이터 본체)                 |
+| `users.db-wal` | 최신 변경 내역이 쌓이는 로그 파일(Write-Ahead Log) |
+| `users.db-shm` | WAL 동작을 위한 공유 메모리(메타) 파일             |
+
+> `users.db`가 “둘로 쪼개진 것”이 아니라, WAL 모드에서 **보조 파일 2개가 추가로 생성**된 것이다.
+
+---
+
+### 11-2. ✅ 가장 안전한 최신 스냅샷 백업 (추천)
+
+**서버(node)를 끈 다음**, 아래 1줄로 “최신 상태가 반영된 DB 스냅샷”을 만든다.
+
+```bash
+sqlite3 users.db ".backup 'users.db.safe_$(date +%Y%m%d_%H%M%S).bak'"
+```
+
+(선택) 무결성 체크:
+
+```bash
+sqlite3 users.db "PRAGMA integrity_check;"
+```
+
+---
+
+### 11-3. 서버를 끄기 어렵다면 (차선책): WAL까지 “세트 백업”
+
+> 서버가 실행 중이면 백업 타이밍에 따라 일관성이 깨질 수 있다.
+> 가능하면 서버 종료 후 진행을 권장한다.
+
+```bash
+ts=$(date +%Y%m%d_%H%M%S)
+cp users.db "users.db.full_$ts"
+cp users.db-wal "users.db-wal.full_$ts" 2>/dev/null
+cp users.db-shm "users.db-shm.full_$ts" 2>/dev/null
+```
+
+---
+
+### 11-4. 체크포인트(선택): WAL 내용을 users.db로 합치기
+
+**서버 종료 후** 실행 권장.
+
+```bash
+sqlite3 users.db "PRAGMA wal_checkpoint(FULL);"
+```
+
+> 실행 후 `users.db`의 수정 시간이 갱신되거나, `users.db-wal` 크기가 줄어드는 경우가 많다.
+
+---
+
+### 11-5. 복구(restore) 방법
+
+#### A) `.backup`로 만든 단일 파일로 복구 (추천)
+
+```bash
+# (권장) 기존 파일을 잠깐 보관
+mv users.db users.db.before_restore_$(date +%Y%m%d_%H%M%S) 2>/dev/null
+
+# 복구
+cp users.db.safe_YYYYMMDD_HHMMSS.bak users.db
+```
+
+#### B) “세트 백업(3개 파일)”으로 복구한 경우
+
+백업해둔 파일들을 원래 이름으로 되돌린다:
+
+* `users.db.full_*` → `users.db`
+* `users.db-wal.full_*` → `users.db-wal`
+* `users.db-shm.full_*` → `users.db-shm`
+
+그 다음 서버 실행.
+
+---
+
+### 11-6. 핵심 요약 (한 줄)
+
+✅ WAL 모드에서는 `users.db`만 복사하면 최신 변경분이 빠질 수 있으니, **DB 수정 전엔 `.backup` 스냅샷을 떠라.**
+
+---
