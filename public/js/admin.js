@@ -484,7 +484,7 @@ Glsoop.AdminPage = (function () {
         post.created_at ? String(post.created_at).replace('T', ' ').slice(0, 16) : ''
       } · ${post.category || ''}`;
       document.getElementById('adminPostModalMeta').innerText = meta;
-      document.getElementById('adminPostModalBody').innerHTML = post.content || '';
+      document.getElementById('adminPostModalBody').innerHTML = sanitizePostHtml(post.content || '');
       modal.classList.remove('d-none');
     } catch (err) {
       console.error(err);

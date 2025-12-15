@@ -409,12 +409,12 @@ try {
     const title = titleInput.value.trim();
     const contentHtml = quill.root.innerHTML.trim();
     const plainText = quill.getText().trim();
-
+  
     // 제목 미리보기
     if (previewTitleEl) {
       previewTitleEl.textContent = title || '여기에 글 제목이 미리 보여요';
     }
-
+  
     // 본문 미리보기
     if (previewContentEl) {
       if (!plainText) {
@@ -422,17 +422,18 @@ try {
         previewContentEl.innerHTML =
           '여기에 오늘의 문장을 적어 보시면, 이 카드에서 바로 미리 볼 수 있어요.';
       } else {
-        // 사용자가 작성한 HTML(Quill output) 반영
-        previewContentEl.innerHTML = contentHtml;
+        // 사용자가 작성한 HTML(Quill output) 반영 (XSS 방지)
+        previewContentEl.innerHTML = sanitizePostHtml(contentHtml);
       }
-
+  
       // 내용 길이에 따라 폰트 크기 자동 조절
       autoAdjustQuoteFont(previewContentEl);
     }
-
+  
     // 하단 메타 갱신
     updatePreviewMeta();
   }
+  
 
   // 3. 수정 모드인지 확인 (URL ?postId=...)
   const params = new URLSearchParams(window.location.search);
@@ -462,7 +463,7 @@ try {
         }
 
         applyEditorFont(resolvedFontKey);
-        quill.root.innerHTML = cleanHtml || '';
+        quill.root.innerHTML = sanitizePostHtml(cleanHtml || '');
 
         if (categorySelectEl) {
           categorySelectEl.value = post.category || 'short';

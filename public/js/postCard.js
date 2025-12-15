@@ -108,6 +108,7 @@ function buildStandardPostCardHTML(post, options = {}) {
   const hashtagHtml = buildHashtagHtml(post);
   const categoryHtml = renderCategoryBadge(post);
   const { cleanHtml, quoteFontClass } = extractContentWithFont(post);
+  const safeHtml = sanitizePostHtml(cleanHtml);
   const bookmarkIcon = `
     <svg
       class="post-bookmark-icon"
@@ -178,7 +179,7 @@ function buildStandardPostCardHTML(post, options = {}) {
         <div class="post-content mt-2">
           <div class="${feedContentClass}">
             <div class="quote-card ${quoteFontClass}">
-              ${cleanHtml}
+              ${safeHtml}
             </div>
           </div>
 
