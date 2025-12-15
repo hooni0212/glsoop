@@ -1,0 +1,98 @@
+/* public/css/ig-export.css */
+
+/* 화면 안에 두되 안 보이게(캡처 안정) */
+.ig-export-host {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 1080px;
+    height: 1080px;
+    opacity: 0;            /* 보이지 않게 */
+    pointer-events: none;  /* 클릭 방지 */
+    z-index: -1;           /* UI 위에 안 올라오게 */
+  }
+  
+  /* 캡처 대상 루트: 무조건 1080x1080 */
+  .ig-export-root {
+    width: 1080px;
+    height: 1080px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Noto Sans KR", system-ui, -apple-system, sans-serif;
+  }
+  
+  /* 가독성 패널(좀 더 인스타 느낌) */
+  .ig-export-frame {
+    width: 920px;
+    height: 920px;
+    padding: 64px;
+    border-radius: 44px;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.35);
+    box-shadow: 0 24px 80px rgba(0,0,0,0.14);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .ig-export-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  
+  .ig-export-brand {
+    font-weight: 900;
+    letter-spacing: -0.6px;
+    font-size: 34px;
+    opacity: 0.9;
+  }
+  
+  .ig-export-meta {
+    display: flex;
+    gap: 14px;
+    font-size: 18px;
+    opacity: 0.8;
+  }
+  
+  .ig-export-author { font-weight: 800; }
+  
+  .ig-export-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 26px;
+  }
+  
+  .ig-export-title {
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    line-height: 1.2;
+  }
+  
+  .ig-export-body {
+    font-size: 34px;
+    line-height: 1.6;
+    letter-spacing: -0.2px;
+    white-space: pre-wrap;
+  }
+  
+  .ig-export-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 24px;
+  }
+  
+  .ig-export-watermark {
+    font-size: 18px;
+    opacity: 0.65;
+  }
+  
