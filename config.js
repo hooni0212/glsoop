@@ -45,25 +45,13 @@ if (isProduction && (!gmailUser || !gmailPass)) {
 }
 
 // Gmail SMTP 트랜스포터 생성 (2단계 인증 + 앱 비밀번호 필요)
-let transporter;
-try {
-  transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: gmailUser,
-      pass: gmailPass,
-    },
-  });
-} catch (err) {
-  if (isProduction) {
-    throw err;
-  }
-  transporter = null;
-  console.warn(
-    '[warn] Failed to initialize mail transporter. Email features may be unavailable (development only).',
-    err.message
-  );
-}
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: gmailUser,
+    pass: gmailPass,
+  },
+});
 
 // 서버 전역에서 공유하는 JWT 비밀키
 const JWT_SECRET = rawJwtSecret || 'DEV_ONLY_FALLBACK_SECRET';
