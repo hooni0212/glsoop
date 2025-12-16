@@ -28,6 +28,9 @@ const app = express();
 // 로컬 개발은 3000, 배포 환경에서는 포트 환경 변수 사용
 const PORT = process.env.PORT || 3000;
 
+// 프록시/로드밸런서 뒤에서도 올바른 프로토콜 정보를 사용하기 위함
+app.set('trust proxy', 1);
+
 // 2. 공통 미들웨어
 // - 보안 헤더 및 CORS 설정을 먼저 적용
 applySecurity(app);

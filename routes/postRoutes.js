@@ -28,6 +28,7 @@ const { JWT_SECRET } = require('../config');
 const { authRequired } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 const { handlePostCreated, handleLikeAdded } = require('../utils/growth');
+const { sanitizeForStorage } = require('../utils/sanitize');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
 const CATEGORY_SQL =
@@ -72,10 +73,12 @@ router.post('/posts', authRequired, (req, res) => {
       .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
   }
 
+  const safeContent = sanitizeForStorage(content);
+
   // 본문 저장 후 해시태그를 별도 테이블에 기록
   db.run(
     'INSERT INTO posts (user_id, title, content, category) VALUES (?, ?, ?, ?)',
-    [userId, title, content, normalizedCategory],
+    [userId, title, safeContent, normalizedCategory],
     function (err) {
       if (err) {
         console.error(err);
@@ -132,6 +135,8 @@ router.put('/posts/:id', authRequired, (req, res) => {
       .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
   }
 
+  const safeContent = sanitizeForStorage(content);
+
   // 수정 권한 확인(작성자 또는 관리자만 허용)
   db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (err, row) => {
     if (err) {
@@ -156,7 +161,7 @@ router.put('/posts/:id', authRequired, (req, res) => {
     // 본문 갱신 후 해시태그 매핑을 재작성
     db.run(
       'UPDATE posts SET title = ?, content = ?, category = ? WHERE id = ?',
-      [title, content, normalizedCategory, postId],
+      [title, safeContent, normalizedCategory, postId],
       function (err2) {
         if (err2) {
           console.error(err2);

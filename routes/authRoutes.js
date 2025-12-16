@@ -8,11 +8,13 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { transporter, JWT_SECRET } = require('../config');
 const { authRequired } = require('../middleware/auth');
+const { loginLimiter, signupLimiter, passwordLimiter } = require('../middleware/rateLimiters');
+const { getBaseUrl } = require('../utils/baseUrl');
 
 const router = express.Router();
 
 // 6-1) 회원가입 + 이메일 인증 메일 발송
-router.post('/signup', async (req, res) => {
+router.post('/signup', signupLimiter, async (req, res) => {
   const { name, nickname, email, pw } = req.body;
 
   if (!name || !nickname || !email || !pw) {
@@ -60,9 +62,7 @@ router.post('/signup', async (req, res) => {
             .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
         }
 
-        const verifyUrl = `${req.protocol}://${req.get(
-          'host'
-        )}/api/verify-email?token=${token}`;
+        const verifyUrl = `${getBaseUrl(req)}/api/verify-email?token=${token}`;
 
         res.json({
           ok: true,
@@ -233,7 +233,7 @@ router.get('/verify-email', (req, res) => {
 });
 
 // 6-3) 비밀번호 재설정 메일 요청
-router.post('/password-reset-request', (req, res) => {
+router.post('/password-reset-request', passwordLimiter, (req, res) => {
   const { email } = req.body || {};
 
   if (!email) {
@@ -282,9 +282,7 @@ router.post('/password-reset-request', (req, res) => {
               .json({ ok: false, message: '서버 오류가 발생했습니다.' });
           }
 
-          const resetUrl = `${req.protocol}://${req.get(
-            'host'
-          )}/html/reset-password.html?token=${token}`;
+          const resetUrl = `${getBaseUrl(req)}/html/reset-password.html?token=${token}`;
 
           // 사용자가 존재할 때만 안내 메일 전송
           transporter.sendMail(
@@ -334,7 +332,7 @@ router.post('/password-reset-request', (req, res) => {
 });
 
 // 6-4) 비밀번호 실제 변경 처리
-router.post('/password-reset', async (req, res) => {
+router.post('/password-reset', passwordLimiter, async (req, res) => {
   const { token, newPw } = req.body || {};
 
   if (!token || !newPw) {
@@ -415,7 +413,7 @@ router.post('/password-reset', async (req, res) => {
 });
 
 // 6-5) 로그인
-router.post('/login', (req, res) => {
+router.post('/login', loginLimiter, (req, res) => {
   const { email, pw } = req.body;
 
   if (!email || !pw) {
@@ -472,11 +470,14 @@ router.post('/login', (req, res) => {
         { expiresIn: '2h' }
       );
 
+      const tokenMaxAgeMs = 2 * 60 * 60 * 1000; // 2h, JWT 만료와 동일하게 유지
+
       res.cookie('token', token, {
         httpOnly: true,
         sameSite: 'lax',
-        // secure: true, // HTTPS 사용 시
+        secure: process.env.NODE_ENV === 'production',
         path: '/',
+        maxAge: tokenMaxAgeMs,
       });
 
       return res.json({
@@ -491,7 +492,11 @@ router.post('/login', (req, res) => {
 
 // 6-6) 로그아웃
 router.post('/logout', (req, res) => {
-  res.clearCookie('token', { path: '/' });
+  res.clearCookie('token', {
+    path: '/',
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  });
   res.json({ ok: true, message: '로그아웃되었습니다.' });
 });
 

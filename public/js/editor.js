@@ -61,7 +61,7 @@ try {
           { align: 'right' },
           { align: 'justify' },
         ],
-        ['link', 'blockquote'],
+        ['blockquote'],
         ['clean'],
       ],
     },
@@ -74,7 +74,6 @@ try {
       'strike',
       'list',
       'bullet',
-      'link',
       'blockquote',
       'align', // ⬅ 이 줄 덕분에 ql-align-* 클래스가 실제 포맷으로 반영됨
     ],
