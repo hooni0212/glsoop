@@ -38,7 +38,7 @@ async function initPostDetailPage() {
   }
 
   try {
-    const res = await fetch(`/api/posts/${encodeURIComponent(postId)}/detail`);
+    const res = await fetch(`/api/posts/${encodeURIComponent(postId)}`);
     if (res.ok) {
       const data = await res.json();
       if (data.ok && data.post) {

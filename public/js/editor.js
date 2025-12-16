@@ -443,7 +443,7 @@ try {
   if (isEditMode) {
     // 수정 모드 → 기존 글 내용 불러오기
     try {
-      const res = await fetch(`/api/posts/${postId}`);
+      const res = await fetch(`/api/posts/${postId}/edit`);
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
