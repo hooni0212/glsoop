@@ -21,7 +21,7 @@
 - **작성/수정:** `/api/posts`는 새 글을 저장하고 해시태그를 연결합니다. `/api/posts/:id` `PUT`은 작성자나 관리자만 수정할 수 있으며 해시태그 매핑을 갱신합니다.
 - **목록:** `/api/posts/my`는 내가 쓴 글을, `/api/posts/liked`는 내가 좋아요한 글을 반환합니다.
 - **피드 & 검색:** `/api/posts/feed`는 최신 글을, `/api/posts/:id/related`는 동일 해시태그 기반 관련 글을 제공합니다.
-- **상세 & 좋아요:** `/api/posts/:id`는 단일 글과 좋아요 상태를 주고, `/api/posts/:id/toggle-like`는 좋아요 온/오프를 토글합니다. `/api/posts/:id/detail`은 작성자/좋아요/해시태그 정보를 포함한 상세 데이터를 반환합니다.
+- **상세 & 좋아요:** `/api/posts/:id`는 공개 상세 데이터를 반환하며 작성자/좋아요/해시태그/user_liked 정보를 포함합니다. `/api/posts/:id/edit`은 작성자만 접근 가능한 편집용 조회(authRequired)이고, `/api/posts/:id/detail`은 동일 공개 상세 응답을 제공하는 레거시 호환 경로(추후 제거 예정)입니다. `/api/posts/:id/toggle-like`는 좋아요 온/오프를 토글합니다.
 
 ## 유틸리티와 보안
 - **보안 미들웨어:** `middleware/security.js`가 helmet 기반 CSP, 허용 오리진 검증, CORS 설정을 적용합니다.

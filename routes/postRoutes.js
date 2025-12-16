@@ -15,9 +15,10 @@
 // GET /api/posts/:id/related
 
 // ================== 4. 글 상세 & 좋아요 ==================
-// GET  /api/posts/:id
+// GET  /api/posts/:id           (공개 상세)
+// GET  /api/posts/:id/edit      (편집용 조회 - 작성자 전용)
+// GET  /api/posts/:id/detail    (레거시 alias, 공개 상세와 동일)
 // POST /api/posts/:id/toggle-like
-// GET /api/posts/:id/detail
 
 const express = require('express');
 const jwt = require('jsonwebtoken');
@@ -643,7 +644,7 @@ router.get('/posts/:id/related', (req, res) => {
   );
 });
 
-
+// ⚠️ 공개 상세(/posts/:id)보다 위에 둔다.
 // 9-7) 글 상세 조회 (편집용)  ✅ URL 변경: /posts/:id  -> /posts/:id/edit
 router.get('/posts/:id/edit', authRequired, (req, res) => {
   const postId = req.params.id;
@@ -969,10 +970,12 @@ function handlePublicPostDetail(req, res) {
   });
 }
 
+
 // ✅ 표준 공개 상세
 router.get('/posts/:id', handlePublicPostDetail);
 
 // ✅ 레거시 호환(기존 프론트/문서가 /detail 쓰는 동안 유지)
+
 router.get('/posts/:id/detail', handlePublicPostDetail);
 
 module.exports = router;
