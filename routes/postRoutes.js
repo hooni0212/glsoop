@@ -644,9 +644,8 @@ router.get('/posts/:id/related', (req, res) => {
   );
 });
 
-
-// 9-7) 글 상세 조회 (편집용)
 // ⚠️ 공개 상세(/posts/:id)보다 위에 둔다.
+// 9-7) 글 상세 조회 (편집용)  ✅ URL 변경: /posts/:id  -> /posts/:id/edit
 router.get('/posts/:id/edit', authRequired, (req, res) => {
   const postId = req.params.id;
   const userId = req.user.id;
@@ -699,6 +698,7 @@ router.get('/posts/:id/edit', authRequired, (req, res) => {
     }
   );
 });
+
 
 // 9-8) 글 삭제
 router.delete('/posts/:id', authRequired, (req, res) => {
@@ -856,8 +856,8 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
 });
 
 // 9-10) 공개 글 상세 조회 (좋아요 개수 + 내가 눌렀는지 여부까지)
-// - 표준: GET /api/posts/:id
-// - 레거시: GET /api/posts/:id/detail (동일 핸들러)
+// - ✅ 표준:  GET /api/posts/:id
+// - ✅ 레거시: GET /api/posts/:id/detail  (같은 로직 재사용)
 function handlePublicPostDetail(req, res) {
   const postId = parseInt(req.params.id, 10);
   if (!postId) {
@@ -866,6 +866,7 @@ function handlePublicPostDetail(req, res) {
       .json({ ok: false, message: '잘못된 글 ID입니다.' });
   }
 
+  // 로그인 유저(있으면 user_liked 계산)
   let userId = null;
   const token = req.cookies.token;
   if (token) {
@@ -929,15 +930,17 @@ function handlePublicPostDetail(req, res) {
   db.get(sql, params, (err, row) => {
     if (err) {
       console.error(err);
-      return res
-        .status(500)
-        .json({ ok: false, message: '글 상세 조회 중 DB 오류가 발생했습니다.' });
+      return res.status(500).json({
+        ok: false,
+        message: '글 상세 조회 중 DB 오류가 발생했습니다.',
+      });
     }
 
     if (!row) {
-      return res
-        .status(404)
-        .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+      return res.status(404).json({
+        ok: false,
+        message: '해당 글을 찾을 수 없습니다.',
+      });
     }
 
     const hashtags = row.hashtags
@@ -967,7 +970,12 @@ function handlePublicPostDetail(req, res) {
   });
 }
 
+
+// ✅ 표준 공개 상세
 router.get('/posts/:id', handlePublicPostDetail);
+
+// ✅ 레거시 호환(기존 프론트/문서가 /detail 쓰는 동안 유지)
+
 router.get('/posts/:id/detail', handlePublicPostDetail);
 
 module.exports = router;
