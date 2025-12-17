@@ -9,6 +9,35 @@ document.addEventListener('DOMContentLoaded', () => {
   // 회원가입 폼 요소 찾기
   const form = document.getElementById('signupForm');
   if (!form) return; // 폼이 없으면 아무 것도 하지 않고 종료
+    // ✅ 전체 동의(agreeAll) 체크박스 동작 (CSP 대응: 인라인 스크립트 제거)
+  // - #agreeAll 체크 시: 필수/선택 항목을 모두 동일 상태로 맞춤
+  // - 개별 체크 변경 시: 전체 동의 체크 여부를 자동 갱신
+  const agreeAll = document.getElementById('agreeAll');
+  if (agreeAll) {
+    const requiredChecks = document.querySelectorAll('.agree-required');
+    const optionalChecks = document.querySelectorAll('.agree-optional');
+
+    function updateAgreeAll() {
+      const allRequiredChecked = Array.from(requiredChecks).every((chk) => chk.checked);
+      const allOptionalChecked =
+        Array.from(optionalChecks).every((chk) => chk.checked) || optionalChecks.length === 0;
+
+      agreeAll.checked = allRequiredChecked && allOptionalChecked;
+    }
+
+    agreeAll.addEventListener('change', () => {
+      const checked = agreeAll.checked;
+      requiredChecks.forEach((chk) => { chk.checked = checked; });
+      optionalChecks.forEach((chk) => { chk.checked = checked; });
+    });
+
+    requiredChecks.forEach((chk) => chk.addEventListener('change', updateAgreeAll));
+    optionalChecks.forEach((chk) => chk.addEventListener('change', updateAgreeAll));
+
+    // 초기 상태 동기화
+    updateAgreeAll();
+  }
+
 
   // 🔒 중복 제출 방지용 플래그 (요청 중일 때 true)
   let submitting = false;
