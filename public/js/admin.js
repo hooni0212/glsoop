@@ -113,13 +113,13 @@ Glsoop.AdminPage = (function () {
       const meRes = await fetch('/api/me');
       if (!meRes.ok) {
         alert('로그인이 필요한 페이지입니다.');
-        window.location.href = '/html/login.html';
+        window.location.href = '/html/login.html?next=/admin';
         return null;
       }
       const meData = await meRes.json();
       if (!meData.ok) {
         alert('로그인이 필요한 페이지입니다.');
-        window.location.href = '/html/login.html';
+        window.location.href = '/html/login.html?next=/admin';
         return null;
       }
       if (!meData.isAdmin) {
@@ -326,7 +326,7 @@ Glsoop.AdminPage = (function () {
       if (res.status === 401 || res.status === 403) {
         const txt = await res.text();
         alert(txt || '로그인/권한을 다시 확인해주세요.');
-        window.location.href = '/html/login.html';
+        window.location.href = '/html/login.html?next=/admin';
         return;
       }
       if (res.status === 404) {
@@ -457,7 +457,7 @@ Glsoop.AdminPage = (function () {
       if (res.status === 401 || res.status === 403) {
         const txt = await res.text();
         alert(txt || '관리자 권한을 다시 확인해주세요.');
-        window.location.href = '/html/login.html';
+        window.location.href = '/html/login.html?next=/admin';
         return;
       }
       if (res.status === 404) {

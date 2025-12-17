@@ -25,6 +25,8 @@ const postRoutes = require('./routes/postRoutes');
 const bookmarkRoutes = require('./routes/bookmarkRoutes');
 const growthRoutes = require('./routes/growthRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const adminPageRoutes = require('./routes/adminPageRoutes');
+
 
 const app = express();
 // 로컬 개발은 3000, 배포 환경에서는 포트 환경 변수 사용
@@ -60,6 +62,9 @@ app.use('/api', (req, res, next) => {
   res.set('Expires', '0');
   next();
 });
+
+// 관리자 페이지 HTML 차단/보호 라우트 (정적 파일보다 먼저!)
+app.use(adminPageRoutes);
 
 // 정적 파일 제공
 app.use(express.static(path.join(__dirname, 'public')));

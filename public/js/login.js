@@ -39,10 +39,17 @@ document.addEventListener('DOMContentLoaded', () => {
       alert(data.message);
 
       // HTTP 응답도 OK이고, 응답 JSON의 ok도 true인 경우 "로그인 성공"으로 간주
+// 로그인 성공 후 이동
       if (res.ok && data.ok) {
-        // JWT는 httpOnly 쿠키로 저장되므로 JS에서는 직접 접근 X
-        // 로그인 성공 후 마이페이지로 이동
-        window.location.href = '/html/mypage.html';
+        const params = new URLSearchParams(window.location.search);
+        const nextUrl = params.get('next');
+
+        // 안전장치: 내부 경로만 허용
+        if (nextUrl && nextUrl.startsWith('/')) {
+          window.location.href = nextUrl;
+        } else {
+          window.location.href = '/html/mypage.html';
+        }
       }
     } catch (err) {
       // 네트워크 에러 등 예외 처리
