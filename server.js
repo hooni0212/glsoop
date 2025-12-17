@@ -1,5 +1,7 @@
 // server.js
 
+//node_ENV 설정 확인.
+console.log('[ENV] NODE_ENV =', process.env.NODE_ENV);
 // 1. 필수 모듈 로드
 // - Express: 기본 웹 서버
 // - path: 정적 파일 경로 구성

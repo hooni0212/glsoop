@@ -287,18 +287,25 @@ function buildHashtagHtml(source) {
 function sanitizePostHtml(html) {
   const raw = String(html || '');
 
-  // DOMPurify가 없으면(로딩 누락 등) 안전하게 텍스트로 표시
   if (typeof DOMPurify === 'undefined' || !DOMPurify?.sanitize) {
     return escapeHtml(raw);
   }
 
   return DOMPurify.sanitize(raw, {
     ALLOWED_TAGS: [
-      'p','br','span','strong','em','b','i','u','s',
-      'blockquote','ul','ol','li',
-      'a','h1','h2','h3','pre','code'
+      'p','br','span','strong','em','u','s',
+      'blockquote','pre','code','ul','ol','li',
+      'h1','h2','h3','a','div'
     ],
-    ALLOWED_ATTR: ['class', 'style', 'href', 'target', 'rel'],
-    ALLOW_DATA_ATTR: true,
+    ALLOWED_ATTR: ['class', 'href', 'target', 'rel'],
+    ALLOW_DATA_ATTR: false,
+
+    // 방어 강화(정책 불일치/예상치 못한 태그 대비)
+    FORBID_ATTR: ['style'],
+    FORBID_TAGS: ['style','script','iframe','object','embed','form','input','button'],
+
+    // 링크 스킴 제한(기본보다 더 확실하게)
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):)/i,
   });
 }
+
