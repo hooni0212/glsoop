@@ -322,93 +322,77 @@ a:hover {
 ========================= */
 
 .custom-footer {
-  background: linear-gradient(90deg, #2e8b57, #3ca66c); /* 헤더와 같은 그라디언트 */
+  background: linear-gradient(90deg, #2e8b57, #3ca66c);
   color: #fdfdfd;
   margin-top: auto;
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.65rem 0;
+}
+
+.custom-footer .container {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+}
+
+.custom-footer .row {
+  row-gap: 0.35rem;
 }
 
 .footer-brand {
   font-family: 'Nanum Pen Script', cursive;
-  font-size: 1.8rem;
+  font-size: 1.55rem;
+  letter-spacing: 0.01em;
 }
 
 .footer-subtitle {
   font-size: 0.9rem;
+  opacity: 0.88;
+  margin-bottom: 0;
+}
+
+.footer-copy {
+  font-size: 0.82rem;
+  opacity: 0.9;
+  margin-bottom: 0;
+}
+
+.footer-small {
+  font-size: 0.76rem;
   opacity: 0.85;
   margin-bottom: 0;
 }
 
-.footer-links a {
-  color: #fdfdfd;
-  text-decoration: none;
-  font-size: 0.9rem;
-  padding: 0 0.35rem;
+.footer-meta p {
+  margin-bottom: 0;
 }
 
-.footer-links a:hover {
-  text-decoration: underline;
-}
-
-.footer-copy {
-  font-size: 0.8rem;
-  opacity: 0.9;
-  margin-bottom: 0.1rem;
-}
-
-.footer-small {
-  font-size: 0.75rem;
-  opacity: 0.8;
-}
-
-/* 모바일에서 중앙 정렬 */
 @media (max-width: 576px) {
   .custom-footer {
     text-align: center;
+    padding: 0.55rem 0;
   }
 
-  /* 모바일에서는 푸터 퀵 링크(홈/마이페이지/글쓰기)를 숨겨서 높이를 줄임 */
-  .custom-footer .footer-links {
-    display: none !important;
-  }
-
-  /* 모바일 푸터 상하 패딩 축소 (페이지 하단을 덜 가리게) */
   .custom-footer .container {
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
-  }
-
-  .custom-footer .row {
-    row-gap: 0.75rem;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
   }
 
   .footer-brand {
-    font-size: 1.55rem;
+    font-size: 1.35rem;
   }
 
   .footer-subtitle {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
   }
 
   .footer-copy {
-    margin-top: 0.2rem;
+    font-size: 0.78rem;
   }
-}
 
-
-/* =========================
-   15.x Mobile footer compact overrides
-   - 모바일에서 푸터 두께(높이)를 더 줄이기 위한 추가 오버라이드
-========================= */
-@media (max-width: 576px) {
-  .custom-footer { padding-top: 0.55rem !important; padding-bottom: 0.55rem !important; }
-  .custom-footer .container { padding-top: 0.4rem !important; padding-bottom: 0.4rem !important; }
-  .custom-footer .row { row-gap: 0.35rem !important; }
-  .footer-brand { font-size: 1.25rem !important; line-height: 1.1 !important; margin: 0 !important; }
-  .footer-subtitle { font-size: 0.78rem !important; line-height: 1.2 !important; margin: 0 !important; }
-  .footer-copy { font-size: 0.78rem !important; line-height: 1.2 !important; margin-top: 0.15rem !important; }
-  .custom-footer p { margin: 0 !important; }
+  .footer-small {
+    font-size: 0.72rem;
+  }
 }
 
 /* =========================
