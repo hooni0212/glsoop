@@ -11,18 +11,20 @@
 ========================= */
 
 .card {
-border: none;
-border-radius: var(--gls-radius-card);
-box-shadow: var(--gls-shadow-card);
+  border: none;
+  border-radius: var(--gls-radius-card);
+  box-shadow: var(--gls-shadow-card);
 }
 
 .card-title {
-font-size: 1.05rem;
-font-weight: 600;
+  font-size: var(--gls-fs-lg, 1.125rem);
+  line-height: var(--gls-lh-tight, 1.25);
+  font-weight: 600;
 }
 
 .card-body small.text-muted {
-font-size: 0.8rem;
+  font-size: var(--gls-fs-xs, 0.8125rem);
+  line-height: var(--gls-lh-normal, 1.55);
 }
 
 /* "내가 쓴 글" 카드 안의 내용 박스 */
@@ -35,7 +37,7 @@ background-color: #fbfbff;
 .feed-post-content {
   position: relative;
   max-height: 26rem;
-  padding: 0.6rem 0;
+  padding: var(--gls-space-2, 8px) 0;
   overflow: hidden;
 }
 

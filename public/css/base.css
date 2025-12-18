@@ -30,6 +30,36 @@
   /* Buttons */
   --gls-btn-font-weight: 600;
   --gls-btn-transition: all 0.15s ease;
+
+  /* Type scale */
+  --gls-fs-xs: 0.8125rem; /* 13px */
+  --gls-fs-sm: 0.875rem; /* 14px */
+  --gls-fs-md: 1rem; /* 16px */
+  --gls-fs-lg: 1.125rem; /* 18px */
+  --gls-fs-xl: 1.25rem; /* 20px */
+
+  /* Line heights */
+  --gls-lh-tight: 1.25;
+  --gls-lh-normal: 1.55;
+  --gls-lh-relaxed: 1.75;
+
+  /* Spacing scale */
+  --gls-space-1: 4px;
+  --gls-space-2: 8px;
+  --gls-space-3: 12px;
+  --gls-space-4: 16px;
+  --gls-space-5: 20px;
+  --gls-space-6: 24px;
+
+  /* Focus + controls */
+  --gls-focus-outline: 2px solid rgba(46, 139, 87, 0.35);
+  --gls-focus-offset: 2px;
+
+  --gls-control-radius: 12px;
+  --gls-control-bg: rgba(255, 255, 255, 0.96);
+  --gls-control-border: rgba(30, 42, 51, 0.18);
+  --gls-control-border-focus: rgba(46, 139, 87, 0.55);
+  --gls-control-shadow-focus: 0 0 0 3px rgba(46, 139, 87, 0.18);
 }
 
 /* =========================
@@ -462,36 +492,7 @@ a:hover {
    - 디자인 토큰은 :root에 다시 선언해 기존 정의가 있어도 override 가능
 ========================= */
 
-:root {
-  --gls-focus-outline: 2px solid rgba(46, 139, 87, 0.35);
-  --gls-focus-offset: 2px;
-
-  --gls-control-radius: 12px;
-  --gls-control-bg: rgba(255, 255, 255, 0.96);
-  --gls-control-border: rgba(30, 42, 51, 0.18);
-  --gls-control-border-focus: rgba(46, 139, 87, 0.55);
-  --gls-control-shadow-focus: 0 0 0 3px rgba(46, 139, 87, 0.18);
-
-  /* Type scale */
-  --gls-fs-xs: 0.8125rem; /* 13px */
-  --gls-fs-sm: 0.875rem;  /* 14px */
-  --gls-fs-md: 1rem;      /* 16px */
-  --gls-fs-lg: 1.125rem;  /* 18px */
-  --gls-fs-xl: 1.25rem;   /* 20px */
-
-  /* Line heights */
-  --gls-lh-tight: 1.25;
-  --gls-lh-normal: 1.55;
-  --gls-lh-relaxed: 1.75;
-
-  /* Spacing scale */
-  --gls-space-1: 4px;
-  --gls-space-2: 8px;
-  --gls-space-3: 12px;
-  --gls-space-4: 16px;
-  --gls-space-5: 20px;
-  --gls-space-6: 24px;
-}
+/* 디자인 토큰은 파일 상단 :root 에서 통합 관리 */
 
 /* 링크/버튼 공통 포커스 (키보드 사용자) */
 a:focus-visible,
