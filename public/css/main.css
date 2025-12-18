@@ -1388,45 +1388,6 @@ a:hover {
   margin-bottom: 8px;
 }
 
-.post-category-row {
-  margin-bottom: 6px;
-}
-
-.post-category-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  line-height: 1.2;
-  border-radius: 6px;
-  padding: 3px 8px;
-  border: 1px solid #dfe6df;
-  background: #f7faf7;
-  color: #24513a;
-  font-weight: 600;
-}
-
-.post-bottom-meta .gls-card-hashtags {
-  margin-top: 6px;
-}
-
-.gls-category-badge.gls-category-poem {
-  background: #f3ecff;
-  color: #5c2d91;
-  border-color: #e2d4ff;
-}
-
-.gls-category-badge.gls-category-essay {
-  background: #e7f1ff;
-  color: #0d4b8c;
-  border-color: #cfe3ff;
-}
-
-.gls-category-badge.gls-category-short {
-  background: #fff5e6;
-  color: #9c5700;
-  border-color: #ffe1b8;
-}
 /* =========================
    18. 성장 / 숲 지도 페이지
 ========================= */
