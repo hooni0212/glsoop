@@ -449,7 +449,58 @@ a:hover {
 ========================= */
 @media (hover: none) and (pointer: coarse) {
   /* 터치 환경에서 hover가 남아 어색해지는 경우가 있어 transform 기반 hover는 꺼둠 */
-  .btn:hover {
+  .btn:hover,
+  .gls-post-card:hover,
+  .hero-card .hero-cta-btn:hover {
     transform: none !important;
   }
+}
+
+/* =========================
+   18. 공통 폼 컨트롤 + 포커스 링 (접근성/일관성)
+   - Bootstrap form-control/form-select 기본 스타일을 글숲 톤으로 살짝 정리
+   - 디자인 토큰은 :root에 다시 선언해 기존 정의가 있어도 override 가능
+========================= */
+
+:root {
+  --gls-focus-outline: 2px solid rgba(46, 139, 87, 0.35);
+  --gls-focus-offset: 2px;
+
+  --gls-control-radius: 12px;
+  --gls-control-bg: rgba(255, 255, 255, 0.96);
+  --gls-control-border: rgba(30, 42, 51, 0.18);
+  --gls-control-border-focus: rgba(46, 139, 87, 0.55);
+  --gls-control-shadow-focus: 0 0 0 3px rgba(46, 139, 87, 0.18);
+}
+
+/* 링크/버튼 공통 포커스 (키보드 사용자) */
+a:focus-visible,
+button:focus-visible,
+[role='button']:focus-visible {
+  outline: var(--gls-focus-outline);
+  outline-offset: var(--gls-focus-offset);
+  border-radius: 8px;
+}
+
+/* Bootstrap 입력폼 공통 (login/signup/editor/admin 등) */
+.form-control,
+.form-select,
+textarea.form-control,
+input.form-control,
+select.form-select {
+  border-radius: var(--gls-control-radius);
+  background-color: var(--gls-control-bg);
+  border-color: var(--gls-control-border);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--gls-control-border-focus);
+  box-shadow: var(--gls-control-shadow-focus);
+}
+
+/* 체크박스/라디오도 포커스 링 통일 */
+.form-check-input:focus {
+  box-shadow: var(--gls-control-shadow-focus);
+  border-color: var(--gls-control-border-focus);
 }

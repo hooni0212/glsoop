@@ -241,8 +241,10 @@ text-align: justify;
 ========================= */
 
 .gls-post-card {
-cursor: pointer;
-transition: transform 0.12s ease, box-shadow 0.12s ease;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  border-radius: var(--gls-radius-lg, 18px);
+  box-shadow: var(--gls-shadow-sm, 0 6px 18px rgba(0, 0, 0, 0.06));
 }
 
 .gls-post-card:hover {
