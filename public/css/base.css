@@ -367,7 +367,35 @@ a:hover {
   .custom-footer {
     text-align: center;
   }
+
+  /* 모바일에서는 푸터 퀵 링크(홈/마이페이지/글쓰기)를 숨겨서 높이를 줄임 */
+  .custom-footer .footer-links {
+    display: none !important;
+  }
+
+  /* 모바일 푸터 상하 패딩 축소 (페이지 하단을 덜 가리게) */
+  .custom-footer .container {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .custom-footer .row {
+    row-gap: 0.75rem;
+  }
+
+  .footer-brand {
+    font-size: 1.55rem;
+  }
+
+  .footer-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .footer-copy {
+    margin-top: 0.2rem;
+  }
 }
+
 
 /* =========================
    16. 북마크 모달 (공통)
