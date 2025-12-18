@@ -39,8 +39,26 @@ body.page-post #postDetail .gls-post-meta {
 
 /* 본문 가독성 (피드에는 영향 없음) */
 body.page-post #postDetail .quote-card {
+  /* reading mode: 인스타(정사각) 카드 규칙을 글 상세에서는 끔 */
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: auto;
+  margin: 0;
+  padding: var(--gls-space-5, 20px);
+  display: block;
+  text-align: left;
+
+  /* 타이포(피드에는 영향 없음) */
   font-size: var(--gls-fs-lg, 1.125rem);
   line-height: var(--gls-lh-relaxed, 1.75);
+}
+
+body.page-post #postDetail .quote-card > * {
+  margin: 0 0 var(--gls-space-3, 12px);
+}
+
+body.page-post #postDetail .quote-card > *:last-child {
+  margin-bottom: 0;
 }
 
 /* 액션(좋아요/북마크/공유) 영역 숨쉴 공간 */
@@ -69,8 +87,70 @@ body.page-post .related-section h4 {
 /* 관련 글은 그리드로: 한 줄 리스트보다 시선 이동이 덜 피곤함 */
 body.page-post #relatedPosts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--gls-space-4, 16px);
+  align-items: stretch;
+}
+
+@media (max-width: 860px) {
+  body.page-post #relatedPosts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ultra-wide에서만 3열 허용(정보 과밀 방지용) */
+@media (min-width: 1400px) {
+  body.page-post #relatedPosts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* 관련 글 카드: grid 안에서는 카드 자체 max-width/가운데정렬을 해제 */
+body.page-post #relatedPosts .related-card.gls-post-card {
+  max-width: none;
+  margin: 0;
+}
+
+/* 관련 글 제목은 조금 더 컴팩트하게 */
+body.page-post #relatedPosts .card-title {
+  font-size: var(--gls-fs-md, 1.0625rem);
+  line-height: var(--gls-lh-tight, 1.25);
+  margin-bottom: var(--gls-space-2, 8px);
+}
+
+/* 관련 글 본문(quote-card): 정사각/센터링 제거 + 높이 제한 */
+body.page-post #relatedPosts .quote-card {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: auto;
+  margin: 0;
+  padding: var(--gls-space-4, 16px);
+  display: block;
+  text-align: left;
+
+  font-size: var(--gls-fs-base, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.7);
+
+  /* 프리뷰 높이 폭주 방지 */
+  max-height: 11rem;
+  overflow: hidden;
+  position: relative;
+}
+
+body.page-post #relatedPosts .quote-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3.5rem;
+  background: linear-gradient(to bottom, rgba(253, 248, 234, 0), rgba(253, 248, 234, 1));
+  pointer-events: none;
+}
+
+/* 관련 글에서는 해시태그 줄을 숨겨서 밀도 줄이기 */
+body.page-post #relatedPosts .post-hashtags {
+  display: none !important;
 }
 
 /* Bootstrap의 mb-3을 grid gap으로 대체 */
