@@ -1,0 +1,37 @@
+/* =============================================================
+   홈 전용 스타일 (public/css/index.css)
+   - index.html에서만 사용
+   - 공통 베이스는 base.css, 카드/컴포넌트는 components.css
+   ============================================================= */
+
+/* =========================
+   피드 탭 (최신/인기/팔로잉)
+========================= */
+
+.feed-tabs {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.feed-tabs .feed-tab {
+  border-radius: 999px;
+  color: var(--author-accent, #2e8b57);
+  background: #f2f5f3;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 6px 14px;
+  transition: all 0.15s ease;
+}
+
+.feed-tabs .feed-tab:hover,
+.feed-tabs .feed-tab:focus-visible {
+  color: var(--author-accent, #2e8b57);
+  border-color: var(--author-accent, #2e8b57);
+  background: rgba(46, 139, 87, 0.08);
+}
+
+.feed-tabs .feed-tab.feed-tab-active,
+.feed-tabs .feed-tab.active {
+  background: var(--author-accent, #2e8b57);
+  color: #fff;
+  border-color: var(--author-accent, #2e8b57);
+}
