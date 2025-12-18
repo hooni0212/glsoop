@@ -12,6 +12,9 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .page-login .auth-hero {
@@ -20,6 +23,7 @@
   /* 푸터가 바로 닿지 않도록 여백을 크게 부여 */
   padding-bottom: 4rem;
   min-height: auto;
+  flex-shrink: 0;
 }
 
 .page-login .auth-hero > .container {
