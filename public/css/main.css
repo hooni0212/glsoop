@@ -203,16 +203,16 @@ a:hover {
 ========================= */
 
 .btn {
-  border-radius: 12px;
-  font-weight: 600;
-  transition: all 0.15s ease;
+  border-radius: var(--gls-btn-radius);
+  font-weight: var(--gls-btn-font-weight);
+  transition: var(--gls-btn-transition);
 }
 
 .btn-primary {
   background: var(--author-accent, #2e8b57);
   border: 1px solid var(--author-accent, #2e8b57);
   color: #fff;
-  box-shadow: 0 10px 24px rgba(46, 139, 87, 0.18);
+  box-shadow: var(--gls-shadow-accent);
 }
 
 .btn-primary:hover,

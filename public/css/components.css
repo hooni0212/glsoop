@@ -12,8 +12,8 @@
 
 .card {
 border: none;
-border-radius: 1rem;
-box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+border-radius: var(--gls-radius-card);
+box-shadow: var(--gls-shadow-card);
 }
 
 .card-title {
@@ -62,8 +62,8 @@ background-size: cover;
 background-position: center;
 background-repeat: no-repeat;
 
-border-radius: 1.5rem;
-box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+border-radius: var(--gls-radius-paper, 1.5rem);
+box-shadow: var(--gls-shadow-card);
 
 display: flex;
 flex-direction: column;
@@ -157,7 +157,7 @@ cursor: default;
 background-color: #ffffff;
 border-radius: 1rem;
 padding: 1.2rem 1.5rem;
-box-shadow: 0 10px 24px rgba(0, 0, 0, 0.04);
+box-shadow: var(--gls-shadow-surface);
 }
 
 /* =========================
@@ -247,7 +247,7 @@ transition: transform 0.12s ease, box-shadow 0.12s ease;
 
 .gls-post-card:hover {
 transform: translateY(-2px);
-box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+box-shadow: var(--gls-shadow-card-hover);
 }
 
 /* 작성자 뱃지 */
