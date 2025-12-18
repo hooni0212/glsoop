@@ -10,6 +10,13 @@
   margin: 0 auto;
 }
 
+/* Reading width: keep the main post card comfortably narrow */
+.page-post #postDetail .gls-post-card {
+  max-width: min(100%, var(--gls-content-read, 720px));
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .page-post #postDetail,
 .page-post #postDetail .gls-post-card {
   line-height: var(--gls-lh-relaxed, 1.75);
@@ -70,4 +77,32 @@
 
 .page-post #relatedPosts {
   margin-top: var(--gls-space-6, 24px);
+}
+
+/* Links inside the post body: subtle but clear */
+.page-post #postDetail a {
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+
+/* Lists: comfortable indent + spacing */
+.page-post #postDetail ul,
+.page-post #postDetail ol {
+  padding-left: 1.25em;
+  margin: 0 0 var(--gls-space-4, 16px);
+}
+
+@media (max-width: 576px) {
+  .page-post #postDetail p,
+  .page-post #postDetail li {
+    margin-bottom: var(--gls-space-3, 12px);
+  }
+
+  .page-post #postDetail blockquote {
+    padding: var(--gls-space-3, 12px) var(--gls-space-4, 16px);
+  }
+
+  .page-post #postDetail pre {
+    padding: var(--gls-space-3, 12px);
+  }
 }

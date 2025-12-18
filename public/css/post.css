@@ -58,7 +58,8 @@ body.page-post .related-section {
   border-top: 1px solid rgba(30, 42, 51, 0.12);
 }
 
-body.page-post .related-section h3 {
+body.page-post .related-section h3,
+body.page-post .related-section h4 {
   font-size: var(--gls-fs-lg, 1.125rem);
   line-height: var(--gls-lh-tight, 1.25);
   font-weight: 700;

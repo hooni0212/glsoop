@@ -14,6 +14,8 @@
 :root {
   /* 글 본문/카드 기본 폭 (post/detail/related/home feed 공통) */
   --gls-content-width: 620px;
+  --gls-content-max: 980px;
+  --gls-content-read: 720px;
 
   /* Radius */
   --gls-radius-pill: 999px;
