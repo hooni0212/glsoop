@@ -1210,12 +1210,13 @@ a:hover {
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: #ffffff;
   color: var(--author-accent, #2f2f2f);
-  border-radius: 6px;
-  padding: 6px 8px;
+  border-radius: 999px;
+  padding: 6px 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  line-height: 1;
 }
 
 .post-bookmark-toggle .post-bookmark-icon {
@@ -1223,12 +1224,25 @@ a:hover {
   height: 18px;
 }
 
-.post-bookmark-toggle:hover,
-.post-bookmark-toggle:focus-visible {
-  background: #f4f7ff;
-  border-color: rgba(0, 0, 0, 0.14);
-  color: var(--author-accent, #1d3a5c);
+/* 데스크탑 hover */
+@media (hover: hover) and (pointer: fine) {
+  .post-bookmark-toggle:hover,
+  .post-bookmark-toggle:focus-visible {
+    background: #f4f7ff;
+    border-color: rgba(0, 0, 0, 0.14);
+    color: var(--author-accent, #1d3a5c);
+  }
 }
+
+/* 터치 기기 hover 고정 방지 */
+@media (hover: none) {
+  .post-bookmark-toggle:hover {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.08);
+    color: var(--author-accent, #2f2f2f);
+  }
+}
+
 
 .page-bookmarks .bookmarks-shell {
   margin-top: 80px;

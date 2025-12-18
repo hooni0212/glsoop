@@ -7,6 +7,18 @@
   let createBtn = null;
   let statusText = null;
 
+  function bindCreateInputEnter() {
+    if (!createInput) return;
+    if (createInput.dataset && createInput.dataset.enterBound === '1') return;
+    if (createInput.dataset) createInput.dataset.enterBound = '1';
+    createInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleCreateList();
+      }
+    });
+  }
+
   function ensureModal() {
     let modalEl = document.getElementById(modalId);
     if (modalEl) {
@@ -15,13 +27,14 @@
       createInput = modalEl.querySelector('#bookmarkNewListInput');
       createBtn = modalEl.querySelector('#bookmarkNewListSubmit');
       statusText = modalEl.querySelector('.bookmark-modal-status');
+      bindCreateInputEnter();
       return;
     }
 
     const wrapper = document.createElement('div');
     wrapper.innerHTML = `
-      <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
+      <div class="modal fade gls-bookmark-modal" id="${modalId}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">북마크 폴더 선택</h5>
@@ -30,9 +43,9 @@
             <div class="modal-body">
               <div class="bookmark-modal-status text-muted small mb-2"></div>
               <div class="bookmark-modal-list list-group mb-3"></div>
-              <div class="d-flex gap-2 align-items-center">
+              <div class="bookmark-modal-create d-flex gap-2 align-items-center">
                 <input type="text" class="form-control" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
-                <button class="btn btn-primary" type="button" id="bookmarkNewListSubmit">추가</button>
+                <button class="btn btn-primary bookmark-modal-create-btn" type="button" id="bookmarkNewListSubmit">추가</button>
               </div>
             </div>
             <div class="modal-footer">
@@ -53,6 +66,7 @@
     statusText = modalEl.querySelector('.bookmark-modal-status');
 
     createBtn.addEventListener('click', handleCreateList);
+    bindCreateInputEnter();
   }
 
   async function requireLogin(res) {

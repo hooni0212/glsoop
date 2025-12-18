@@ -323,3 +323,84 @@ word-break: break-word;
     margin-left: auto;
     margin-right: auto;
   }
+
+/* =========================
+   Post Card: Bookmark / Actions (공통 컴포넌트)
+   - index.html(메인) 뿐 아니라 post/author/mypage 등에서도 동일하게 보이게
+========================= */
+
+.post-bottom-meta {
+  margin-top: 12px;
+}
+
+.post-top-actions {
+  margin-left: auto;
+}
+
+.post-bookmark-toggle {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  color: var(--author-accent, #2f2f2f);
+  border-radius: 999px;
+  padding: 6px 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.post-bookmark-toggle .post-bookmark-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* 데스크탑 hover */
+@media (hover: hover) and (pointer: fine) {
+  .post-bookmark-toggle:hover,
+  .post-bookmark-toggle:focus-visible {
+    background: #f4f7ff;
+    border-color: rgba(0, 0, 0, 0.14);
+    color: var(--author-accent, #1d3a5c);
+  }
+}
+
+/* 터치 기기에서는 hover가 '붙는' 현상 방지 */
+@media (hover: none) {
+  .post-bookmark-toggle:hover {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.08);
+    color: var(--author-accent, #2f2f2f);
+  }
+}
+
+
+/* =========================
+   Bookmark Select Modal (공통)
+   - '추가' 버튼 세로 깨짐/폭 깨짐 방지
+========================= */
+
+.gls-bookmark-modal .bookmark-modal-create {
+  flex-wrap: nowrap;
+}
+
+.gls-bookmark-modal #bookmarkNewListInput {
+  min-width: 0;
+}
+
+.gls-bookmark-modal .bookmark-modal-create-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding-inline: 14px;
+  min-width: 64px;
+}
+
+/* 모바일에서는 입력줄이 좁아질 수 있으니 줄바꿈 허용 */
+@media (max-width: 420px) {
+  .gls-bookmark-modal .bookmark-modal-create {
+    flex-wrap: wrap;
+  }
+  .gls-bookmark-modal .bookmark-modal-create-btn {
+    width: 100%;
+  }
+}

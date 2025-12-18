@@ -159,15 +159,18 @@ function buildStandardPostCardHTML(post, options = {}) {
             </span>
             <span class="text-muted small">${escapeHtml(dateStr)}</span>
           </div>
-          <button
-            type="button"
-            class="btn btn-sm like-btn ${liked ? 'liked' : ''}"
-            data-post-id="${post.id}"
-            data-liked="${liked ? '1' : '0'}"
-          >
-            <span class="like-heart">${liked ? '♥' : '♡'}</span>
-            <span class="like-count ms-1">${likeCount}</span>
-          </button>
+          <div class="post-top-actions d-flex align-items-center gap-2">
+            ${bookmarkBtn}
+            <button
+              type="button"
+              class="btn btn-sm like-btn ${liked ? 'liked' : ''}"
+              data-post-id="${post.id}"
+              data-liked="${liked ? '1' : '0'}"
+            >
+              <span class="like-heart">${liked ? '♥' : '♡'}</span>
+              <span class="like-count ms-1">${likeCount}</span>
+            </button>
+          </div>
         </div>
 
         <!-- 제목 -->
@@ -210,8 +213,7 @@ function buildStandardPostCardHTML(post, options = {}) {
                      : ''
                  }
                  ${hashtagHtml || ''}
-                 <div class="post-action-row">${bookmarkBtn}</div>
-               </div>`
+</div>`
             : ''
         }
       </div>
