@@ -78,34 +78,6 @@
     <div class="container" style="max-width: 900px;">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <h3 class="mb-0">글 상세</h3>
-
-        <!-- ✅ 인스타 내보내기 컨트롤 바 -->
-        <div id="igExportBar" class="d-flex flex-wrap align-items-center gap-2">
-          <select id="igFormat" class="form-select form-select-sm" style="width: 170px;">
-            <option value="feed45" selected>인스타 피드 4:5 (1080x1350)</option>
-            <option value="square">정사각 1:1 (1080x1080)</option>
-          </select>
-
-          <select id="igStyle" class="form-select form-select-sm" style="width: 150px;">
-            <option value="photo-overlay" selected>감성(오버레이)</option>
-            <option value="clean-card">클린 카드</option>
-          </select>
-
-          <select id="igBgKey" class="form-select form-select-sm" style="width: 150px;">
-            <option value="forestMist">forestMist</option>
-            <option value="dawnSky" selected>dawnSky</option>
-            <option value="warmPaper">warmPaper</option>
-            <option value="nightLake">nightLake</option>
-            <option value="monoInk">monoInk</option>
-          </select>
-
-          <input id="igBgUrl" class="form-control form-control-sm" style="width: 260px;"
-                 placeholder="배경 이미지 URL(선택)  ex) /img/ig/bg.jpg" />
-
-          <button id="igExportBtn" class="btn btn-success btn-sm">
-            인스타 이미지 저장
-          </button>
-        </div>
       </div>
 
       <div id="postDetail">
@@ -159,6 +131,5 @@
   <!-- 인스타 내보내기 -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="/js/igExport.js?v=3"></script>
-  <script src="/js/igExportUI.js?v=3"></script>
 </body>
 </html>
