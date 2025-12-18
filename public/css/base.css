@@ -398,6 +398,20 @@ a:hover {
 
 
 /* =========================
+   15.x Mobile footer compact overrides
+   - 모바일에서 푸터 두께(높이)를 더 줄이기 위한 추가 오버라이드
+========================= */
+@media (max-width: 576px) {
+  .custom-footer { padding-top: 0.55rem !important; padding-bottom: 0.55rem !important; }
+  .custom-footer .container { padding-top: 0.4rem !important; padding-bottom: 0.4rem !important; }
+  .custom-footer .row { row-gap: 0.35rem !important; }
+  .footer-brand { font-size: 1.25rem !important; line-height: 1.1 !important; margin: 0 !important; }
+  .footer-subtitle { font-size: 0.78rem !important; line-height: 1.2 !important; margin: 0 !important; }
+  .footer-copy { font-size: 0.78rem !important; line-height: 1.2 !important; margin-top: 0.15rem !important; }
+  .custom-footer p { margin: 0 !important; }
+}
+
+/* =========================
    16. 북마크 모달 (공통)
    - 페이지마다 base.css/main.css가 달라서 모달이 깨지는 걸 방지
 ========================= */
