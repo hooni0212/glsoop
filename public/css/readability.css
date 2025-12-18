@@ -1,0 +1,73 @@
+/* ==========================================================================
+   readability.css
+   - Post(글 상세)에서 '읽는 경험'을 조금 더 좋게 만드는 보조 스타일
+   - 토큰(--gls-fs-*, --gls-lh-*, --gls-space-*) 기반
+   - 기본은 post.css를 존중하고, 과하지 않게 보정만 함
+========================================================================== */
+
+.page-post #postDetail {
+  max-width: var(--gls-content-max, 980px);
+  margin: 0 auto;
+}
+
+.page-post #postDetail,
+.page-post #postDetail .gls-post-card {
+  line-height: var(--gls-lh-relaxed, 1.75);
+}
+
+/* 본문 후보 셀렉터들(마크업이 달라도 최대한 먹게) */
+.page-post #postDetail .feed-post-content,
+.page-post #postDetail .post-content,
+.page-post #postDetail .ql-editor,
+.page-post #postDetail article,
+.page-post #postDetail .content {
+  font-size: var(--gls-fs-md, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.75);
+}
+
+/* 문단 간격 */
+.page-post #postDetail p,
+.page-post #postDetail li {
+  margin: 0 0 var(--gls-space-4, 16px);
+}
+
+.page-post #postDetail h1,
+.page-post #postDetail h2,
+.page-post #postDetail h3 {
+  line-height: var(--gls-lh-tight, 1.25);
+  margin: var(--gls-space-6, 24px) 0 var(--gls-space-3, 12px);
+}
+
+.page-post #postDetail blockquote {
+  margin: var(--gls-space-5, 20px) 0;
+  padding: var(--gls-space-4, 16px) var(--gls-space-5, 20px);
+  border-left: 4px solid rgba(46, 139, 87, 0.35);
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: var(--gls-radius-card, 16px);
+}
+
+.page-post #postDetail img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: var(--gls-space-5, 20px) auto;
+  border-radius: var(--gls-radius-card, 16px);
+  box-shadow: var(--gls-shadow-card, 0 10px 30px rgba(0, 0, 0, 0.08));
+}
+
+.page-post #postDetail pre,
+.page-post #postDetail code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.page-post #postDetail pre {
+  padding: var(--gls-space-4, 16px);
+  border-radius: var(--gls-radius-card, 16px);
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.page-post #relatedPosts {
+  margin-top: var(--gls-space-6, 24px);
+}
