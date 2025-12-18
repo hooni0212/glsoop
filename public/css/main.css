@@ -878,50 +878,76 @@ a:hover {
 ========================= */
 
 .custom-footer {
-  background: linear-gradient(90deg, #2e8b57, #3ca66c); /* 헤더와 같은 그라디언트 */
+  background: linear-gradient(90deg, #2e8b57, #3ca66c);
   color: #fdfdfd;
   margin-top: auto;
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.65rem 0;
+}
+
+.custom-footer .container {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+}
+
+.custom-footer .row {
+  row-gap: 0.35rem;
 }
 
 .footer-brand {
   font-family: 'Nanum Pen Script', cursive;
-  font-size: 1.8rem;
+  font-size: 1.55rem;
+  letter-spacing: 0.01em;
 }
 
 .footer-subtitle {
   font-size: 0.9rem;
+  opacity: 0.88;
+  margin-bottom: 0;
+}
+
+.footer-copy {
+  font-size: 0.82rem;
+  opacity: 0.9;
+  margin-bottom: 0;
+}
+
+.footer-small {
+  font-size: 0.76rem;
   opacity: 0.85;
   margin-bottom: 0;
 }
 
-.footer-links a {
-  color: #fdfdfd;
-  text-decoration: none;
-  font-size: 0.9rem;
-  padding: 0 0.35rem;
+.footer-meta p {
+  margin-bottom: 0;
 }
 
-.footer-links a:hover {
-  text-decoration: underline;
-}
-
-.footer-copy {
-  font-size: 0.8rem;
-  opacity: 0.9;
-  margin-bottom: 0.1rem;
-}
-
-.footer-small {
-  font-size: 0.75rem;
-  opacity: 0.8;
-}
-
-/* 모바일에서 중앙 정렬 */
 @media (max-width: 576px) {
   .custom-footer {
     text-align: center;
+    padding: 0.55rem 0;
+  }
+
+  .custom-footer .container {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+  }
+
+  .footer-brand {
+    font-size: 1.35rem;
+  }
+
+  .footer-subtitle {
+    font-size: 0.82rem;
+  }
+
+  .footer-copy {
+    font-size: 0.78rem;
+  }
+
+  .footer-small {
+    font-size: 0.72rem;
   }
 }
 
