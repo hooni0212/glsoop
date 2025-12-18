@@ -7,12 +7,19 @@
    ============================================================= */
 
 /* 로그인 전용 겨울 무드 레이어 */
+.page-login {
+  /* 모바일 주소창/하단바 변화로 100vh가 튀는 문제를 줄이기 위해 dvh 우선 */
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
 .page-login .auth-hero {
   position: relative;
   color: #1e2a33;
   /* 푸터가 바로 닿지 않도록 여백을 크게 부여 */
-  padding-bottom: 6.5rem;
-  min-height: 108vh;
+  padding-bottom: 4rem;
+  min-height: auto;
 }
 
 .page-login .auth-hero > .container {
@@ -131,9 +138,21 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.page-login .auth-card .btn-success:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgba(34, 70, 104, 0.24);
+/* 터치 디바이스에서 :hover가 '고정'되는 느낌을 줄이기 위해
+   hover 가능한 환경에서만 살짝 띄우는 애니메이션을 적용 */
+@media (hover: hover) and (pointer: fine) {
+  .page-login .auth-card .btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(34, 70, 104, 0.24);
+  }
+}
+
+/* 터치 디바이스에서는 :hover가 "걸린 채" 남아 어색해지는 경우가 많아서 hover 전용 모션은 꺼둠 */
+@media (hover: none) and (pointer: coarse) {
+  .page-login .auth-card .btn-success:hover {
+    transform: none;
+    box-shadow: none;
+  }
 }
 
 /* 눈이 흩날리는 레이어 (CodePen 참고한 박스섀도우 흐름) */
@@ -209,6 +228,10 @@
 }
 
 @media (max-width: 576px) {
+  .page-login .auth-hero {
+    padding-bottom: 3rem;
+  }
+
   .page-login .auth-card {
     padding: 1.35rem;
   }

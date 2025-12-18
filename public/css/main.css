@@ -926,6 +926,32 @@ a:hover {
 }
 
 /* =========================
+   16. 북마크 모달 (공통)
+   - index는 main.css만 로드해서 base.css쪽 수정이 안 먹는 경우가 있어
+     동일 규칙을 여기에도 둠
+========================= */
+
+#bookmarkNewListSubmit {
+  white-space: nowrap;
+  min-width: 76px;
+  flex: 0 0 auto;
+}
+
+#bookmarkNewListInput {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* =========================
+   17. 모바일 터치에서 hover "고정" 방지
+========================= */
+@media (hover: none) and (pointer: coarse) {
+  .btn:hover {
+    transform: none !important;
+  }
+}
+
+/* =========================
    피드 / 미리보기 카드 폰트 스타일 변형
    - quote-font-* 클래스는 JS에서 동적으로 붙임
 ========================= */
