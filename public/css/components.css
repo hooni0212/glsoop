@@ -11,18 +11,20 @@
 ========================= */
 
 .card {
-border: none;
-border-radius: var(--gls-radius-card);
-box-shadow: var(--gls-shadow-card);
+  border: none;
+  border-radius: var(--gls-radius-card);
+  box-shadow: var(--gls-shadow-card);
 }
 
 .card-title {
-font-size: 1.05rem;
-font-weight: 600;
+  font-size: var(--gls-fs-lg, 1.125rem);
+  line-height: var(--gls-lh-tight, 1.25);
+  font-weight: 600;
 }
 
 .card-body small.text-muted {
-font-size: 0.8rem;
+  font-size: var(--gls-fs-xs, 0.8125rem);
+  line-height: var(--gls-lh-normal, 1.55);
 }
 
 /* "내가 쓴 글" 카드 안의 내용 박스 */
@@ -35,7 +37,7 @@ background-color: #fbfbff;
 .feed-post-content {
   position: relative;
   max-height: 26rem;
-  padding: 0.6rem 0;
+  padding: var(--gls-space-2, 8px) 0;
   overflow: hidden;
 }
 
@@ -451,4 +453,55 @@ word-break: break-word;
   .gls-bookmark-modal .bookmark-modal-create-btn {
     width: 100%;
   }
+}
+
+/* =========================
+   Type scale & spacing (Patch C)
+   - 글 카드의 제목/본문/메타 간격과 줄간격을 정리
+========================= */
+
+/* 카드 바디: 너무 빡빡/너무 넓은 패딩을 기기별로 균형 */
+.gls-post-card .card-body {
+  padding: var(--gls-space-5, 20px);
+}
+
+@media (max-width: 420px) {
+  .gls-post-card .card-body {
+    padding: var(--gls-space-4, 16px);
+  }
+}
+
+/* 제목: 한 줄/두 줄에서 읽기 좋게 */
+.gls-post-card .card-title {
+  font-size: clamp(1.05rem, 1.1vw, 1.18rem);
+  line-height: var(--gls-lh-tight, 1.25);
+  letter-spacing: -0.01em;
+  margin-bottom: var(--gls-space-2, 8px);
+}
+
+/* 본문(카드 내 글): 줄간격/여백 정리 */
+.gls-post-card .feed-post-content {
+  margin-top: var(--gls-space-2, 8px);
+}
+
+.gls-post-card .quote-card {
+  font-size: var(--gls-fs-md, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.75);
+}
+
+/* 메타(작성자/좋아요 등): 작게, 하지만 가독성 있게 */
+.gls-post-card .text-muted.small,
+.gls-post-card .post-bottom-meta {
+  font-size: var(--gls-fs-xs, 0.8125rem);
+}
+
+.gls-post-card .post-bottom-meta {
+  margin-top: var(--gls-space-3, 12px);
+}
+
+/* 작성자 뱃지: 과하게 튀지 않게 크기/패딩 정리 */
+.gls-post-card .gls-author-badge {
+  font-size: var(--gls-fs-xs, 0.8125rem);
+  padding: 0.32em 0.6em;
+  gap: 0.35em;
 }
