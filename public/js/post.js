@@ -284,8 +284,6 @@ function renderPostDetail(container, post) {
     const moreBtn = card.querySelector('.more-toggle');
     if (moreBtn) moreBtn.style.display = 'none';
 
-    // ✅ 여기에서 카드 헤더 “공유(⋯)” 버튼 붙이기
-    attachIgShareButton(card, post);
 
     // ✅ 우측 스티키 패널(액션) 버튼과 카드 액션을 연결
     bindSideActions(card, post);
