@@ -309,3 +309,70 @@ function sanitizePostHtml(html) {
   });
 }
 
+(function setupViewModes() {
+  const STORAGE_KEY = 'gls-view-modes';
+  const MODE_CONFIG = [
+    { key: 'text', className: 'mode-text', label: 'Text' },
+    { key: 'dark', className: 'mode-dark', label: 'Dark' },
+    { key: 'mono', className: 'mode-mono', label: 'Mono' },
+  ];
+
+  const readState = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      console.warn('view mode storage unavailable', e);
+      return {};
+    }
+  };
+
+  const writeState = (state) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('view mode storage unavailable', e);
+    }
+  };
+
+  const applyState = (state) => {
+    MODE_CONFIG.forEach(({ className, key }) => {
+      document.body.classList.toggle(className, !!state[key]);
+    });
+  };
+
+  const renderPanel = (state) => {
+    let panel = document.querySelector('.gls-view-toggles');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.className = 'gls-view-toggles';
+      panel.setAttribute('role', 'group');
+      panel.setAttribute('aria-label', '보기 모드 전환');
+      document.body.appendChild(panel);
+    }
+
+    panel.innerHTML = '';
+
+    MODE_CONFIG.forEach(({ key, label }) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'gls-view-toggle-btn';
+      if (state[key]) btn.classList.add('is-active');
+      btn.textContent = label;
+      btn.addEventListener('click', () => {
+        state[key] = !state[key];
+        applyState(state);
+        writeState(state);
+        renderPanel(state);
+      });
+      panel.appendChild(btn);
+    });
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const state = readState();
+    applyState(state);
+    renderPanel(state);
+  });
+})();
+
