@@ -53,7 +53,7 @@
 /* "내가 쓴 글" 카드 안의 내용 박스 */
 .post-content .border {
 border-radius: 0.8rem !important;
-background: var(--gls-glass-bg-subtle);
+background: var(--gls-glass-bg);
 }
 
 /* 피드에서 글 내용 미리보기 (접힌 상태) */
@@ -84,7 +84,7 @@ background: var(--gls-glass-bg-subtle);
   width: 100%;
   margin: 0;
   padding: var(--gls-space-3, 12px) var(--gls-space-4, 16px);
-  background: var(--gls-glass-bg-subtle);
+  background: var(--gls-glass-bg);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(30, 42, 51, 0.10);
@@ -274,7 +274,7 @@ text-align: justify;
 .gls-post-card {
   border: 1px solid var(--gls-glass-border);
   border-radius: var(--gls-radius-card);
-  background: var(--gls-glass-bg);
+  background: var(--gls-glass-bg-subtle);
   box-shadow: var(--gls-glass-shadow);
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
@@ -287,7 +287,7 @@ text-align: justify;
   .gls-post-card:hover {
   transform: translateY(-1px);
   box-shadow: var(--gls-glass-shadow-hover);
-  background: var(--gls-glass-bg-strong);
+  background: var(--gls-glass-bg);
   border-color: rgba(46, 139, 87, 0.22);
 }
 }
@@ -327,7 +327,7 @@ text-align: justify;
   border-radius: 999px;
   font-size: 0.86rem;
   font-weight: 700;
-  background: var(--gls-glass-bg-subtle);
+  background: var(--gls-glass-bg);
   border: 1px solid rgba(30, 42, 51, 0.10);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
   backdrop-filter: blur(10px);
@@ -523,7 +523,7 @@ body.mode-mono .gls-post-card,
 body.mode-dark .gls-post-card {
   box-shadow: var(--gls-glass-shadow);
   border-color: var(--gls-glass-border);
-  background: var(--gls-glass-bg);
+  background: var(--gls-glass-bg-subtle);
 }
 
 .post-top-actions {
@@ -596,7 +596,7 @@ body.mode-dark .gls-post-card {
 }
 
 .gls-post-card .feed-post-content .quote-card {
-  background: var(--gls-glass-bg-subtle);
+  background: var(--gls-glass-bg);
   border: 1px solid rgba(30, 42, 51, 0.10);
   border-radius: 12px;
   box-shadow: none;

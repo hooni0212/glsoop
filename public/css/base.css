@@ -37,9 +37,9 @@
   --gls-color-overlay-strong: rgba(255, 255, 255, 0.85);
 
   /* Glass (global) */
-  --gls-glass-bg-subtle: rgba(255, 255, 255, 0.45);
-  --gls-glass-bg: rgba(255, 255, 255, 0.58);
-  --gls-glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --gls-glass-bg-subtle: rgba(255, 255, 255, 0.24);
+  --gls-glass-bg: rgba(255, 255, 255, 0.36);
+  --gls-glass-bg-strong: rgba(255, 255, 255, 0.50);
   --gls-glass-border: rgba(30, 42, 51, 0.14);
   --gls-glass-blur: 12px;
   --gls-glass-shadow: 0 12px 30px rgba(19, 34, 30, 0.10);
@@ -105,9 +105,9 @@
 
 body.mode-dark {
   /* Glass (dark) */
-  --gls-glass-bg-subtle: rgba(15, 22, 19, 0.48);
-  --gls-glass-bg: rgba(15, 22, 19, 0.62);
-  --gls-glass-bg-strong: rgba(15, 22, 19, 0.76);
+  --gls-glass-bg-subtle: rgba(15, 22, 19, 0.36);
+  --gls-glass-bg: rgba(15, 22, 19, 0.50);
+  --gls-glass-bg-strong: rgba(15, 22, 19, 0.64);
   --gls-glass-border: rgba(232, 239, 232, 0.14);
   --gls-glass-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
   --gls-glass-shadow-hover: 0 18px 42px rgba(0, 0, 0, 0.55);
@@ -200,7 +200,7 @@ body.mode-text {
 }
 
 .gls-surface-panel {
-  background: var(--gls-glass-bg-strong);
+  background: var(--gls-glass-bg-subtle);
   border: 1px solid var(--gls-glass-border);
   border-radius: var(--gls-radius-lg, 18px);
   box-shadow: var(--gls-glass-shadow);

@@ -17,7 +17,7 @@
   padding: 10px 14px;
   border-radius: 12px;
   border: 1px solid rgba(30, 42, 51, 0.12);
-  background: rgba(255, 255, 255, 0.48);
+  background: var(--gls-glass-bg-subtle);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   font-weight: 700;
@@ -34,7 +34,7 @@
 
 .feed-tabs .feed-tab.feed-tab-active,
 .feed-tabs .feed-tab.active {
-  background: rgba(255, 255, 255, 0.68);
+  background: var(--gls-glass-bg);
   border-color: rgba(46, 139, 87, 0.28);
   color: rgba(30, 42, 51, 0.92);
 }

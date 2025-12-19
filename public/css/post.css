@@ -112,7 +112,7 @@ body.page-post #postDetail .quote-card {
   font-size: var(--gls-fs-md, 1rem);
   line-height: var(--gls-lh-relaxed, 1.75);
 
-  background: var(--gls-glass-bg-strong);
+  background: var(--gls-glass-bg);
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   border: 1px solid var(--gls-glass-border);
@@ -251,7 +251,7 @@ body.page-post .post-related-more:hover {
 body.page-post .post-related-highlight {
   border-radius: 16px;
   border: 1px solid var(--gls-glass-border);
-  background: rgba(255, 255, 255, 0.62);
+  background: var(--gls-glass-bg-strong);
   padding: 14px 14px;
   margin-bottom: var(--gls-space-3, 12px);
   cursor: pointer;
@@ -262,7 +262,7 @@ body.page-post .post-related-highlight {
   body.page-post .post-related-highlight:hover {
     transform: translateY(-2px);
     border-color: rgba(46, 139, 87, 0.18);
-    background: rgba(255, 255, 255, 0.75);
+    background: var(--gls-glass-bg-strong);
   }
 }
 
@@ -303,14 +303,14 @@ body.page-post .post-related-item {
   padding: 10px 10px;
   border-radius: 12px;
   border: 1px solid rgba(30, 42, 51, 0.07);
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--gls-glass-bg);
   cursor: pointer;
   transition: background 0.14s ease, border-color 0.14s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
   body.page-post .post-related-item:hover {
-    background: rgba(255, 255, 255, 0.62);
+    background: var(--gls-glass-bg-strong);
     border-color: rgba(46, 139, 87, 0.16);
   }
 }
