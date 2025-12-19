@@ -2,37 +2,87 @@
    post.css
    - 글 상세 페이지(post.html) 전용 스타일
    - body.page-post 범위로만 적용해서 다른 페이지에 영향 최소화
+
+   목표(시안 A)
+   1) 큰 흰 컨테이너 삭제: 배경 감성 살리기
+   2) 데스크탑 2컬럼: 본문(읽기) + 우측 스티키 패널
+   3) 관련 글: 하이라이트 1개 + 컴팩트 리스트
+   4) 레이어 최소화: '배경 → 유리 패널'에서 멈추기
 ========================= */
 
-/* 페이지 기본 여백 (Bootstrap container + row 위에서 살짝 정리) */
-body.page-post .post-container {
-  width: min(var(--gls-inner-width, 1080px), 100%);
-  margin: 0 auto;
-  padding: var(--gls-space-6, 24px) var(--gls-page-margin, 32px);
-  position: relative;
-  border-radius: var(--gls-radius-lg, 18px);
-  background: var(--gls-color-overlay-strong, rgba(255, 255, 255, 0.85));
-  box-shadow: var(--gls-shadow-surface, 0 18px 50px rgba(12, 28, 26, 0.08));
-  overflow: hidden;
-  backdrop-filter: blur(8px);
+/* post.html에만 적용: 기본 섹션 패딩을 줄여서 "읽기" 톤으로 */
+body.page-post .page-section.post-page {
+  padding: var(--gls-space-7, 32px) 0 var(--gls-space-8, 40px);
 }
 
-@media (max-width: 576px) {
-  body.page-post .post-container {
-    padding: var(--gls-space-4, 16px) var(--gls-space-3, 12px);
+/* =========================
+   0) 2컬럼 레이아웃(데스크탑)
+========================= */
+
+body.page-post .post-shell {
+  /* gls-container가 좌우 padding을 담당 → 여기서는 세로 리듬만 */
+  padding-block: var(--gls-space-4, 16px);
+}
+
+body.page-post .post-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--gls-space-5, 20px);
+  align-items: start;
+}
+
+@media (min-width: 980px) {
+  body.page-post .post-layout {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: var(--gls-space-6, 24px);
+  }
+
+  /* 본문 컬럼이 너무 넓어지지 않게 */
+  body.page-post .post-main {
+    max-width: 860px;
+  }
+}
+
+/* 우측 패널: 스티키 */
+body.page-post .post-side-inner {
+  position: sticky;
+  top: 126px; /* nav-height(110) + breathing(16) */
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-4, 16px);
+}
+
+@media (max-width: 979.98px) {
+  body.page-post .post-side-inner {
+    position: static;
   }
 }
 
 /* =========================
-   1) 글 상세 카드(메인)
+   1) 본문 패널(읽기)
 ========================= */
 
+body.page-post .post-panel {
+  padding: var(--gls-space-6, 24px);
+}
+
+@media (max-width: 576px) {
+  body.page-post .post-panel {
+    padding: var(--gls-space-5, 20px);
+  }
+}
+
+/* 카드 자체를 "컨텐츠 컨테이너"로 쓰지 않고, post-panel이 컨테이너가 되도록 */
 body.page-post #postDetail .gls-post-card {
-  margin-bottom: var(--gls-space-6, 24px);
-  max-width: var(--gls-content-width);
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+body.page-post #postDetail .gls-post-card .card-body {
+  padding: 0;
+  gap: var(--gls-space-5, 20px);
 }
 
 /* 타이틀을 상세 페이지에서만 조금 더 키움 */
@@ -40,16 +90,11 @@ body.page-post #postDetail .card-title {
   font-size: clamp(1.25rem, 2.1vw, 1.75rem);
   line-height: var(--gls-lh-tight, 1.25);
   letter-spacing: -0.2px;
+  margin-bottom: 0;
 }
 
-body.page-post #postDetail .gls-post-meta {
-  gap: var(--gls-space-2, 8px);
-  margin-top: var(--gls-space-2, 8px);
-}
-
-/* 본문 가독성 (피드에는 영향 없음) */
+/* 본문 가독성: 과한 테두리/박스 느낌을 줄이고, "종이"에 가까운 면으로 */
 body.page-post #postDetail .quote-card {
-  /* reading mode: 인스타(정사각) 카드 규칙을 글 상세에서는 끔 */
   width: 100%;
   max-width: 100%;
   aspect-ratio: auto;
@@ -58,13 +103,11 @@ body.page-post #postDetail .quote-card {
   display: block;
   text-align: left;
 
-  /* 타이포(피드에는 영향 없음) */
   font-size: var(--gls-fs-md, 1rem);
   line-height: var(--gls-lh-relaxed, 1.75);
 
-  background: var(--gls-color-surface, #ffffff);
-  background-image: none;
-  border: 1px solid var(--gls-color-border, #dfe6df);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(30, 42, 51, 0.08);
   border-radius: var(--gls-radius-md, 14px);
   box-shadow: none;
   -webkit-line-clamp: unset;
@@ -79,130 +122,216 @@ body.page-post #postDetail .quote-card > *:last-child {
   margin-bottom: 0;
 }
 
-body.page-post .post-container > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* 액션(좋아요/북마크/공유) 영역 숨쉴 공간 */
-body.page-post #postDetail .post-actions {
-  margin-top: var(--gls-space-4, 16px);
+/* "피드로 돌아가기" 버튼 간격 */
+body.page-post #backToFeedBtn {
+  border-radius: 999px;
 }
 
 /* =========================
-   2) 관련 글 섹션
+   2) 우측 패널: 액션
 ========================= */
 
-body.page-post .related-section {
-  margin-top: var(--gls-space-7, 32px);
-  padding-top: var(--gls-space-6, 24px);
-  border-top: 1px solid var(--gls-color-border, rgba(30, 42, 51, 0.12));
+body.page-post .post-actions-panel {
+  padding: var(--gls-space-4, 16px);
 }
 
-body.page-post .related-section h3,
-body.page-post .related-section h4 {
-  font-size: var(--gls-fs-lg, 1.125rem);
-  line-height: var(--gls-lh-tight, 1.25);
+body.page-post .post-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--gls-space-2, 8px);
+}
+
+body.page-post .post-side-btn {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(30, 42, 51, 0.10);
+  background: rgba(255, 255, 255, 0.55);
+  padding: 10px 10px;
+  font-size: 0.9rem;
   font-weight: 700;
+  color: var(--gls-color-text, #1e2a33);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  backdrop-filter: blur(8px);
+  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+}
+
+body.page-post .post-side-btn:active {
+  transform: translateY(1px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body.page-post .post-side-btn:hover {
+    background: rgba(255, 255, 255, 0.72);
+    border-color: rgba(46, 139, 87, 0.18);
+  }
+}
+
+body.page-post .post-side-like {
+  justify-content: center;
+}
+
+body.page-post .post-side-like-heart {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+body.page-post .post-side-like-count {
+  font-variant-numeric: tabular-nums;
+}
+
+body.page-post .post-side-like-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+/* 모바일에서는 액션을 조금 더 편하게 */
+@media (max-width: 420px) {
+  body.page-post .post-actions-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  body.page-post .post-side-like {
+    grid-column: 1 / -1;
+  }
+}
+
+/* =========================
+   3) 우측 패널: 관련 글(시안 A)
+========================= */
+
+body.page-post .post-related-panel {
+  padding: var(--gls-space-4, 16px);
+}
+
+body.page-post .post-related-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: var(--gls-space-3, 12px);
 }
 
-/* 관련 글은 그리드로: 한 줄 리스트보다 시선 이동이 덜 피곤함 */
-body.page-post #relatedPosts {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--gls-space-4, 16px);
-  align-items: stretch;
+body.page-post .post-related-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.2px;
 }
 
-@media (min-width: 900px) {
-  body.page-post #relatedPosts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+body.page-post .post-related-more {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgba(30, 42, 51, 0.75);
+}
+
+body.page-post .post-related-more:hover {
+  color: rgba(30, 42, 51, 0.95);
+}
+
+/* 하이라이트 카드 */
+body.page-post .post-related-highlight {
+  border-radius: 16px;
+  border: 1px solid rgba(30, 42, 51, 0.08);
+  background: rgba(255, 255, 255, 0.62);
+  padding: 14px 14px;
+  margin-bottom: var(--gls-space-3, 12px);
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body.page-post .post-related-highlight:hover {
+    transform: translateY(-2px);
+    border-color: rgba(46, 139, 87, 0.18);
+    background: rgba(255, 255, 255, 0.75);
   }
 }
 
-/* 관련 글 카드: grid 안에서는 카드 자체 max-width/가운데정렬을 해제 */
-body.page-post #relatedPosts .related-card.gls-post-card {
-  max-width: none;
-  margin: 0;
+body.page-post .post-related-h-title {
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.2px;
+  margin: 0 0 8px;
 }
 
-body.page-post #relatedPosts .related-card .card-body {
-  padding: var(--gls-space-5, 20px);
-  gap: var(--gls-space-3, 12px);
+body.page-post .post-related-h-snippet {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: rgba(30, 42, 51, 0.82);
+  margin: 0 0 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+body.page-post .post-related-h-meta {
+  font-size: 0.82rem;
+  color: rgba(30, 42, 51, 0.6);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* 리스트 아이템 */
+body.page-post .post-related-list {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  gap: 10px;
 }
 
-/* 관련 글 제목은 조금 더 컴팩트하게 */
-body.page-post #relatedPosts .card-title {
-  font-size: var(--gls-fs-md, 1.0625rem);
-  line-height: var(--gls-lh-tight, 1.25);
-  margin-bottom: var(--gls-space-2, 8px);
+body.page-post .post-related-item {
+  padding: 10px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(30, 42, 51, 0.07);
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
 }
 
-/* 관련 글 본문(quote-card): 정사각/센터링 제거 + 높이 제한 */
-body.page-post #relatedPosts .quote-card {
-  width: 100%;
-  max-width: 100%;
-  aspect-ratio: auto;
-  margin: 0;
-  padding: var(--gls-space-4, 16px);
-  display: block;
-  text-align: left;
-
-  font-size: var(--gls-fs-base, 1rem);
-  line-height: var(--gls-lh-relaxed, 1.7);
-
-  background: var(--gls-color-surface, #ffffff);
-  background-image: none;
-  border: 1px solid var(--gls-color-border, #dfe6df);
-  border-radius: var(--gls-radius-md, 14px);
-  box-shadow: none;
-
-  /* 프리뷰 높이 폭주 방지 */
-  max-height: 10rem;
-  overflow: hidden;
-  position: relative;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-}
-
-body.page-post #relatedPosts .quote-card::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3.5rem;
-  background: linear-gradient(
-    to bottom,
-    rgba(247, 249, 244, 0),
-    var(--gls-color-surface-subtle, #f7f9f4)
-  );
-  pointer-events: none;
-}
-
-/* 관련 글에서는 해시태그 줄을 숨겨서 밀도 줄이기 */
-body.page-post #relatedPosts .post-hashtags {
-  display: none !important;
-}
-
-/* Bootstrap의 mb-3을 grid gap으로 대체 */
-body.page-post #relatedPosts .related-card.mb-3 {
-  margin-bottom: 0 !important;
-}
-
-/* 카드 높이를 맞춰서 UI가 정돈된 느낌 */
-body.page-post #relatedPosts .gls-post-card {
-  height: 100%;
-}
-
-/* 작은 화면에서는 단일 컬럼으로 자연스럽게 */
-@media (max-width: 420px) {
-  body.page-post #relatedPosts {
-    grid-template-columns: 1fr;
+@media (hover: hover) and (pointer: fine) {
+  body.page-post .post-related-item:hover {
+    background: rgba(255, 255, 255, 0.62);
+    border-color: rgba(46, 139, 87, 0.16);
   }
+}
+
+body.page-post .post-related-item-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.25;
+  margin: 0 0 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+body.page-post .post-related-item-snippet {
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: rgba(30, 42, 51, 0.78);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+body.page-post .post-related-item-meta {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: rgba(30, 42, 51, 0.55);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* 구버전 relatedPosts는 숨김 */
+body.page-post #relatedPosts.post-related-legacy[hidden] {
+  display: none !important;
 }

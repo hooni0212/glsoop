@@ -257,22 +257,19 @@ function renderPostDetail(container, post) {
     showMoreButton: false,
   });
 
-  // ✅ 카드 아래쪽 버튼/셀렉트 라인 제거 + “피드로 돌아가기”만 유지
+  // ✅ 레이아웃은 post.html(2컬럼)에서 담당
+  // - 여기서는 카드 + 최소한의 네비(피드로 돌아가기)만 넣는다
   container.innerHTML = `
-    <div class="row justify-content-center">
-      <div class="col-md-8">
-        ${cardHtml}
+    ${cardHtml}
 
-        <div class="d-flex justify-content-between align-items-center mt-2">
-          <button
-            type="button"
-            class="btn btn-outline-secondary btn-sm"
-            id="backToFeedBtn"
-          >
-            ← 피드로 돌아가기
-          </button>
-        </div>
-      </div>
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        id="backToFeedBtn"
+      >
+        ← 피드로 돌아가기
+      </button>
     </div>
   `;
 
@@ -289,6 +286,9 @@ function renderPostDetail(container, post) {
 
     // ✅ 여기에서 카드 헤더 “공유(⋯)” 버튼 붙이기
     attachIgShareButton(card, post);
+
+    // ✅ 우측 스티키 패널(액션) 버튼과 카드 액션을 연결
+    bindSideActions(card, post);
   }
 
   const backBtn = document.getElementById('backToFeedBtn');
@@ -297,6 +297,80 @@ function renderPostDetail(container, post) {
       window.location.href = '/index.html';
     });
   }
+}
+
+/**
+ * 우측 패널(좋아요/북마크/공유) 버튼을 카드 액션과 연결
+ * - 카드 구조를 바꾸지 않고도 "액션바" UX를 만들기 위한 프록시
+ */
+function bindSideActions(card, post) {
+  const sideLikeBtn = document.getElementById('sideLikeBtn');
+  const sideLikeCount = document.getElementById('sideLikeCount');
+  const sideBookmarkBtn = document.getElementById('sideBookmarkBtn');
+  const sideShareBtn = document.getElementById('sideShareBtn');
+
+  if (!sideLikeBtn || !sideBookmarkBtn || !sideShareBtn) return;
+  if (!card) return;
+
+  const likeBtn = card.querySelector('.like-btn');
+  const bookmarkBtn = card.querySelector('.post-bookmark-toggle');
+
+  const syncLikeState = () => {
+    if (!likeBtn || !sideLikeBtn) return;
+
+    const liked = likeBtn.getAttribute('data-liked') === '1';
+    const heartEl = sideLikeBtn.querySelector('.post-side-like-heart');
+    if (heartEl) heartEl.textContent = liked ? '♥' : '♡';
+
+    const countEl = likeBtn.querySelector('.like-count');
+    const countTxt = countEl ? String(countEl.textContent || '0') : '0';
+    if (sideLikeCount) sideLikeCount.textContent = countTxt;
+
+    sideLikeBtn.setAttribute('aria-pressed', liked ? 'true' : 'false');
+  };
+
+  // 최초 동기화
+  syncLikeState();
+
+  // 좋아요: 사이드 → 카드 클릭
+  sideLikeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!likeBtn) return;
+    likeBtn.click();
+    // toggle는 비동기일 수 있어 두 번 동기화
+    setTimeout(syncLikeState, 0);
+    setTimeout(syncLikeState, 350);
+  });
+
+  // 카드 좋아요 클릭 시에도 사이드 동기화
+  if (likeBtn) {
+    likeBtn.addEventListener('click', () => {
+      setTimeout(syncLikeState, 0);
+      setTimeout(syncLikeState, 350);
+    });
+  }
+
+  // 북마크: 사이드 → 카드 북마크(모달) 클릭
+  sideBookmarkBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!bookmarkBtn) return;
+    bookmarkBtn.click();
+  });
+
+  // 공유: 사이드 → 인스타 내보내기 모달 열기
+  sideShareBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    try {
+      ensureIgExportModal();
+      window.__igExportTargetPost = post;
+      const modalEl = document.getElementById('igExportModal');
+      const modal = new bootstrap.Modal(modalEl);
+      modal.show();
+    } catch (err) {
+      console.error(err);
+      alert('공유 모달을 열지 못했습니다. 콘솔을 확인해주세요.');
+    }
+  });
 }
 
 /**
@@ -329,26 +403,46 @@ function setupHashtagSearch(scopeEl) {
  * 관련 글 로드
  */
 async function loadRelatedPosts(currentPost) {
-  const box = document.getElementById('relatedPosts');
-  if (!box) return;
+  const highlightEl = document.getElementById('relatedHighlight');
+  const listEl = document.getElementById('relatedList');
+  const legacyBox = document.getElementById('relatedPosts');
 
-  box.innerHTML = '<p class="text-muted">관련 글을 불러오는 중입니다...</p>';
+  const hasSidebarTargets = !!(highlightEl && listEl);
+  const box = hasSidebarTargets ? null : legacyBox;
+
+  if (hasSidebarTargets) {
+    highlightEl.innerHTML = '<p class="text-muted small mb-0">관련 글을 불러오는 중입니다...</p>';
+    listEl.innerHTML = '';
+  } else {
+    if (!box) return;
+    box.innerHTML = '<p class="text-muted">관련 글을 불러오는 중입니다...</p>';
+  }
 
   try {
     const res = await fetch(
-      `/api/posts/${encodeURIComponent(currentPost.id)}/related?limit=6`
+      `/api/posts/${encodeURIComponent(currentPost.id)}/related?limit=12`
     );
 
     if (!res.ok) {
-      box.innerHTML =
-        '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+      if (hasSidebarTargets) {
+        highlightEl.innerHTML =
+          '<p class="text-muted small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+      } else if (box) {
+        box.innerHTML =
+          '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+      }
       return;
     }
 
     const data = await res.json();
     if (!data.ok) {
-      box.innerHTML =
-        '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+      if (hasSidebarTargets) {
+        highlightEl.innerHTML =
+          '<p class="text-muted small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+      } else if (box) {
+        box.innerHTML =
+          '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+      }
       return;
     }
 
@@ -357,16 +451,206 @@ async function loadRelatedPosts(currentPost) {
     );
 
     if (!posts.length) {
-      box.innerHTML =
-        '<p class="text-muted">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
+      if (hasSidebarTargets) {
+        highlightEl.innerHTML =
+          '<p class="text-muted small mb-0">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
+        listEl.innerHTML = '';
+      } else if (box) {
+        box.innerHTML =
+          '<p class="text-muted">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
+      }
       return;
     }
 
-    renderRelatedPosts(box, posts, currentPost.id);
+    if (hasSidebarTargets) {
+      renderRelatedSidebar(posts, currentPost);
+    } else if (box) {
+      renderRelatedPosts(box, posts, currentPost.id);
+    }
   } catch (e) {
     console.error(e);
-    box.innerHTML =
-      '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+    if (highlightEl && listEl) {
+      highlightEl.innerHTML =
+        '<p class="text-muted small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+      listEl.innerHTML = '';
+    } else if (legacyBox) {
+      legacyBox.innerHTML =
+        '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+    }
+  }
+}
+
+function toPlainText(html) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(String(html || ''), 'text/html');
+    return (doc.body && doc.body.textContent ? doc.body.textContent : '').trim();
+  } catch {
+    return String(html || '').replace(/<[^>]+>/g, '').trim();
+  }
+}
+
+function buildSnippetFromPost(post, maxLen = 70) {
+  if (!post) return '';
+
+  let raw = post.content || '';
+  try {
+    // extractContentWithFont는 postCard.js에서 제공(있으면 사용)
+    if (typeof extractContentWithFont === 'function') {
+      const extracted = extractContentWithFont(post);
+      if (extracted && extracted.cleanHtml) raw = extracted.cleanHtml;
+    }
+  } catch (e) {
+    console.warn('extractContentWithFont failed(ignored)', e);
+  }
+
+  const text = toPlainText(raw).replace(/\s+/g, ' ');
+  if (!text) return '';
+  return text.length > maxLen ? `${text.slice(0, maxLen)}…` : text;
+}
+
+function cacheAndNavigateToDetail(post) {
+  if (!post) return;
+  try {
+    const detailData = {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      created_at: post.created_at,
+      hashtags: post.hashtags,
+
+      author_id: post.author_id || null,
+      author_name: post.author_name || null,
+      author_nickname:
+        (post.author_nickname && String(post.author_nickname).trim()) ||
+        (post.author_name && String(post.author_name).trim()) ||
+        null,
+      author_email: post.author_email || null,
+
+      like_count: typeof post.like_count === 'number' ? post.like_count : 0,
+      user_liked: post.user_liked === 1 || post.user_liked === true ? 1 : 0,
+    };
+
+    localStorage.setItem('glsoop_lastPost', JSON.stringify(detailData));
+  } catch (e) {
+    console.warn('failed to cache detail', e);
+  }
+
+  window.location.href = `/html/post.html?postId=${encodeURIComponent(post.id)}`;
+}
+
+function renderRelatedSidebar(posts, currentPost) {
+  const highlightEl = document.getElementById('relatedHighlight');
+  const listEl = document.getElementById('relatedList');
+  const moreBtn = document.getElementById('relatedMoreBtn');
+
+  if (!highlightEl || !listEl) return;
+
+  // 내부 상태: "더 보기" 토글
+  const state = window.__glsoopRelatedState || {
+    expanded: false,
+    limit: 12,
+    posts: [],
+    currentId: null,
+  };
+
+  state.posts = posts;
+  state.currentId = currentPost?.id;
+  window.__glsoopRelatedState = state;
+
+  const render = (expanded) => {
+    const maxList = expanded ? 12 : 6;
+    const list = Array.isArray(state.posts) ? state.posts : [];
+    const top = list[0];
+    const rest = list.slice(1, 1 + maxList);
+
+    // highlight
+    if (top) {
+      const dateStr = typeof formatKoreanDateTime === 'function'
+        ? formatKoreanDateTime(top.created_at)
+        : '';
+      const snippet = buildSnippetFromPost(top, 90);
+      const likeCount = typeof top.like_count === 'number' ? top.like_count : 0;
+
+      highlightEl.innerHTML = `
+        <div class="post-related-h-title">${escapeHtml(top.title || '')}</div>
+        <p class="post-related-h-snippet">${escapeHtml(snippet)}</p>
+        <div class="post-related-h-meta">
+          ${dateStr ? `<span>${escapeHtml(dateStr)}</span>` : ''}
+          <span>♥ ${likeCount}</span>
+        </div>
+      `;
+      highlightEl.onclick = () => cacheAndNavigateToDetail(top);
+    }
+
+    // list
+    listEl.innerHTML = rest
+      .map((p) => {
+        const dateStr = typeof formatKoreanDateTime === 'function'
+          ? formatKoreanDateTime(p.created_at)
+          : '';
+        const snippet = buildSnippetFromPost(p, 70);
+        const likeCount = typeof p.like_count === 'number' ? p.like_count : 0;
+
+        return `
+          <div class="post-related-item" data-post-id="${escapeHtml(String(p.id))}">
+            <div class="post-related-item-title">${escapeHtml(p.title || '')}</div>
+            <p class="post-related-item-snippet">${escapeHtml(snippet)}</p>
+            <div class="post-related-item-meta">
+              ${dateStr ? `<span>${escapeHtml(dateStr)}</span>` : ''}
+              <span>♥ ${likeCount}</span>
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+
+    listEl.querySelectorAll('.post-related-item').forEach((el) => {
+      el.addEventListener('click', () => {
+        const pid = el.getAttribute('data-post-id');
+        const p = (state.posts || []).find((x) => String(x.id) === String(pid));
+        if (p) cacheAndNavigateToDetail(p);
+      });
+    });
+
+    // more btn
+    if (moreBtn) {
+      const shouldShow = list.length > 1 + 6;
+      moreBtn.style.display = shouldShow ? 'inline-block' : 'none';
+      moreBtn.textContent = expanded ? '접기' : '더 보기';
+      moreBtn.dataset.expanded = expanded ? '1' : '0';
+    }
+  };
+
+  render(state.expanded);
+
+  // 더 보기: 필요하면 더 많이 fetch 후 확장
+  if (moreBtn && !moreBtn.dataset.bound) {
+    moreBtn.dataset.bound = '1';
+    moreBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      state.expanded = !(moreBtn.dataset.expanded === '1');
+
+      if (state.expanded && (state.posts || []).length < 18 && currentPost?.id) {
+        try {
+          const res = await fetch(
+            `/api/posts/${encodeURIComponent(currentPost.id)}/related?limit=24`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.ok) {
+              state.posts = (data.posts || []).filter(
+                (p) => String(p.id) !== String(currentPost.id)
+              );
+            }
+          }
+        } catch (err) {
+          console.warn('related more fetch failed(ignored)', err);
+        }
+      }
+
+      render(state.expanded);
+    });
   }
 }
 
