@@ -26,8 +26,8 @@ body {
 body {
   font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
-  background-color: #f0f2e9; /* 옅은 종이색 + 그레이 + 그린 */
-  color: #222;
+  background-color: var(--gls-color-bg, #f0f2e9);
+  color: var(--gls-color-text, #222);
   padding-top: 110px; /* fixed navbar와 겹치지 않도록 위에 여백 */
 }
 
@@ -426,56 +426,6 @@ a:hover {
   max-height: none;
 }
 
-
-/* =========================
-7. 인스타 감성 종이질감 카드
-========================= */
-
-.quote-card {
-  /* 크기 & 비율 */
-  width: min(80vw, 360px);
-  aspect-ratio: 1 / 1;
-  margin: 0 auto;
-  padding: 1.4rem;
-
-  /* 배경: 종이 텍스처 + 연한 베이지 */
-  background-color: #fdf8ea;
-  background-image: url('/img/paper-texture.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-
-  border-radius: 1.5rem;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
-
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: stretch;
-  text-align: left;
-
-  /* 타이포 */
-  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
-  font-size: 1.6rem;
-  line-height: 1.9rem;
-  color: #5c5c5c;
-  word-break: keep-all;
-}
-
-/* 자식 요소들이 카드 폭 전체를 쓰도록 */
-.quote-card > * {
-  margin: 0.2rem 0;
-  width: 100%;
-}
-
-/* 모바일에서 조금 작게 */
-@media (max-width: 576px) {
-  .quote-card {
-    width: min(90vw, 320px);
-    padding: 1.2rem;
-    font-size: 1.4rem;
-  }
-}
 
 
 /* =========================
@@ -978,24 +928,6 @@ a:hover {
 }
 
 /* =========================
-   피드 / 미리보기 카드 폰트 스타일 변형
-   - quote-font-* 클래스는 JS에서 동적으로 붙임
-========================= */
-
-.quote-card.quote-font-serif {
-  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
-}
-
-.quote-card.quote-font-sans {
-  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
-    sans-serif;
-}
-
-.quote-card.quote-font-hand {
-  font-family: 'Nanum Pen Script', cursive;
-}
-
-/* =========================
    16. 글쓰기 페이지 전용 레이아웃
 ========================= */
 
@@ -1105,89 +1037,44 @@ a:hover {
 
 /* 에디터 + 피드 + 마이페이지에서 같은 정렬 클래스 사용 */
 .ql-editor .ql-align-center,
-.quote-card .ql-align-center,
 .paper-content .ql-align-center {
   text-align: center;
 }
 
 .ql-editor .ql-align-right,
-.quote-card .ql-align-right,
 .paper-content .ql-align-right {
   text-align: right;
 }
 
 .ql-editor .ql-align-justify,
-.quote-card .ql-align-justify,
 .paper-content .ql-align-justify {
   text-align: justify;
 }
 
 /* 왼쪽 정렬은 기본값(text-align: left) 사용 */
 
-/* 공통 글 카드 */
-.gls-post-card {
-  cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-}
-
-.gls-post-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-}
-
-/* 작성자 뱃지 */
-.gls-author-badge {
-  font-weight: 500;
-}
-
-/* 카드 안 인용 텍스트(미리보기) */
-.gls-post-quote {
-  margin-top: 0.25rem;
-}
-
-/* 폰트 스타일 */
-.gls-font-serif {
-  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
-}
-
-.gls-font-hand {
-  font-family: 'Nanum Pen Script', 'Noto Sans KR', cursive;
-}
-
-.gls-font-sans {
-  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-/* 관련 글 섹션 해시태그 */
-.gls-card-hashtags {
-  word-break: keep-all;
-}
-
-/* 상세 본문 */
-.gls-detail-card {
-  margin-bottom: 2rem;
-}
-
-.gls-detail-content {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-
 /* =========================
    인덱스 메인 피드 카드 폭 통일
    - post.html의 post-detail-card와 동일한 620px 중앙 정렬
 ========================= */
 
-.page-index #feedPosts .gls-post-card {
-  max-width: 620px;   /* post-detail-card와 맞추고 싶으면 이 숫자 동일하게 */
-  margin-left: auto;
-  margin-right: auto;
+.page-index #feedPosts {
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: var(--gls-space-5, 20px);
 }
 
+@media (min-width: 1400px) {
+  .page-index #feedPosts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 
+.page-index #feedPosts .gls-post-card,
 .page-index #feedPosts .card.gls-post-card {
-  max-width: 620px;   /* post-detail-card와 동일 값 */
+  max-width: var(--gls-content-width);
+  width: 100%;
   margin-left: auto;
   margin-right: auto;
 }

@@ -11,8 +11,9 @@
 ========================= */
 
 .card {
-  border: none;
+  border: 1px solid var(--gls-color-border, #dfe6df);
   border-radius: var(--gls-radius-card);
+  background: linear-gradient(145deg, var(--gls-color-surface), var(--gls-color-surface-subtle));
   box-shadow: var(--gls-shadow-card);
 }
 
@@ -27,6 +28,16 @@
   line-height: var(--gls-lh-normal, 1.55);
 }
 
+.section-heading {
+  font-size: clamp(1.1rem, 1.4vw, 1.4rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gls-color-text, #1f2a2b);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gls-space-2, 8px);
+}
+
 /* "내가 쓴 글" 카드 안의 내용 박스 */
 .post-content .border {
 border-radius: 0.8rem !important;
@@ -36,14 +47,21 @@ background-color: #fbfbff;
 /* 피드에서 글 내용 미리보기 (접힌 상태) */
 .feed-post-content {
   position: relative;
-  max-height: 26rem;
   padding: var(--gls-space-2, 8px) 0;
   overflow: hidden;
+  font-size: var(--gls-fs-md, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.7);
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  color: var(--gls-color-text, #1f2a2b);
 }
 
 /* 피드 내용 펼쳐진 상태 */
 .feed-post-content.expanded {
-max-height: none;
+  max-height: none;
+  -webkit-line-clamp: unset;
+  display: block;
 }
 
 /* =========================
@@ -51,49 +69,33 @@ max-height: none;
 ========================= */
 
 .quote-card {
-/* 크기 & 비율 */
-width: min(80vw, 360px);
-aspect-ratio: 1 / 1;
-margin: 0 auto;
-padding: 1.4rem;
-
-/* 배경: 종이 텍스처 + 연한 베이지 */
-background-color: #fdf8ea;
-background-image: url('/img/paper-texture.png');
-background-size: cover;
-background-position: center;
-background-repeat: no-repeat;
-
-border-radius: var(--gls-radius-paper, 1.5rem);
-box-shadow: var(--gls-shadow-card);
-
-display: flex;
-flex-direction: column;
-justify-content: center;
-align-items: stretch;
-text-align: left;
-
-/* 타이포 */
-font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
-font-size: 1.6rem;
-line-height: 1.9rem;
-color: #5c5c5c;
-word-break: keep-all;
+  width: 100%;
+  margin: 0;
+  padding: var(--gls-space-3, 12px) var(--gls-space-4, 16px);
+  background-color: var(--gls-color-surface-subtle, #f7f9f4);
+  border: 1px solid rgba(30, 42, 51, 0.08);
+  border-radius: var(--gls-radius-md, 14px);
+  box-shadow: none;
+  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: var(--gls-fs-md, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.7);
+  color: var(--gls-color-text, #1f2a2b);
+  word-break: keep-all;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+  gap: var(--gls-space-2, 8px);
 }
 
-/* 자식 요소들이 카드 폭 전체를 쓰도록 */
 .quote-card > * {
-margin: 0.2rem 0;
-width: 100%;
+  margin: 0;
 }
 
-/* 모바일에서 조금 작게 */
 @media (max-width: 576px) {
-.quote-card {
-    width: min(90vw, 320px);
-    padding: 1.2rem;
-    font-size: 1.4rem;
-}
+  .quote-card {
+    padding: var(--gls-space-4, 16px);
+  }
 }
 
 /* =========================
@@ -243,20 +245,56 @@ text-align: justify;
 ========================= */
 
 .gls-post-card {
+  position: relative;
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-  border-radius: var(--gls-radius-lg, 18px);
-  box-shadow: var(--gls-shadow-sm, 0 6px 18px rgba(0, 0, 0, 0.06));
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  border-radius: var(--gls-radius-card, 18px);
+  border: 1px solid var(--gls-color-border, #dfe6df);
+  box-shadow: var(--gls-shadow-card, 0 6px 18px rgba(0, 0, 0, 0.06));
+  overflow: hidden;
+  background: linear-gradient(140deg, var(--gls-color-surface), var(--gls-color-surface-strong));
 }
 
-.gls-post-card:hover {
-transform: translateY(-2px);
-box-shadow: var(--gls-shadow-card-hover);
+@media (hover: hover) and (pointer: fine) {
+  .gls-post-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--gls-shadow-card-hover);
+    border-color: rgba(46, 139, 87, 0.18);
+  }
+}
+
+.gls-post-card .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-5, 20px);
+  padding: var(--gls-space-6, 24px);
+}
+
+@media (max-width: 420px) {
+  .gls-post-card .card-body {
+    padding: var(--gls-space-5, 20px);
+  }
+}
+
+.gls-post-card .card-body > .d-flex.align-items-center.justify-content-between {
+  width: 100%;
+  gap: var(--gls-space-3, 12px);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 768px) {
+  .gls-post-card .card-body > .d-flex.align-items-center.justify-content-between {
+    align-items: center;
+  }
 }
 
 /* 작성자 뱃지 */
 .gls-author-badge {
-font-weight: 500;
+  font-weight: 600;
+  background: var(--gls-color-surface-strong, #f0f3ec);
+  color: var(--gls-color-muted, #5c655e);
+  border-color: var(--gls-color-border, #dfe6df);
 }
 
 /* 카드 안 인용 텍스트(미리보기) */
@@ -294,20 +332,23 @@ word-break: break-word;
 }
 
 
-/* 글 상세 카드 + 관련 글 카드 폭 통일 */
-.post-detail-card,
-.related-card.gls-post-card {
-  max-width: var(--gls-content-width, 620px); /* 원하는 카드 폭은 base.css 토큰으로 */
-  margin-left: auto;     /* 가운데 정렬 */
-  margin-right: auto;
+.related-card.gls-post-card .card-body {
+  padding: var(--gls-space-5, 20px);
+  gap: var(--gls-space-3, 12px);
 }
 
-/* 작은 화면(모바일)에서는 가로 100% 꽉 채우게 */
-@media (max-width: 576px) {
-  .post-detail-card,
-  .related-card.gls-post-card {
-    max-width: 100%;
-  }
+.related-card.gls-post-card .card-title {
+  font-size: clamp(1.02rem, 1.4vw, 1.12rem);
+  margin-bottom: var(--gls-space-1, 4px);
+}
+
+.related-card.gls-post-card .post-bottom-meta,
+.related-card.gls-post-card .post-hashtags {
+  display: none !important;
+}
+
+.related-card.gls-post-card .feed-post-content {
+  -webkit-line-clamp: 4;
 }
 
 /* 마이페이지에서는 하트 버튼은 "표시용"만 쓰고 클릭은 막기 */
@@ -321,12 +362,6 @@ word-break: break-word;
     margin-bottom: 1.8rem;  /* 필요하면 1.5~2rem 사이에서 숫자만 조절 */
   }
 
-
-  .page-index .gls-post-card {
-    max-width: var(--gls-content-width, 620px);
-    margin-left: auto;
-    margin-right: auto;
-  }
 
 /* =========================
    Post Card: Bookmark / Actions (공통 컴포넌트)
@@ -342,28 +377,6 @@ word-break: break-word;
    - postCard.js에서 생성되는 카테고리 라벨/뱃지 스타일
    - index 뿐 아니라 post/author/mypage/category 등에서도 동일하게 보이게
 ========================= */
-
-.post-category-row {
-  margin-bottom: 6px;
-}
-
-.post-category-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  line-height: 1.2;
-  border-radius: 6px;
-  padding: 3px 8px;
-  border: 1px solid #dfe6df;
-  background: #f7faf7;
-  color: #24513a;
-  font-weight: 600;
-}
-
-.post-bottom-meta .gls-card-hashtags {
-  margin-top: 6px;
-}
 
 .gls-category-badge.gls-category-poem {
   background: #f3ecff;
@@ -382,48 +395,6 @@ word-break: break-word;
   color: #9c5700;
   border-color: #ffe1b8;
 }
-
-.post-top-actions {
-  margin-left: auto;
-}
-
-.post-bookmark-toggle {
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: #ffffff;
-  color: var(--author-accent, #2f2f2f);
-  border-radius: 999px;
-  padding: 6px 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-.post-bookmark-toggle .post-bookmark-icon {
-  width: 18px;
-  height: 18px;
-}
-
-/* 데스크탑 hover */
-@media (hover: hover) and (pointer: fine) {
-  .post-bookmark-toggle:hover,
-  .post-bookmark-toggle:focus-visible {
-    background: #f4f7ff;
-    border-color: rgba(0, 0, 0, 0.14);
-    color: var(--author-accent, #1d3a5c);
-  }
-}
-
-/* 터치 기기에서는 hover가 '붙는' 현상 방지 */
-@media (hover: none) {
-  .post-bookmark-toggle:hover {
-    background: #ffffff;
-    border-color: rgba(0, 0, 0, 0.08);
-    color: var(--author-accent, #2f2f2f);
-  }
-}
-
 
 /* =========================
    Bookmark Select Modal (공통)
@@ -461,32 +432,32 @@ word-break: break-word;
 ========================= */
 
 /* 카드 바디: 너무 빡빡/너무 넓은 패딩을 기기별로 균형 */
-.gls-post-card .card-body {
-  padding: var(--gls-space-5, 20px);
-}
 
 @media (max-width: 420px) {
   .gls-post-card .card-body {
-    padding: var(--gls-space-4, 16px);
+    padding: var(--gls-space-5, 20px);
   }
 }
 
 /* 제목: 한 줄/두 줄에서 읽기 좋게 */
 .gls-post-card .card-title {
-  font-size: clamp(1.05rem, 1.1vw, 1.18rem);
-  line-height: var(--gls-lh-tight, 1.25);
+  font-size: clamp(1.18rem, 2vw, 1.28rem);
+  line-height: 1.3;
   letter-spacing: -0.01em;
   margin-bottom: var(--gls-space-2, 8px);
+  font-weight: 750;
 }
 
 /* 본문(카드 내 글): 줄간격/여백 정리 */
 .gls-post-card .feed-post-content {
   margin-top: var(--gls-space-2, 8px);
+  font-size: var(--gls-fs-md, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.7);
 }
 
 .gls-post-card .quote-card {
   font-size: var(--gls-fs-md, 1rem);
-  line-height: var(--gls-lh-relaxed, 1.75);
+  line-height: var(--gls-lh-relaxed, 1.7);
 }
 
 /* 메타(작성자/좋아요 등): 작게, 하지만 가독성 있게 */
@@ -504,4 +475,122 @@ word-break: break-word;
   font-size: var(--gls-fs-xs, 0.8125rem);
   padding: 0.32em 0.6em;
   gap: 0.35em;
+}
+
+.gls-post-card .text-muted {
+  color: var(--gls-color-muted, #5c655e) !important;
+}
+
+body.mode-text .gls-post-card,
+body.mode-mono .gls-post-card,
+body.mode-dark .gls-post-card {
+  box-shadow: var(--gls-shadow-card);
+  border-color: var(--gls-color-border);
+}
+
+.post-top-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gls-space-2, 8px);
+  margin-left: auto;
+}
+
+.post-bookmark-toggle,
+.gls-post-card .like-btn {
+  border: 1px solid var(--gls-color-border, #dfe6df);
+  background: var(--gls-color-surface-subtle, #f7f9f4);
+  color: var(--gls-color-text, #1f2a2b);
+  border-radius: var(--gls-radius-pill, 999px);
+  padding: 8px 12px;
+  min-height: 38px;
+  line-height: 1;
+  box-shadow: none;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.gls-post-card .like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.gls-post-card .like-btn .like-heart {
+  font-size: 1.05rem;
+  color: var(--gls-color-primary, #2e8b57);
+  transform: none;
+}
+
+.gls-post-card .like-btn.liked {
+  background: var(--gls-color-primary-fade, rgba(46, 139, 87, 0.08));
+  border-color: rgba(46, 139, 87, 0.25);
+}
+
+.post-bookmark-toggle .post-bookmark-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--gls-color-primary, #2e8b57);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .post-bookmark-toggle:hover,
+  .post-bookmark-toggle:focus-visible,
+  .gls-post-card .like-btn:hover,
+  .gls-post-card .like-btn:focus-visible {
+    background: var(--gls-color-highlight, #e7f2e8);
+    border-color: rgba(46, 139, 87, 0.25);
+    color: var(--gls-color-primary-strong, #226b45);
+    text-decoration: none;
+  }
+}
+
+@media (hover: none) {
+  .post-bookmark-toggle:hover,
+  .gls-post-card .like-btn:hover {
+    background: var(--gls-color-surface-subtle, #f7f9f4);
+    border-color: var(--gls-color-border, #dfe6df);
+  }
+}
+
+.gls-post-card .card-title + .post-content {
+  margin-top: 2px;
+}
+
+.gls-post-card .feed-post-content .quote-card {
+  background: var(--gls-color-surface, #ffffff);
+  border: 1px solid var(--gls-color-border, #dfe6df);
+  border-radius: var(--gls-radius-md, 14px);
+  box-shadow: none;
+}
+
+.gls-post-card .post-bottom-meta {
+  border-top: 1px solid var(--gls-color-border, #dfe6df);
+  padding-top: var(--gls-space-3, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-2, 8px);
+}
+
+.post-category-row {
+  margin-bottom: var(--gls-space-2, 8px);
+}
+
+.post-category-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.2;
+  border-radius: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--gls-color-border, #dfe6df);
+  background: var(--gls-color-highlight, #e7f2e8);
+  color: #2c5a44;
+  font-weight: 600;
+}
+
+.post-bottom-meta .gls-card-hashtags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
 }
