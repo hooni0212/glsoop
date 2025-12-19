@@ -252,10 +252,6 @@ text-align: justify;
   border: 1px solid var(--gls-color-border, #dfe6df);
   box-shadow: var(--gls-shadow-card, 0 6px 18px rgba(0, 0, 0, 0.06));
   overflow: hidden;
-  max-width: var(--gls-content-width, 680px);
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
   background: linear-gradient(140deg, var(--gls-color-surface), var(--gls-color-surface-strong));
 }
 
@@ -383,13 +379,6 @@ word-break: break-word;
     margin-bottom: 1.8rem;  /* 필요하면 1.5~2rem 사이에서 숫자만 조절 */
   }
 
-
-  .page-index .gls-post-card {
-    max-width: var(--gls-content-width, 720px);
-    margin-left: auto;
-    margin-right: auto;
-    width: 100%;
-  }
 
 /* =========================
    Post Card: Bookmark / Actions (공통 컴포넌트)

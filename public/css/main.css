@@ -427,42 +427,6 @@ a:hover {
 }
 
 
-/* =========================
-7. 인스타 감성 종이질감 카드
-========================= */
-
-.quote-card {
-  width: 100%;
-  margin: 0;
-  padding: var(--gls-space-4, 16px) var(--gls-space-5, 20px);
-  background-color: var(--gls-color-surface, #ffffff);
-  border: 1px solid rgba(30, 42, 51, 0.08);
-  border-radius: var(--gls-radius-md, 14px);
-  box-shadow: none;
-  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: var(--gls-fs-md, 1rem);
-  line-height: var(--gls-lh-relaxed, 1.7);
-  color: var(--gls-color-text, #1f2a2b);
-  word-break: keep-all;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
-  overflow: hidden;
-  gap: var(--gls-space-2, 8px);
-}
-
-/* 자식 요소들이 카드 폭 전체를 쓰도록 */
-.quote-card > * {
-  margin: 0;
-}
-
-/* 모바일에서 조금 작게 */
-@media (max-width: 576px) {
-  .quote-card {
-    padding: var(--gls-space-4, 16px);
-  }
-}
-
 
 /* =========================
    8. 메인 피드 좋아요 버튼 (.like-*)
@@ -964,24 +928,6 @@ a:hover {
 }
 
 /* =========================
-   피드 / 미리보기 카드 폰트 스타일 변형
-   - quote-font-* 클래스는 JS에서 동적으로 붙임
-========================= */
-
-.quote-card.quote-font-serif {
-  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
-}
-
-.quote-card.quote-font-sans {
-  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
-    sans-serif;
-}
-
-.quote-card.quote-font-hand {
-  font-family: 'Nanum Pen Script', cursive;
-}
-
-/* =========================
    16. 글쓰기 페이지 전용 레이아웃
 ========================= */
 
@@ -1091,19 +1037,16 @@ a:hover {
 
 /* 에디터 + 피드 + 마이페이지에서 같은 정렬 클래스 사용 */
 .ql-editor .ql-align-center,
-.quote-card .ql-align-center,
 .paper-content .ql-align-center {
   text-align: center;
 }
 
 .ql-editor .ql-align-right,
-.quote-card .ql-align-right,
 .paper-content .ql-align-right {
   text-align: right;
 }
 
 .ql-editor .ql-align-justify,
-.quote-card .ql-align-justify,
 .paper-content .ql-align-justify {
   text-align: justify;
 }
@@ -1120,11 +1063,6 @@ a:hover {
   grid-template-columns: 1fr;
   justify-items: center;
   gap: var(--gls-space-5, 20px);
-}
-
-.page-index .container {
-  width: min(var(--gls-inner-width, 1200px), 100%);
-  padding-inline: var(--gls-page-margin, 32px);
 }
 
 @media (min-width: 1400px) {
