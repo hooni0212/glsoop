@@ -112,8 +112,10 @@ body.page-post #postDetail .quote-card {
   font-size: var(--gls-fs-md, 1rem);
   line-height: var(--gls-lh-relaxed, 1.75);
 
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(30, 42, 51, 0.08);
+  background: var(--gls-glass-bg-strong);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  border: 1px solid var(--gls-glass-border);
   border-radius: var(--gls-radius-md, 14px);
   box-shadow: none;
   -webkit-line-clamp: unset;
@@ -150,8 +152,8 @@ body.page-post .post-actions-grid {
 body.page-post .post-side-btn {
   width: 100%;
   border-radius: 12px;
-  border: 1px solid rgba(30, 42, 51, 0.14);
-  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid var(--gls-glass-border);
+  background: var(--gls-glass-bg);
   padding: 10px 10px;
   font-size: 0.9rem;
   font-weight: 700;
@@ -160,7 +162,8 @@ body.page-post .post-side-btn {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
   transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
 }
@@ -171,7 +174,7 @@ body.page-post .post-side-btn:active {
 
 @media (hover: hover) and (pointer: fine) {
   body.page-post .post-side-btn:hover {
-    background: rgba(255, 255, 255, 0.72);
+    background: var(--gls-glass-bg-strong);
     border-color: rgba(46, 139, 87, 0.18);
   }
 }
@@ -247,7 +250,7 @@ body.page-post .post-related-more:hover {
 /* 하이라이트 카드 */
 body.page-post .post-related-highlight {
   border-radius: 16px;
-  border: 1px solid rgba(30, 42, 51, 0.08);
+  border: 1px solid var(--gls-glass-border);
   background: rgba(255, 255, 255, 0.62);
   padding: 14px 14px;
   margin-bottom: var(--gls-space-3, 12px);

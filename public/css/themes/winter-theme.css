@@ -110,8 +110,12 @@ body.winter-theme .custom-navbar .navbar-brand {
 
 /* 4. 히어로 카드(메인 중앙 카드) 겨울 스타일 */
 body.winter-theme .hero-card {
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--gls-glass-bg-strong);
+  border: 1px solid var(--gls-glass-border);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   box-shadow: 0 18px 45px rgba(45, 83, 132, 0.22);
+  border-radius: var(--gls-radius-hero, 24px);
 }
 
 /* CTA 버튼은 겨울 녹청색 느낌 */

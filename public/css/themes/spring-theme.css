@@ -171,10 +171,14 @@ body.spring-theme .hero-section {
 
 /* 히어로 카드: 따뜻한 종이 느낌 */
 body.spring-theme .hero-card {
-  background-color: rgba(255, 250, 252, 0.96);
+  background: var(--gls-glass-bg-strong);
+  border: 1px solid var(--gls-glass-border);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   box-shadow: 0 18px 42px rgba(255, 157, 184, 0.25);
   border-radius: 1.4rem;
 }
+
 
 body.spring-theme .hero-title {
   color: #C7527A; /* 메인 타이틀 분홍 */

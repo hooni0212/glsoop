@@ -36,6 +36,17 @@
   --gls-color-overlay: rgba(255, 255, 255, 0.7);
   --gls-color-overlay-strong: rgba(255, 255, 255, 0.85);
 
+  /* Glass (global) */
+  --gls-glass-bg-subtle: rgba(255, 255, 255, 0.45);
+  --gls-glass-bg: rgba(255, 255, 255, 0.58);
+  --gls-glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --gls-glass-border: rgba(30, 42, 51, 0.14);
+  --gls-glass-blur: 12px;
+  --gls-glass-shadow: 0 12px 30px rgba(19, 34, 30, 0.10);
+  --gls-glass-shadow-hover: 0 18px 42px rgba(19, 34, 30, 0.14);
+  --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
+
+
   /* Radius */
   --gls-radius-sm: 10px;
   --gls-radius-md: 14px;
@@ -85,7 +96,7 @@
   --gls-focus-offset: 3px;
 
   --gls-control-radius: 12px;
-  --gls-control-bg: rgba(255, 255, 255, 0.96);
+  --gls-control-bg: var(--gls-glass-bg-strong);
   --gls-control-border: rgba(30, 42, 51, 0.18);
   --gls-control-border-focus: rgba(46, 139, 87, 0.55);
   --gls-control-shadow-focus: 0 0 0 3px rgba(46, 139, 87, 0.18);
@@ -93,6 +104,14 @@
 }
 
 body.mode-dark {
+  /* Glass (dark) */
+  --gls-glass-bg-subtle: rgba(15, 22, 19, 0.48);
+  --gls-glass-bg: rgba(15, 22, 19, 0.62);
+  --gls-glass-bg-strong: rgba(15, 22, 19, 0.76);
+  --gls-glass-border: rgba(232, 239, 232, 0.14);
+  --gls-glass-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --gls-glass-shadow-hover: 0 18px 42px rgba(0, 0, 0, 0.55);
+  --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
   --gls-color-bg: #0f1613;
   --gls-color-surface: #18211c;
   --gls-color-surface-subtle: #111813;
@@ -181,11 +200,22 @@ body.mode-text {
 }
 
 .gls-surface-panel {
-  background: var(--gls-color-overlay-strong, rgba(255, 255, 255, 0.85));
-  border: 1px solid rgba(30, 42, 51, 0.05);
+  background: var(--gls-glass-bg-strong);
+  border: 1px solid var(--gls-glass-border);
   border-radius: var(--gls-radius-lg, 18px);
-  box-shadow: var(--gls-shadow-sm, 0 8px 20px rgba(19, 34, 30, 0.06));
-  backdrop-filter: blur(8px);
+  box-shadow: var(--gls-glass-shadow);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  position: relative;
+}
+
+.gls-surface-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-glass-inset);
+  pointer-events: none;
 }
 
 .gls-surface-veil {
@@ -198,8 +228,8 @@ body.mode-text {
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.8),
-    rgba(255, 255, 255, 0.7)
+    rgba(255, 255, 255, 0.18),
+    rgba(255, 255, 255, 0.06)
   );
   border-radius: inherit;
   pointer-events: none;
@@ -344,9 +374,9 @@ select:focus-visible {
   position: fixed;
   right: 20px;
   bottom: 20px;
-  background: var(--gls-color-surface-strong);
+  background: var(--gls-glass-bg);
   color: var(--gls-color-text);
-  border: 1px solid var(--gls-color-border);
+  border: 1px solid var(--gls-glass-border);
   border-radius: var(--gls-radius-pill);
   box-shadow: var(--gls-shadow-sm);
   padding: 6px 10px;
@@ -354,7 +384,8 @@ select:focus-visible {
   align-items: center;
   gap: 6px;
   z-index: 12;
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
 }
 
 .gls-view-toggle-btn {
@@ -483,10 +514,13 @@ select:focus-visible {
 .hero-card {
   max-width: 680px;
   margin: 0 auto;
-  background-color: #ffffff;
+  background: var(--gls-glass-bg-strong);
+  border: 1px solid var(--gls-glass-border);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   border-radius: var(--gls-radius-hero);
   padding: 2.3rem 2rem;
-  box-shadow: 0 18px 45px rgba(46, 139, 87, 0.08);
+  box-shadow: var(--gls-glass-shadow);
 }
 
 /* =========================
