@@ -29,7 +29,7 @@ body.page-post .post-container {
 
 body.page-post #postDetail .gls-post-card {
   margin-bottom: var(--gls-space-6, 24px);
-  max-width: var(--gls-content-width, 680px);
+  max-width: var(--gls-content-width);
   margin-left: auto;
   margin-right: auto;
   width: 100%;

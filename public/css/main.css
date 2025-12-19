@@ -1073,7 +1073,7 @@ a:hover {
 
 .page-index #feedPosts .gls-post-card,
 .page-index #feedPosts .card.gls-post-card {
-  max-width: var(--gls-content-width, 680px);
+  max-width: var(--gls-content-width);
   width: 100%;
   margin-left: auto;
   margin-right: auto;
