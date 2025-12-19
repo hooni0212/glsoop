@@ -16,6 +16,10 @@
   --gls-content-width: 680px;
   --gls-content-max: 1040px;
   --gls-content-read: 760px;
+  --gls-page-margin: 32px;
+  --gls-gutter: 16px;
+  --gls-inner-width: 1200px;
+  --gls-fullbleed-width: 1400px;
 
   /* Color palette */
   --gls-color-bg: #e9ece5;
@@ -131,9 +135,81 @@ body.mode-text {
   background-image: none;
 }
 
+/* Responsive tokens */
+@media (max-width: 992px) {
+  :root {
+    --gls-page-margin: 22px;
+    --gls-inner-width: 1080px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --gls-page-margin: 14px;
+    --gls-gutter: 12px;
+    --gls-content-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --gls-page-margin: 12px;
+  }
+}
+
 /* =========================
    0. 전체 레이아웃 기본
 ========================= */
+
+/* 공통 컨테이너 유틸: 홈/상세 공통 래퍼 */
+.gls-container {
+  width: min(var(--gls-inner-width), 100%);
+  margin-inline: auto;
+  padding-inline: var(--gls-page-margin);
+}
+
+.gls-content {
+  max-width: var(--gls-content-width);
+  width: 100%;
+  margin-inline: auto;
+}
+
+.gls-fullbleed {
+  width: min(var(--gls-fullbleed-width), 100%);
+  margin-inline: auto;
+  padding-inline: var(--gls-page-margin);
+}
+
+.gls-surface-panel {
+  background: var(--gls-color-overlay-strong, rgba(255, 255, 255, 0.85));
+  border: 1px solid rgba(30, 42, 51, 0.05);
+  border-radius: var(--gls-radius-lg, 18px);
+  box-shadow: var(--gls-shadow-sm, 0 8px 20px rgba(19, 34, 30, 0.06));
+  backdrop-filter: blur(8px);
+}
+
+.gls-surface-veil {
+  position: relative;
+}
+
+.gls-surface-veil::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.8),
+    rgba(255, 255, 255, 0.7)
+  );
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.gls-surface-veil > * {
+  position: relative;
+  z-index: 1;
+}
 
 html,
 body {
@@ -195,6 +271,17 @@ textarea:focus-visible,
 select:focus-visible {
   outline: var(--gls-focus-outline);
   outline-offset: var(--gls-focus-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* =========================

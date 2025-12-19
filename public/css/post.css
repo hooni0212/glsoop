@@ -6,13 +6,13 @@
 
 /* 페이지 기본 여백 (Bootstrap container + row 위에서 살짝 정리) */
 body.page-post .post-container {
-  max-width: var(--gls-content-max, 980px);
+  width: min(var(--gls-inner-width, 1080px), 100%);
   margin: 0 auto;
-  padding: var(--gls-space-6, 24px) var(--gls-space-4, 16px);
+  padding: var(--gls-space-6, 24px) var(--gls-page-margin, 32px);
   position: relative;
   border-radius: var(--gls-radius-lg, 18px);
   background: var(--gls-color-overlay-strong, rgba(255, 255, 255, 0.85));
-  box-shadow: 0 18px 50px rgba(12, 28, 26, 0.08);
+  box-shadow: var(--gls-shadow-surface, 0 18px 50px rgba(12, 28, 26, 0.08));
   overflow: hidden;
   backdrop-filter: blur(8px);
 }
