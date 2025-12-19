@@ -9,6 +9,11 @@ body.page-post .post-container {
   max-width: var(--gls-content-max, 980px);
   margin: 0 auto;
   padding: var(--gls-space-6, 24px) var(--gls-space-4, 16px);
+  position: relative;
+  border-radius: var(--gls-radius-lg, 18px);
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 18px 50px rgba(12, 28, 26, 0.08);
+  overflow: hidden;
 }
 
 @media (max-width: 576px) {
@@ -23,7 +28,7 @@ body.page-post .post-container {
 
 body.page-post #postDetail .gls-post-card {
   margin-bottom: var(--gls-space-6, 24px);
-  max-width: var(--gls-content-width, 720px);
+  max-width: var(--gls-content-width, 680px);
   margin-left: auto;
   margin-right: auto;
   width: 100%;
@@ -61,6 +66,8 @@ body.page-post #postDetail .quote-card {
   border: 1px solid var(--gls-color-border, #dfe6df);
   border-radius: var(--gls-radius-md, 14px);
   box-shadow: none;
+  -webkit-line-clamp: unset;
+  overflow: visible;
 }
 
 body.page-post #postDetail .quote-card > * {
@@ -69,6 +76,11 @@ body.page-post #postDetail .quote-card > * {
 
 body.page-post #postDetail .quote-card > *:last-child {
   margin-bottom: 0;
+}
+
+body.page-post .post-container > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* 액션(좋아요/북마크/공유) 영역 숨쉴 공간 */
@@ -114,6 +126,11 @@ body.page-post #relatedPosts .related-card.gls-post-card {
   margin: 0;
 }
 
+body.page-post #relatedPosts .related-card .card-body {
+  padding: var(--gls-space-5, 20px);
+  gap: var(--gls-space-3, 12px);
+}
+
 /* 관련 글 제목은 조금 더 컴팩트하게 */
 body.page-post #relatedPosts .card-title {
   font-size: var(--gls-fs-md, 1.0625rem);
@@ -141,11 +158,11 @@ body.page-post #relatedPosts .quote-card {
   box-shadow: none;
 
   /* 프리뷰 높이 폭주 방지 */
-  max-height: 12rem;
+  max-height: 10rem;
   overflow: hidden;
   position: relative;
   display: -webkit-box;
-  -webkit-line-clamp: 6;
+  -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
 }
 

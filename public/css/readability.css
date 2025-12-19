@@ -37,7 +37,7 @@
 /* 문단 간격 */
 .page-post #postDetail p,
 .page-post #postDetail li {
-  margin: 0 0 var(--gls-space-4, 16px);
+  margin: 0 0 var(--gls-space-5, 20px);
 }
 
 .page-post #postDetail h1,

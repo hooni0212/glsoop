@@ -62,49 +62,33 @@ max-height: none;
 ========================= */
 
 .quote-card {
-/* 크기 & 비율 */
-width: min(80vw, 360px);
-aspect-ratio: 1 / 1;
-margin: 0 auto;
-padding: 1.4rem;
-
-/* 배경: 종이 텍스처 + 연한 베이지 */
-background-color: #fdf8ea;
-background-image: url('/img/paper-texture.png');
-background-size: cover;
-background-position: center;
-background-repeat: no-repeat;
-
-border-radius: var(--gls-radius-paper, 1.5rem);
-box-shadow: var(--gls-shadow-card);
-
-display: flex;
-flex-direction: column;
-justify-content: center;
-align-items: stretch;
-text-align: left;
-
-/* 타이포 */
-font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
-font-size: 1.6rem;
-line-height: 1.9rem;
-color: #5c5c5c;
-word-break: keep-all;
+  width: 100%;
+  margin: 0;
+  padding: var(--gls-space-4, 16px) var(--gls-space-5, 20px);
+  background-color: var(--gls-color-surface, #ffffff);
+  border: 1px solid rgba(30, 42, 51, 0.08);
+  border-radius: var(--gls-radius-md, 14px);
+  box-shadow: none;
+  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: var(--gls-fs-md, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.7);
+  color: var(--gls-color-text, #1f2a2b);
+  word-break: keep-all;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+  gap: var(--gls-space-2, 8px);
 }
 
-/* 자식 요소들이 카드 폭 전체를 쓰도록 */
 .quote-card > * {
-margin: 0.2rem 0;
-width: 100%;
+  margin: 0;
 }
 
-/* 모바일에서 조금 작게 */
 @media (max-width: 576px) {
-.quote-card {
-    width: min(90vw, 320px);
-    padding: 1.2rem;
-    font-size: 1.4rem;
-}
+  .quote-card {
+    padding: var(--gls-space-4, 16px);
+  }
 }
 
 /* =========================
@@ -261,6 +245,9 @@ text-align: justify;
   border: 1px solid var(--gls-color-border, #dfe6df);
   box-shadow: var(--gls-shadow-card, 0 6px 18px rgba(0, 0, 0, 0.06));
   overflow: hidden;
+  max-width: var(--gls-content-width, 680px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -274,7 +261,7 @@ text-align: justify;
 .gls-post-card .card-body {
   display: flex;
   flex-direction: column;
-  gap: var(--gls-space-3, 12px);
+  gap: var(--gls-space-4, 16px);
   padding: var(--gls-space-6, 24px);
 }
 
@@ -451,26 +438,29 @@ word-break: break-word;
 
 /* 제목: 한 줄/두 줄에서 읽기 좋게 */
 .gls-post-card .card-title {
-  font-size: clamp(1.05rem, 1.1vw, 1.18rem);
-  line-height: var(--gls-lh-tight, 1.25);
+  font-size: clamp(1.15rem, 1.2vw, 1.28rem);
+  line-height: 1.35;
   letter-spacing: -0.01em;
   margin-bottom: var(--gls-space-1, 4px);
+  font-weight: 700;
 }
 
 /* 본문(카드 내 글): 줄간격/여백 정리 */
 .gls-post-card .feed-post-content {
   margin-top: var(--gls-space-2, 8px);
+  font-size: var(--gls-fs-md, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.7);
 }
 
 .gls-post-card .quote-card {
   font-size: var(--gls-fs-md, 1rem);
-  line-height: var(--gls-lh-relaxed, 1.75);
+  line-height: var(--gls-lh-relaxed, 1.7);
 }
 
 /* 메타(작성자/좋아요 등): 작게, 하지만 가독성 있게 */
 .gls-post-card .text-muted.small,
 .gls-post-card .post-bottom-meta {
-  font-size: var(--gls-fs-xs, 0.8125rem);
+  font-size: 0.82rem;
 }
 
 .gls-post-card .post-bottom-meta {

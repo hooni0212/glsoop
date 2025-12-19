@@ -432,48 +432,34 @@ a:hover {
 ========================= */
 
 .quote-card {
-  /* 크기 & 비율 */
-  width: min(80vw, 360px);
-  aspect-ratio: 1 / 1;
-  margin: 0 auto;
-  padding: 1.4rem;
-
-  /* 배경: 종이 텍스처 + 연한 베이지 */
-  background-color: #fdf8ea;
-  background-image: url('/img/paper-texture.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-
-  border-radius: 1.5rem;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
-
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: stretch;
-  text-align: left;
-
-  /* 타이포 */
-  font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
-  font-size: 1.6rem;
-  line-height: 1.9rem;
-  color: #5c5c5c;
+  width: 100%;
+  margin: 0;
+  padding: var(--gls-space-4, 16px) var(--gls-space-5, 20px);
+  background-color: var(--gls-color-surface, #ffffff);
+  border: 1px solid rgba(30, 42, 51, 0.08);
+  border-radius: var(--gls-radius-md, 14px);
+  box-shadow: none;
+  font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: var(--gls-fs-md, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.7);
+  color: var(--gls-color-text, #1f2a2b);
   word-break: keep-all;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+  gap: var(--gls-space-2, 8px);
 }
 
 /* 자식 요소들이 카드 폭 전체를 쓰도록 */
 .quote-card > * {
-  margin: 0.2rem 0;
-  width: 100%;
+  margin: 0;
 }
 
 /* 모바일에서 조금 작게 */
 @media (max-width: 576px) {
   .quote-card {
-    width: min(90vw, 320px);
-    padding: 1.2rem;
-    font-size: 1.4rem;
+    padding: var(--gls-space-4, 16px);
   }
 }
 
@@ -1179,15 +1165,23 @@ a:hover {
    - post.html의 post-detail-card와 동일한 620px 중앙 정렬
 ========================= */
 
-.page-index #feedPosts .gls-post-card {
-  max-width: 620px;   /* post-detail-card와 맞추고 싶으면 이 숫자 동일하게 */
-  margin-left: auto;
-  margin-right: auto;
+.page-index #feedPosts {
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: var(--gls-space-5, 20px);
 }
 
+@media (min-width: 1400px) {
+  .page-index #feedPosts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 
+.page-index #feedPosts .gls-post-card,
 .page-index #feedPosts .card.gls-post-card {
-  max-width: 620px;   /* post-detail-card와 동일 값 */
+  max-width: var(--gls-content-width, 680px);
+  width: 100%;
   margin-left: auto;
   margin-right: auto;
 }

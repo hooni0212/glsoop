@@ -13,7 +13,7 @@
 
 :root {
   /* Layout widths */
-  --gls-content-width: 720px;
+  --gls-content-width: 680px;
   --gls-content-max: 1040px;
   --gls-content-read: 760px;
 
@@ -62,7 +62,7 @@
   /* Line heights */
   --gls-lh-tight: 1.28;
   --gls-lh-normal: 1.6;
-  --gls-lh-relaxed: 1.78;
+  --gls-lh-relaxed: 1.7;
 
   /* Spacing scale */
   --gls-space-1: 4px;
@@ -83,6 +83,7 @@
   --gls-control-border: rgba(30, 42, 51, 0.18);
   --gls-control-border-focus: rgba(46, 139, 87, 0.55);
   --gls-control-shadow-focus: 0 0 0 3px rgba(46, 139, 87, 0.18);
+  --gls-surface-overlay: rgba(255, 255, 255, 0.6);
 }
 
 /* =========================
