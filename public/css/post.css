@@ -8,7 +8,7 @@
 body.page-post .post-container {
   max-width: var(--gls-content-max, 980px);
   margin: 0 auto;
-  padding: var(--gls-space-5, 20px) var(--gls-space-4, 16px);
+  padding: var(--gls-space-6, 24px) var(--gls-space-4, 16px);
 }
 
 @media (max-width: 576px) {
@@ -23,6 +23,10 @@ body.page-post .post-container {
 
 body.page-post #postDetail .gls-post-card {
   margin-bottom: var(--gls-space-6, 24px);
+  max-width: var(--gls-content-width, 720px);
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
 }
 
 /* 타이틀을 상세 페이지에서만 조금 더 키움 */
@@ -44,13 +48,19 @@ body.page-post #postDetail .quote-card {
   max-width: 100%;
   aspect-ratio: auto;
   margin: 0;
-  padding: var(--gls-space-5, 20px);
+  padding: var(--gls-space-6, 24px);
   display: block;
   text-align: left;
 
   /* 타이포(피드에는 영향 없음) */
   font-size: var(--gls-fs-lg, 1.125rem);
   line-height: var(--gls-lh-relaxed, 1.75);
+
+  background: var(--gls-color-surface, #ffffff);
+  background-image: none;
+  border: 1px solid var(--gls-color-border, #dfe6df);
+  border-radius: var(--gls-radius-md, 14px);
+  box-shadow: none;
 }
 
 body.page-post #postDetail .quote-card > * {
@@ -71,9 +81,9 @@ body.page-post #postDetail .post-actions {
 ========================= */
 
 body.page-post .related-section {
-  margin-top: var(--gls-space-6, 24px);
-  padding-top: var(--gls-space-5, 20px);
-  border-top: 1px solid rgba(30, 42, 51, 0.12);
+  margin-top: var(--gls-space-7, 32px);
+  padding-top: var(--gls-space-6, 24px);
+  border-top: 1px solid var(--gls-color-border, rgba(30, 42, 51, 0.12));
 }
 
 body.page-post .related-section h3,
@@ -87,21 +97,14 @@ body.page-post .related-section h4 {
 /* 관련 글은 그리드로: 한 줄 리스트보다 시선 이동이 덜 피곤함 */
 body.page-post #relatedPosts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--gls-space-4, 16px);
   align-items: stretch;
 }
 
-@media (max-width: 860px) {
+@media (min-width: 900px) {
   body.page-post #relatedPosts {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ultra-wide에서만 3열 허용(정보 과밀 방지용) */
-@media (min-width: 1400px) {
-  body.page-post #relatedPosts {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -131,10 +134,19 @@ body.page-post #relatedPosts .quote-card {
   font-size: var(--gls-fs-base, 1rem);
   line-height: var(--gls-lh-relaxed, 1.7);
 
+  background: var(--gls-color-surface, #ffffff);
+  background-image: none;
+  border: 1px solid var(--gls-color-border, #dfe6df);
+  border-radius: var(--gls-radius-md, 14px);
+  box-shadow: none;
+
   /* 프리뷰 높이 폭주 방지 */
-  max-height: 11rem;
+  max-height: 12rem;
   overflow: hidden;
   position: relative;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
 }
 
 body.page-post #relatedPosts .quote-card::after {
@@ -144,7 +156,11 @@ body.page-post #relatedPosts .quote-card::after {
   right: 0;
   bottom: 0;
   height: 3.5rem;
-  background: linear-gradient(to bottom, rgba(253, 248, 234, 0), rgba(253, 248, 234, 1));
+  background: linear-gradient(
+    to bottom,
+    rgba(247, 249, 244, 0),
+    var(--gls-color-surface-subtle, #f7f9f4)
+  );
   pointer-events: none;
 }
 

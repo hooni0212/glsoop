@@ -12,38 +12,57 @@
 ========================= */
 
 :root {
-  /* 글 본문/카드 기본 폭 (post/detail/related/home feed 공통) */
-  --gls-content-width: 620px;
-  --gls-content-max: 980px;
-  --gls-content-read: 720px;
+  /* Layout widths */
+  --gls-content-width: 720px;
+  --gls-content-max: 1040px;
+  --gls-content-read: 760px;
+
+  /* Color palette */
+  --gls-color-bg: #e9ece5;
+  --gls-color-surface: #ffffff;
+  --gls-color-surface-subtle: #f7f9f4;
+  --gls-color-surface-strong: #f0f3ec;
+  --gls-color-text: #1f2a2b;
+  --gls-color-muted: #5c655e;
+  --gls-color-border: #d5decf;
+  --gls-color-primary: #2e8b57;
+  --gls-color-primary-strong: #226b45;
+  --gls-color-primary-fade: rgba(46, 139, 87, 0.08);
+  --gls-color-highlight: #e7f2e8;
 
   /* Radius */
+  --gls-radius-sm: 10px;
+  --gls-radius-md: 14px;
+  --gls-radius-lg: 18px;
   --gls-radius-pill: 999px;
-  --gls-radius-card: 1rem;
-  --gls-radius-hero: 1.3rem;
+  --gls-radius-card: var(--gls-radius-lg);
+  --gls-radius-hero: 20px;
   --gls-btn-radius: 12px;
 
   /* Shadows */
-  --gls-shadow-card: 0 10px 24px rgba(0, 0, 0, 0.05);
-  --gls-shadow-card-hover: 0 6px 18px rgba(0, 0, 0, 0.08);
-  --gls-shadow-surface: 0 10px 24px rgba(0, 0, 0, 0.04);
-  --gls-shadow-accent: 0 10px 24px rgba(46, 139, 87, 0.18);
+  --gls-shadow-sm: 0 8px 20px rgba(19, 34, 30, 0.06);
+  --gls-shadow-md: 0 12px 30px rgba(19, 34, 30, 0.08);
+  --gls-shadow-hover: 0 16px 32px rgba(19, 34, 30, 0.12);
+  --gls-shadow-card: var(--gls-shadow-sm);
+  --gls-shadow-card-hover: var(--gls-shadow-hover);
+  --gls-shadow-surface: var(--gls-shadow-md);
+  --gls-shadow-accent: 0 12px 30px rgba(46, 139, 87, 0.2);
 
   /* Buttons */
   --gls-btn-font-weight: 600;
-  --gls-btn-transition: all 0.15s ease;
+  --gls-btn-transition: all 0.2s ease;
 
   /* Type scale */
   --gls-fs-xs: 0.8125rem; /* 13px */
-  --gls-fs-sm: 0.875rem; /* 14px */
+  --gls-fs-sm: 0.9rem; /* 14-15px */
   --gls-fs-md: 1rem; /* 16px */
   --gls-fs-lg: 1.125rem; /* 18px */
-  --gls-fs-xl: 1.25rem; /* 20px */
+  --gls-fs-xl: 1.375rem; /* 22px */
 
   /* Line heights */
-  --gls-lh-tight: 1.25;
-  --gls-lh-normal: 1.55;
-  --gls-lh-relaxed: 1.75;
+  --gls-lh-tight: 1.28;
+  --gls-lh-normal: 1.6;
+  --gls-lh-relaxed: 1.78;
 
   /* Spacing scale */
   --gls-space-1: 4px;
@@ -52,10 +71,12 @@
   --gls-space-4: 16px;
   --gls-space-5: 20px;
   --gls-space-6: 24px;
+  --gls-space-7: 32px;
+  --gls-space-8: 40px;
 
   /* Focus + controls */
   --gls-focus-outline: 2px solid rgba(46, 139, 87, 0.35);
-  --gls-focus-offset: 2px;
+  --gls-focus-offset: 3px;
 
   --gls-control-radius: 12px;
   --gls-control-bg: rgba(255, 255, 255, 0.96);
@@ -89,16 +110,28 @@ html {
 body {
   font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
     sans-serif;
-  background-color: #f0f2e9; /* 옅은 종이색 + 그레이 + 그린 */
-  color: #222;
+  background-color: var(--gls-color-bg);
+  color: var(--gls-color-text);
   padding-top: 110px; /* fixed navbar와 겹치지 않도록 위에 여백 */
+  line-height: var(--gls-lh-normal);
 }
 
 a {
   text-decoration: none;
+  color: inherit;
+  text-decoration-color: rgba(47, 107, 69, 0.4);
 }
 a:hover {
   text-decoration: underline;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: var(--gls-focus-outline);
+  outline-offset: var(--gls-focus-offset);
 }
 
 /* =========================
