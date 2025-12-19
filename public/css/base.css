@@ -37,10 +37,10 @@
   --gls-color-overlay-strong: rgba(255, 255, 255, 0.85);
 
   /* Glass (global) */
-  --gls-glass-bg-subtle: rgba(255, 255, 255, 0.24);
-  --gls-glass-bg: rgba(255, 255, 255, 0.36);
-  --gls-glass-bg-strong: rgba(255, 255, 255, 0.50);
-  --gls-glass-border: rgba(30, 42, 51, 0.14);
+  --gls-glass-bg-subtle: rgba(255, 255, 255, 0.18);
+  --gls-glass-bg: rgba(255, 255, 255, 0.28);
+  --gls-glass-bg-strong: rgba(255, 255, 255, 0.42);
+  --gls-glass-border: rgba(30, 42, 51, 0.12);
   --gls-glass-blur: 12px;
   --gls-glass-shadow: 0 12px 30px rgba(19, 34, 30, 0.10);
   --gls-glass-shadow-hover: 0 18px 42px rgba(19, 34, 30, 0.14);

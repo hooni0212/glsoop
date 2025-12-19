@@ -14,6 +14,23 @@
 body.page-post .page-section.post-page {
   padding: var(--gls-space-7, 32px) 0 var(--gls-space-8, 40px);
 }
+/* =========================
+   Glass 투명도 튜닝(상세 페이지)
+   - 외곽 패널(post-panel) : 더 투명
+   - 본문 카드(quote-card) : 패널보다 덜 투명(하지만 "하얗게 뜨지" 않게)
+   - 계층: 배경 → post-panel(가장 투명) → quote-card(조금 더 불투명)
+========================= */
+
+body.page-post {
+  --gls-post-panel-bg: rgba(255, 255, 255, 0.16);
+  --gls-post-content-bg: rgba(255, 255, 255, 0.22);
+}
+
+body.mode-dark.page-post {
+  --gls-post-panel-bg: rgba(15, 22, 19, 0.32);
+  --gls-post-content-bg: rgba(15, 22, 19, 0.46);
+}
+
 
 /* =========================
    0) 2컬럼 레이아웃(데스크탑)
@@ -66,6 +83,20 @@ body.page-post .post-panel {
   padding: var(--gls-space-6, 24px);
 }
 
+/* post-panel 자체(외곽) 유리면: 더 투명하게 */
+body.page-post .post-panel.gls-surface-panel {
+  background: var(--gls-post-panel-bg);
+}
+
+/* post-panel의 "veil" 하이라이트도 줄여서 하얗게 뜨는 느낌을 방지 */
+body.page-post .post-panel.gls-surface-veil::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03));
+}
+
+body.mode-dark.page-post .post-panel.gls-surface-veil::before {
+  background: linear-gradient(180deg, rgba(15, 22, 19, 0.24), rgba(15, 22, 19, 0.12));
+}
+
 @media (max-width: 576px) {
   body.page-post .post-panel {
     padding: var(--gls-space-5, 20px);
@@ -112,7 +143,7 @@ body.page-post #postDetail .quote-card {
   font-size: var(--gls-fs-md, 1rem);
   line-height: var(--gls-lh-relaxed, 1.75);
 
-  background: var(--gls-glass-bg);
+  background: var(--gls-post-content-bg);
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   border: 1px solid var(--gls-glass-border);
@@ -153,7 +184,7 @@ body.page-post .post-side-btn {
   width: 100%;
   border-radius: 12px;
   border: 1px solid var(--gls-glass-border);
-  background: var(--gls-glass-bg);
+  background: var(--gls-post-content-bg);
   padding: 10px 10px;
   font-size: 0.9rem;
   font-weight: 700;
@@ -303,7 +334,7 @@ body.page-post .post-related-item {
   padding: 10px 10px;
   border-radius: 12px;
   border: 1px solid rgba(30, 42, 51, 0.07);
-  background: var(--gls-glass-bg);
+  background: var(--gls-post-content-bg);
   cursor: pointer;
   transition: background 0.14s ease, border-color 0.14s ease;
 }
