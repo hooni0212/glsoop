@@ -23,7 +23,7 @@ body.page-post .page-section.post-page {
 
 body.page-post {
   --gls-post-panel-bg: rgba(255, 255, 255, 0.16);
-  --gls-post-content-bg: rgba(255, 255, 255, 0.22);
+  --gls-post-content-bg: rgba(255, 255, 255, 0.00);
 }
 
 body.mode-dark.page-post {
@@ -130,7 +130,7 @@ body.page-post #postDetail .card-title {
   margin-bottom: 0;
 }
 
-/* 본문 가독성: 과한 테두리/박스 느낌을 줄이고, "종이"에 가까운 면으로 */
+/* 레이어 최소화: 본문은 별도 박스(quote-card) 대신 post-panel 위에 직접 올리기 */
 body.page-post #postDetail .quote-card {
   width: 100%;
   max-width: 100%;
@@ -143,11 +143,11 @@ body.page-post #postDetail .quote-card {
   font-size: var(--gls-fs-md, 1rem);
   line-height: var(--gls-lh-relaxed, 1.75);
 
-  background: var(--gls-post-content-bg);
-  backdrop-filter: blur(var(--gls-glass-blur));
-  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
-  border: 1px solid var(--gls-glass-border);
-  border-radius: var(--gls-radius-md, 14px);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0;
+  border-radius: 0;
   box-shadow: none;
   -webkit-line-clamp: unset;
   overflow: visible;
