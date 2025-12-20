@@ -186,23 +186,21 @@ function buildStandardPostCardHTML(post, options = {}) {
             <div class="quote-card ${quoteFontClass}">
               ${safeHtml}
             </div>
-          </div>
 
-          ${
-            showMoreButton
-              ? `
-          <!-- 더보기 버튼 (필요할 때만 노출) -->
-          <div class="more-toggle-wrap">
+            ${
+              showMoreButton
+                ? `
+            <!-- 더보기 버튼 (내용이 넘칠 때만 노출) : 카드 내부 오버레이 -->
             <button
-              class="btn btn-link p-0 more-toggle"
+              class="btn btn-link p-0 more-toggle gls-more-overlay"
               type="button"
               style="display:none;"
             >
               더보기...
-            </button>
-          </div>`
-              : ''
-          }
+            </button>`
+                : ''
+            }
+          </div>
         </div>
 
         <!-- 해시태그 버튼들 -->
@@ -375,7 +373,7 @@ function setupCardInteractions(cardEl, post) {
       feedContent.classList.toggle('has-overflow', isOverflow);
 
       if (isOverflow) {
-        moreBtn.style.display = 'inline-block';
+        moreBtn.style.display = 'inline-flex';
         moreBtn.textContent = '더보기...';
       } else {
         moreBtn.style.display = 'none';
