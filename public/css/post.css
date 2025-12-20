@@ -58,6 +58,12 @@ body.page-post .post-layout {
   body.page-post .post-main {
     max-width: 860px;
   }
+
+  /* 글이 짧아도 '여백을 남겨' 상세 페이지 비율/리듬 유지 */
+  body.page-post .post-panel {
+    min-height: clamp(560px, 72vh, 760px);
+  }
+
 }
 
 /* 우측 패널: 스티키 */
@@ -176,7 +182,8 @@ body.page-post .post-actions-panel {
 
 body.page-post .post-actions-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Like button has icon+count+label; give it a touch more room to avoid wrapping */
+  grid-template-columns: 1.15fr 1fr 1fr;
   gap: var(--gls-space-2, 8px);
 }
 
@@ -193,6 +200,10 @@ body.page-post .post-side-btn {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  /* Prevent Korean words from breaking into multiple lines (e.g. "좋아\n요") */
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
