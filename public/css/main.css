@@ -413,18 +413,52 @@ a:hover {
   background-color: #fbfbff;
 }
 
-/* 피드에서 글 내용 미리보기 (접힌 상태) */
+/* 피드에서 글 내용 미리보기 (접힌 상태)
+   - 카드 높이 편차(짧은 글/긴 글)를 줄이기 위해 '줄수 기반'으로 클램프
+   - 더보기(overflow) 로직(postCard.js)의 기준은 clientHeight이므로, max-height는 유지
+*/
 .feed-post-content {
   position: relative;
-  max-height: 26rem;
-  padding: 0.6rem 0;
+  padding: 0.45rem 0;
   overflow: hidden;
+
+  /* 기본: 모바일 5줄 */
+  --gls-feed-preview-lines: 5;
+  max-height: calc(
+    (var(--gls-feed-preview-lines) * 1em * var(--gls-lh-relaxed, 1.7))
+    + 0.9rem
+  );
+}
+
+/* 데스크탑: 4줄(조금 더 타이트하게) */
+@media (min-width: 768px) {
+  .feed-post-content {
+    --gls-feed-preview-lines: 4;
+  }
 }
 
 /* 피드 내용 펼쳐진 상태 */
 .feed-post-content.expanded {
   max-height: none;
+  overflow: visible;
 }
+
+/* 클립 상태일 때만 하단 페이드(잘림을 자연스럽게) */
+.feed-post-content:not(.expanded)::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3.1rem;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    var(--gls-color-overlay-strong, rgba(255, 255, 255, 0.85))
+  );
+  pointer-events: none;
+}
+
+
 
 
 
@@ -1055,30 +1089,33 @@ a:hover {
 /* 왼쪽 정렬은 기본값(text-align: left) 사용 */
 
 /* =========================
-   인덱스 메인 피드 카드 폭 통일
-   - post.html의 post-detail-card와 동일한 620px 중앙 정렬
+   Index feed layout (card ratio & rhythm)
+   - 카드가 '가로로 퍼져 보이는' 느낌을 줄이기 위해, 피드 컨테이너 폭을 먼저 제어
+   - 2열 그리드는 일단 제거(리듬 우선)하고, 카드 폭/간격을 안정적으로 고정
 ========================= */
 
+body.page-index {
+  /* index 전용 피드 폭 (카드가 너무 넓어지지 않도록 상한을 둠) */
+  --gls-index-feed-width: clamp(680px, 92vw, 860px);
+}
+
 .page-index #feedPosts {
+  width: min(100%, var(--gls-index-feed-width));
+  margin-inline: auto;
+
   display: grid;
   grid-template-columns: 1fr;
-  justify-items: center;
   gap: var(--gls-space-5, 20px);
 }
 
-@media (min-width: 1400px) {
-  .page-index #feedPosts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
+/* 카드 자체는 컨테이너 폭(=피드 폭)을 그대로 사용 */
 .page-index #feedPosts .gls-post-card,
 .page-index #feedPosts .card.gls-post-card {
-  max-width: var(--gls-content-width);
   width: 100%;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: none;
+  margin: 0;
 }
+
 
 .feed-tabs {
   gap: 8px;

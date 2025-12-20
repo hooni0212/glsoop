@@ -484,6 +484,13 @@ word-break: break-word;
   letter-spacing: -0.01em;
   margin-bottom: var(--gls-space-2, 8px);
   font-weight: 750;
+
+  /* 제목 길이에 따른 카드 높이 편차를 줄이기(최대 2줄) */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: calc(1.3em * 2);
 }
 
 /* 본문(카드 내 글): 줄간격/여백 정리 */
@@ -815,16 +822,6 @@ body.mode-dark .gls-post-card {
 
 /* =============================================================
    Index 카드 비율(리듬) 보정
-   - 스케일 업(B) 이후 카드 높이 편차를 줄이고, '세로 스크롤' 흐름을 더 단단하게
-   - 모바일은 기존 5줄 유지, 데스크탑에서만 4줄로 살짝 줄임
+   - 본문 미리보기 클램프/페이드는 main.css(.feed-post-content)에서 관리
 ============================================================= */
 
-@media (min-width: 768px) {
-  body.page-index .feed-post-content {
-    -webkit-line-clamp: 4;
-  }
-
-  body.page-index .quote-card {
-    -webkit-line-clamp: 4;
-  }
-}
