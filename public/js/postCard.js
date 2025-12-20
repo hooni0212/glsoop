@@ -190,7 +190,7 @@ function buildStandardPostCardHTML(post, options = {}) {
             showMoreButton
               ? `
           <!-- 더보기 버튼 (필요할 때만 노출) -->
-          <div class="mt-1 text-end">
+          <div class="more-toggle-wrap">
             <button
               class="btn btn-link p-0 more-toggle"
               type="button"
@@ -367,7 +367,12 @@ function setupCardInteractions(cardEl, post) {
   if (feedContent && moreBtn) {
     // 처음 렌더링 직후 높이 비교해서 넘치면 버튼 노출
     const checkOverflow = () => {
-      if (feedContent.scrollHeight > feedContent.clientHeight + 4) {
+      const isOverflow = feedContent.scrollHeight > feedContent.clientHeight + 4;
+
+      // ✅ 짧은 글에서는 페이드(잘림)가 보이지 않게
+      feedContent.classList.toggle('has-overflow', isOverflow);
+
+      if (isOverflow) {
         moreBtn.style.display = 'inline-block';
         moreBtn.textContent = '더보기...';
       } else {

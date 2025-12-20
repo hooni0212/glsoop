@@ -422,6 +422,9 @@ a:hover {
   padding: 0.65rem 0;
   overflow: hidden;
 
+  /* 피드 페이드(잘림) 톤: 기본은 '유리톤(반투명)' */
+  --gls-feed-fade-to: rgba(255, 255, 255, 0.28);
+
   /* 기본: 모바일 7줄 (세로 가독성 우선) */
   --gls-feed-preview-lines: 7;
 
@@ -432,6 +435,18 @@ a:hover {
   );
 
   max-height: var(--gls-feed-preview-height);
+}
+
+/* 페이드 스타일 프리셋(비교/테스트용)
+   - 기본: gls-fade-glass (반투명)
+   - 옵션: gls-fade-white (흰색)
+*/
+.feed-post-content.gls-fade-glass {
+  --gls-feed-fade-to: rgba(255, 255, 255, 0.28);
+}
+
+.feed-post-content.gls-fade-white {
+  --gls-feed-fade-to: rgba(255, 255, 255, 0.62);
 }
 
 /* 데스크탑: 6줄 */
@@ -447,8 +462,11 @@ a:hover {
   overflow: visible;
 }
 
-/* 클립 상태일 때만 하단 페이드(잘림을 자연스럽게) */
-.feed-post-content:not(.expanded)::after {
+/* 클립 + 내용이 실제로 넘칠 때만 하단 페이드(잘림을 자연스럽게)
+   - JS(postCard.js)에서 overflow 감지 후 .has-overflow를 붙여줌
+   - 짧은 글에서는 페이드가 생기지 않도록 함
+*/
+.feed-post-content.has-overflow:not(.expanded)::after {
   content: '';
   position: absolute;
   inset-inline: 0;
@@ -457,9 +475,40 @@ a:hover {
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0),
-    var(--gls-color-overlay-strong, rgba(255, 255, 255, 0.85))
+    var(--gls-feed-fade-to)
   );
   pointer-events: none;
+}
+
+/* 더보기 버튼(피드): 페이드 위에 살짝 올려 '아래 더 있다' 힌트 강화 */
+.page-index .more-toggle-wrap,
+.page-ui-kit .more-toggle-wrap {
+  text-align: center;
+  margin-top: -2.2rem;
+  position: relative;
+  z-index: 2;
+}
+
+.page-index .more-toggle,
+.page-ui-kit .more-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--gls-radius-pill, 999px);
+  background: var(--gls-ghost-bg, rgba(255, 255, 255, 0.10));
+  border: 1px solid var(--gls-ghost-border, rgba(30, 42, 51, 0.14));
+  color: rgba(30, 42, 51, 0.84);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.page-index .more-toggle:hover,
+.page-ui-kit .more-toggle:hover {
+  background: var(--gls-ghost-bg-hover, rgba(255, 255, 255, 0.16));
+  border-color: var(--gls-ghost-border-hover, rgba(46, 139, 87, 0.26));
 }
 
 
@@ -487,6 +536,21 @@ a:hover {
   flex-direction: column;
 }
 
+
+/* Index 카드 본문은 '상세 페이지'처럼 보이게:
+   - 안쪽 박스(quote-card)를 투명/무테로 만들어 "카드 안의 카드" 느낌 제거
+   - 패딩/라인하이트를 상세 페이지 톤에 맞춤
+*/
+.page-index #feedPosts .feed-post-content .quote-card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 0;
+  padding: var(--gls-space-5, 20px);
+  line-height: var(--gls-lh-relaxed, 1.75);
+}
 /* =========================
    8. 메인 피드 좋아요 버튼 (.like-*)
    - 메인 피드 JS(index.js)에서 사용하는 클래스들
@@ -1121,7 +1185,7 @@ a:hover {
 
 body.page-index {
   /* index 전용 피드 폭 (카드가 너무 넓어지지 않도록 상한을 둠) */
-  --gls-index-feed-width: clamp(520px, 70vw, 620px);
+  --gls-index-feed-width: clamp(460px, 60vw, 760px);
 }
 
 .page-index #feedPosts {
