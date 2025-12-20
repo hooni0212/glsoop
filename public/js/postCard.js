@@ -144,9 +144,11 @@ function buildStandardPostCardHTML(post, options = {}) {
   const extraClass = cardExtraClass ? ` ${cardExtraClass}` : '';
 
   // feed-post-content에 expanded 붙일지 여부
+  // 피드 미리보기 페이드 기본값은 glass로 고정(white는 ui-kit 비교/테스트용)
+  // - expanded 상태에서는 페이드가 보이지 않지만, 클래스는 유지해도 무방
   const feedContentClass = contentExpanded
-    ? 'feed-post-content expanded'
-    : 'feed-post-content';
+    ? 'feed-post-content gls-fade-glass expanded'
+    : 'feed-post-content gls-fade-glass';
 
   return `
     <div class="card mb-3 gls-post-card${extraClass}" data-post-id="${post.id}">
