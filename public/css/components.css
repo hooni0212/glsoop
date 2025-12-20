@@ -11,9 +11,9 @@
 ========================= */
 
 .card {
-  border: 1px solid var(--gls-glass-border);
+  border: 1px solid var(--gls-ghost-border);
   border-radius: var(--gls-radius-card);
-  background: var(--gls-glass-bg-strong);
+  background: var(--gls-ghost-bg-hover);
   box-shadow: var(--gls-glass-shadow);
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
@@ -53,7 +53,7 @@
 /* "내가 쓴 글" 카드 안의 내용 박스 */
 .post-content .border {
 border-radius: 0.8rem !important;
-background: var(--gls-glass-bg);
+background: var(--gls-ghost-bg);
 }
 
 /* 피드에서 글 내용 미리보기 (접힌 상태) */
@@ -84,10 +84,10 @@ background: var(--gls-glass-bg);
   width: 100%;
   margin: 0;
   padding: var(--gls-space-3, 12px) var(--gls-space-4, 16px);
-  background: var(--gls-glass-bg);
+  background: var(--gls-ghost-bg);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(30, 42, 51, 0.10);
+  border: 1px solid var(--gls-ghost-border);
   border-radius: var(--gls-radius-md, 14px);
   box-shadow: none;
   font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -172,8 +172,8 @@ cursor: default;
 ========================= */
 
 #userInfo {
-  background: var(--gls-glass-bg-strong);
-  border: 1px solid var(--gls-glass-border);
+  background: var(--gls-ghost-bg-hover);
+  border: 1px solid var(--gls-ghost-border);
   border-radius: 1rem;
   padding: 1.2rem 1.5rem;
   box-shadow: var(--gls-glass-shadow);
@@ -272,7 +272,7 @@ text-align: justify;
 ========================= */
 
 .gls-post-card {
-  border: 1px solid var(--gls-glass-border);
+  border: 1px solid var(--gls-ghost-border);
   border-radius: var(--gls-radius-card);
   background: var(--gls-glass-bg-subtle);
   box-shadow: var(--gls-glass-shadow);
@@ -287,8 +287,8 @@ text-align: justify;
   .gls-post-card:hover {
   transform: translateY(-1px);
   box-shadow: var(--gls-glass-shadow-hover);
-  background: var(--gls-glass-bg);
-  border-color: rgba(46, 139, 87, 0.22);
+  background: var(--gls-ghost-bg);
+  border-color: var(--gls-ghost-border-hover);
 }
 }
 
@@ -296,7 +296,7 @@ text-align: justify;
   display: flex;
   flex-direction: column;
   gap: var(--gls-space-5, 20px);
-  padding: var(--gls-space-6, 24px);
+  padding: clamp(22px, 2.1vw, 28px);
 }
 
 @media (max-width: 420px) {
@@ -323,12 +323,13 @@ text-align: justify;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.86rem;
+  padding: 6px 12px;
+  /* pill(알약) 느낌을 줄이고, 둥근 직사각형 톤으로 통일 */
+  border-radius: var(--gls-chip-radius);
+  font-size: 0.92rem;
   font-weight: 700;
-  background: var(--gls-glass-bg);
-  border: 1px solid rgba(30, 42, 51, 0.10);
+  background: var(--gls-ghost-bg);
+  border: 1px solid var(--gls-ghost-border);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -509,9 +510,9 @@ word-break: break-word;
 
 /* 작성자 뱃지: 과하게 튀지 않게 크기/패딩 정리 */
 .gls-post-card .gls-author-badge {
-  font-size: var(--gls-fs-xs, 0.8125rem);
-  padding: 0.32em 0.6em;
-  gap: 0.35em;
+  font-size: 0.88rem;
+  padding: 0.42em 0.72em;
+  gap: 0.42em;
 }
 
 .gls-post-card .text-muted {
@@ -535,12 +536,12 @@ body.mode-dark .gls-post-card {
 
 .post-bookmark-toggle,
 .gls-post-card .like-btn {
-  border: 1px solid var(--gls-glass-border);
-  background: var(--gls-glass-bg);
+  border: 1px solid var(--gls-ghost-border);
+  background: var(--gls-ghost-bg);
   color: var(--gls-color-text, #1f2a2b);
-  border-radius: 12px;
-  padding: 8px 12px;
-  min-height: 38px;
+  border-radius: var(--gls-btn-radius);
+  padding: 10px 14px;
+  min-height: 42px;
   line-height: 1;
   box-shadow: var(--gls-glass-inset);
   backdrop-filter: blur(10px);
@@ -562,7 +563,7 @@ body.mode-dark .gls-post-card {
 }
 
 .gls-post-card .like-btn.liked {
-  background: rgba(238, 252, 245, 0.70);
+  background: rgba(238, 252, 245, 0.62);
   border-color: rgba(46, 139, 87, 0.30);
 }
 
@@ -577,8 +578,8 @@ body.mode-dark .gls-post-card {
   .post-bookmark-toggle:focus-visible,
   .gls-post-card .like-btn:hover,
   .gls-post-card .like-btn:focus-visible {
-    background: var(--gls-glass-bg-strong);
-    border-color: rgba(46, 139, 87, 0.22);
+    background: var(--gls-ghost-bg-hover);
+    border-color: var(--gls-ghost-border-hover);
     color: var(--gls-color-text, #1f2a2b);
     text-decoration: none;
   }
@@ -596,9 +597,9 @@ body.mode-dark .gls-post-card {
 }
 
 .gls-post-card .feed-post-content .quote-card {
-  background: var(--gls-glass-bg);
-  border: 1px solid rgba(30, 42, 51, 0.10);
-  border-radius: 12px;
+  background: var(--gls-ghost-bg);
+  border: 1px solid var(--gls-ghost-border);
+  border-radius: var(--gls-btn-radius);
   box-shadow: none;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -616,18 +617,183 @@ body.mode-dark .gls-post-card {
   margin-bottom: var(--gls-space-2, 8px);
 }
 
-.post-category-label {
+/* =============================================================
+   Buttons & Chips (UI Kit)
+   - A: Glass Fill    -> .gls-btn-primary
+   - B: Glass Outline -> .gls-btn-secondary
+   - 공통: 각지지만 매끄러운 12px 라운드
+   - 목적: 해시태그/카테고리/필터/네비/작은 액션 버튼을 "한 언어"로 통일
+   - 주의: Bootstrap btn/badge를 완전히 대체해도 되게 우선순위↑
+============================================================= */
+
+.gls-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--gls-ghost-border);
+  background: var(--gls-glass-bg-subtle);
+  color: var(--gls-color-text);
+  border-radius: var(--gls-btn-radius);
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  line-height: 1.2;
-  border-radius: 8px;
-  padding: 4px 10px;
-  border: 1px solid var(--gls-color-border, #dfe6df);
-  background: var(--gls-color-highlight, #e7f2e8);
-  color: #2c5a44;
-  font-weight: 600;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  box-shadow: var(--gls-glass-inset);
+  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.gls-btn:focus-visible {
+  outline: var(--gls-focus-outline);
+  outline-offset: var(--gls-focus-offset);
+}
+
+.gls-btn:disabled,
+.gls-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-btn:hover,
+  .gls-btn:focus-visible {
+    transform: translateY(-1px);
+    background: var(--gls-ghost-bg);
+    border-color: rgba(46, 139, 87, 0.18);
+    box-shadow: var(--gls-glass-inset),
+      0 10px 24px rgba(19, 34, 30, 0.10);
+  }
+}
+
+.gls-btn:active {
+  transform: translateY(0);
+}
+
+/* A: Glass Fill (조금 더 면이 생기게) */
+.gls-btn-primary {
+  background: var(--gls-ghost-bg);
+  border-color: rgba(30, 42, 51, 0.14);
+}
+
+/* B: Glass Outline (더 가볍고 투명) */
+.gls-btn-secondary {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(30, 42, 51, 0.14);
+}
+
+/* 토글형 버튼 상태(좋아요/필터 등) */
+.gls-btn[aria-pressed="true"],
+.gls-btn.is-active {
+  border-color: rgba(46, 139, 87, 0.30);
+  background: rgba(238, 252, 245, 0.52);
+}
+
+/* Size variants */
+.gls-btn-sm {
+  padding: 8px 10px;
+  font-size: 0.92rem;
+  border-radius: var(--gls-btn-radius);
+}
+
+.gls-btn-xs {
+  padding: 6px 8px;
+  font-size: 0.82rem;
+  border-radius: var(--gls-btn-radius);
+}
+
+/* Chip: 버튼보다 더 컴팩트한 태그/카테고리용 */
+.gls-chip {
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  /* 태그/카테고리는 '칩'이지만 pill(999px) 대신 둥근 직사각형으로 */
+  border-radius: var(--gls-chip-radius);
+  gap: 6px;
+  transform: none !important;
+}
+
+.gls-chip.gls-btn-secondary {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gls-chip-remove {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: rgba(30, 42, 51, 0.65);
+  padding: 0;
+  margin-left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--gls-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-chip-remove:hover,
+  .gls-chip-remove:focus-visible {
+    background: rgba(30, 42, 51, 0.08);
+    color: rgba(30, 42, 51, 0.85);
+  }
+}
+
+.post-category-label {
+  /* 카테고리는 "이 글의 분류"라서 해시태그보다 1단계 더 또렷하게(A) */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.90rem;
+  line-height: 1;
+  border-radius: var(--gls-chip-radius);
+  font-weight: 800;
+  letter-spacing: -0.1px;
+  border: 1px solid var(--gls-ghost-border);
+  background: var(--gls-ghost-bg);
+  color: rgba(30, 42, 51, 0.82);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  box-shadow: var(--gls-glass-inset);
+}
+
+/* 해시태그 버튼(글 카드/상세) - Bootstrap 대신 gls 버튼 시스템으로 통일 */
+/* theme css가 뒤에서 로드되어도 형태가 무너지지 않도록 핵심 속성은 고정 */
+.gls-tag-btn {
+  border-radius: var(--gls-chip-radius) !important;
+  border: 1px solid var(--gls-ghost-border) !important;
+  background: var(--gls-ghost-bg) !important;
+  color: rgba(30, 42, 51, 0.78) !important;
+  backdrop-filter: blur(var(--gls-glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur)) !important;
+  box-shadow: var(--gls-glass-inset) !important;
+  padding: 8px 14px !important;
+  font-size: 0.90rem !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-tag-btn:hover,
+  .gls-tag-btn:focus-visible {
+    background: var(--gls-ghost-bg-hover) !important;
+    border-color: var(--gls-ghost-border-hover) !important;
+  }
+}
+
+.gls-tag-btn:active {
+  transform: translateY(0);
 }
 
 .post-bottom-meta .gls-card-hashtags {
@@ -644,4 +810,21 @@ body.mode-dark .gls-post-card {
   border-radius: inherit;
   box-shadow: var(--gls-glass-inset);
   pointer-events: none;
+}
+
+
+/* =============================================================
+   Index 카드 비율(리듬) 보정
+   - 스케일 업(B) 이후 카드 높이 편차를 줄이고, '세로 스크롤' 흐름을 더 단단하게
+   - 모바일은 기존 5줄 유지, 데스크탑에서만 4줄로 살짝 줄임
+============================================================= */
+
+@media (min-width: 768px) {
+  body.page-index .feed-post-content {
+    -webkit-line-clamp: 4;
+  }
+
+  body.page-index .quote-card {
+    -webkit-line-clamp: 4;
+  }
 }

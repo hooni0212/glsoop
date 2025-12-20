@@ -345,7 +345,7 @@ body.winter-theme .modal-content {
 .page-index.winter-theme #tagFilterBar .badge.text-bg-success {
   background-color: #E6F0F7 !important;          /* 부드러운 파스텔 블루 */
   color: #1F4D68 !important;                     /* 짙은 청록 글자색 */
-  border-radius: 999px;                          /* 동글동글 칩 느낌 */
+  border-radius: var(--gls-btn-radius);          /* pill 대신 둥근 직사각형 */
   border: 1px solid #C3D7E6;
   padding: 0.35rem 0.7rem;
   box-shadow: 0 2px 6px rgba(34, 70, 104, 0.12);

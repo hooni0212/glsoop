@@ -265,7 +265,7 @@ function renderPostDetail(container, post) {
     <div class="d-flex justify-content-between align-items-center mt-3">
       <button
         type="button"
-        class="btn btn-outline-secondary btn-sm"
+        class="gls-btn gls-btn-secondary gls-btn-sm"
         id="backToFeedBtn"
       >
         ← 피드로 돌아가기

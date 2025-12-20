@@ -302,7 +302,7 @@ body.spring-theme .hashtag-chip .hashtag-chip-remove:hover {
 .page-index.spring-theme #tagFilterBar .badge.text-bg-success {
   background-color: #FFF3F6 !important;   /* 부드러운 봄 핑크 */
   color: #C7527A !important;              /* 메인 분홍 텍스트 */
-  border-radius: 999px;
+  border-radius: var(--gls-btn-radius);
   border: 1px solid #FFC4D6;
   padding: 0.35rem 0.7rem;
   box-shadow: 0 2px 6px rgba(255, 157, 184, 0.18);

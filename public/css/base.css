@@ -13,12 +13,12 @@
 
 :root {
   /* Layout widths */
-  --gls-content-width: 680px;
-  --gls-content-max: 1040px;
-  --gls-content-read: 760px;
+  --gls-content-width: 760px;
+  --gls-content-max: 1120px;
+  --gls-content-read: 860px;
   --gls-page-margin: 32px;
   --gls-gutter: 16px;
-  --gls-inner-width: 1200px;
+  --gls-inner-width: 1320px;
   --gls-fullbleed-width: 1400px;
 
   /* Color palette */
@@ -46,6 +46,15 @@
   --gls-glass-shadow-hover: 0 18px 42px rgba(19, 34, 30, 0.14);
   --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
 
+  /* Ghost buttons (glass-friendly) */
+  --gls-ghost-bg: rgba(255, 255, 255, 0.10);
+  --gls-ghost-bg-hover: rgba(255, 255, 255, 0.16);
+  --gls-ghost-bg-active: rgba(255, 255, 255, 0.22);
+  --gls-ghost-border: rgba(30, 42, 51, 0.14);
+  --gls-ghost-border-hover: rgba(46, 139, 87, 0.26);
+  --gls-ghost-text: rgba(30, 42, 51, 0.84);
+
+
 
   /* Radius */
   --gls-radius-sm: 10px;
@@ -55,6 +64,7 @@
   --gls-radius-card: var(--gls-radius-lg);
   --gls-radius-hero: 20px;
   --gls-btn-radius: 12px;
+  --gls-chip-radius: 12px;
 
   /* Shadows */
   --gls-shadow-sm: 0 8px 20px rgba(19, 34, 30, 0.06);
@@ -71,10 +81,10 @@
 
   /* Type scale */
   --gls-fs-xs: 0.8125rem; /* 13px */
-  --gls-fs-sm: 0.9rem; /* 14-15px */
-  --gls-fs-md: 1rem; /* 16px */
-  --gls-fs-lg: 1.125rem; /* 18px */
-  --gls-fs-xl: 1.375rem; /* 22px */
+  --gls-fs-sm: 0.95rem; /* ~15px */
+  --gls-fs-md: 1.0625rem; /* 17px */
+  --gls-fs-lg: 1.22rem; /* ~19.5px */
+  --gls-fs-xl: 1.52rem; /* ~24px */
 
   /* Line heights */
   --gls-lh-tight: 1.28;
@@ -104,6 +114,14 @@
 }
 
 body.mode-dark {
+  /* Ghost buttons (dark) */
+  --gls-ghost-bg: rgba(15, 22, 19, 0.30);
+  --gls-ghost-bg-hover: rgba(15, 22, 19, 0.38);
+  --gls-ghost-bg-active: rgba(15, 22, 19, 0.46);
+  --gls-ghost-border: rgba(255, 255, 255, 0.18);
+  --gls-ghost-border-hover: rgba(108, 214, 155, 0.32);
+  --gls-ghost-text: rgba(255, 255, 255, 0.88);
+
   /* Glass (dark) */
   --gls-glass-bg-subtle: rgba(15, 22, 19, 0.36);
   --gls-glass-bg: rgba(15, 22, 19, 0.50);
@@ -642,7 +660,7 @@ select:focus-visible {
     width: 100%;
     padding: 0.9rem 1.3rem;
     font-size: 1rem;
-    border-radius: 999px;
+    border-radius: var(--gls-btn-radius);
   }
 
   .hero-cta-leaf {

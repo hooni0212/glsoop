@@ -658,14 +658,21 @@ function setupCardInteractions(card, post) {
     // 태그가 있으면 바 표시
     bar.style.display = 'flex';
 
-    // 태그 뱃지 HTML
+    // 태그 칩 HTML (UI Kit 버튼 시스템)
     const tagsHtml = currentTags
       .map((t) => {
         const safeTag = escapeHtml(t);
         return `
-          <span class="badge text-bg-success d-inline-flex align-items-center gap-1 me-1" data-tag="${safeTag}">
+          <span class="gls-btn gls-btn-secondary gls-chip" data-tag="${safeTag}">
             <span>#${safeTag}</span>
-            <button type="button" class="btn-close btn-close-white btn-sm tag-filter-remove" aria-label="${safeTag} 태그 제거" data-tag="${safeTag}"></button>
+            <button
+              type="button"
+              class="gls-chip-remove tag-filter-remove"
+              aria-label="${safeTag} 태그 제거"
+              data-tag="${safeTag}"
+            >
+              ×
+            </button>
           </span>
         `;
       })
@@ -675,7 +682,7 @@ function setupCardInteractions(card, post) {
     bar.innerHTML = `
       <span class="me-1 small text-muted">적용 중인 태그:</span>
       ${tagsHtml}
-      <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="tagFilterClearBtn">
+      <button type="button" class="gls-btn gls-btn-secondary gls-btn-sm" id="tagFilterClearBtn">
         필터 지우기
       </button>
     `;

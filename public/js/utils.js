@@ -263,7 +263,7 @@ function buildHashtagHtml(source) {
       return `
         <button
           type="button"
-          class="btn btn-sm btn-outline-success me-1 mb-1 hashtag-pill gls-tag-btn"
+          class="hashtag-pill gls-tag-btn"
           data-tag="${safeTag}"
         >
           #${safeTag}
