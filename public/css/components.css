@@ -56,17 +56,64 @@ border-radius: 0.8rem !important;
 background: var(--gls-ghost-bg);
 }
 
-/* 피드에서 글 내용 미리보기 (접힌 상태) */
+/* 피드에서 글 내용 미리보기 (접힌 상태)
+   - 줄수 기반으로 미리보기 영역을 안정적으로 고정(페이지별로 조절 가능)
+   - 카드가 세로로 더 읽기 좋아지도록 기본 여백을 약간 늘림
+*/
 .feed-post-content {
   position: relative;
-  padding: var(--gls-space-2, 8px) 0;
+  padding: var(--gls-space-3, 12px) 0;
   overflow: hidden;
   font-size: var(--gls-fs-md, 1rem);
   line-height: var(--gls-lh-relaxed, 1.7);
   display: -webkit-box;
-  -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
+
+  /* 기본(모바일): 6줄 */
+  --gls-feed-preview-lines: 6;
+  -webkit-line-clamp: var(--gls-feed-preview-lines);
+
   color: var(--gls-color-text, #1f2a2b);
+}
+
+/* 데스크탑: 5줄 */
+@media (min-width: 768px) {
+  .feed-post-content {
+    --gls-feed-preview-lines: 5;
+  }
+}
+
+
+/* =========================
+   Index (home) - vertical readability
+   - 본문 영역을 '세로로 읽기 좋게' 보강: 기본 높이 + 내부 패딩
+========================= */
+
+body.page-index .feed-post-content {
+  /* 홈에서는 본문 미리보기를 조금 더 길게 */
+  --gls-feed-preview-lines: 7;
+
+  /* 글이 짧아도 본문 박스가 어느 정도 높이를 유지하도록 */
+  min-height: calc(
+    (var(--gls-feed-preview-lines) * 1em * var(--gls-lh-relaxed, 1.7))
+    + 1.6rem
+  );
+}
+
+@media (min-width: 768px) {
+  body.page-index .feed-post-content {
+    --gls-feed-preview-lines: 6;
+  }
+}
+
+body.page-index .gls-post-card .feed-post-content .quote-card {
+  padding: var(--gls-space-5, 20px) var(--gls-space-6, 24px);
+}
+
+@media (max-width: 576px) {
+  body.page-index .gls-post-card .feed-post-content .quote-card {
+    padding: var(--gls-space-4, 16px) var(--gls-space-5, 20px);
+  }
 }
 
 /* 피드 내용 펼쳐진 상태 */
@@ -95,11 +142,12 @@ background: var(--gls-ghost-bg);
   line-height: var(--gls-lh-relaxed, 1.7);
   color: var(--gls-color-text, #1f2a2b);
   word-break: keep-all;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
-  overflow: hidden;
-  gap: var(--gls-space-2, 8px);
+
+  /* NOTE:
+     - 미리보기(줄수/클램프)는 .feed-post-content가 담당
+     - quote-card 자체는 '종이 질감 박스' 역할만 (본문/상세/에디터 등에서 전체 표시)
+  */
+  display: block;
 }
 
 .quote-card > * {

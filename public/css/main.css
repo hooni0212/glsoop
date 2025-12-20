@@ -419,21 +419,25 @@ a:hover {
 */
 .feed-post-content {
   position: relative;
-  padding: 0.45rem 0;
+  padding: 0.65rem 0;
   overflow: hidden;
 
-  /* 기본: 모바일 5줄 */
-  --gls-feed-preview-lines: 5;
-  max-height: calc(
+  /* 기본: 모바일 7줄 (세로 가독성 우선) */
+  --gls-feed-preview-lines: 7;
+
+  /* 줄 수 기반으로 높이를 고정(리듬) */
+  --gls-feed-preview-height: calc(
     (var(--gls-feed-preview-lines) * 1em * var(--gls-lh-relaxed, 1.7))
-    + 0.9rem
+    + 1.1rem
   );
+
+  max-height: var(--gls-feed-preview-height);
 }
 
-/* 데스크탑: 4줄(조금 더 타이트하게) */
+/* 데스크탑: 6줄 */
 @media (min-width: 768px) {
   .feed-post-content {
-    --gls-feed-preview-lines: 4;
+    --gls-feed-preview-lines: 6;
   }
 }
 
@@ -461,6 +465,27 @@ a:hover {
 
 
 
+
+
+
+/* =========================
+   Index(홈) 피드: 본문 리듬 고정
+   - 1줄/2줄/3줄/4줄... 짧은 글도 "같은 두께(높이)"로 보이게
+   - 임계치(줄수)까지는 카드 본문 영역 높이를 고정하고,
+     내부 quote-card가 영역을 채우도록 처리
+========================= */
+
+.page-index .feed-post-content:not(.expanded) {
+  min-height: var(--gls-feed-preview-height);
+  display: flex;
+}
+
+.page-index .feed-post-content:not(.expanded) .quote-card {
+  flex: 1 1 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
 /* =========================
    8. 메인 피드 좋아요 버튼 (.like-*)
@@ -1096,7 +1121,7 @@ a:hover {
 
 body.page-index {
   /* index 전용 피드 폭 (카드가 너무 넓어지지 않도록 상한을 둠) */
-  --gls-index-feed-width: clamp(680px, 92vw, 860px);
+  --gls-index-feed-width: clamp(520px, 70vw, 620px);
 }
 
 .page-index #feedPosts {
