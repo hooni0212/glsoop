@@ -511,6 +511,24 @@ a:hover {
   border-color: var(--gls-ghost-border-hover, rgba(46, 139, 87, 0.26));
 }
 
+/* 더보기 버튼(피드) - 카드 내부 오버레이 버전
+   - 접힌 상태에서 오른쪽 아래에 얹어서 "아래 더 있다" 힌트를 더 강하게
+   - 펼친 상태에서는 본문 아래로 내려와 가독성 방해를 줄임
+*/
+.page-index .feed-post-content:not(.expanded) .more-toggle.gls-more-overlay,
+.page-ui-kit .feed-post-content:not(.expanded) .more-toggle.gls-more-overlay {
+  position: absolute;
+  right: 0.85rem;
+  bottom: 0.75rem;
+  z-index: 3;
+}
+
+.page-index .feed-post-content.expanded .more-toggle.gls-more-overlay,
+.page-ui-kit .feed-post-content.expanded .more-toggle.gls-more-overlay {
+  position: static;
+  margin-top: 0.75rem;
+}
+
 
 
 
