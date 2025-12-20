@@ -12,9 +12,9 @@
 
 .card {
   border: 1px solid var(--gls-ghost-border);
-  border-radius: var(--gls-radius-card);
+  border-radius: var(--gls-card-radius, var(--gls-radius-card));
   background: var(--gls-ghost-bg-hover);
-  box-shadow: var(--gls-glass-shadow);
+  box-shadow: var(--gls-card-shadow, var(--gls-glass-shadow));
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   position: relative;
@@ -343,8 +343,8 @@ text-align: justify;
 .gls-post-card .card-body {
   display: flex;
   flex-direction: column;
-  gap: var(--gls-space-5, 20px);
-  padding: clamp(22px, 2.1vw, 28px);
+  gap: var(--gls-card-gap, var(--gls-space-5, 20px));
+  padding: clamp(22px, 2.1vw, var(--gls-card-padding, 28px));
 }
 
 @media (max-width: 420px) {

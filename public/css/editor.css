@@ -11,8 +11,8 @@
 
 /* 네비게이션바가 fixed-top 이므로 에디터가 가려지지 않도록 상단 패딩 */
 .editor-container-wrapper {
-  padding-top: 120px; /* 필요에 따라 조절 가능 */
-  max-width: 900px;
+  padding-top: calc(var(--gls-nav-height) + var(--gls-space-2));
+  max-width: var(--gls-page-max-width, 900px);
   margin: 0 auto;
 }
 
@@ -115,6 +115,56 @@
 .editor-preview-card {
   display: flex;
   flex-direction: column;
+}
+
+/* 미리보기 카드 안 quote-card 고정 높이(1~4줄 안정) + 페이드 */
+#previewContent {
+  --gls-preview-lines: 4;
+  position: relative;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--gls-preview-lines);
+  overflow: hidden;
+  min-height: calc(var(--gls-preview-lines) * 1em * var(--gls-lh-relaxed, 1.7));
+  max-height: calc(
+    (var(--gls-preview-lines) * 1em * var(--gls-lh-relaxed, 1.7))
+      + var(--gls-space-3, 12px)
+  );
+}
+
+#previewContent.expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  max-height: none;
+  overflow: visible;
+}
+
+#previewContent.has-overflow:not(.expanded)::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3rem;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    var(--gls-surface, rgba(255, 255, 255, 0.5))
+  );
+  pointer-events: none;
+}
+
+.editor-preview-more {
+  display: none;
+  margin-top: 0.35rem;
+  color: var(--gls-color-primary);
+  font-weight: 600;
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.editor-preview-more:hover {
+  text-decoration: underline;
 }
 
 /* =========================

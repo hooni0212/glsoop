@@ -6,13 +6,13 @@
    ============================================================= */
 
 :root {
-  --author-surface: #f7f8ef;
-  --author-card-bg: #ffffff;
-  --author-card-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-  --author-card-shadow-compact: 0 4px 16px rgba(0, 0, 0, 0.03);
-  --author-text-muted: #6c757d;
-  --author-divider: rgba(0, 0, 0, 0.06);
-  --author-accent: #2e8b57;
+  --author-surface: var(--gls-color-bg);
+  --author-card-bg: var(--gls-glass-bg-strong);
+  --author-card-shadow: var(--gls-glass-shadow);
+  --author-card-shadow-compact: var(--gls-shadow-sm);
+  --author-text-muted: var(--gls-color-muted);
+  --author-divider: var(--gls-glass-border);
+  --author-accent: var(--gls-color-primary);
 }
 
 /* =========================
@@ -38,10 +38,23 @@
 
 .author-profile-card,
 .author-posts-card {
-  border-radius: 16px;
-  border: none;
+  border-radius: var(--gls-card-radius);
+  border: 1px solid var(--gls-border);
   box-shadow: var(--author-card-shadow);
   background: var(--author-card-bg);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
+  position: relative;
+}
+
+.author-profile-card::after,
+.author-posts-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-glass-inset);
+  pointer-events: none;
 }
 
 /* 작가 정보 영역(왼쪽 카드 내용) */
@@ -51,11 +64,13 @@
 
 /* 오른쪽: 글 목록 카드 안의 개별 글 카드 */
 .author-post-card {
-  border: none;
-  border-radius: 12px;
-  margin-bottom: 1rem;
+  border: 1px solid var(--gls-border);
+  border-radius: var(--gls-radius-md);
+  margin-bottom: var(--gls-card-gap);
   box-shadow: var(--author-card-shadow-compact);
-  background: var(--author-card-bg);
+  background: var(--gls-glass-bg);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
 }
 
 .author-post-card .card-body {
@@ -126,7 +141,7 @@
 @media (min-width: 992px) {
   .author-left-col {
     position: sticky;
-    top: 130px;           /* 네비게이션 높이(110px) + 여백 조금 */
+    top: var(--gls-sticky-offset);
     align-self: flex-start;
   }
 

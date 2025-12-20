@@ -88,6 +88,7 @@ try {
   const previewTitleEl = document.getElementById('previewTitle');     // 미리보기 제목
   const previewContentEl = document.getElementById('previewContent'); // 미리보기 본문(quote-card)
   const previewMetaEl = document.getElementById('previewMeta');       // 미리보기 하단 메타(폰트/태그)
+  const previewMoreBtn = document.getElementById('previewMoreBtn');   // 더보기 토글
 
   // ✅ 남은 글자 수 표시 요소 (에디터 박스 오른쪽 아래)
   const charCounterEl = document.getElementById('charCounter');
@@ -401,6 +402,21 @@ try {
   }
 
   /**
+   * 미리보기 카드가 넘치는지 감지 → 페이드/더보기 노출
+   */
+  function syncPreviewOverflow() {
+    if (!previewContentEl) return;
+
+    const isOverflow = previewContentEl.scrollHeight > previewContentEl.clientHeight + 2;
+    previewContentEl.classList.toggle('has-overflow', isOverflow);
+
+    if (previewMoreBtn) {
+      previewMoreBtn.style.display = isOverflow ? 'inline-flex' : 'none';
+      previewMoreBtn.textContent = previewContentEl.classList.contains('expanded') ? '접기' : '더보기';
+    }
+  }
+
+  /**
    * ✅ 미리보기 전체 업데이트
    * - 제목, 본문, 폰트, 태그 모두 반영
    */
@@ -427,10 +443,24 @@ try {
   
       // 내용 길이에 따라 폰트 크기 자동 조절
       autoAdjustQuoteFont(previewContentEl);
+
+      // 페이드/더보기 상태 갱신 (렌더링 이후 한 번 더 확인)
+      syncPreviewOverflow();
+      setTimeout(syncPreviewOverflow, 0);
     }
   
     // 하단 메타 갱신
     updatePreviewMeta();
+  }
+
+  // 미리보기 더보기/접기 토글
+  if (previewMoreBtn && previewContentEl) {
+    previewMoreBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const expanded = previewContentEl.classList.toggle('expanded');
+      previewMoreBtn.textContent = expanded ? '접기' : '더보기';
+      syncPreviewOverflow();
+    });
   }
   
 
