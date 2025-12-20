@@ -84,7 +84,8 @@
 }
 
 #saveBtn {
-  border-radius: 999px;
+  /* 버튼 톤 통일: pill(999px) 대신 둥근 직사각형 */
+  border-radius: var(--gls-btn-radius);
 }
 
 /* Quill 툴바와 에디터 사이 여백 */
@@ -201,7 +202,7 @@
   padding: 0.15rem 0.55rem;
   margin-right: 0.25rem;
   margin-bottom: 0.25rem;
-  border-radius: 999px;
+  border-radius: var(--gls-chip-radius);
   font-size: 0.8rem;
   background-color: #eaf6ef;
   color: #2e8b57;

@@ -413,18 +413,52 @@ a:hover {
   background-color: #fbfbff;
 }
 
-/* 피드에서 글 내용 미리보기 (접힌 상태) */
+/* 피드에서 글 내용 미리보기 (접힌 상태)
+   - 카드 높이 편차(짧은 글/긴 글)를 줄이기 위해 '줄수 기반'으로 클램프
+   - 더보기(overflow) 로직(postCard.js)의 기준은 clientHeight이므로, max-height는 유지
+*/
 .feed-post-content {
   position: relative;
-  max-height: 26rem;
-  padding: 0.6rem 0;
+  padding: 0.45rem 0;
   overflow: hidden;
+
+  /* 기본: 모바일 5줄 */
+  --gls-feed-preview-lines: 5;
+  max-height: calc(
+    (var(--gls-feed-preview-lines) * 1em * var(--gls-lh-relaxed, 1.7))
+    + 0.9rem
+  );
+}
+
+/* 데스크탑: 4줄(조금 더 타이트하게) */
+@media (min-width: 768px) {
+  .feed-post-content {
+    --gls-feed-preview-lines: 4;
+  }
 }
 
 /* 피드 내용 펼쳐진 상태 */
 .feed-post-content.expanded {
   max-height: none;
+  overflow: visible;
 }
+
+/* 클립 상태일 때만 하단 페이드(잘림을 자연스럽게) */
+.feed-post-content:not(.expanded)::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3.1rem;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    var(--gls-color-overlay-strong, rgba(255, 255, 255, 0.85))
+  );
+  pointer-events: none;
+}
+
+
 
 
 
@@ -511,7 +545,7 @@ a:hover {
   position: relative;
   padding: 0.75rem;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--gls-glass-bg-strong);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.18s ease, transform 0.18s ease;
   border: 1px solid rgba(15, 23, 42, 0.06);
@@ -616,7 +650,7 @@ a:hover {
 }
 
 .quest-form {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--gls-glass-bg-strong);
   border-radius: 12px;
 }
 
@@ -1009,7 +1043,8 @@ a:hover {
   padding: 0.15rem 0.55rem;
   margin-right: 0.25rem;
   margin-bottom: 0.25rem;
-  border-radius: 999px;
+  /* pill(999px) 대신, 유리톤 UI와 결이 맞는 둥근 직사각형 */
+  border-radius: var(--gls-chip-radius);
   font-size: 0.8rem;
   background-color: #eaf6ef;
   color: #2e8b57;
@@ -1054,30 +1089,33 @@ a:hover {
 /* 왼쪽 정렬은 기본값(text-align: left) 사용 */
 
 /* =========================
-   인덱스 메인 피드 카드 폭 통일
-   - post.html의 post-detail-card와 동일한 620px 중앙 정렬
+   Index feed layout (card ratio & rhythm)
+   - 카드가 '가로로 퍼져 보이는' 느낌을 줄이기 위해, 피드 컨테이너 폭을 먼저 제어
+   - 2열 그리드는 일단 제거(리듬 우선)하고, 카드 폭/간격을 안정적으로 고정
 ========================= */
 
+body.page-index {
+  /* index 전용 피드 폭 (카드가 너무 넓어지지 않도록 상한을 둠) */
+  --gls-index-feed-width: clamp(680px, 92vw, 860px);
+}
+
 .page-index #feedPosts {
+  width: min(100%, var(--gls-index-feed-width));
+  margin-inline: auto;
+
   display: grid;
   grid-template-columns: 1fr;
-  justify-items: center;
   gap: var(--gls-space-5, 20px);
 }
 
-@media (min-width: 1400px) {
-  .page-index #feedPosts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
+/* 카드 자체는 컨테이너 폭(=피드 폭)을 그대로 사용 */
 .page-index #feedPosts .gls-post-card,
 .page-index #feedPosts .card.gls-post-card {
-  max-width: var(--gls-content-width);
   width: 100%;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: none;
+  margin: 0;
 }
+
 
 .feed-tabs {
   gap: 8px;
@@ -1085,27 +1123,36 @@ a:hover {
 }
 
 .feed-tabs .feed-tab {
-  border-radius: 999px;
-  color: var(--author-accent, #2e8b57);
-  background: #f2f5f3;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  padding: 6px 14px;
-  transition: all 0.15s ease;
+  border-radius: var(--gls-btn-radius);
+  border: 1px solid var(--gls-ghost-border);
+  background: var(--gls-ghost-bg);
+  color: rgba(30, 42, 51, 0.88);
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  min-height: 40px;
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  box-shadow: var(--gls-glass-inset);
+  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
 }
 
 .feed-tabs .feed-tab:hover,
 .feed-tabs .feed-tab:focus-visible {
   color: var(--author-accent, #2e8b57);
-  border-color: var(--author-accent, #2e8b57);
-  background: rgba(46, 139, 87, 0.08);
+  border-color: var(--gls-ghost-border-hover);
+  background: var(--gls-ghost-bg-hover);
 }
+
 
 .feed-tabs .feed-tab.feed-tab-active,
 .feed-tabs .feed-tab.active {
-  background: var(--author-accent, #2e8b57);
-  color: #fff;
-  border-color: var(--author-accent, #2e8b57);
+  background: var(--gls-ghost-bg-active);
+  color: var(--author-accent, #2e8b57);
+  border-color: rgba(46, 139, 87, 0.35);
+  box-shadow: var(--gls-glass-inset);
 }
+
 
 
 .post-bottom-meta {
@@ -1162,10 +1209,23 @@ a:hover {
 }
 
 .bookmark-panel {
-  background: rgba(255, 255, 255, 0.96);
-  border-radius: 12px;
+  background: var(--gls-glass-bg-strong);
+  border: 1px solid var(--gls-glass-border);
+  border-radius: 14px;
   padding: 16px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--gls-glass-shadow);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  position: relative;
+}
+
+.bookmark-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-glass-inset);
+  pointer-events: none;
 }
 
 .bookmark-list-item .badge {
@@ -1182,21 +1242,23 @@ a:hover {
 }
 
 .bookmark-folder-item {
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  background: #ffffff;
+  border: 1px solid rgba(30, 42, 51, 0.12);
+  background: var(--gls-glass-bg);
   border-radius: 12px;
   padding: 12px 14px;
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 10px 22px rgba(19, 34, 30, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   cursor: pointer;
   position: relative;
-  transition: all 0.18s ease;
+  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
 .bookmark-folder-item:hover,
 .bookmark-folder-item:focus-visible {
   border-color: rgba(46, 139, 87, 0.24);
-  background: linear-gradient(135deg, rgba(46, 139, 87, 0.08), #ffffff);
-  box-shadow: 0 9px 20px rgba(46, 139, 87, 0.12);
+  background: var(--gls-glass-bg-strong);
+  box-shadow: 0 14px 30px rgba(19, 34, 30, 0.12);
   outline: none;
 }
 
@@ -1218,9 +1280,9 @@ a:hover {
 }
 
 .bookmark-folder-item.is-active {
-  border-color: var(--author-accent, #2e8b57);
-  background: linear-gradient(135deg, rgba(46, 139, 87, 0.14), #ffffff);
-  box-shadow: 0 10px 22px rgba(46, 139, 87, 0.14);
+  border-color: rgba(46, 139, 87, 0.32);
+  background: rgba(238, 252, 245, 0.70);
+  box-shadow: 0 14px 30px rgba(19, 34, 30, 0.12);
 }
 
 .bookmark-folder-item.is-active::before {
@@ -1263,7 +1325,7 @@ a:hover {
 .bookmark-empty-state {
   text-align: center;
   padding: 28px 16px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--gls-glass-bg-strong);
   border: 1px dashed rgba(0, 0, 0, 0.08);
   border-radius: 12px;
   color: #6c757d;
@@ -1539,7 +1601,7 @@ a:hover {
   margin-top: 1rem;
   padding: 1rem;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--gls-glass-bg-strong);
   border: 1px solid rgba(148, 163, 184, 0.3);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
@@ -1664,7 +1726,7 @@ a:hover {
 }
 
 .quest-column {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--gls-glass-bg-strong);
   border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 14px;
   padding: 0.85rem;

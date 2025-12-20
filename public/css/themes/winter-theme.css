@@ -110,8 +110,12 @@ body.winter-theme .custom-navbar .navbar-brand {
 
 /* 4. 히어로 카드(메인 중앙 카드) 겨울 스타일 */
 body.winter-theme .hero-card {
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--gls-glass-bg-strong);
+  border: 1px solid var(--gls-glass-border);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   box-shadow: 0 18px 45px rgba(45, 83, 132, 0.22);
+  border-radius: var(--gls-radius-hero, 24px);
 }
 
 /* CTA 버튼은 겨울 녹청색 느낌 */
@@ -341,7 +345,7 @@ body.winter-theme .modal-content {
 .page-index.winter-theme #tagFilterBar .badge.text-bg-success {
   background-color: #E6F0F7 !important;          /* 부드러운 파스텔 블루 */
   color: #1F4D68 !important;                     /* 짙은 청록 글자색 */
-  border-radius: 999px;                          /* 동글동글 칩 느낌 */
+  border-radius: var(--gls-btn-radius);          /* pill 대신 둥근 직사각형 */
   border: 1px solid #C3D7E6;
   padding: 0.35rem 0.7rem;
   box-shadow: 0 2px 6px rgba(34, 70, 104, 0.12);

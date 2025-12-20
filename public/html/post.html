@@ -74,25 +74,50 @@
     </div>
   </nav>
 
-  <!-- 개별 글 상세 보기 -->
-  <section class="page-section">
-    <div class="container gls-container post-container">
-      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <h3 class="mb-0 section-heading">글 상세</h3>
-      </div>
+  <!-- 글 상세 (옵션 B: 데스크탑 2컬럼) -->
+  <section class="page-section post-page">
+    <div class="gls-container post-shell">
+      <div class="post-layout">
+        <!-- 좌측: 본문(읽기) -->
+        <main class="post-main" aria-label="글 본문">
+          <div class="post-panel gls-surface-panel gls-surface-veil">
+            <div id="postDetail">
+              <p class="text-muted">글을 불러오는 중입니다...</p>
+            </div>
+          </div>
+        </main>
 
-      <div id="postDetail">
-        <p class="text-muted">글을 불러오는 중입니다...</p>
-      </div>
-    </div>
-  </section>
+        <!-- 우측: 액션 + 관련 글(시안 A) -->
+        <aside class="post-side" aria-label="상세 도구 및 관련 글">
+          <div class="post-side-inner">
+            <div class="post-actions-panel gls-surface-panel">
+              <div class="post-actions-grid">
+                <button id="sideLikeBtn" type="button" class="post-side-btn post-side-like" aria-label="좋아요">
+                  <span class="post-side-like-heart" aria-hidden="true">♡</span>
+                  <span class="post-side-like-count" id="sideLikeCount">0</span>
+                  <span class="post-side-like-label">좋아요</span>
+                </button>
+                <button id="sideBookmarkBtn" type="button" class="post-side-btn" aria-label="북마크">북마크</button>
+                <button id="sideShareBtn" type="button" class="post-side-btn" aria-label="공유">공유</button>
+              </div>
+            </div>
 
-  <!-- 관련 글 -->
-  <section class="page-section related-section">
-    <div class="container gls-container post-container">
-      <h4 class="mb-3 section-heading">관련된 글</h4>
-      <div id="relatedPosts">
-        <p class="text-muted">관련 글을 불러오는 중입니다...</p>
+            <div class="post-related-panel gls-surface-panel">
+              <div class="post-related-head">
+                <h4 class="post-related-title">관련 글</h4>
+                <button id="relatedMoreBtn" type="button" class="gls-btn gls-btn-secondary gls-btn-xs post-related-more">더 보기</button>
+              </div>
+
+              <div id="relatedHighlight" class="post-related-highlight">
+                <p class="text-muted small mb-0">관련 글을 불러오는 중입니다...</p>
+              </div>
+              <div id="relatedList" class="post-related-list"></div>
+
+              <!-- (호환용) 기존 관련 글 컨테이너: JS가 없거나 구버전일 때만 사용 -->
+              <div id="relatedPosts" class="post-related-legacy" hidden></div>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   </section>

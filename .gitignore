@@ -49,3 +49,10 @@ data/**
 
 # 패치 파일은 커밋하지 않습니다.
 *.patch
+
+# =========================
+# ui-kit 파일 커밋 방지
+# =========================
+/public/html/ui-kit.html
+/public/css/ui-kit.css
+/public/js/ui-kit.js
