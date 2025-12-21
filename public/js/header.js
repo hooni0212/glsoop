@@ -32,7 +32,7 @@ async function updateHeader() {
       // 로그인 안 된 상태: before-login 보이기, after-login 숨기기
       beforeEls.forEach((el) => (el.style.display = 'flex'));
       afterEls.forEach((el) => (el.style.display = 'none'));
-      applyAccountName('');
+      applyAccountName(null);
       closeAccountMenu();
       return;
     }
@@ -47,12 +47,12 @@ async function updateHeader() {
       afterEls.forEach((el) => (el.style.display = 'flex'));
 
       // 상단 계정 UI에 사용자 이름 표시 (예: "홍길동님")
-      applyAccountName(data.name || '');
+      applyAccountName(data);
     } else {
       // 응답은 200이지만 data.ok가 false → 로그인 실패로 간주
       beforeEls.forEach((el) => (el.style.display = 'flex'));
       afterEls.forEach((el) => (el.style.display = 'none'));
-      applyAccountName('');
+      applyAccountName(null);
       closeAccountMenu();
     }
   } catch (e) {
@@ -60,7 +60,7 @@ async function updateHeader() {
     console.error(e);
     beforeEls.forEach((el) => (el.style.display = 'flex'));
     afterEls.forEach((el) => (el.style.display = 'none'));
-    applyAccountName('');
+    applyAccountName(null);
     closeAccountMenu();
   }
 }
@@ -300,17 +300,40 @@ function closeAccountMenu() {
   currentOpenTrigger = null;
 }
 
-function applyAccountName(name) {
+function getLevelEmoji(level) {
+  const n = Number(level) || 0;
+  if (n <= 0) return '🌰';
+  if (n <= 5) return '🌰';
+  if (n <= 10) return '🌱';
+  if (n <= 15) return '🌿';
+  if (n <= 20) return '🌳';
+  return '🌲';
+}
+
+function applyAccountName(user) {
+  const isObject = user && typeof user === 'object';
+  const name = isObject ? user.name : user;
+  const level = isObject && Number.isFinite(Number(user.level)) ? Number(user.level) : null;
+  const hasLevel = Number.isFinite(level);
   const trimmed = (name || '').trim();
-  const displayName = trimmed ? `${trimmed}님` : '';
+  const displayName = trimmed ? `${trimmed}님` : '로그인 필요';
   const initial = trimmed ? trimmed[0] : '·';
 
   document.querySelectorAll('[data-account-name]').forEach((el) => {
-    el.textContent = displayName || '로그인 필요';
+    el.textContent = displayName;
   });
 
   document.querySelectorAll('[data-avatar-initial]').forEach((el) => {
-    el.textContent = initial;
+    if (hasLevel) {
+      const emoji = getLevelEmoji(level);
+      el.textContent = emoji;
+      el.dataset.hasEmoji = 'true';
+      el.setAttribute('aria-label', `레벨 ${level} (${emoji})`);
+    } else {
+      el.textContent = initial;
+      el.removeAttribute('data-has-emoji');
+      el.removeAttribute('aria-label');
+    }
   });
 }
 
