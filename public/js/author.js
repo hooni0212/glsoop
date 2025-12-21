@@ -357,7 +357,7 @@ function renderAuthorPosts(posts) {
           : '';
 
       return `
-        <div class="card author-post-card" data-post-id="${post.id}">
+        <div class="card gls-post-card author-post-card" data-post-id="${post.id}">
           <div class="card-body">
             <h6 class="author-post-title mb-1">${escapeHtml(post.title)}</h6>
 

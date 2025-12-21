@@ -1,10 +1,9 @@
-const DEFAULT_PORT = process.env.PORT || 3000;
-let baseUrlWarned = false;
+const DEFAULT_PRODUCTION_BASE = 'https://www.glsoop.com';
 
 /**
  * Return the base URL for external links (emails, etc.).
- * Prefers process.env.BASE_URL, falls back to request-based host/protocol,
- * and finally localhost with the configured port.
+ * Prefers process.env.BASE_URL, uses the production domain when host is local,
+ * and otherwise falls back to the request host/protocol.
  */
 function getBaseUrl(req) {
   if (process.env.BASE_URL) {
@@ -13,16 +12,13 @@ function getBaseUrl(req) {
 
   const host = req && req.get ? req.get('host') : undefined;
   const protocol = (req && req.protocol) || 'http';
-  const fallback = host ? `${protocol}://${host}` : `http://localhost:${DEFAULT_PORT}`;
+  const isLocalHost = host ? /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host) : false;
 
-  if (process.env.NODE_ENV === 'production' && !baseUrlWarned) {
-    console.warn(
-      '[security] BASE_URL is not set; falling back to request host. Configure BASE_URL in production.'
-    );
-    baseUrlWarned = true;
+  if (process.env.NODE_ENV === 'production' || isLocalHost || !host) {
+    return DEFAULT_PRODUCTION_BASE;
   }
 
-  return fallback;
+  return `${protocol}://${host}`;
 }
 
 module.exports = { getBaseUrl };

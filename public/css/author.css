@@ -6,30 +6,65 @@
    ============================================================= */
 
 :root {
-  --author-surface: #f7f8ef;
-  --author-card-bg: #ffffff;
-  --author-card-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-  --author-card-shadow-compact: 0 4px 16px rgba(0, 0, 0, 0.03);
-  --author-text-muted: #6c757d;
-  --author-divider: rgba(0, 0, 0, 0.06);
-  --author-accent: #2e8b57;
+  --author-surface: var(--gls-color-bg);
+  --author-card-bg: var(--gls-glass-bg-strong);
+  --author-card-shadow: var(--gls-glass-shadow);
+  --author-card-shadow-compact: var(--gls-shadow-sm);
+  --author-text-muted: var(--gls-color-muted);
+  --author-divider: var(--gls-glass-border);
+  --author-accent: var(--gls-color-primary);
 }
 
 /* =========================
   1. 작가 페이지 공통 영역
 ========================= */
 
+body.page-author {
+  color: var(--gls-text);
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 35%),
+    radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.4), transparent 28%),
+    var(--gls-color-bg);
+}
+
 /* 섹션 배경색 (테마 변수를 우선 사용) */
 .author-page-section {
   background: var(--author-surface);
   position: relative;
   z-index: 1;
+  padding-top: calc(var(--gls-nav-height) + var(--gls-space-6));
+  padding-bottom: var(--gls-space-8);
+}
+
+.author-page-shell {
+  max-width: var(--gls-page-max-width);
+  margin: 0 auto;
+  padding: 0 var(--gls-page-margin);
+}
+
+.author-page-header {
+  background: var(--gls-glass-bg-subtle);
+  border: 1px solid var(--gls-border);
+  border-radius: var(--gls-card-radius);
+  box-shadow: var(--gls-card-shadow);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
+  padding: var(--gls-card-padding);
+  margin-bottom: var(--gls-card-gap);
 }
 
 /* 메인 레이아웃: 두 컬럼(row) 상단 정렬 */
 .author-main-row,
 .author-page-main-row {
-  align-items: flex-start;
+  align-items: stretch;
+  gap: var(--gls-card-gap);
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+}
+
+@media (max-width: 991.98px) {
+  .author-page-main-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* =========================
@@ -38,28 +73,52 @@
 
 .author-profile-card,
 .author-posts-card {
-  border-radius: 16px;
-  border: none;
-  box-shadow: var(--author-card-shadow);
+  border-radius: var(--gls-card-radius);
+  border: 1px solid var(--gls-border);
+  box-shadow: var(--gls-card-shadow);
   background: var(--author-card-bg);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
+  position: relative;
+}
+
+.author-profile-card::after,
+.author-posts-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-glass-inset);
+  pointer-events: none;
 }
 
 /* 작가 정보 영역(왼쪽 카드 내용) */
 .author-profile-card .card-body {
   font-size: 0.95rem;
+  padding: var(--gls-card-padding);
 }
 
 /* 오른쪽: 글 목록 카드 안의 개별 글 카드 */
-.author-post-card {
-  border: none;
-  border-radius: 12px;
-  margin-bottom: 1rem;
-  box-shadow: var(--author-card-shadow-compact);
-  background: var(--author-card-bg);
+.author-posts-card {
+  padding: 0;
+}
+
+#authorPostsList {
+  display: grid;
+  gap: var(--gls-card-gap);
+}
+
+.author-post-card.gls-post-card {
+  margin: 0;
+  box-shadow: var(--gls-card-shadow);
 }
 
 .author-post-card .card-body {
-  padding: 1rem 1.1rem 1.2rem;
+  padding: var(--gls-card-padding);
+}
+
+.author-posts-card .card-body {
+  padding: var(--gls-card-padding);
 }
 
 .author-post-title {
@@ -126,7 +185,7 @@
 @media (min-width: 992px) {
   .author-left-col {
     position: sticky;
-    top: 130px;           /* 네비게이션 높이(110px) + 여백 조금 */
+    top: var(--gls-sticky-offset);
     align-self: flex-start;
   }
 
