@@ -1,4 +1,5 @@
 const DEFAULT_PORT = process.env.PORT || 3000;
+const DEFAULT_PRODUCTION_BASE = 'https://www.glsoop.com';
 let baseUrlWarned = false;
 
 /**
@@ -9,6 +10,10 @@ let baseUrlWarned = false;
 function getBaseUrl(req) {
   if (process.env.BASE_URL) {
     return process.env.BASE_URL;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return DEFAULT_PRODUCTION_BASE;
   }
 
   const host = req && req.get ? req.get('host') : undefined;
