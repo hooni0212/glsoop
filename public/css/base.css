@@ -626,7 +626,6 @@ body[class*='-theme'] .navbar .btn:focus-visible {
 
 .hero-card .hero-cta-btn {
   position: relative;
-  overflow: visible; /* 잎사귀가 바깥으로 튀어나오도록 */
 
   border: none;
   padding: 0.8rem 2rem;
@@ -664,50 +663,6 @@ body[class*='-theme'] .navbar .btn:focus-visible {
   outline-offset: 2px;
 }
 
-/* =========================
-   14. 히어로 CTA 잎사귀 파티클
-========================= */
-
-.hero-cta-leaves {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-/* 개별 잎사귀 기본 상태 */
-.hero-cta-leaf {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-
-  /* 처음부터 최종 위치 주변에서만 등장하게 */
-  transform:
-    translate(-50%, -50%)
-    translate(var(--leaf-tx, 0px), var(--leaf-ty, -16px))
-    scale(0.1)
-    rotate(var(--leaf-rot, 0deg));
-  transform-origin: center bottom;
-
-  opacity: 0;
-  font-size: 1.2rem;
-
-  pointer-events: none;
-
-  transition:
-    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.35s ease-out;
-}
-
-/* 애니메이션이 적용될 때 (살짝 커지고 선명해지는 정도만) */
-.hero-cta-leaf.leaf-show {
-  opacity: 1;
-  transform:
-    translate(-50%, -50%)
-    translate(var(--leaf-tx, 0px), var(--leaf-ty, -22px))
-    scale(var(--leaf-scale, 1))
-    rotate(var(--leaf-rot, 0deg));
-}
-
 /* 모바일에서의 CTA 버튼 모양 */
 @media (max-width: 576px) {
   .hero-card .hero-cta-btn {
@@ -716,14 +671,10 @@ body[class*='-theme'] .navbar .btn:focus-visible {
     font-size: 1rem;
     border-radius: var(--gls-btn-radius);
   }
-
-  .hero-cta-leaf {
-    font-size: 1.3rem;
-  }
 }
 
 /* =========================
-   15. 공통 푸터
+   14. 공통 푸터
 ========================= */
 
 .custom-footer {
