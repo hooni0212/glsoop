@@ -163,6 +163,22 @@
                     <label class="btn btn-outline-primary" for="adminThemeWinter">겨울</label>
                   </div>
                   <div class="admin-theme-preview text-muted small">현재 테마: 겨울</div>
+                  <div class="admin-bg-controls w-100">
+                    <label class="form-label small mb-1" for="customBackgroundUrl">배경 이미지 URL</label>
+                    <div class="d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
+                      <input
+                        type="url"
+                        id="customBackgroundUrl"
+                        class="form-control form-control-sm"
+                        placeholder="/img/custom-bg.jpg 또는 https://..."
+                      >
+                      <div class="d-flex flex-row flex-lg-column gap-2">
+                        <button type="button" class="btn btn-primary btn-sm" id="applyBackgroundBtn">배경 적용</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="clearBackgroundBtn">기본으로</button>
+                      </div>
+                    </div>
+                    <p class="text-muted small mb-0" id="backgroundStatus">공용 페이지 배경에 적용할 이미지를 업로드 후 경로를 입력하세요.</p>
+                  </div>
                 </div>
               </div>
             </div>

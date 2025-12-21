@@ -59,6 +59,7 @@ Glsoop.AdminPage = (function () {
     }
 
     setupThemeControls();
+    setupBackgroundControls();
     setupTabSwitching();
     setupModalEvents();
 
@@ -125,6 +126,94 @@ Glsoop.AdminPage = (function () {
         } catch (e) {
           console.warn('테마를 로컬스토리지에 저장할 수 없습니다.', e);
         }
+      }
+    }
+  }
+
+  function setupBackgroundControls() {
+    const input = document.getElementById('customBackgroundUrl');
+    const applyBtn = document.getElementById('applyBackgroundBtn');
+    const clearBtn = document.getElementById('clearBackgroundBtn');
+    const status = document.getElementById('backgroundStatus');
+
+    if (!input || !applyBtn || !clearBtn) return;
+
+    const themeApi = window.Glsoop?.Theme;
+    const initialUrl = themeApi?.readBackground ? themeApi.readBackground() : readBackgroundLegacy();
+
+    if (initialUrl) {
+      input.value = initialUrl;
+      applyBackground(initialUrl, false);
+    }
+    updateStatus(initialUrl);
+
+    applyBtn.addEventListener('click', () => {
+      const url = input.value.trim();
+      applyBackground(url, true);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      applyBackground('', true);
+    });
+
+    function applyBackground(url, persist = true) {
+      const next = themeApi?.applyBackground ? themeApi.applyBackground(url) : legacyApplyBackground(url);
+      updateStatus(next);
+
+      if (persist) {
+        if (themeApi?.persistBackground) {
+          themeApi.persistBackground(next);
+        } else {
+          persistBackgroundLegacy(next);
+        }
+      }
+    }
+
+    function updateStatus(url) {
+      if (!status) return;
+      if (!url) {
+        status.textContent = '기본 그라데이션 배경을 사용 중입니다.';
+        return;
+      }
+      status.textContent = `적용된 배경: ${url}`;
+    }
+
+    function legacyApplyBackground(url) {
+      const body = document.body;
+      const trimmed = (url || '').trim();
+      if (!body) return '';
+
+      if (!trimmed) {
+        body.classList.remove('has-custom-bg');
+        body.style.removeProperty('--gls-custom-bg-image');
+        return '';
+      }
+
+      const sanitized = trimmed.replace(/"/g, '');
+      body.classList.add('has-custom-bg');
+      body.style.setProperty('--gls-custom-bg-image', `url(${sanitized})`);
+      return sanitized;
+    }
+
+    function readBackgroundLegacy() {
+      try {
+        return localStorage.getItem('gls-custom-bg') || '';
+      } catch (e) {
+        console.warn('배경 이미지를 로컬스토리지에서 읽을 수 없습니다.', e);
+        return '';
+      }
+    }
+
+    function persistBackgroundLegacy(url) {
+      try {
+        if (url) {
+          localStorage.setItem('gls-custom-bg', url);
+        } else {
+          localStorage.removeItem('gls-custom-bg');
+        }
+      } catch (e) {
+        console.warn('배경 이미지를 로컬스토리지에 저장할 수 없습니다.', e);
       }
     }
   }
