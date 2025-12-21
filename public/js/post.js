@@ -258,20 +258,8 @@ function renderPostDetail(container, post) {
   });
 
   // ✅ 레이아웃은 post.html(2컬럼)에서 담당
-  // - 여기서는 카드 + 최소한의 네비(피드로 돌아가기)만 넣는다
-  container.innerHTML = `
-    ${cardHtml}
-
-    <div class="d-flex justify-content-between align-items-center mt-3">
-      <button
-        type="button"
-        class="gls-btn gls-btn-secondary gls-btn-sm"
-        id="backToFeedBtn"
-      >
-        ← 피드로 돌아가기
-      </button>
-    </div>
-  `;
+  // - 여기서는 카드만 렌더링하고, 메타 바는 별도 컨테이너에 담는다
+  container.innerHTML = `${cardHtml}`;
 
   const card = container.querySelector('.gls-post-card');
   if (card) {
@@ -289,11 +277,39 @@ function renderPostDetail(container, post) {
     bindSideActions(card, post);
   }
 
-  const backBtn = document.getElementById('backToFeedBtn');
-  if (backBtn) {
-    backBtn.addEventListener('click', () => {
-      window.location.href = '/index.html';
+  // ✅ 메타 바(타입 + 해시태그 + 피드 링크)를 카드 아래에서 하나로 묶기
+  const metaBar = document.getElementById('postMetaBar');
+  const metaChips = document.getElementById('postMetaChips');
+  const backLink = document.getElementById('backToFeedLink');
+
+  if (metaBar && metaChips) {
+    metaChips.innerHTML = '';
+
+    const legacyMeta = card?.querySelector('.post-bottom-meta');
+    if (legacyMeta) {
+      const fragments = Array.from(legacyMeta.children || []);
+      fragments.forEach((node) => {
+        if (node.classList?.contains('post-category-row')) {
+          node.classList.add('post-type-chip-row');
+        }
+        metaChips.appendChild(node);
+      });
+      legacyMeta.remove();
+    }
+
+    const categoryBadge = metaChips.querySelector('.post-category-label');
+    if (categoryBadge) categoryBadge.classList.add('post-type-chip');
+
+    metaChips.querySelectorAll('.gls-tag-btn').forEach((btn) => {
+      btn.classList.add('post-tag-chip');
     });
+
+    metaBar.hidden = false;
+    setupHashtagSearch(metaBar);
+  }
+
+  if (backLink) {
+    backLink.setAttribute('role', 'button');
   }
 }
 
