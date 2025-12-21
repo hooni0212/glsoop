@@ -414,6 +414,34 @@ select:focus-visible {
   transform: translateY(-1px);
 }
 
+/* 네비게이션 내 주요 버튼들도 테마 액센트에 맞춰 일관되게 적용 */
+body[class*='-theme'] .custom-navbar .btn,
+body[class*='-theme'] .custom-navbar .btn-outline-success,
+body[class*='-theme'] .custom-navbar .btn-success,
+body[class*='-theme'] .custom-navbar .btn-primary,
+body[class*='-theme'] .navbar .btn,
+body[class*='-theme'] .navbar .btn-outline-success,
+body[class*='-theme'] .navbar .btn-success,
+body[class*='-theme'] .navbar .btn-primary {
+  color: var(--gls-action-accent, #2e8b57);
+  border-color: var(--gls-action-border, rgba(30, 42, 51, 0.16));
+  background: var(--gls-action-surface, rgba(255, 255, 255, 0.82));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+body[class*='-theme'] .custom-navbar .btn:hover,
+body[class*='-theme'] .custom-navbar .btn:focus-visible,
+body[class*='-theme'] .navbar .btn:hover,
+body[class*='-theme'] .navbar .btn:focus-visible {
+  color: #0f172a;
+  background: var(--gls-action-surface-hover, rgba(255, 255, 255, 0.9));
+  border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+  transform: translateY(-1px);
+}
+
 .gls-view-toggles {
   position: fixed;
   right: 20px;
