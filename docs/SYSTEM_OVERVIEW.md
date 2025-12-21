@@ -5,6 +5,10 @@
 ## 실행 진입점 및 공통 설정
 - **진입점:** `server.js`에서 Express 앱을 생성하고 보안 헤더(CSP/helmet)와 CORS 설정을 적용한 뒤 JSON/URL-encoded 파서, 쿠키 파서, 캐시 방지 헤더를 설정합니다. 이후 정적 파일을 서빙하고 `/api` 하위에 인증·사용자·게시글 라우트를 연결하며, 루트 경로(`/`)는 `public/index.html`을 반환합니다.
 - **환경/메일/토큰 설정:** `config.js`는 `.env`를 불러와 Gmail SMTP 트랜스포터와 JWT 비밀키를 준비합니다.
+  - **이메일 링크(중요):** 회원가입/비밀번호 재설정 메일에 들어가는 링크는 `utils/baseUrl.js`의 `getBaseUrl()`로 생성됩니다.
+    - 배포 환경(특히 Nginx 리버스 프록시)에서는 요청 `Host`가 `127.0.0.1:3000`으로 들어올 수 있어, **메일 링크가 로컬호스트로 박히는 문제**가 생길 수 있습니다.
+    - 운영에서는 `BASE_URL=https://www.glsoop.com`(또는 `PUBLIC_BASE_URL`)을 환경변수로 설정하는 것을 권장합니다.
+    - 로컬 개발에서 메일 링크를 `localhost`로 유지하려면 `ALLOW_LOOPBACK_BASE_URL=1`을 설정하세요.
 - **DB 초기화:** `db.js`에서 SQLite를 사용해 사용자, 게시글, 좋아요, 팔로우, 해시태그 및 게시글-해시태그 매핑 테이블을 생성합니다.
 
 ## 인증 및 계정 흐름 (`routes/authRoutes.js`)
