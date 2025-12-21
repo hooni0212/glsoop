@@ -88,6 +88,7 @@ try {
   const previewTitleEl = document.getElementById('previewTitle');     // 미리보기 제목
   const previewContentEl = document.getElementById('previewContent'); // 미리보기 본문(quote-card)
   const previewMetaEl = document.getElementById('previewMeta');       // 미리보기 하단 메타(폰트/태그)
+  const previewMoreBtn = document.getElementById('previewMoreBtn');   // 더보기 토글(에디터에선 미사용)
 
   // ✅ 남은 글자 수 표시 요소 (에디터 박스 오른쪽 아래)
   const charCounterEl = document.getElementById('charCounter');
@@ -427,12 +428,14 @@ try {
   
       // 내용 길이에 따라 폰트 크기 자동 조절
       autoAdjustQuoteFont(previewContentEl);
+
+      // 에디터에서는 페이드/더보기 없이 안정적인 카드 높이만 유지
     }
   
     // 하단 메타 갱신
     updatePreviewMeta();
   }
-  
+
 
   // 3. 수정 모드인지 확인 (URL ?postId=...)
   const params = new URLSearchParams(window.location.search);

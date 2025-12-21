@@ -11,8 +11,8 @@
 
 /* 네비게이션바가 fixed-top 이므로 에디터가 가려지지 않도록 상단 패딩 */
 .editor-container-wrapper {
-  padding-top: 120px; /* 필요에 따라 조절 가능 */
-  max-width: 900px;
+  padding-top: calc(var(--gls-nav-height) + var(--gls-space-2));
+  max-width: var(--gls-page-max-width, 900px);
   margin: 0 auto;
 }
 
@@ -115,6 +115,36 @@
 .editor-preview-card {
   display: flex;
   flex-direction: column;
+}
+
+/* 미리보기 카드: 짧은 글은 고정 높이 + 중앙 정렬, 긴 글은 부드럽게 확장 */
+#previewContent {
+  --gls-preview-min-lines: 4;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--gls-space-2, 8px);
+  text-align: center;
+  min-height: calc(
+    (var(--gls-preview-min-lines) * 1em * var(--gls-lh-relaxed, 1.7)) + var(--gls-space-3, 12px)
+  );
+  max-height: clamp(12rem, 28vh, 18rem);
+  overflow: auto;
+}
+
+/* 글자 수가 적을 때도 카드다운 여백 확보 */
+#previewContent::after {
+  content: '';
+  position: absolute;
+  inset: var(--gls-space-3, 12px);
+  border-radius: calc(var(--gls-radius-md, 14px) - var(--gls-space-3, 12px));
+  pointer-events: none;
+}
+
+.editor-preview-more {
+  display: none !important;
 }
 
 /* =========================
