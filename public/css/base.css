@@ -651,6 +651,31 @@ select:focus-visible {
   font-weight: 700;
 }
 
+@media (max-width: 991.98px) {
+  .navbar-nav .nav-link.nav-link-compact,
+  .navbar-nav .nav-link.nav-link-compact:hover,
+  .navbar-nav .nav-link.nav-link-compact:focus-visible,
+  .nav-logout-link,
+  .nav-logout-link:hover,
+  .nav-logout-link:focus-visible,
+  .mobile-account-label,
+  .mobile-account-name {
+    color: #fff;
+  }
+
+  .navbar-nav .nav-link.nav-link-compact,
+  .nav-logout-link {
+    background: transparent;
+  }
+
+  .navbar-nav .nav-link.nav-link-compact:hover,
+  .navbar-nav .nav-link.nav-link-compact:focus-visible,
+  .nav-logout-link:hover,
+  .nav-logout-link:focus-visible {
+    background: color-mix(in srgb, rgba(255, 255, 255, 0.18) 80%, transparent);
+  }
+}
+
 /* 네비게이션 내 주요 버튼들도 테마 액센트에 맞춰 일관되게 적용 */
 body[class*='-theme'] .custom-navbar .btn,
 body[class*='-theme'] .custom-navbar .btn-outline-success,

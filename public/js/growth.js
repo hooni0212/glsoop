@@ -1,5 +1,15 @@
 let achievementCache = [];
 
+function getLevelEmoji(level) {
+  const n = Number(level) || 0;
+  if (n <= 0) return '🌰';
+  if (n <= 5) return '🌰';
+  if (n <= 10) return '🌱';
+  if (n <= 15) return '🌿';
+  if (n <= 20) return '🌳';
+  return '🌲';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await ensureAuthenticated();
   await loadGrowthSummary();
@@ -106,6 +116,7 @@ function renderGrowthSummary(summary) {
   const ring = document.querySelector('.growth-level-ring');
   const progressBar = document.querySelector('.growth-level-progress-bar');
   const levelNumber = document.querySelector('.growth-level-number');
+  const levelLeaf = document.querySelector('.growth-level-leaf');
   const todayXp = document.getElementById('growthTodayXp');
   const todayXpDetail = document.getElementById('growthTodayXpDetail');
   const streakLabel = document.getElementById('growthStreakLabel');
@@ -118,6 +129,7 @@ function renderGrowthSummary(summary) {
   const streakMaxLabel = document.getElementById('growthStreakMaxLabel');
 
   const levelText = `Lv.${summary.level}`;
+  const levelEmoji = getLevelEmoji(summary.level);
   const percent = summary.nextLevelXp > 0 ? Math.min(1, summary.currentXp / summary.nextLevelXp) : 0;
   const degree = `${Math.round(percent * 360)}deg`;
   const percentLabel = `${summary.currentXp} / ${summary.nextLevelXp} XP`;
@@ -126,6 +138,10 @@ function renderGrowthSummary(summary) {
 
   if (levelLabel) levelLabel.textContent = levelText;
   if (levelNumber) levelNumber.textContent = levelText;
+  if (levelLeaf) {
+    levelLeaf.textContent = levelEmoji;
+    levelLeaf.setAttribute('aria-label', `레벨 ${summary.level} (${levelEmoji})`);
+  }
   if (levelTitle) levelTitle.textContent = summary.title || '새싹';
   if (levelXp) levelXp.textContent = percentLabel;
   if (ring) ring.style.setProperty('--xp-progress', degree);
