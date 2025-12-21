@@ -20,25 +20,16 @@ body.autumn-theme {
   --gls-action-surface: rgba(255, 249, 240, 0.92);
   --gls-action-surface-strong: rgba(183, 122, 79, 0.08);
   --gls-action-glow: 0 10px 26px rgba(183, 122, 79, 0.18);
-  --gls-account-surface: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.16),
-      rgba(255, 245, 235, 0.08)
-    ),
-    color-mix(in srgb, #b77a4f 20%, rgba(60, 32, 18, 0.78));
-  --gls-account-border: color-mix(
-    in srgb,
-    rgba(183, 122, 79, 0.5) 70%,
-    rgba(255, 255, 255, 0.28)
-  );
-  --gls-account-text: #fff8f1;
-  --gls-account-muted: rgba(255, 235, 217, 0.8);
-  --gls-account-avatar: color-mix(in srgb, #fff4e7 52%, #b77a4f 70%);
-  --gls-account-shadow: 0 12px 28px color-mix(
-      in srgb,
-      #b77a4f 32%,
-      rgba(0, 0, 0, 0.16)
-    );
+  --gls-account-surface: color-mix(in srgb, #fff7ef 88%, rgba(183, 122, 79, 0.12));
+  --gls-account-menu-surface: color-mix(in srgb, rgba(255, 249, 240, 0.94) 82%, rgba(183, 122, 79, 0.08));
+  --gls-account-border: color-mix(in srgb, rgba(183, 122, 79, 0.28) 65%, rgba(255, 255, 255, 0.36));
+  --gls-account-menu-border: color-mix(in srgb, rgba(183, 122, 79, 0.24) 70%, rgba(255, 255, 255, 0.34));
+  --gls-account-text: color-mix(in srgb, #3b271a 70%, #fff8f1 30%);
+  --gls-account-muted: color-mix(in srgb, #6d4a34 70%, rgba(255, 235, 217, 0.78));
+  --gls-account-avatar: color-mix(in srgb, #b77a4f 62%, #fff4e7 38%);
+  --gls-account-shadow: 0 8px 20px rgba(183, 122, 79, 0.18);
+  --gls-account-shadow-hover: 0 12px 26px rgba(183, 122, 79, 0.2);
+  --gls-account-menu-shadow: 0 10px 24px rgba(98, 60, 36, 0.16);
 }
 
 /* =========================

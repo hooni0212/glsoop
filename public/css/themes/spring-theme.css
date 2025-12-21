@@ -21,25 +21,16 @@ body.spring-theme {
   --gls-action-surface: rgba(255, 250, 252, 0.92);
   --gls-action-surface-strong: rgba(184, 107, 133, 0.08);
   --gls-action-glow: 0 10px 26px rgba(184, 107, 133, 0.16);
-  --gls-account-surface: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.18),
-      rgba(255, 245, 250, 0.08)
-    ),
-    color-mix(in srgb, #b86b85 18%, rgba(58, 25, 35, 0.78));
-  --gls-account-border: color-mix(
-    in srgb,
-    rgba(184, 107, 133, 0.48) 70%,
-    rgba(255, 255, 255, 0.32)
-  );
-  --gls-account-text: #fff6fa;
-  --gls-account-muted: rgba(255, 230, 240, 0.78);
-  --gls-account-avatar: color-mix(in srgb, #ffeef6 48%, #b86b85 70%);
-  --gls-account-shadow: 0 12px 28px color-mix(
-      in srgb,
-      #b86b85 34%,
-      rgba(0, 0, 0, 0.16)
-    );
+  --gls-account-surface: color-mix(in srgb, #fff5f8 88%, rgba(184, 107, 133, 0.12));
+  --gls-account-menu-surface: color-mix(in srgb, rgba(255, 250, 252, 0.94) 82%, rgba(184, 107, 133, 0.08));
+  --gls-account-border: color-mix(in srgb, rgba(184, 107, 133, 0.26) 65%, rgba(255, 255, 255, 0.38));
+  --gls-account-menu-border: color-mix(in srgb, rgba(184, 107, 133, 0.24) 70%, rgba(255, 255, 255, 0.36));
+  --gls-account-text: color-mix(in srgb, #4a2b36 62%, #fff6fa 38%);
+  --gls-account-muted: color-mix(in srgb, #734f5b 70%, rgba(255, 230, 240, 0.74));
+  --gls-account-avatar: color-mix(in srgb, #b86b85 62%, #ffeef6 38%);
+  --gls-account-shadow: 0 8px 20px rgba(184, 107, 133, 0.18);
+  --gls-account-shadow-hover: 0 12px 26px rgba(184, 107, 133, 0.2);
+  --gls-account-menu-shadow: 0 10px 24px rgba(104, 58, 71, 0.16);
 
   /* 배경 레이어 (겨울 구조 그대로, 색만 봄톤으로) */
   background-image:

@@ -79,6 +79,47 @@
   --gls-action-accent: var(--gls-color-primary, #2e8b57);
   --gls-action-glow: 0 10px 26px rgba(46, 139, 87, 0.16);
 
+  /* Account menu system */
+  --gls-account-radius: 12px;
+  --gls-account-avatar-size: 32px;
+  --gls-account-padding-y: 8px;
+  --gls-account-padding-x: 12px;
+  --gls-account-gap: 10px;
+  --gls-account-menu-gap: 4px;
+  --gls-account-menu-radius: 10px 10px 14px 14px;
+  --gls-account-item-radius: 10px;
+  --gls-account-item-height: 46px;
+  --gls-account-surface: color-mix(
+    in srgb,
+    var(--gls-color-surface, #ffffff) 88%,
+    color-mix(in srgb, var(--gls-action-accent, #2e8b57) 14%, rgba(8, 22, 17, 0.82)) 12%
+  );
+  --gls-account-border: color-mix(
+    in srgb,
+    var(--gls-action-border, rgba(30, 42, 51, 0.16)) 72%,
+    rgba(255, 255, 255, 0.28)
+  );
+  --gls-account-menu-surface: color-mix(
+    in srgb,
+    var(--gls-color-surface, #ffffff) 86%,
+    var(--gls-glass-bg, rgba(255, 255, 255, 0.28)) 14%
+  );
+  --gls-account-menu-border: color-mix(
+    in srgb,
+    var(--gls-glass-border, rgba(30, 42, 51, 0.16)) 82%,
+    rgba(255, 255, 255, 0.3)
+  );
+  --gls-account-text: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 88%, #ffffff 12%);
+  --gls-account-muted: color-mix(in srgb, var(--gls-color-muted, #5c655e) 80%, rgba(255, 255, 255, 0.62));
+  --gls-account-avatar: color-mix(
+    in srgb,
+    var(--gls-action-accent, #2e8b57) 68%,
+    var(--gls-color-surface-subtle, #f7f9f4) 40%
+  );
+  --gls-account-shadow: 0 6px 16px rgba(15, 30, 25, 0.12);
+  --gls-account-shadow-hover: 0 10px 22px rgba(15, 30, 25, 0.14);
+  --gls-account-menu-shadow: 0 12px 26px rgba(15, 30, 25, 0.12);
+
 
 
   /* Radius */
@@ -419,69 +460,54 @@ select:focus-visible {
   margin-left: 0.75rem;
 }
 
-:root {
-  --gls-account-surface: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.14),
-      rgba(255, 255, 255, 0.06)
-    ),
-    color-mix(in srgb, var(--gls-action-accent, #2e8b57) 18%, rgba(8, 22, 17, 0.82));
-  --gls-account-border: color-mix(
-    in srgb,
-    var(--gls-action-border, rgba(30, 42, 51, 0.16)) 60%,
-    rgba(255, 255, 255, 0.18)
-  );
-  --gls-account-text: #f6fff9;
-  --gls-account-muted: rgba(246, 255, 249, 0.7);
-  --gls-account-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
-  --gls-account-avatar: color-mix(
-    in srgb,
-    var(--gls-action-accent, #2e8b57) 75%,
-    #c9f4d6 30%
-  );
-}
-
 .account-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 13px;
-  border-radius: 12px;
+  gap: var(--gls-account-gap);
+  padding: var(--gls-account-padding-y) var(--gls-account-padding-x);
+  border-radius: var(--gls-account-radius);
   border: 1px solid var(--gls-account-border);
   background: var(--gls-account-surface);
-  box-shadow: var(--gls-account-shadow), var(--gls-glass-inset, inset 0 1px 0 rgba(255, 255, 255, 0.3));
+  box-shadow: var(--gls-account-shadow),
+    var(--gls-glass-inset, inset 0 1px 0 rgba(255, 255, 255, 0.3));
   color: var(--gls-account-text);
   cursor: pointer;
-  transition: box-shadow 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+  transition: box-shadow 0.18s ease, transform 0.15s ease, border-color 0.18s ease,
+    background-color 0.18s ease;
   backdrop-filter: blur(var(--gls-glass-blur, 10px));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur, 10px));
 }
 
 .account-trigger:hover,
 .account-trigger:focus-visible {
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--gls-action-accent, #2e8b57) 20%, rgba(0, 0, 0, 0.2));
-  border-color: color-mix(in srgb, var(--gls-action-border-strong, rgba(46, 139, 87, 0.3)) 75%, rgba(255, 255, 255, 0.25));
+  background: color-mix(in srgb, var(--gls-account-surface) 90%, rgba(255, 255, 255, 0.12));
+  box-shadow: var(--gls-account-shadow-hover);
+  border-color: color-mix(
+    in srgb,
+    var(--gls-account-border) 75%,
+    var(--gls-action-border-strong, rgba(46, 139, 87, 0.3)) 25%
+  );
   transform: translateY(-1px);
   outline: none;
 }
 
 .account-trigger:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--gls-action-accent, #2e8b57) 45%, rgba(255, 255, 255, 0.65));
-  outline-offset: 3px;
+  outline: 2px solid color-mix(in srgb, var(--gls-action-accent, #2e8b57) 32%, rgba(255, 255, 255, 0.72));
+  outline-offset: 2px;
 }
 
 .account-avatar,
 .mobile-avatar {
-  width: 34px;
-  height: 34px;
+  width: var(--gls-account-avatar-size);
+  height: var(--gls-account-avatar-size);
   border-radius: 50%;
-  background: radial-gradient(circle at 32% 28%, #ffffff, var(--gls-account-avatar));
-  color: #0f2a1d;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.92), var(--gls-account-avatar));
+  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 72%, #0f2a1d 28%);
   font-weight: 800;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 6px 16px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .account-text {
@@ -518,20 +544,16 @@ select:focus-visible {
 .account-menu {
   position: absolute;
   right: 0;
-  top: calc(100% + 8px);
+  top: calc(100% + var(--gls-account-menu-gap));
   min-width: 220px;
   max-width: min(320px, calc(100vw - 24px));
-  background: color-mix(
-    in srgb,
-    var(--gls-glass-bg-strong, rgba(255, 255, 255, 0.42)) 35%,
-    rgba(10, 26, 21, 0.85)
-  );
-  border: 1px solid var(--gls-glass-border, rgba(255, 255, 255, 0.14));
-  border-radius: 12px;
-  box-shadow: var(--gls-glass-shadow-hover, 0 14px 36px rgba(0, 0, 0, 0.22));
+  background: var(--gls-account-menu-surface);
+  border: 1px solid var(--gls-account-menu-border);
+  border-radius: var(--gls-account-menu-radius);
+  box-shadow: var(--gls-account-menu-shadow);
   backdrop-filter: blur(var(--gls-glass-blur, 12px));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur, 12px));
-  padding: 10px;
+  padding: 8px;
   z-index: 1050;
   transform-origin: top right;
 }
@@ -543,7 +565,7 @@ select:focus-visible {
 .account-menu-list {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
 }
 
 .account-menu-item {
@@ -551,11 +573,14 @@ select:focus-visible {
   width: 100%;
   border: none;
   background: color-mix(in srgb, rgba(255, 255, 255, 0.08), transparent);
-  color: var(--gls-account-text);
+  color: color-mix(in srgb, var(--gls-account-text) 90%, var(--gls-color-text, #1f2a2b) 10%);
   text-decoration: none;
   text-align: left;
-  padding: 9px 12px;
-  border-radius: 10px;
+  padding: 0 12px;
+  height: var(--gls-account-item-height);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--gls-account-item-radius);
   font-weight: 600;
   font-size: 0.95rem;
   transition: background-color 0.15s ease, color 0.15s ease;
@@ -569,20 +594,20 @@ select:focus-visible {
 }
 
 .account-menu-logout {
-  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 35%, #f1c2c4 65%);
+  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 86%, #d17171 14%);
 }
 
 .account-menu-divider {
   border: none;
-  border-top: 1px solid color-mix(in srgb, var(--gls-glass-border, rgba(30, 42, 51, 0.18)) 80%, transparent);
-  margin: 6px 2px;
+  border-top: 1px solid color-mix(in srgb, var(--gls-account-menu-border) 82%, transparent);
+  margin: 8px 4px;
 }
 
 .mobile-account-chip {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 4px;
+  padding: 10px 6px;
 }
 
 .mobile-account-text {
@@ -603,18 +628,18 @@ select:focus-visible {
 }
 
 .mobile-menu-divider {
-  margin: 0.4rem 0;
+  margin: 0.35rem 0;
 }
 
 .nav-link-compact {
-  padding: 0.85rem 1rem !important;
-  min-height: 46px;
+  padding: 0.9rem 1rem !important;
+  min-height: var(--gls-account-item-height);
 }
 
 .nav-logout-link {
-  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 60%, #b14a52 40%);
+  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 88%, #7a3f44 12%);
   font-weight: 600;
-  padding: 0.75rem 1rem;
+  padding: 0.9rem 1rem;
 }
 
 .nav-logout-link:hover,
