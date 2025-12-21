@@ -19,17 +19,52 @@
   1. 작가 페이지 공통 영역
 ========================= */
 
+body.page-author {
+  color: var(--gls-text);
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 35%),
+    radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.4), transparent 28%),
+    var(--gls-color-bg);
+}
+
 /* 섹션 배경색 (테마 변수를 우선 사용) */
 .author-page-section {
   background: var(--author-surface);
   position: relative;
   z-index: 1;
+  padding-top: calc(var(--gls-nav-height) + var(--gls-space-6));
+  padding-bottom: var(--gls-space-8);
+}
+
+.author-page-shell {
+  max-width: var(--gls-page-max-width);
+  margin: 0 auto;
+  padding: 0 var(--gls-page-margin);
+}
+
+.author-page-header {
+  background: var(--gls-glass-bg-subtle);
+  border: 1px solid var(--gls-border);
+  border-radius: var(--gls-card-radius);
+  box-shadow: var(--gls-card-shadow);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
+  padding: var(--gls-card-padding);
+  margin-bottom: var(--gls-card-gap);
 }
 
 /* 메인 레이아웃: 두 컬럼(row) 상단 정렬 */
 .author-main-row,
 .author-page-main-row {
-  align-items: flex-start;
+  align-items: stretch;
+  gap: var(--gls-card-gap);
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+}
+
+@media (max-width: 991.98px) {
+  .author-page-main-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* =========================
@@ -40,7 +75,7 @@
 .author-posts-card {
   border-radius: var(--gls-card-radius);
   border: 1px solid var(--gls-border);
-  box-shadow: var(--author-card-shadow);
+  box-shadow: var(--gls-card-shadow);
   background: var(--author-card-bg);
   backdrop-filter: blur(var(--gls-blur));
   -webkit-backdrop-filter: blur(var(--gls-blur));
@@ -60,21 +95,30 @@
 /* 작가 정보 영역(왼쪽 카드 내용) */
 .author-profile-card .card-body {
   font-size: 0.95rem;
+  padding: var(--gls-card-padding);
 }
 
 /* 오른쪽: 글 목록 카드 안의 개별 글 카드 */
-.author-post-card {
-  border: 1px solid var(--gls-border);
-  border-radius: var(--gls-radius-md);
-  margin-bottom: var(--gls-card-gap);
-  box-shadow: var(--author-card-shadow-compact);
-  background: var(--gls-glass-bg);
-  backdrop-filter: blur(var(--gls-blur));
-  -webkit-backdrop-filter: blur(var(--gls-blur));
+.author-posts-card {
+  padding: 0;
+}
+
+#authorPostsList {
+  display: grid;
+  gap: var(--gls-card-gap);
+}
+
+.author-post-card.gls-post-card {
+  margin: 0;
+  box-shadow: var(--gls-card-shadow);
 }
 
 .author-post-card .card-body {
-  padding: 1rem 1.1rem 1.2rem;
+  padding: var(--gls-card-padding);
+}
+
+.author-posts-card .card-body {
+  padding: var(--gls-card-padding);
 }
 
 .author-post-title {
