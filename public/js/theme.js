@@ -46,58 +46,9 @@
     return safeTheme;
   }
 
-  // ===== 배경 이미지 관리 =====
-  const BG_STORAGE_KEY = 'gls-custom-bg';
-
-  function readBackground() {
-    try {
-      const stored = localStorage.getItem(BG_STORAGE_KEY);
-      return stored || '';
-    } catch (e) {
-      console.warn('배경 이미지를 로컬스토리지에서 읽는 중 문제가 발생했습니다.', e);
-      return '';
-    }
-  }
-
-  function persistBackground(url) {
-    try {
-      if (url) {
-        localStorage.setItem(BG_STORAGE_KEY, url);
-      } else {
-        localStorage.removeItem(BG_STORAGE_KEY);
-      }
-    } catch (e) {
-      console.warn('배경 이미지를 로컬스토리지에 저장하는 중 문제가 발생했습니다.', e);
-    }
-  }
-
-  function applyBackground(url) {
-    const body = document.body;
-    if (!body) return '';
-
-    const trimmed = (url || '').trim();
-    if (!trimmed) {
-      body.classList.remove('has-custom-bg');
-      body.style.removeProperty('--gls-custom-bg-image');
-      return '';
-    }
-
-    const sanitized = trimmed.replace(/"/g, '');
-    body.classList.add('has-custom-bg');
-    body.style.setProperty('--gls-custom-bg-image', `url(${sanitized})`);
-    return sanitized;
-  }
-
-  function syncBackground() {
-    const url = readBackground();
-    applyBackground(url);
-    return url;
-  }
-
   function syncFromStorage() {
     const theme = readTheme();
     applyTheme(theme);
-    syncBackground();
     return theme;
   }
 
@@ -119,11 +70,6 @@
     persistTheme,
     applyTheme,
     syncFromStorage,
-    // background helpers
-    readBackground,
-    persistBackground,
-    applyBackground,
-    syncBackground,
   };
 
   init();

@@ -59,7 +59,6 @@ Glsoop.AdminPage = (function () {
     }
 
     setupThemeControls();
-    setupBackgroundControls();
     setupTabSwitching();
     setupModalEvents();
 
@@ -86,134 +85,67 @@ Glsoop.AdminPage = (function () {
   function setupThemeControls() {
     const radios = document.querySelectorAll('input[name="adminTheme"]');
     const preview = document.querySelector('.admin-theme-preview');
+    const applyBtn = document.getElementById('applyThemeBtn');
     if (!radios.length) return;
 
-    const stored = localStorage.getItem('gls-admin-theme') || 'winter';
-    applyAdminTheme(stored, radios, preview, false);
-
-    radios.forEach((radio) => {
-      radio.addEventListener('change', () => {
-        if (!radio.checked) return;
-        applyAdminTheme(radio.value, radios, preview, true);
-      });
-    });
-  }
-
-  function applyAdminTheme(theme, radios, preview, persist = true) {
     const themeApi = window.Glsoop?.Theme;
     const allowed = themeApi?.ALLOWED_THEMES || ['spring', 'summer', 'autumn', 'winter'];
     const defaultTheme = themeApi?.DEFAULT_THEME || 'winter';
-    const safeTheme = allowed.includes(theme) ? theme : defaultTheme;
 
-    const applied = themeApi?.applyTheme
-      ? themeApi.applyTheme(safeTheme)
-      : legacyApplyTheme(safeTheme, allowed);
+    let appliedTheme = themeApi?.readTheme ? themeApi.readTheme() : readThemeLegacy();
+    appliedTheme = allowed.includes(appliedTheme) ? appliedTheme : defaultTheme;
+    let pendingTheme = appliedTheme;
 
-    radios?.forEach((r) => {
-      r.checked = r.value === applied;
+    applyPreview(appliedTheme, false);
+
+    radios.forEach((radio) => {
+      radio.checked = radio.value === appliedTheme;
+      radio.addEventListener('change', () => {
+        if (!radio.checked) return;
+        pendingTheme = radio.value;
+        applyPreview(pendingTheme, pendingTheme !== appliedTheme);
+      });
     });
 
-    if (preview) {
-      preview.textContent = `현재 테마: ${THEME_LABELS[applied] || applied}`;
+    applyBtn?.addEventListener('click', () => {
+      const next = applyPreview(pendingTheme, false);
+      appliedTheme = next;
+      persistTheme(next);
+    });
+
+    function applyPreview(theme, showPending) {
+      const safeTheme = allowed.includes(theme) ? theme : defaultTheme;
+      const applied = themeApi?.applyTheme
+        ? themeApi.applyTheme(safeTheme)
+        : legacyApplyTheme(safeTheme, allowed);
+
+      if (preview) {
+        preview.textContent = showPending
+          ? `미리보기: ${THEME_LABELS[applied] || applied} (적용 버튼을 눌러 저장)`
+          : `현재 테마: ${THEME_LABELS[applied] || applied}`;
+      }
+
+      return applied;
     }
 
-    if (persist) {
+    function persistTheme(theme) {
       if (themeApi?.persistTheme) {
-        themeApi.persistTheme(applied);
-      } else {
-        try {
-          localStorage.setItem('gls-admin-theme', applied);
-        } catch (e) {
-          console.warn('테마를 로컬스토리지에 저장할 수 없습니다.', e);
-        }
-      }
-    }
-  }
-
-  function setupBackgroundControls() {
-    const input = document.getElementById('customBackgroundUrl');
-    const applyBtn = document.getElementById('applyBackgroundBtn');
-    const clearBtn = document.getElementById('clearBackgroundBtn');
-    const status = document.getElementById('backgroundStatus');
-
-    if (!input || !applyBtn || !clearBtn) return;
-
-    const themeApi = window.Glsoop?.Theme;
-    const initialUrl = themeApi?.readBackground ? themeApi.readBackground() : readBackgroundLegacy();
-
-    if (initialUrl) {
-      input.value = initialUrl;
-      applyBackground(initialUrl, false);
-    }
-    updateStatus(initialUrl);
-
-    applyBtn.addEventListener('click', () => {
-      const url = input.value.trim();
-      applyBackground(url, true);
-    });
-
-    clearBtn.addEventListener('click', () => {
-      input.value = '';
-      applyBackground('', true);
-    });
-
-    function applyBackground(url, persist = true) {
-      const next = themeApi?.applyBackground ? themeApi.applyBackground(url) : legacyApplyBackground(url);
-      updateStatus(next);
-
-      if (persist) {
-        if (themeApi?.persistBackground) {
-          themeApi.persistBackground(next);
-        } else {
-          persistBackgroundLegacy(next);
-        }
-      }
-    }
-
-    function updateStatus(url) {
-      if (!status) return;
-      if (!url) {
-        status.textContent = '기본 그라데이션 배경을 사용 중입니다.';
+        themeApi.persistTheme(theme);
         return;
       }
-      status.textContent = `적용된 배경: ${url}`;
-    }
-
-    function legacyApplyBackground(url) {
-      const body = document.body;
-      const trimmed = (url || '').trim();
-      if (!body) return '';
-
-      if (!trimmed) {
-        body.classList.remove('has-custom-bg');
-        body.style.removeProperty('--gls-custom-bg-image');
-        return '';
-      }
-
-      const sanitized = trimmed.replace(/"/g, '');
-      body.classList.add('has-custom-bg');
-      body.style.setProperty('--gls-custom-bg-image', `url(${sanitized})`);
-      return sanitized;
-    }
-
-    function readBackgroundLegacy() {
       try {
-        return localStorage.getItem('gls-custom-bg') || '';
+        localStorage.setItem('gls-admin-theme', theme);
       } catch (e) {
-        console.warn('배경 이미지를 로컬스토리지에서 읽을 수 없습니다.', e);
-        return '';
+        console.warn('테마를 로컬스토리지에 저장할 수 없습니다.', e);
       }
     }
 
-    function persistBackgroundLegacy(url) {
+    function readThemeLegacy() {
       try {
-        if (url) {
-          localStorage.setItem('gls-custom-bg', url);
-        } else {
-          localStorage.removeItem('gls-custom-bg');
-        }
+        return localStorage.getItem('gls-admin-theme') || defaultTheme;
       } catch (e) {
-        console.warn('배경 이미지를 로컬스토리지에 저장할 수 없습니다.', e);
+        console.warn('테마를 로컬스토리지에서 읽을 수 없습니다.', e);
+        return defaultTheme;
       }
     }
   }

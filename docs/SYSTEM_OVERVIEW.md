@@ -10,7 +10,6 @@
     - 운영에서는 `BASE_URL=https://www.glsoop.com`(또는 `PUBLIC_BASE_URL`)을 환경변수로 설정하는 것을 권장합니다.
     - 로컬 개발에서 메일 링크를 `localhost`로 유지하려면 `ALLOW_LOOPBACK_BASE_URL=1`을 설정하세요.
 - **DB 초기화:** `db.js`에서 SQLite를 사용해 사용자, 게시글, 좋아요, 팔로우, 해시태그 및 게시글-해시태그 매핑 테이블을 생성합니다.
-- **이미지 생성 여부:** 현재 코드베이스나 내장 도구에는 이미지 생성 기능이 포함되어 있지 않습니다. 이미지가 필요한 경우 외부 생성기를 사용해 결과물을 `public/` 에셋으로 추가해야 합니다.
 
 ## 인증 및 계정 흐름 (`routes/authRoutes.js`)
 - **회원가입 & 이메일 인증:** `/api/signup`은 사용자 정보를 저장하면서 이메일 인증 토큰을 생성해 발송합니다. `/api/verify-email`은 토큰 유효성을 검사해 인증 상태를 갱신합니다.
@@ -110,8 +109,6 @@
   - `fetchMeAsAdmin()`: `/api/me`로 관리자 여부를 검증합니다.
   - `loadUsers(usersBox)`, `buildUsersTableHtml(users)`, `handleUserTableClick(...)`: 사용자 목록 출력과 정지/활성 토글을 처리합니다.
   - `loadPosts(postsBox)`, `buildPostsHtml(posts)`, `handlePostListClick(...)`: 게시글 목록을 표시하고 삭제/검색을 처리합니다.
-  - `setupThemeControls()`, `applyAdminTheme(...)`: 로컬 스토리지에 저장된 계절 테마를 불러와 `body` 클래스에 적용하고, 토글 버튼으로 즉시 전환할 수 있게 합니다.
-  - `setupBackgroundControls()`: 관리자 카드에서 공용 배경 이미지 URL을 입력·적용·초기화하며, 값을 로컬 스토리지에 보관합니다.
 - `public/js/utils.js` (공통 유틸)
   - `autoAdjustQuoteFont(el)`: 따옴표가 포함된 글의 폰트를 자동 조정합니다.
   - `maskEmail(email)`: 이메일을 마스킹해 UI에 표시합니다.

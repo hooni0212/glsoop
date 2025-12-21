@@ -80,14 +80,9 @@ body.winter-theme::before {
   pointer-events: none;
   z-index: 0;
   background:
-    var(--gls-background-image),
     radial-gradient(circle at 10% 20%, rgba(255,255,255,0.25) 0, transparent 60%),
     radial-gradient(circle at 80% 15%, rgba(255,255,255,0.18) 0, transparent 55%),
     radial-gradient(circle at 50% 80%, rgba(255,255,255,0.16) 0, transparent 60%);
-  background-repeat: no-repeat;
-  background-size: cover, auto, auto, auto;
-  background-position: center, center, center, center;
-  background-attachment: fixed, fixed, fixed, fixed;
 }
 
 /* 2-1. 눈이 잘 보이도록 흐릿한 질감 레이어 추가 */

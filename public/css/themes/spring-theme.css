@@ -74,14 +74,9 @@ body.spring-theme::before {
   pointer-events: none;
   z-index: 0;
   background:
-    var(--gls-background-image),
     radial-gradient(circle at 10% 20%, rgba(255,255,255,0.35) 0, transparent 60%),
     radial-gradient(circle at 80% 15%, rgba(255,245,248,0.28) 0, transparent 55%),
     radial-gradient(circle at 50% 80%, rgba(255,240,245,0.25) 0, transparent 60%);
-  background-repeat: no-repeat;
-  background-size: cover, auto, auto, auto;
-  background-position: center, center, center, center;
-  background-attachment: fixed, fixed, fixed, fixed;
 }
 
 /* 봄 느낌의 부드러운 질감 레이어 */
