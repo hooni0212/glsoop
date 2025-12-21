@@ -167,9 +167,136 @@ body.page-post #postDetail .quote-card > *:last-child {
   margin-bottom: 0;
 }
 
-/* "피드로 돌아가기" 버튼 간격 */
-body.page-post #backToFeedBtn {
+/* =========================
+   메타 바 (카테고리/태그 + 돌아가기)
+========================= */
+
+body.page-post .post-meta-bar {
+  margin-top: var(--gls-space-4, 16px);
+  padding: var(--gls-space-4, 16px) var(--gls-space-5, 20px);
+  border-radius: var(--gls-radius-card, 18px);
+  background: var(--gls-glass-bg-strong);
+  border: 1px solid var(--gls-glass-border);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  box-shadow: var(--gls-glass-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gls-space-3, 12px);
+  flex-wrap: wrap;
+}
+
+body.mode-dark.page-post .post-meta-bar {
+  background: rgba(15, 22, 19, 0.36);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25);
+}
+
+body.page-post .post-meta-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+  row-gap: var(--gls-space-2, 8px);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body.page-post .post-meta-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+  row-gap: var(--gls-space-2, 8px);
+}
+
+body.page-post .post-meta-bar .gls-card-hashtags {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+}
+
+body.page-post .post-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: -0.1px;
+  border-radius: var(--gls-chip-radius);
+  border: 1px solid var(--gls-ghost-border);
+  background: var(--gls-ghost-bg);
+  color: rgba(30, 42, 51, 0.82);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  box-shadow: var(--gls-glass-inset);
+  white-space: nowrap;
+}
+
+body.page-post .post-tag-chip,
+body.page-post .post-meta-bar .gls-tag-btn {
+  padding: 8px 12px !important;
+  font-size: 0.9rem !important;
+  border-radius: var(--gls-chip-radius) !important;
+  border: 1px solid var(--gls-ghost-border) !important;
+  background: var(--gls-ghost-bg) !important;
+  color: rgba(30, 42, 51, 0.8) !important;
+  backdrop-filter: blur(var(--gls-glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur)) !important;
+  box-shadow: var(--gls-glass-inset) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body.page-post .post-tag-chip:hover,
+  body.page-post .post-meta-bar .gls-tag-btn:hover {
+    background: var(--gls-ghost-bg-hover) !important;
+    border-color: var(--gls-ghost-border-hover) !important;
+  }
+}
+
+body.page-post .post-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-weight: 800;
+  color: rgba(30, 42, 51, 0.8);
+  text-decoration: none;
   border-radius: var(--gls-btn-radius);
+  transition: color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+  white-space: nowrap;
+}
+
+body.mode-dark.page-post .post-back-link {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body.page-post .post-back-link:hover {
+    color: rgba(30, 42, 51, 0.95);
+    background: rgba(255, 255, 255, 0.26);
+    transform: translateY(-1px);
+  }
+}
+
+body.page-post .post-back-link:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+  body.page-post .post-meta-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--gls-space-2, 8px);
+  }
+
+  body.page-post .post-back-link {
+    align-self: flex-end;
+  }
 }
 
 /* =========================

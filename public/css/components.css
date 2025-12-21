@@ -165,36 +165,38 @@ body.page-index .gls-post-card .feed-post-content .quote-card {
 ========================= */
 
 .like-btn {
-text-decoration: none;
-border: none;
-background: transparent;
-cursor: pointer;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
 }
 
 .like-heart {
-display: inline-block;              /* transform 잘 보이도록 */
-font-size: 1.5rem;
-line-height: 1;
-color: #222;                        /* 기본: 검은 테두리 하트(♡) 느낌 */
-transform: scale(1);                /* 기본 크기 */
-transition:
-    transform 0.22s ease-out,         /* 커졌다 작아지는 애니메이션 */
-    color 0.15s ease;
+  display: inline-block; /* transform 잘 보이도록 */
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--gls-action-accent, #2e8b57);
+  transform: scale(1); /* 기본 크기 */
+  transition:
+    transform 0.22s ease-out, /* 커졌다 작아지는 애니메이션 */
+    color 0.15s ease,
+    text-shadow 0.2s ease;
 }
 
-/* 좋아요 된 상태일 때 빨간색 하트 */
+/* 좋아요 된 상태일 때 강조 컬러 */
 .like-btn.liked .like-heart {
-color: #e53935;
+  color: var(--gls-action-accent, #2e8b57);
+  text-shadow: 0 4px 16px rgba(46, 139, 87, 0.32);
 }
 
 /* 숫자 */
 .like-count {
-font-size: 1rem;
+  font-size: 1rem;
 }
 
 /* 범프 상태: 확실히 눈에 띄게 */
 .like-heart.bump {
-transform: scale(1.4);
+  transform: scale(1.4);
 }
 
 /* =========================
@@ -591,8 +593,8 @@ body.mode-dark .gls-post-card {
 
 .post-bookmark-toggle,
 .gls-post-card .like-btn {
-  border: 1px solid var(--gls-ghost-border);
-  background: var(--gls-ghost-bg);
+  border: 1px solid var(--gls-action-border, var(--gls-ghost-border));
+  background: var(--gls-action-surface, var(--gls-ghost-bg));
   color: var(--gls-color-text, #1f2a2b);
   border-radius: var(--gls-btn-radius);
   padding: 10px 14px;
@@ -601,7 +603,8 @@ body.mode-dark .gls-post-card {
   box-shadow: var(--gls-glass-inset);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease,
+    box-shadow 0.14s ease;
 }
 
 .gls-post-card .like-btn {
@@ -613,19 +616,20 @@ body.mode-dark .gls-post-card {
 
 .gls-post-card .like-btn .like-heart {
   font-size: 1.05rem;
-  color: var(--gls-color-primary, #2e8b57);
+  color: var(--gls-action-accent, var(--gls-color-primary, #2e8b57));
   transform: none;
 }
 
 .gls-post-card .like-btn.liked {
-  background: rgba(238, 252, 245, 0.62);
-  border-color: rgba(46, 139, 87, 0.30);
+  background: var(--gls-action-surface-strong, rgba(238, 252, 245, 0.62));
+  border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
 }
 
 .post-bookmark-toggle .post-bookmark-icon {
   width: 18px;
   height: 18px;
-  color: var(--gls-color-primary, #2e8b57);
+  color: var(--gls-action-accent, var(--gls-color-primary, #2e8b57));
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -633,10 +637,11 @@ body.mode-dark .gls-post-card {
   .post-bookmark-toggle:focus-visible,
   .gls-post-card .like-btn:hover,
   .gls-post-card .like-btn:focus-visible {
-    background: var(--gls-ghost-bg-hover);
-    border-color: var(--gls-ghost-border-hover);
+    background: var(--gls-action-surface-hover, var(--gls-ghost-bg-hover));
+    border-color: var(--gls-action-border-strong, var(--gls-ghost-border-hover));
     color: var(--gls-color-text, #1f2a2b);
     text-decoration: none;
+    box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
   }
 }
 @media (hover: none) {

@@ -1,15 +1,18 @@
 // public/js/seasonal.js
 // - 계절 테마(특히 겨울) 전용 인터랙션 스크립트
 // - winter-theme.css에 정의된 .snowflake 애니메이션을 기반으로 DOM에 눈파티클을 주입
-// - index.html에서만 실행되도록 body.page-index 가드를 두고, 모션 민감도(prefers-reduced-motion)도 고려
+// - 홈/글/작가 화면에서만 실행되도록 페이지 클래스로 가드, 모션 민감도(prefers-reduced-motion)도 고려
 
 // 페이지 로드 이후에만 실행
 // (index.html <body>에는 page-index 클래스가 있으며, 겨울 스킨은 winter-theme 클래스로 구분)
 document.addEventListener('DOMContentLoaded', () => {
   const body = document.body;
 
-  // 홈이 아니면 실행하지 않음 (다른 페이지는 눈 배경이 필요 없음)
-  if (!body.classList.contains('page-index')) return;
+  // 눈 효과를 켜는 페이지 범위: 홈 / 글 상세 / 작가
+  const snowEnabledPages = ['page-index', 'page-post', 'page-author'];
+  const isSnowPage = snowEnabledPages.some((cls) => body.classList.contains(cls));
+
+  if (!isSnowPage) return;
   // 테마가 겨울이 아닐 때도 조용히 종료
   if (!body.classList.contains('winter-theme')) return;
 

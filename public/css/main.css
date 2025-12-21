@@ -456,16 +456,18 @@
   display: inline-block;              /* transform 잘 보이도록 */
   font-size: 1.5rem;
   line-height: 1;
-  color: #222;                        /* 기본: 검은 테두리 하트(♡) 느낌 */
+  color: var(--gls-action-accent, #2e8b57);
   transform: scale(1);                /* 기본 크기 */
   transition:
     transform 0.22s ease-out,         /* 커졌다 작아지는 애니메이션 */
-    color 0.15s ease;
+    color 0.15s ease,
+    text-shadow 0.2s ease;
 }
 
-/* 좋아요 된 상태일 때 빨간색 하트 */
+/* 좋아요 된 상태일 때 강조 컬러 */
 .like-btn.liked .like-heart {
-  color: #e53935;
+  color: var(--gls-action-accent, #2e8b57);
+  text-shadow: 0 4px 16px rgba(46, 139, 87, 0.32);
 }
 
 /* 숫자 */
@@ -476,6 +478,37 @@
 /* 범프 상태: 확실히 눈에 띄게 (★ 여기 s 빼는 게 중요!) */
 .like-heart.bump {
   transform: scale(1.4);
+}
+
+/* =========================
+   공통 버튼 테마 확장
+   - 헤더 외 영역에서도 계절 테마 색상/글로우를 공유
+========================= */
+body[class*='-theme'] .btn-primary,
+body[class*='-theme'] .btn-outline-primary,
+body[class*='-theme'] .btn-outline-success,
+body[class*='-theme'] .btn-success {
+  color: var(--gls-action-accent, #2e8b57);
+  background: var(--gls-action-surface, rgba(255, 255, 255, 0.82));
+  border-color: var(--gls-action-border, rgba(30, 42, 51, 0.16));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+body[class*='-theme'] .btn-primary:hover,
+body[class*='-theme'] .btn-primary:focus-visible,
+body[class*='-theme'] .btn-outline-primary:hover,
+body[class*='-theme'] .btn-outline-primary:focus-visible,
+body[class*='-theme'] .btn-outline-success:hover,
+body[class*='-theme'] .btn-outline-success:focus-visible,
+body[class*='-theme'] .btn-success:hover,
+body[class*='-theme'] .btn-success:focus-visible {
+  color: #0f172a;
+  background: var(--gls-action-surface-hover, rgba(255, 255, 255, 0.9));
+  border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+  transform: translateY(-1px);
 }
 
 /* =========================
@@ -504,6 +537,30 @@
   color: #0a3d62;
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
   border-color: rgba(10, 61, 98, 0.28);
+}
+
+.admin-theme-card .btn {
+  min-width: 72px;
+  font-weight: 600;
+}
+
+.admin-theme-card .btn-outline-primary {
+  border-color: var(--gls-action-border, rgba(30, 42, 51, 0.16));
+  color: var(--gls-action-accent, #2e8b57);
+  background: var(--gls-action-surface, rgba(255, 255, 255, 0.82));
+}
+
+.admin-theme-card .btn-check:checked + .btn-outline-primary,
+.admin-theme-card .btn-outline-primary:hover,
+.admin-theme-card .btn-outline-primary:focus-visible {
+  color: #0f172a;
+  background: var(--gls-action-surface-hover, rgba(255, 255, 255, 0.9));
+  border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+}
+
+.admin-theme-preview {
+  min-height: 1.5rem;
 }
 
 .admin-toolbar {
@@ -737,7 +794,6 @@
 
 .hero-card .hero-cta-btn {
   position: relative;
-  overflow: visible; /* 잎사귀가 바깥으로 튀어나오도록 */
 
   border: none;
   padding: 0.8rem 2rem;
@@ -775,51 +831,6 @@
   outline-offset: 2px;
 }
 
-
-/* =========================
-   14. 히어로 CTA 잎사귀 파티클
-========================= */
-
-.hero-cta-leaves {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-/* 개별 잎사귀 기본 상태 */
-.hero-cta-leaf {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-
-  /* 처음부터 최종 위치 주변에서만 등장하게 */
-  transform:
-    translate(-50%, -50%)
-    translate(var(--leaf-tx, 0px), var(--leaf-ty, -16px))
-    scale(0.1)
-    rotate(var(--leaf-rot, 0deg));
-  transform-origin: center bottom;
-
-  opacity: 0;
-  font-size: 1.2rem;
-
-  pointer-events: none;
-
-  transition:
-    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.35s ease-out;
-}
-
-/* 애니메이션이 적용될 때 (살짝 커지고 선명해지는 정도만) */
-.hero-cta-leaf.leaf-show {
-  opacity: 1;
-  transform:
-    translate(-50%, -50%)
-    translate(var(--leaf-tx, 0px), var(--leaf-ty, -22px))
-    scale(var(--leaf-scale, 1))
-    rotate(var(--leaf-rot, 0deg));
-}
-
 /* 모바일에서의 CTA 버튼 모양 */
 @media (max-width: 576px) {
   .hero-card .hero-cta-btn {
@@ -828,15 +839,11 @@
     font-size: 1rem;
     border-radius: 999px;
   }
-
-  .hero-cta-leaf {
-    font-size: 1.3rem;
-  }
 }
 
 
 /* =========================
-   15. 공통 푸터
+   14. 공통 푸터
 ========================= */
 
 .custom-footer {

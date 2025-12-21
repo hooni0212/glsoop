@@ -19,6 +19,13 @@ Glsoop.AdminPage = (function () {
     campaignItems: [],
   };
 
+  const THEME_LABELS = {
+    spring: '봄',
+    summer: '여름',
+    autumn: '가을',
+    winter: '겨울',
+  };
+
   const CONDITION_LABELS = {
     POST_COUNT_TOTAL: '총 글 작성',
     POST_COUNT_BY_CATEGORY: '카테고리별 글 작성',
@@ -51,6 +58,7 @@ Glsoop.AdminPage = (function () {
       return;
     }
 
+    setupThemeControls();
     setupTabSwitching();
     setupModalEvents();
 
@@ -72,6 +80,81 @@ Glsoop.AdminPage = (function () {
     await loadPosts(postsBox);
     await loadQuestTemplates();
     await loadQuestCampaigns();
+  }
+
+  function setupThemeControls() {
+    const radios = document.querySelectorAll('input[name="adminTheme"]');
+    const preview = document.querySelector('.admin-theme-preview');
+    const applyBtn = document.getElementById('applyThemeBtn');
+    if (!radios.length) return;
+
+    const themeApi = window.Glsoop?.Theme;
+    const allowed = themeApi?.ALLOWED_THEMES || ['spring', 'summer', 'autumn', 'winter'];
+    const defaultTheme = themeApi?.DEFAULT_THEME || 'winter';
+
+    let appliedTheme = themeApi?.readTheme ? themeApi.readTheme() : readThemeLegacy();
+    appliedTheme = allowed.includes(appliedTheme) ? appliedTheme : defaultTheme;
+    let pendingTheme = appliedTheme;
+
+    applyPreview(appliedTheme, false);
+
+    radios.forEach((radio) => {
+      radio.checked = radio.value === appliedTheme;
+      radio.addEventListener('change', () => {
+        if (!radio.checked) return;
+        pendingTheme = radio.value;
+        applyPreview(pendingTheme, pendingTheme !== appliedTheme);
+      });
+    });
+
+    applyBtn?.addEventListener('click', () => {
+      const next = applyPreview(pendingTheme, false);
+      appliedTheme = next;
+      persistTheme(next);
+    });
+
+    function applyPreview(theme, showPending) {
+      const safeTheme = allowed.includes(theme) ? theme : defaultTheme;
+      const applied = themeApi?.applyTheme
+        ? themeApi.applyTheme(safeTheme)
+        : legacyApplyTheme(safeTheme, allowed);
+
+      if (preview) {
+        preview.textContent = showPending
+          ? `미리보기: ${THEME_LABELS[applied] || applied} (적용 버튼을 눌러 저장)`
+          : `현재 테마: ${THEME_LABELS[applied] || applied}`;
+      }
+
+      return applied;
+    }
+
+    function persistTheme(theme) {
+      if (themeApi?.persistTheme) {
+        themeApi.persistTheme(theme);
+        return;
+      }
+      try {
+        localStorage.setItem('gls-admin-theme', theme);
+      } catch (e) {
+        console.warn('테마를 로컬스토리지에 저장할 수 없습니다.', e);
+      }
+    }
+
+    function readThemeLegacy() {
+      try {
+        return localStorage.getItem('gls-admin-theme') || defaultTheme;
+      } catch (e) {
+        console.warn('테마를 로컬스토리지에서 읽을 수 없습니다.', e);
+        return defaultTheme;
+      }
+    }
+  }
+
+  function legacyApplyTheme(theme, allowed) {
+    const body = document.body;
+    allowed.forEach((t) => body.classList.remove(`${t}-theme`));
+    body.classList.add(`${theme}-theme`);
+    return theme;
   }
 
   function setupTabSwitching() {

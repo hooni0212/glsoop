@@ -1,0 +1,226 @@
+/* =============================================================
+   서브 페이지 공통 레이아웃 (public/css/page-shell.css)
+   - 대상: 카테고리, 북마크, 마이페이지 등 메인/상세 외 페이지
+   - 목표: index/post의 유리 패널 감성을 다른 화면에도 공유
+   - 사용: body에 page-XXXX 클래스 + main.page-shell 구조
+   ============================================================= */
+
+:root {
+  /* 서브 페이지 카드/헤더에 사용할 배경과 그림자 강도 */
+  --gls-sub-surface: var(--gls-glass-bg-subtle);
+  --gls-sub-surface-strong: var(--gls-glass-bg);
+  --gls-sub-border: var(--gls-glass-border);
+  --gls-sub-shadow: var(--gls-glass-shadow);
+}
+
+/* =========================
+   1) 배경 / 기본 레이아웃
+========================= */
+
+body.page-category,
+body.page-bookmarks,
+body.page-mypage {
+  color: var(--gls-text);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.48), transparent 32%),
+    radial-gradient(circle at 82% 0%, rgba(255, 255, 255, 0.36), transparent 28%),
+    var(--gls-color-bg);
+}
+
+main.page-shell {
+  padding-top: calc(var(--gls-nav-height) + var(--gls-space-6));
+  padding-bottom: var(--gls-space-8);
+}
+
+.page-shell .gls-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-5, 20px);
+}
+
+/* =========================
+   2) 히어로 / 서브 헤더
+========================= */
+
+.page-hero-card {
+  padding: var(--gls-space-6, 24px);
+  border-radius: var(--gls-radius-lg, 18px);
+  border: 1px solid var(--gls-sub-border);
+  background: var(--gls-sub-surface);
+  box-shadow: var(--gls-sub-shadow);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
+  position: relative;
+  overflow: hidden;
+}
+
+.page-hero-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-glass-inset);
+  pointer-events: none;
+}
+
+.page-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gls-space-3, 12px);
+  align-items: center;
+}
+
+.page-hero-meta .eyebrow {
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gls-muted);
+  margin: 0;
+}
+
+.page-hero-meta .pill {
+  padding: 8px 12px;
+  border-radius: var(--gls-radius-pill);
+  background: rgba(255, 255, 255, 0.35);
+  border: 1px solid var(--gls-sub-border);
+  color: var(--gls-muted);
+  font-weight: 600;
+}
+
+.page-hero-card h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+}
+
+.page-hero-card p {
+  margin: 6px 0 0;
+  color: var(--gls-muted);
+}
+
+/* =========================
+   3) 공통 패널/그리드
+========================= */
+
+.page-panel {
+  padding: var(--gls-space-5, 20px);
+  border-radius: var(--gls-radius-lg, 18px);
+  border: 1px solid var(--gls-sub-border);
+  background: var(--gls-sub-surface-strong);
+  box-shadow: var(--gls-sub-shadow);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
+  position: relative;
+}
+
+.page-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-glass-inset);
+  pointer-events: none;
+}
+
+.page-panel + .page-panel {
+  margin-top: var(--gls-space-4, 16px);
+}
+
+.page-grid-split {
+  display: grid;
+  gap: var(--gls-space-4, 16px);
+  align-items: start;
+}
+
+@media (min-width: 992px) {
+  .page-grid-split {
+    grid-template-columns: minmax(280px, 340px) 1fr;
+  }
+}
+
+/* =========================
+   4) 카테고리 페이지 보정
+========================= */
+
+body.page-category #categoryFeed {
+  display: grid;
+  gap: var(--gls-space-4, 16px);
+}
+
+/* =========================
+   5) 북마크 페이지 보정
+========================= */
+
+body.page-bookmarks .bookmark-panel {
+  padding: var(--gls-space-4, 16px);
+  border-radius: var(--gls-radius-md, 14px);
+  border: 1px solid var(--gls-sub-border);
+  background: var(--gls-sub-surface-strong);
+  box-shadow: var(--gls-sub-shadow);
+  min-height: 320px;
+}
+
+body.page-bookmarks .bookmark-folder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+body.page-bookmarks .bookmark-panel h5,
+body.page-bookmarks .bookmark-panel p,
+body.page-bookmarks .bookmark-panel div {
+  margin-bottom: 0;
+}
+
+/* =========================
+   6) 마이페이지 보정
+========================= */
+
+body.page-mypage .mypage-section-header {
+  align-items: center;
+}
+
+body.page-mypage .mypage-panels {
+  display: grid;
+  gap: var(--gls-space-4, 16px);
+}
+
+body.page-mypage .mypage-card {
+  padding: var(--gls-space-5, 20px);
+  border-radius: var(--gls-radius-lg, 18px);
+  border: 1px solid var(--gls-sub-border);
+  background: var(--gls-sub-surface-strong);
+  box-shadow: var(--gls-sub-shadow);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
+  position: relative;
+}
+
+body.page-mypage .mypage-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-glass-inset);
+  pointer-events: none;
+}
+
+body.page-mypage .mypage-section + .mypage-section {
+  margin-top: var(--gls-space-4, 16px);
+}
+
+body.page-mypage .mypage-growth-mini {
+  margin: 0;
+}
+
+@media (max-width: 576px) {
+  .page-hero-card {
+    padding: var(--gls-space-5, 20px);
+  }
+
+  main.page-shell {
+    padding-top: calc(var(--gls-nav-height) + var(--gls-space-4));
+    padding-bottom: var(--gls-space-6);
+  }
+}

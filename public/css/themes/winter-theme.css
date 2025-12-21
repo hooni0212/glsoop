@@ -1,12 +1,16 @@
 /* =========================
    Winter Theme (글숲 겨울 스킨)
    - body에 .winter-theme 클래스가 붙었을 때만 적용
-   - 눈 애니메이션은 index(메인) + winter-theme 둘 다일 때만 적용
+   - 눈 애니메이션은 winter-theme + 눈 적용 페이지에서만 렌더링
 ========================= */
 
 /* 1. 전체 배경 & 텍스트 컬러 */
 body.winter-theme {
   color: #1E2A33;
+
+  /* 헤더/CTA용 공통 네이비 계열 그라디언트 */
+  --gls-header-gradient: linear-gradient(90deg, #2C4C72, #3F668F);
+  --gls-header-strong: #345b83;
 
   /* 글/카드 톤 변수들 그대로 유지 */
   --author-surface: rgba(227, 240, 255, 0.65);
@@ -16,6 +20,14 @@ body.winter-theme {
   --author-text-muted: #4a5b6b;
   --author-divider: rgba(45, 83, 132, 0.18);
   --author-accent: #2f6c8a;
+
+  /* 버튼 계열은 여름 토큰을 그대로 사용해 계절간 품질/톤 차이를 완화 */
+  --gls-action-accent: #009688;
+  --gls-action-border: rgba(0, 150, 136, 0.22);
+  --gls-action-border-strong: rgba(0, 150, 136, 0.35);
+  --gls-action-surface: rgba(255, 255, 255, 0.92);
+  --gls-action-surface-strong: rgba(0, 150, 136, 0.08);
+  --gls-action-glow: 0 10px 26px rgba(0, 150, 136, 0.18);
 
   /* 배경 레이어:
      1~3: 안개/하이라이트
@@ -96,7 +108,7 @@ body.winter-theme::after {
 /* 3. 네비게이션 & 푸터 겨울 톤 */
 body.winter-theme .custom-navbar,
 body.winter-theme .custom-footer {
-  background: linear-gradient(90deg, #2C4C72, #3F668F);
+  background: var(--gls-header-gradient);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
 }
 
@@ -118,27 +130,29 @@ body.winter-theme .hero-card {
   border-radius: var(--gls-radius-hero, 24px);
 }
 
-/* CTA 버튼은 겨울 녹청색 느낌 */
+/* CTA 버튼은 헤더 그라디언트 톤으로 통일 */
 body.winter-theme .hero-card .hero-cta-btn {
-  background-color: #2F6C8A;
-  box-shadow: 0 10px 24px rgba(34, 70, 104, 0.55);
-  color: #ffffff;
+  background: linear-gradient(120deg, #6a86ad 0%, #88a5c3 55%, #f6fbff 100%);
+  color: #0f172a;
+  border: 1px solid rgba(52, 91, 131, 0.4);
+  box-shadow: 0 16px 38px rgba(45, 83, 132, 0.24);
   text-decoration: none;
 }
 body.winter-theme .hero-card .hero-cta-btn:hover,
 body.winter-theme .hero-card .hero-cta-btn:focus-visible {
-  background-color: #275874;
-  box-shadow: 0 18px 42px rgba(34, 70, 104, 0.75);
-  color: #ffffff;
+  background: linear-gradient(120deg, #5c7a9f 0%, #7392b8 50%, #e9f3ff 100%);
+  border-color: rgba(52, 91, 131, 0.6);
+  box-shadow: 0 18px 44px rgba(45, 83, 132, 0.28);
+  color: #0a1525;
   text-decoration: none;
 }
 
 /* 공통 버튼 (success / outline-success) 겨울톤 */
 body.winter-theme .btn-success {
-  color: #2F6C8A;
+  color: var(--gls-action-accent);
   background-color: transparent;
-  border: 1px solid rgba(47, 108, 138, 0.75);
-  box-shadow: 0 10px 24px rgba(34, 70, 104, 0.25);
+  border: 1px solid rgba(0, 195, 154, 0.75);
+  box-shadow: 0 10px 24px rgba(0, 150, 136, 0.25);
 }
 
 body.winter-theme .btn-success:hover,
@@ -146,17 +160,17 @@ body.winter-theme .btn-success:focus-visible,
 body.winter-theme .btn-success.active,
 body.winter-theme .btn-success:active {
   color: #ffffff;
-  background-color: #2F6C8A;
-  border-color: #2F6C8A;
+  background-color: #00c39a;
+  border-color: #00c39a;
   transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(34, 70, 104, 0.35);
+  box-shadow: 0 12px 28px rgba(0, 195, 154, 0.35);
 }
 
 body.winter-theme .btn-outline-success {
-  color: #2F6C8A;
-  border-color: rgba(47, 108, 138, 0.75);
+  color: var(--gls-action-accent);
+  border-color: rgba(0, 195, 154, 0.75);
   background-color: transparent;
-  box-shadow: 0 8px 18px rgba(34, 70, 104, 0.12);
+  box-shadow: 0 8px 18px rgba(0, 150, 136, 0.16);
 }
 
 body.winter-theme .btn-outline-success:hover,
@@ -164,9 +178,9 @@ body.winter-theme .btn-outline-success:focus-visible,
 body.winter-theme .btn-outline-success.active,
 body.winter-theme .btn-outline-success:active {
   color: #ffffff;
-  background-color: #2F6C8A;
-  border-color: #2F6C8A;
-  box-shadow: 0 12px 28px rgba(34, 70, 104, 0.25);
+  background-color: #00c39a;
+  border-color: #00c39a;
+  box-shadow: 0 12px 28px rgba(0, 195, 154, 0.28);
 }
 
 /* 해시태그 칩 겨울톤 */
@@ -378,12 +392,14 @@ body.winter-theme .card {
 }
 
 /* =========================
-   7. 눈 효과 (메인 페이지 전용)
-   - body class="page-index winter-theme" 일 때만 보이게
+   7. 눈 효과 (홈 / 글 / 작가)
+   - winter-theme + 눈 적용 페이지(page-index / page-post / page-author)
 ========================= */
 
 /* 전체 화면 눈 레이어 (배경 위, 카드/텍스트 위에 얇게) */
-.page-index.winter-theme .snow-layer {
+.page-index.winter-theme .snow-layer,
+.page-post.winter-theme .snow-layer,
+.page-author.winter-theme .snow-layer {
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -392,7 +408,9 @@ body.winter-theme .card {
 }
 
 /* 공통 눈 조각 스타일 */
-.page-index.winter-theme .snowflake {
+.page-index.winter-theme .snowflake,
+.page-post.winter-theme .snowflake,
+.page-author.winter-theme .snowflake {
   position: absolute;
   top: -10px;
   border-radius: 50%;
@@ -406,14 +424,18 @@ body.winter-theme .card {
 }
 
 /* 가까운 큰 눈 (빠르게, 더 또렷하게) */
-.page-index.winter-theme .snowflake.big {
+.page-index.winter-theme .snowflake.big,
+.page-post.winter-theme .snowflake.big,
+.page-author.winter-theme .snowflake.big {
   width: 8px;
   height: 8px;
   animation-duration: 6s;
 }
 
 /* 중간 거리 눈 */
-.page-index.winter-theme .snowflake.mid {
+.page-index.winter-theme .snowflake.mid,
+.page-post.winter-theme .snowflake.mid,
+.page-author.winter-theme .snowflake.mid {
   width: 5px;
   height: 5px;
   animation-duration: 9s;
@@ -421,7 +443,9 @@ body.winter-theme .card {
 }
 
 /* 멀리 보이는 작은 눈 (느리게, 흐릿하게) */
-.page-index.winter-theme .snowflake.small {
+.page-index.winter-theme .snowflake.small,
+.page-post.winter-theme .snowflake.small,
+.page-author.winter-theme .snowflake.small {
   width: 3px;
   height: 3px;
   animation-duration: 13s;
@@ -453,15 +477,21 @@ body.winter-theme .card {
 ========================= */
 
 @media (max-width: 576px) {
-  .page-index.winter-theme .snowflake.big {
+  .page-index.winter-theme .snowflake.big,
+  .page-post.winter-theme .snowflake.big,
+  .page-author.winter-theme .snowflake.big {
     width: 7px;
     height: 7px;
   }
-  .page-index.winter-theme .snowflake.mid {
+  .page-index.winter-theme .snowflake.mid,
+  .page-post.winter-theme .snowflake.mid,
+  .page-author.winter-theme .snowflake.mid {
     width: 4px;
     height: 4px;
   }
-  .page-index.winter-theme .snowflake.small {
+  .page-index.winter-theme .snowflake.small,
+  .page-post.winter-theme .snowflake.small,
+  .page-author.winter-theme .snowflake.small {
     width: 2px;
     height: 2px;
   }

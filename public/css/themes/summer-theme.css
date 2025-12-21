@@ -7,18 +7,24 @@
 body.summer-theme {
   background: radial-gradient(
     circle at top,
-    #E5F7FF 0%,
-    #F4FBFF 45%,
-    #F0FCF8 100%
-  ); /* 하늘 + 얕은 바다 */
-  color: #1E2A33;
+    #EAF8FF 0%,
+    #F6FCFF 45%,
+    #F3FCF8 100%
+  ); /* 하늘 + 얕은 바다 (톤 다운) */
+  color: #1F2D34;
   --author-surface: rgba(229, 247, 255, 0.6);
   --author-card-bg: rgba(255, 255, 255, 0.95);
-  --author-card-shadow: 0 12px 32px rgba(0, 169, 255, 0.18);
-  --author-card-shadow-compact: 0 8px 18px rgba(0, 169, 255, 0.12);
-  --author-text-muted: #2d6f68;
-  --author-divider: rgba(0, 195, 154, 0.2);
-  --author-accent: #00a982;
+  --author-card-shadow: 0 12px 32px rgba(70, 156, 179, 0.16);
+  --author-card-shadow-compact: 0 8px 18px rgba(70, 156, 179, 0.12);
+  --author-text-muted: #2f6f6a;
+  --author-divider: rgba(47, 145, 133, 0.18);
+  --gls-action-accent: #2f9185;
+  --gls-action-border: rgba(47, 145, 133, 0.22);
+  --gls-action-border-strong: rgba(47, 145, 133, 0.34);
+  --gls-action-surface: rgba(255, 255, 255, 0.94);
+  --gls-action-surface-strong: rgba(47, 145, 133, 0.08);
+  --gls-action-glow: 0 10px 26px rgba(47, 145, 133, 0.18);
+  --author-accent: #3c9ba0;
 }
 
 /* =========================
@@ -26,8 +32,8 @@ body.summer-theme {
 ========================= */
 
 body.summer-theme .custom-navbar {
-  background: linear-gradient(90deg, #00A9FF, #00C39A); /* 시원한 하늘+바다 */
-  box-shadow: 0 6px 18px rgba(0, 169, 255, 0.35);
+  background: linear-gradient(90deg, #6bc2e0, #62c6b0); /* 시원한 하늘+바다 (소프트) */
+  box-shadow: 0 6px 18px rgba(70, 156, 179, 0.3);
 }
 
 body.summer-theme .custom-navbar .navbar-brand {
@@ -55,17 +61,17 @@ body.summer-theme .hero-card {
   border: 1px solid var(--gls-glass-border);
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
-  box-shadow: 0 18px 42px rgba(0, 169, 255, 0.22);
+  box-shadow: 0 18px 42px rgba(70, 156, 179, 0.2);
   border-radius: 1.4rem;
 }
 
 
 body.summer-theme .hero-title {
-  color: #007BB8;
+  color: #2b7999;
 }
 
 body.summer-theme .hero-subtitle {
-  color: #2D6F68;
+  color: #3b7a71;
 }
 
 /* =========================
@@ -74,10 +80,10 @@ body.summer-theme .hero-subtitle {
 
 body.summer-theme .hero-cta-btn,
 body.summer-theme .btn-success {
-  color: #009F83;
+  color: #2f9185;
   background-color: transparent;
-  border: 1px solid rgba(0, 195, 154, 0.85);
-  box-shadow: 0 10px 26px rgba(0, 195, 154, 0.28);
+  border: 1px solid rgba(47, 145, 133, 0.78);
+  box-shadow: 0 10px 26px rgba(47, 145, 133, 0.24);
 }
 
 body.summer-theme .hero-cta-btn:hover,
@@ -88,17 +94,17 @@ body.summer-theme .btn-success:focus-visible,
 body.summer-theme .btn-success.active,
 body.summer-theme .btn-success:active {
   color: #ffffff;
-  background-color: #00C39A;
-  border-color: #00C39A;
+  background-color: #3aa995;
+  border-color: #3aa995;
   transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0, 195, 154, 0.32);
+  box-shadow: 0 12px 28px rgba(47, 145, 133, 0.3);
 }
 
 body.summer-theme .btn-outline-success {
-  color: #009F83;
-  border-color: rgba(0, 195, 154, 0.75);
+  color: #2f9185;
+  border-color: rgba(47, 145, 133, 0.7);
   background-color: transparent;
-  box-shadow: 0 8px 18px rgba(0, 169, 255, 0.16);
+  box-shadow: 0 8px 18px rgba(70, 156, 179, 0.16);
 }
 
 body.summer-theme .btn-outline-success:hover,
@@ -106,9 +112,9 @@ body.summer-theme .btn-outline-success:focus-visible,
 body.summer-theme .btn-outline-success.active,
 body.summer-theme .btn-outline-success:active {
   color: #ffffff;
-  background-color: #00C39A;
-  border-color: #00C39A;
-  box-shadow: 0 12px 28px rgba(0, 195, 154, 0.28);
+  background-color: #3aa995;
+  border-color: #3aa995;
+  box-shadow: 0 12px 28px rgba(47, 145, 133, 0.28);
 }
 
 /* =========================
@@ -119,7 +125,7 @@ body.summer-theme .quote-card {
   background-color: #F5FDFF;  /* 연한 하늘 + 종이 */
   background-image: none;
   color: #1E2A33;
-  box-shadow: 0 10px 24px rgba(0, 169, 255, 0.12);
+  box-shadow: 0 10px 24px rgba(70, 156, 179, 0.16);
 }
 
 /* =========================
@@ -128,33 +134,33 @@ body.summer-theme .quote-card {
 
 body.summer-theme .gls-author-badge {
   background-color: #E5F7FF !important;
-  border-color: #9FD9FF !important;
-  color: #007BB8 !important;
+  border-color: #b6e5fb !important;
+  color: #2b7999 !important;
 }
 
 body.summer-theme .gls-tag-btn {
   background-color: transparent;
-  border-color: #9FD9FF;
-  color: #007BB8;
+  border-color: #b6e5fb;
+  color: #2b7999;
 }
 
 body.summer-theme .gls-tag-btn:hover {
-  background-color: #D1F4F1;
-  border-color: #61D3C0;
-  color: #006280;
+  background-color: #d9f3f2;
+  border-color: #7ac7c0;
+  color: #246a64;
 }
 
 /* 선택된 해시태그 칩 (작성/검색 영역) */
 body.summer-theme .hashtag-chip {
   background-color: #E5F7FF;
-  color: #007BB8;
-  border: 1px solid #9FD9FF;
+  color: #2b7999;
+  border: 1px solid #b6e5fb;
 }
 body.summer-theme .hashtag-chip .hashtag-chip-remove {
-  color: #2D6F68;
+  color: #3b7a71;
 }
 body.summer-theme .hashtag-chip .hashtag-chip-remove:hover {
-  color: #007BB8;
+  color: #2b7999;
 }
 
 /* =========================
@@ -166,7 +172,7 @@ body.summer-theme .like-btn .like-heart {
 }
 
 body.summer-theme .like-btn.liked .like-heart {
-  color: #FFB53A; /* 태양빛 느낌 노랑 */
+  color: #f2bf63; /* 태양빛 느낌 노랑 (톤 다운) */
 }
 
 /* =========================
@@ -174,7 +180,7 @@ body.summer-theme .like-btn.liked .like-heart {
 ========================= */
 
 body.summer-theme .custom-footer {
-  background: linear-gradient(90deg, #00A9FF, #00C39A);
+  background: linear-gradient(90deg, #6bc2e0, #62c6b0);
   color: #F9FFFF;
   border-top: 1px solid rgba(255, 255, 255, 0.25);
 }
@@ -185,38 +191,38 @@ body.summer-theme .footer-links a {
 
 /* 피드 탭 & 저장 버튼 테마 매핑 */
 body.summer-theme .feed-tabs .feed-tab {
-  color: #00a982;
-  border-color: rgba(0, 169, 130, 0.24);
-  background: rgba(0, 169, 130, 0.08);
+  color: #2f9185;
+  border-color: rgba(47, 145, 133, 0.24);
+  background: rgba(47, 145, 133, 0.08);
 }
 
 body.summer-theme .feed-tabs .feed-tab.feed-tab-active,
 body.summer-theme .feed-tabs .feed-tab.active {
-  background: #00a982;
-  border-color: #00a982;
+  background: #2f9185;
+  border-color: #2f9185;
   color: #fff;
 }
 
 body.summer-theme .nav-category-item:hover,
 body.summer-theme .nav-category-item:focus-visible {
-  background: rgba(0, 169, 130, 0.12);
-  color: #00775f;
+  background: rgba(47, 145, 133, 0.12);
+  color: #2a6f66;
 }
 
 body.summer-theme .post-category-label {
-  background: rgba(0, 169, 130, 0.08);
-  border-color: rgba(0, 169, 130, 0.22);
-  color: #00775f;
+  background: rgba(47, 145, 133, 0.08);
+  border-color: rgba(47, 145, 133, 0.22);
+  color: #2a6f66;
 }
 
 body.summer-theme .gls-save-btn {
-  color: #007a61;
-  border-color: #00a982;
+  color: #2f9185;
+  border-color: #2f9185;
 }
 
 body.summer-theme .gls-save-btn:hover,
 body.summer-theme .gls-save-btn:focus-visible {
-  background: rgba(0, 169, 130, 0.12);
-  color: #006a55;
-  border-color: #00a982;
+  background: rgba(47, 145, 133, 0.12);
+  color: #2a6f66;
+  border-color: #2f9185;
 }

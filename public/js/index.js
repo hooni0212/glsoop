@@ -5,8 +5,6 @@
 // - 해시태그 필터(AND 조건) 기능
 // - 글 상세 페이지(post.html)로 이동
 // - 작가 페이지(author.html)로 이동
-// - 히어로 버튼(바로 글 쓰러가기) 잎사귀 애니메이션
-
 // 전역 네임스페이스 보존 (다른 스크립트와 충돌 방지용)
 window.Glsoop = window.Glsoop || {};
 
@@ -44,9 +42,6 @@ Glsoop.FeedPage = (function () {
     if (currentTags.length > 0) {
       renderTagFilterBar();
     }
-
-    // 6) 히어로 CTA 잎사귀 애니메이션 세팅
-    setupHeroCtaLeaves();
   }
 
   /**
@@ -754,92 +749,6 @@ function setupCardInteractions(card, post) {
     renderTagFilterBar();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     loadMoreFeed();
-  }
-
-  // ===== 히어로 CTA 잎사귀 애니메이션 =====
-
-  /**
-   * 메인 히어로 "바로 글 쓰러 가기" 버튼 주변에 잎사귀 파티클 애니메이션 추가
-   * - 버튼 hover / focus 시 잎사귀 이모지들이 살짝 흩어지며 나타남
-   */
-  function setupHeroCtaLeaves() {
-    const LEAF_COUNT = 10; // 버튼당 잎사귀 개수
-    const heroButtons = document.querySelectorAll('.hero-cta-btn');
-
-    heroButtons.forEach((btn) => {
-      const leavesContainer = btn.querySelector('.hero-cta-leaves');
-      if (!leavesContainer) return;
-
-      // 잎사귀 span 여러 개 생성 (한 번만)
-      if (!leavesContainer.dataset.ready) {
-        for (let i = 0; i < LEAF_COUNT; i++) {
-          const leaf = document.createElement('span');
-          leaf.className = 'hero-cta-leaf';
-          leaf.textContent = '🌿';
-          leavesContainer.appendChild(leaf);
-        }
-        leavesContainer.dataset.ready = '1';
-      }
-
-      const leaves = Array.from(
-        leavesContainer.querySelectorAll('.hero-cta-leaf')
-      );
-
-      // 실제 애니메이션을 트리거하는 함수
-      const triggerLeaves = () => {
-        // 기본 위치 집합 (버튼 위쪽 호 모양)
-        const BASE_POSITIONS = [
-          { x: -70, y: -36 },
-          { x: -55, y: -30 },
-          { x: -40, y: -26 },
-          { x: -25, y: -34 },
-          { x: -10, y: -28 },
-          { x: 10, y: -32 },
-          { x: 25, y: -24 },
-          { x: 40, y: -30 },
-          { x: 55, y: -26 },
-          { x: 70, y: -36 },
-        ];
-
-        // 조금씩 랜덤하게 섞어서 똑같은 모양으로만 보이지 않도록 함
-        const shuffled = BASE_POSITIONS.slice().sort(() => Math.random() - 0.5);
-
-        leaves.forEach((leaf, idx) => {
-          const base = shuffled[idx % shuffled.length];
-
-          // 각 잎사귀마다 약간의 랜덤 오프셋
-          const jitterX = Math.random() * 12 - 6; // -6 ~ +6
-          const jitterY = Math.random() * 10 - 5; // -5 ~ +5
-
-          const offsetX = base.x + jitterX;
-          const offsetY = base.y + jitterY;
-
-          // 스케일, 회전 각도도 랜덤
-          const scale = 0.85 + Math.random() * 0.5; // 0.85 ~ 1.35
-          const rotate = -35 + Math.random() * 70;  // -35deg ~ 35deg
-
-          // CSS 변수로 위치/스케일/회전 주입 → CSS에서 transform으로 사용
-          leaf.style.setProperty('--leaf-tx', `${offsetX}px`);
-          leaf.style.setProperty('--leaf-ty', `${offsetY}px`);
-          leaf.style.setProperty('--leaf-scale', scale);
-          leaf.style.setProperty('--leaf-rot', `${rotate}deg`);
-
-          // 애니메이션 클래스 리셋 후 다시 추가해서 재생
-          leaf.classList.remove('leaf-show');
-          void leaf.offsetWidth; // reflow로 강제 리셋
-          leaf.classList.add('leaf-show');
-
-          // 1초 뒤에 잎사귀 감추기
-          setTimeout(() => {
-            leaf.classList.remove('leaf-show');
-          }, 1000);
-        });
-      };
-
-      // 마우스를 올리거나 키보드 포커스할 때 잎사귀 발동
-      btn.addEventListener('mouseenter', triggerLeaves);
-      btn.addEventListener('focus', triggerLeaves);
-    });
   }
 
   // 모듈에서 외부로 내보낼 것
