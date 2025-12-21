@@ -14,6 +14,12 @@ body.autumn-theme {
   --author-text-muted: #6c513f;
   --author-divider: rgba(140, 74, 47, 0.2);
   --author-accent: #c57136;
+  --gls-action-accent: #c57136;
+  --gls-action-border: rgba(197, 113, 54, 0.24);
+  --gls-action-border-strong: rgba(197, 113, 54, 0.36);
+  --gls-action-surface: rgba(255, 249, 240, 0.9);
+  --gls-action-surface-strong: rgba(197, 113, 54, 0.08);
+  --gls-action-glow: 0 10px 26px rgba(197, 113, 54, 0.2);
 }
 
 /* =========================

@@ -15,6 +15,12 @@ body.spring-theme {
   --author-text-muted: #7a5b66;
   --author-divider: rgba(199, 82, 122, 0.18);
   --author-accent: #c7527a;
+  --gls-action-accent: #c7527a;
+  --gls-action-border: rgba(199, 82, 122, 0.22);
+  --gls-action-border-strong: rgba(199, 82, 122, 0.36);
+  --gls-action-surface: rgba(255, 250, 252, 0.9);
+  --gls-action-surface-strong: rgba(199, 82, 122, 0.08);
+  --gls-action-glow: 0 10px 26px rgba(199, 82, 122, 0.18);
 
   /* 배경 레이어 (겨울 구조 그대로, 색만 봄톤으로) */
   background-image:

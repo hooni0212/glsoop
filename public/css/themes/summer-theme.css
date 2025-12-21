@@ -18,6 +18,12 @@ body.summer-theme {
   --author-card-shadow-compact: 0 8px 18px rgba(0, 169, 255, 0.12);
   --author-text-muted: #2d6f68;
   --author-divider: rgba(0, 195, 154, 0.2);
+  --gls-action-accent: #009688;
+  --gls-action-border: rgba(0, 150, 136, 0.22);
+  --gls-action-border-strong: rgba(0, 150, 136, 0.35);
+  --gls-action-surface: rgba(255, 255, 255, 0.92);
+  --gls-action-surface-strong: rgba(0, 150, 136, 0.08);
+  --gls-action-glow: 0 10px 26px rgba(0, 150, 136, 0.18);
   --author-accent: #00a982;
 }
 

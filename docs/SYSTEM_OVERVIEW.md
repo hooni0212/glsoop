@@ -109,6 +109,7 @@
   - `fetchMeAsAdmin()`: `/api/me`로 관리자 여부를 검증합니다.
   - `loadUsers(usersBox)`, `buildUsersTableHtml(users)`, `handleUserTableClick(...)`: 사용자 목록 출력과 정지/활성 토글을 처리합니다.
   - `loadPosts(postsBox)`, `buildPostsHtml(posts)`, `handlePostListClick(...)`: 게시글 목록을 표시하고 삭제/검색을 처리합니다.
+  - `setupThemeControls()`, `applyAdminTheme(...)`: 로컬 스토리지에 저장된 계절 테마를 불러와 `body` 클래스에 적용하고, 토글 버튼으로 즉시 전환할 수 있게 합니다.
 - `public/js/utils.js` (공통 유틸)
   - `autoAdjustQuoteFont(el)`: 따옴표가 포함된 글의 폰트를 자동 조정합니다.
   - `maskEmail(email)`: 이메일을 마스킹해 UI에 표시합니다.

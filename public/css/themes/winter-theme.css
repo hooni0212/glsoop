@@ -16,6 +16,12 @@ body.winter-theme {
   --author-text-muted: #4a5b6b;
   --author-divider: rgba(45, 83, 132, 0.18);
   --author-accent: #2f6c8a;
+  --gls-action-accent: #2f6c8a;
+  --gls-action-border: rgba(47, 108, 138, 0.24);
+  --gls-action-border-strong: rgba(47, 108, 138, 0.38);
+  --gls-action-surface: rgba(255, 255, 255, 0.9);
+  --gls-action-surface-strong: rgba(47, 108, 138, 0.08);
+  --gls-action-glow: 0 10px 26px rgba(47, 108, 138, 0.2);
 
   /* 배경 레이어:
      1~3: 안개/하이라이트

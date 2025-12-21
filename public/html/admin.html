@@ -141,6 +141,31 @@
 
         <div class="flex-fill">
           <div id="adminContent" class="admin-content" style="display:none;">
+            <div class="admin-theme-card card glass-card mb-4">
+              <div class="card-body d-flex flex-column flex-lg-row gap-3 align-items-lg-center justify-content-between">
+                <div>
+                  <p class="text-muted small mb-1">테마 설정</p>
+                  <h5 class="mb-1">계절 테마를 바로 적용하세요</h5>
+                  <p class="text-muted mb-0">관리 뷰와 카드 톤을 원하는 계절 색감으로 전환합니다.</p>
+                </div>
+                <div class="admin-theme-controls d-flex flex-column align-items-lg-end gap-2">
+                  <div class="btn-group" role="group" aria-label="계절 테마 선택">
+                    <input type="radio" class="btn-check" name="adminTheme" id="adminThemeSpring" value="spring">
+                    <label class="btn btn-outline-primary" for="adminThemeSpring">봄</label>
+
+                    <input type="radio" class="btn-check" name="adminTheme" id="adminThemeSummer" value="summer">
+                    <label class="btn btn-outline-primary" for="adminThemeSummer">여름</label>
+
+                    <input type="radio" class="btn-check" name="adminTheme" id="adminThemeAutumn" value="autumn">
+                    <label class="btn btn-outline-primary" for="adminThemeAutumn">가을</label>
+
+                    <input type="radio" class="btn-check" name="adminTheme" id="adminThemeWinter" value="winter">
+                    <label class="btn btn-outline-primary" for="adminThemeWinter">겨울</label>
+                  </div>
+                  <div class="admin-theme-preview text-muted small">현재 테마: 겨울</div>
+                </div>
+              </div>
+            </div>
             <div class="tab-panel" id="usersTab">
               <div class="admin-panel card glass-card mb-4">
                 <div class="card-body">

@@ -70,6 +70,15 @@
   --gls-ghost-border-hover: rgba(46, 139, 87, 0.26);
   --gls-ghost-text: rgba(30, 42, 51, 0.84);
 
+  /* Action chips (공감/스크랩) */
+  --gls-action-surface: rgba(255, 255, 255, 0.82);
+  --gls-action-surface-strong: rgba(46, 139, 87, 0.08);
+  --gls-action-surface-hover: rgba(255, 255, 255, 0.9);
+  --gls-action-border: rgba(30, 42, 51, 0.16);
+  --gls-action-border-strong: rgba(46, 139, 87, 0.28);
+  --gls-action-accent: var(--gls-color-primary, #2e8b57);
+  --gls-action-glow: 0 10px 26px rgba(46, 139, 87, 0.16);
+
 
 
   /* Radius */

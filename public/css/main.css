@@ -456,16 +456,18 @@
   display: inline-block;              /* transform 잘 보이도록 */
   font-size: 1.5rem;
   line-height: 1;
-  color: #222;                        /* 기본: 검은 테두리 하트(♡) 느낌 */
+  color: var(--gls-action-accent, #2e8b57);
   transform: scale(1);                /* 기본 크기 */
   transition:
     transform 0.22s ease-out,         /* 커졌다 작아지는 애니메이션 */
-    color 0.15s ease;
+    color 0.15s ease,
+    text-shadow 0.2s ease;
 }
 
-/* 좋아요 된 상태일 때 빨간색 하트 */
+/* 좋아요 된 상태일 때 강조 컬러 */
 .like-btn.liked .like-heart {
-  color: #e53935;
+  color: var(--gls-action-accent, #2e8b57);
+  text-shadow: 0 4px 16px rgba(46, 139, 87, 0.32);
 }
 
 /* 숫자 */
@@ -504,6 +506,30 @@
   color: #0a3d62;
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
   border-color: rgba(10, 61, 98, 0.28);
+}
+
+.admin-theme-card .btn {
+  min-width: 72px;
+  font-weight: 600;
+}
+
+.admin-theme-card .btn-outline-primary {
+  border-color: var(--gls-action-border, rgba(30, 42, 51, 0.16));
+  color: var(--gls-action-accent, #2e8b57);
+  background: var(--gls-action-surface, rgba(255, 255, 255, 0.82));
+}
+
+.admin-theme-card .btn-check:checked + .btn-outline-primary,
+.admin-theme-card .btn-outline-primary:hover,
+.admin-theme-card .btn-outline-primary:focus-visible {
+  color: #0f172a;
+  background: var(--gls-action-surface-hover, rgba(255, 255, 255, 0.9));
+  border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+}
+
+.admin-theme-preview {
+  min-height: 1.5rem;
 }
 
 .admin-toolbar {

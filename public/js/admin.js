@@ -19,6 +19,13 @@ Glsoop.AdminPage = (function () {
     campaignItems: [],
   };
 
+  const THEME_LABELS = {
+    spring: '봄',
+    summer: '여름',
+    autumn: '가을',
+    winter: '겨울',
+  };
+
   const CONDITION_LABELS = {
     POST_COUNT_TOTAL: '총 글 작성',
     POST_COUNT_BY_CATEGORY: '카테고리별 글 작성',
@@ -51,6 +58,7 @@ Glsoop.AdminPage = (function () {
       return;
     }
 
+    setupThemeControls();
     setupTabSwitching();
     setupModalEvents();
 
@@ -72,6 +80,47 @@ Glsoop.AdminPage = (function () {
     await loadPosts(postsBox);
     await loadQuestTemplates();
     await loadQuestCampaigns();
+  }
+
+  function setupThemeControls() {
+    const radios = document.querySelectorAll('input[name="adminTheme"]');
+    const preview = document.querySelector('.admin-theme-preview');
+    if (!radios.length) return;
+
+    const stored = localStorage.getItem('gls-admin-theme') || 'winter';
+    applyAdminTheme(stored, radios, preview, false);
+
+    radios.forEach((radio) => {
+      radio.addEventListener('change', () => {
+        if (!radio.checked) return;
+        applyAdminTheme(radio.value, radios, preview, true);
+      });
+    });
+  }
+
+  function applyAdminTheme(theme, radios, preview, persist = true) {
+    const allowed = ['spring', 'summer', 'autumn', 'winter'];
+    const safeTheme = allowed.includes(theme) ? theme : 'winter';
+    const body = document.body;
+
+    allowed.forEach((t) => body.classList.remove(`${t}-theme`));
+    body.classList.add(`${safeTheme}-theme`);
+
+    radios?.forEach((r) => {
+      r.checked = r.value === safeTheme;
+    });
+
+    if (preview) {
+      preview.textContent = `현재 테마: ${THEME_LABELS[safeTheme] || safeTheme}`;
+    }
+
+    if (persist) {
+      try {
+        localStorage.setItem('gls-admin-theme', safeTheme);
+      } catch (e) {
+        console.warn('테마를 로컬스토리지에 저장할 수 없습니다.', e);
+      }
+    }
   }
 
   function setupTabSwitching() {
