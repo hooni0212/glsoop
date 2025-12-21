@@ -8,6 +8,10 @@
 body.winter-theme {
   color: #1E2A33;
 
+  /* 헤더/CTA용 공통 네이비 계열 그라디언트 */
+  --gls-header-gradient: linear-gradient(90deg, #2C4C72, #3F668F);
+  --gls-header-strong: #345b83;
+
   /* 글/카드 톤 변수들 그대로 유지 */
   --author-surface: rgba(227, 240, 255, 0.65);
   --author-card-bg: rgba(255, 255, 255, 0.94);
@@ -104,7 +108,7 @@ body.winter-theme::after {
 /* 3. 네비게이션 & 푸터 겨울 톤 */
 body.winter-theme .custom-navbar,
 body.winter-theme .custom-footer {
-  background: linear-gradient(90deg, #2C4C72, #3F668F);
+  background: var(--gls-header-gradient);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
 }
 
@@ -126,19 +130,19 @@ body.winter-theme .hero-card {
   border-radius: var(--gls-radius-hero, 24px);
 }
 
-/* CTA 버튼은 겨울 녹청색 느낌 */
+/* CTA 버튼은 헤더 그라디언트 톤으로 통일 */
 body.winter-theme .hero-card .hero-cta-btn {
-  background-color: var(--gls-action-accent);
+  background: var(--gls-header-gradient);
   color: #ffffff;
-  border: 1px solid var(--gls-action-border-strong);
-  box-shadow: var(--gls-action-glow, 0 12px 28px rgba(0, 150, 136, 0.35));
+  border: 1px solid rgba(52, 91, 131, 0.65);
+  box-shadow: 0 18px 42px rgba(45, 83, 132, 0.28);
   text-decoration: none;
 }
 body.winter-theme .hero-card .hero-cta-btn:hover,
 body.winter-theme .hero-card .hero-cta-btn:focus-visible {
-  background-color: #00bba1;
-  border-color: #00bba1;
-  box-shadow: 0 18px 42px rgba(0, 150, 136, 0.38);
+  background: linear-gradient(90deg, #345b83, #4a76a3);
+  border-color: rgba(52, 91, 131, 0.85);
+  box-shadow: 0 20px 46px rgba(45, 83, 132, 0.32);
   color: #ffffff;
   text-decoration: none;
 }
