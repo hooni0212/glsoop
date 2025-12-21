@@ -79,6 +79,27 @@
   --gls-action-accent: var(--gls-color-primary, #2e8b57);
   --gls-action-glow: 0 10px 26px rgba(46, 139, 87, 0.16);
 
+  /* Account menu system */
+  --gls-account-radius: 12px;
+  --gls-account-avatar-size: 32px;
+  --gls-account-padding-y: 8px;
+  --gls-account-padding-x: 12px;
+  --gls-account-gap: 10px;
+  --gls-account-menu-gap: 6px;
+  --gls-account-menu-radius: 10px 10px 14px 14px;
+  --gls-account-item-radius: 10px;
+  --gls-account-item-height: 44px;
+  --gls-account-surface: var(--gls-glass-bg-subtle, rgba(255, 255, 255, 0.18));
+  --gls-account-border: color-mix(in srgb, var(--gls-glass-border, rgba(30, 42, 51, 0.16)) 80%, #ffffff 20%);
+  --gls-account-menu-surface: color-mix(in srgb, var(--gls-color-surface, #ffffff) 78%, var(--gls-glass-bg, rgba(255, 255, 255, 0.28)) 22%);
+  --gls-account-menu-border: color-mix(in srgb, var(--gls-glass-border, rgba(30, 42, 51, 0.16)) 90%, rgba(255, 255, 255, 0.24));
+  --gls-account-text: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 92%, rgba(0, 0, 0, 0.08));
+  --gls-account-muted: color-mix(in srgb, var(--gls-color-muted, #5c655e) 76%, rgba(255, 255, 255, 0.7));
+  --gls-account-avatar: color-mix(in srgb, var(--gls-action-accent, #2e8b57) 58%, var(--gls-color-surface-subtle, #f7f9f4) 42%);
+  --gls-account-shadow: var(--gls-shadow-sm);
+  --gls-account-shadow-hover: var(--gls-shadow-md);
+  --gls-account-menu-shadow: var(--gls-shadow-card);
+
 
 
   /* Radius */
@@ -414,38 +435,245 @@ select:focus-visible {
   transform: translateY(-1px);
 }
 
-/* 로그아웃 버튼: 기본은 투명/화이트, 호버 시 헤더 컬러로 채움 */
-.custom-navbar #logoutBtn,
-body[class*='-theme'] .custom-navbar #logoutBtn {
-  padding: 0.55rem 1.35rem;
-  font-weight: 700;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04));
-  color: #ffffff;
-  border-radius: var(--gls-btn-radius, 10px);
-  border-top: 1px solid rgba(255, 255, 255, 0.85);
-  border-left: 1px solid rgba(255, 255, 255, 0.72);
-  border-right: 1px solid rgba(52, 91, 131, 0.4);
-  border-bottom: 1px solid rgba(52, 91, 131, 0.5);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 10px 22px rgba(0, 0, 0, 0.18);
-  transition-duration: 0.4s;
-  transition-property: border, box-shadow, background, transform, color;
+/* 계정 Pill + 팝오버 메뉴 */
+.nav-account-pill {
+  margin-left: 0.75rem;
 }
 
-.custom-navbar #logoutBtn:hover,
-.custom-navbar #logoutBtn:focus-visible,
-body[class*='-theme'] .custom-navbar #logoutBtn:hover,
-body[class*='-theme'] .custom-navbar #logoutBtn:focus-visible {
-  background: var(--gls-header-gradient, linear-gradient(90deg, #2e8b57, #3ca66c));
-  color: #ffffff;
-  border-top: 1px solid rgba(255, 255, 255, 0.95);
-  border-left: 1px solid rgba(255, 255, 255, 0.9);
-  border-right: 1px solid rgba(52, 91, 131, 0.65);
-  border-bottom: 1px solid rgba(52, 91, 131, 0.75);
-  box-shadow:
-    rgba(52, 91, 131, 0.22) 4px 4px,
-    rgba(52, 91, 131, 0.18) 8px 8px,
-    rgba(0, 0, 0, 0.2) 12px 16px;
-  transform: translateY(-1px);
+.account-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gls-account-gap);
+  padding: var(--gls-account-padding-y) var(--gls-account-padding-x);
+  border-radius: var(--gls-account-radius);
+  border: 1px solid var(--gls-account-border);
+  background: var(--gls-account-surface);
+  box-shadow: var(--gls-account-shadow);
+  color: var(--gls-account-text);
+  cursor: pointer;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+  backdrop-filter: blur(var(--gls-glass-blur, 10px));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur, 10px));
+}
+
+.account-trigger:hover,
+.account-trigger:focus-visible {
+  background: color-mix(in srgb, var(--gls-account-surface) 82%, rgba(255, 255, 255, 0.22));
+  box-shadow: var(--gls-account-shadow-hover);
+  border-color: color-mix(in srgb, var(--gls-account-border) 78%, rgba(46, 139, 87, 0.18));
+  outline: none;
+}
+
+.account-trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--gls-action-accent, #2e8b57) 32%, rgba(255, 255, 255, 0.72));
+  outline-offset: 2px;
+}
+
+.account-avatar,
+.mobile-avatar {
+  width: var(--gls-account-avatar-size);
+  height: var(--gls-account-avatar-size);
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.92), var(--gls-account-avatar));
+  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 72%, #0f2a1d 28%);
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.account-avatar[data-has-emoji='true'],
+.mobile-avatar[data-has-emoji='true'] {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.account-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+  gap: 2px;
+}
+
+.account-name {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--gls-account-text);
+  white-space: nowrap;
+}
+
+.account-subtitle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.account-caret {
+  font-size: 0.8rem;
+  color: var(--gls-account-muted);
+}
+
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--gls-account-menu-gap));
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 24px));
+  background: var(--gls-account-menu-surface);
+  border: 1px solid var(--gls-account-menu-border);
+  border-radius: var(--gls-account-menu-radius);
+  box-shadow: var(--gls-account-menu-shadow);
+  backdrop-filter: blur(var(--gls-glass-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur, 12px));
+  padding: 6px;
+  z-index: 1060;
+  transform-origin: top right;
+}
+
+.account-menu[hidden] {
+  display: none;
+}
+
+.account-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-menu-item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle, rgba(255, 255, 255, 0.18)) 60%, transparent);
+  color: color-mix(in srgb, var(--gls-account-text) 92%, var(--gls-color-text, #1f2a2b) 8%);
+  text-decoration: none;
+  text-align: left;
+  padding: 0 14px;
+  height: var(--gls-account-item-height);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--gls-account-item-radius);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.account-menu-item:hover,
+.account-menu-item:focus-visible {
+  background: color-mix(in srgb, var(--gls-glass-bg, rgba(255, 255, 255, 0.28)) 72%, transparent);
+  color: var(--gls-account-text);
+  outline: none;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset;
+}
+
+.account-menu-logout {
+  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 92%, #c07a7a 8%);
+}
+
+.account-menu-divider {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--gls-account-menu-border) 86%, transparent);
+  margin: 10px 4px 6px;
+}
+
+.mobile-account-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  border: 1px solid var(--gls-account-menu-border);
+  border-radius: var(--gls-account-radius);
+  background: color-mix(in srgb, var(--gls-glass-bg, rgba(255, 255, 255, 0.28)) 82%, transparent);
+}
+
+.mobile-account-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  gap: 2px;
+}
+
+.mobile-account-label {
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--gls-account-muted), rgba(0, 0, 0, 0.12));
+}
+
+.mobile-account-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--gls-account-text, var(--gls-color-text, #1f2a2b));
+}
+
+.mobile-menu-divider {
+  margin: 0.35rem 0;
+}
+
+.nav-link-compact {
+  padding: 0.8rem 1rem !important;
+  min-height: var(--gls-account-item-height);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--gls-account-item-radius);
+  color: var(--gls-color-text, #1f2a2b);
+  background: transparent;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-logout-link {
+  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 92%, #7a3f44 8%);
+  font-weight: 600;
+  padding: 0.8rem 1rem;
+}
+
+.nav-logout-link:hover,
+.nav-logout-link:focus-visible {
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle, rgba(255, 255, 255, 0.18)) 90%, transparent);
+  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 82%, #a63c45 18%);
+  outline: none;
+}
+
+.navbar-nav .nav-link.nav-link-compact:hover,
+.navbar-nav .nav-link.nav-link-compact:focus-visible {
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle, rgba(255, 255, 255, 0.18)) 80%, transparent);
+  color: var(--gls-color-text, #1f2a2b);
+}
+
+.navbar-nav .nav-link.nav-link-compact.active {
+  background: color-mix(in srgb, var(--gls-glass-bg, rgba(255, 255, 255, 0.28)) 70%, transparent);
+  color: var(--gls-color-text, #1f2a2b);
+  font-weight: 700;
+}
+
+@media (max-width: 991.98px) {
+  .navbar-nav .nav-link.nav-link-compact,
+  .navbar-nav .nav-link.nav-link-compact:hover,
+  .navbar-nav .nav-link.nav-link-compact:focus-visible,
+  .nav-logout-link,
+  .nav-logout-link:hover,
+  .nav-logout-link:focus-visible,
+  .mobile-account-label,
+  .mobile-account-name {
+    color: #fff;
+  }
+
+  .navbar-nav .nav-link.nav-link-compact,
+  .nav-logout-link {
+    background: transparent;
+  }
+
+  .navbar-nav .nav-link.nav-link-compact:hover,
+  .navbar-nav .nav-link.nav-link-compact:focus-visible,
+  .nav-logout-link:hover,
+  .nav-logout-link:focus-visible {
+    background: color-mix(in srgb, rgba(255, 255, 255, 0.18) 80%, transparent);
+  }
 }
 
 /* 네비게이션 내 주요 버튼들도 테마 액센트에 맞춰 일관되게 적용 */

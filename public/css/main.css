@@ -1433,7 +1433,8 @@ body.page-index {
 }
 
 .growth-level-leaf {
-  font-size: 1.1rem;
+  font-size: 1.3rem;
+  line-height: 1;
 }
 
 .growth-level-text h3 {

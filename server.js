@@ -31,6 +31,7 @@ const adminPageRoutes = require('./routes/adminPageRoutes');
 const app = express();
 // 로컬 개발은 3000, 배포 환경에서는 포트 환경 변수 사용
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // 프록시/로드밸런서 뒤에서도 올바른 프로토콜 정보를 사용하기 위함
 app.set('trust proxy', 1);
@@ -83,6 +84,6 @@ app.get('/', (req, res) => {
 });
 
 // 5. 서버 실행
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Server running on http://127.0.0.1:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
 });

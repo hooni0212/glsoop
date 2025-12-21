@@ -515,6 +515,10 @@ router.get('/me', authRequired, (req, res) => {
       email,
       is_admin,
       is_verified,
+      COALESCE(level, 1) AS level,
+      COALESCE(xp, 0) AS xp,
+      COALESCE(streak_days, 0) AS streak_days,
+      COALESCE(max_streak_days, 0) AS max_streak_days,
       (SELECT COUNT(*) FROM follows f1 WHERE f1.followee_id = users.id)   AS follower_count,
       (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = users.id) AS following_count
     FROM users
@@ -546,6 +550,10 @@ router.get('/me', authRequired, (req, res) => {
         email: row.email,
         isAdmin: !!row.is_admin,
         isVerified: !!row.is_verified,
+        level: row.level || 1,
+        xp: row.xp || 0,
+        streak_days: row.streak_days || 0,
+        max_streak_days: row.max_streak_days || 0,
         followerCount: row.follower_count || 0,
         followingCount: row.following_count || 0,
       });
