@@ -132,18 +132,18 @@ body.winter-theme .hero-card {
 
 /* CTA 버튼은 헤더 그라디언트 톤으로 통일 */
 body.winter-theme .hero-card .hero-cta-btn {
-  background: var(--gls-header-gradient);
-  color: #ffffff;
-  border: 1px solid rgba(52, 91, 131, 0.65);
-  box-shadow: 0 18px 42px rgba(45, 83, 132, 0.28);
+  background: linear-gradient(120deg, #6a86ad 0%, #88a5c3 55%, #f6fbff 100%);
+  color: #0f172a;
+  border: 1px solid rgba(52, 91, 131, 0.4);
+  box-shadow: 0 16px 38px rgba(45, 83, 132, 0.24);
   text-decoration: none;
 }
 body.winter-theme .hero-card .hero-cta-btn:hover,
 body.winter-theme .hero-card .hero-cta-btn:focus-visible {
-  background: linear-gradient(90deg, #345b83, #4a76a3);
-  border-color: rgba(52, 91, 131, 0.85);
-  box-shadow: 0 20px 46px rgba(45, 83, 132, 0.32);
-  color: #ffffff;
+  background: linear-gradient(120deg, #5c7a9f 0%, #7392b8 50%, #e9f3ff 100%);
+  border-color: rgba(52, 91, 131, 0.6);
+  box-shadow: 0 18px 44px rgba(45, 83, 132, 0.28);
+  color: #0a1525;
   text-decoration: none;
 }
 
