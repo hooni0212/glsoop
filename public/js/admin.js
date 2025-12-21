@@ -99,28 +99,41 @@ Glsoop.AdminPage = (function () {
   }
 
   function applyAdminTheme(theme, radios, preview, persist = true) {
-    const allowed = ['spring', 'summer', 'autumn', 'winter'];
-    const safeTheme = allowed.includes(theme) ? theme : 'winter';
-    const body = document.body;
+    const themeApi = window.Glsoop?.Theme;
+    const allowed = themeApi?.ALLOWED_THEMES || ['spring', 'summer', 'autumn', 'winter'];
+    const defaultTheme = themeApi?.DEFAULT_THEME || 'winter';
+    const safeTheme = allowed.includes(theme) ? theme : defaultTheme;
 
-    allowed.forEach((t) => body.classList.remove(`${t}-theme`));
-    body.classList.add(`${safeTheme}-theme`);
+    const applied = themeApi?.applyTheme
+      ? themeApi.applyTheme(safeTheme)
+      : legacyApplyTheme(safeTheme, allowed);
 
     radios?.forEach((r) => {
-      r.checked = r.value === safeTheme;
+      r.checked = r.value === applied;
     });
 
     if (preview) {
-      preview.textContent = `현재 테마: ${THEME_LABELS[safeTheme] || safeTheme}`;
+      preview.textContent = `현재 테마: ${THEME_LABELS[applied] || applied}`;
     }
 
     if (persist) {
-      try {
-        localStorage.setItem('gls-admin-theme', safeTheme);
-      } catch (e) {
-        console.warn('테마를 로컬스토리지에 저장할 수 없습니다.', e);
+      if (themeApi?.persistTheme) {
+        themeApi.persistTheme(applied);
+      } else {
+        try {
+          localStorage.setItem('gls-admin-theme', applied);
+        } catch (e) {
+          console.warn('테마를 로컬스토리지에 저장할 수 없습니다.', e);
+        }
       }
     }
+  }
+
+  function legacyApplyTheme(theme, allowed) {
+    const body = document.body;
+    allowed.forEach((t) => body.classList.remove(`${t}-theme`));
+    body.classList.add(`${theme}-theme`);
+    return theme;
   }
 
   function setupTabSwitching() {
