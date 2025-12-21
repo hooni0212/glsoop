@@ -5,34 +5,11 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   // 페이지가 로드되면 헤더 상태(로그인/로그아웃)를 먼저 갱신
-  ensureGrowthNavLink();
   buildAccountMenus();
   updateHeader();
 
   setupMobileNavCloseBehavior();
 });
-
-function ensureGrowthNavLink() {
-  const afterNavLists = document.querySelectorAll('.after-login');
-  afterNavLists.forEach((list) => {
-    if (list.querySelector('.nav-growth-link')) return;
-
-    const li = document.createElement('li');
-    li.className = 'nav-item';
-    const link = document.createElement('a');
-    link.href = '/html/growth.html';
-    link.className = 'nav-link nav-growth-link';
-    link.textContent = '성장';
-    li.appendChild(link);
-
-    const mypageLink = list.querySelector('a[href="/html/mypage.html"]');
-    if (mypageLink && mypageLink.parentElement?.parentElement === list) {
-      mypageLink.parentElement.insertAdjacentElement('afterend', li);
-    } else {
-      list.insertBefore(li, list.querySelector('li:nth-child(3)') || null);
-    }
-  });
-}
 
 /**
  * 헤더 영역에 로그인 상태 반영
@@ -99,15 +76,14 @@ function buildAccountMenus() {
     // 이미 계정 메뉴가 세팅되어 있다면 패스
     if (list.dataset.accountMenuBuilt === 'true') return;
 
-    // 기존 이름/로그아웃 UI 제거
-    const legacyName = list.querySelector('#navUserName');
-    legacyName?.closest('li')?.remove();
-    const legacyLogoutButtons = list.querySelectorAll('#logoutBtn');
-    legacyLogoutButtons.forEach((btn) => btn.closest('li')?.remove());
+    // 로그인 후 메뉴를 새로 구성하기 전에 기존 항목을 정리
+    list
+      .querySelectorAll(
+        '#navUserName, #logoutBtn, a[href="/html/mypage.html"], a[href="/html/growth.html"], a[href="/html/editor.html"]'
+      )
+      .forEach((node) => node.closest('li')?.remove());
 
-    // 참고용으로 마이페이지/글쓰기 링크를 찾아둔다 (없어도 무시)
-    const mypageLink = list.querySelector('a[href="/html/mypage.html"]');
-    const editorLink = list.querySelector('a[href="/html/editor.html"]');
+    const mobileNavItems = createMobileNavItems();
 
     // 모바일용 계정 헤더 블록 추가
     const mobileAccount = document.createElement('li');
@@ -121,18 +97,19 @@ function buildAccountMenus() {
         </div>
       </div>
     `;
-    list.prepend(mobileAccount);
+    const mobileLinksContainer = document.createDocumentFragment();
+    mobileNavItems.forEach((item) => mobileLinksContainer.appendChild(item));
 
     // 로그아웃(모바일 리스트 하단)
     const mobileDivider = document.createElement('li');
-    mobileDivider.className = 'nav-item d-lg-none mobile-menu-divider';
+    mobileDivider.className = 'nav-item d-lg-none w-100 mobile-menu-divider';
     mobileDivider.innerHTML = '<hr class="dropdown-divider" />';
 
     const mobileLogoutItem = document.createElement('li');
-    mobileLogoutItem.className = 'nav-item d-lg-none';
+    mobileLogoutItem.className = 'nav-item d-lg-none w-100';
     const mobileLogoutBtn = document.createElement('button');
     mobileLogoutBtn.type = 'button';
-    mobileLogoutBtn.className = 'nav-link nav-logout-link text-start w-100';
+    mobileLogoutBtn.className = 'nav-link text-start nav-link-compact nav-logout-link';
     mobileLogoutBtn.textContent = '로그아웃';
     mobileLogoutBtn.addEventListener('click', () => {
       closeAccountMenu();
@@ -168,19 +145,12 @@ function buildAccountMenus() {
     menuList.className = 'account-menu-list';
 
     const menuItems = [];
-    const mypageItem = document.createElement('a');
-    mypageItem.className = 'account-menu-item';
-    mypageItem.href = '/html/mypage.html';
-    mypageItem.setAttribute('role', 'menuitem');
-    mypageItem.textContent = '마이페이지';
-    menuItems.push(mypageItem);
+    const mypageItem = createMenuAnchor('/html/mypage.html', '마이페이지');
+    const growthItem = createMenuAnchor('/html/growth.html', '성장');
+    const editorItem = createMenuAnchor('/html/editor.html', '글쓰기');
 
-    const editorItem = document.createElement('a');
-    editorItem.className = 'account-menu-item';
-    editorItem.href = '/html/editor.html';
-    editorItem.setAttribute('role', 'menuitem');
-    editorItem.textContent = '글쓰기';
-    menuItems.push(editorItem);
+    const divider = document.createElement('hr');
+    divider.className = 'account-menu-divider';
 
     const logoutItem = document.createElement('button');
     logoutItem.type = 'button';
@@ -191,7 +161,8 @@ function buildAccountMenus() {
       closeAccountMenu();
       handleLogout();
     });
-    menuItems.push(logoutItem);
+
+    menuItems.push(mypageItem, growthItem, editorItem, divider, logoutItem);
 
     menuItems.forEach((item) => {
       item.addEventListener('click', () => closeAccountMenu());
@@ -205,14 +176,12 @@ function buildAccountMenus() {
     accountLi.appendChild(trigger);
     accountLi.appendChild(menu);
 
+    list.innerHTML = '';
+    list.appendChild(mobileAccount);
+    list.appendChild(mobileLinksContainer);
     list.appendChild(mobileDivider);
     list.appendChild(mobileLogoutItem);
     list.appendChild(accountLi);
-
-    // 모바일에서 기존 메뉴 항목의 높이/패딩 통일을 위해 nav-link 클래스 보정
-    [mypageLink, editorLink]
-      .filter(Boolean)
-      .forEach((link) => link.classList.add('nav-link-compact'));
 
     list.dataset.accountMenuBuilt = 'true';
   });
@@ -231,6 +200,36 @@ function buildAccountMenus() {
       closeAccountMenu();
       currentOpenTrigger?.focus();
     }
+  });
+}
+
+function createMenuAnchor(href, label) {
+  const anchor = document.createElement('a');
+  anchor.className = 'account-menu-item';
+  anchor.href = href;
+  anchor.setAttribute('role', 'menuitem');
+  anchor.textContent = label;
+  return anchor;
+}
+
+function createMobileNavItems() {
+  const items = [
+    { href: '/html/mypage.html', label: '마이페이지' },
+    { href: '/html/growth.html', label: '성장' },
+    { href: '/html/editor.html', label: '글쓰기' },
+  ];
+
+  return items.map((item) => {
+    const li = document.createElement('li');
+    li.className = 'nav-item d-lg-none';
+
+    const link = document.createElement('a');
+    link.className = 'nav-link nav-link-compact w-100 text-start';
+    link.href = item.href;
+    link.textContent = item.label;
+
+    li.appendChild(link);
+    return li;
   });
 }
 
@@ -262,6 +261,14 @@ function setupMobileNavCloseBehavior() {
 
     if (!clickedInsideNav && !clickedToggler) {
       collapse.hide();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    const isOpen = navbarNav.classList.contains('show');
+    if (event.key === 'Escape' && isOpen) {
+      collapse.hide();
+      toggler?.focus();
     }
   });
 }

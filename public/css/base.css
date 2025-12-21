@@ -419,33 +419,55 @@ select:focus-visible {
   margin-left: 0.75rem;
 }
 
+:root {
+  --gls-account-surface: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.14),
+      rgba(255, 255, 255, 0.06)
+    ),
+    color-mix(in srgb, var(--gls-action-accent, #2e8b57) 18%, rgba(8, 22, 17, 0.82));
+  --gls-account-border: color-mix(
+    in srgb,
+    var(--gls-action-border, rgba(30, 42, 51, 0.16)) 60%,
+    rgba(255, 255, 255, 0.18)
+  );
+  --gls-account-text: #f6fff9;
+  --gls-account-muted: rgba(246, 255, 249, 0.7);
+  --gls-account-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+  --gls-account-avatar: color-mix(
+    in srgb,
+    var(--gls-action-accent, #2e8b57) 75%,
+    #c9f4d6 30%
+  );
+}
+
 .account-trigger {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: linear-gradient(135deg, rgba(30, 55, 44, 0.82), rgba(18, 33, 27, 0.9));
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  color: #ecfff4;
+  padding: 9px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--gls-account-border);
+  background: var(--gls-account-surface);
+  box-shadow: var(--gls-account-shadow), var(--gls-glass-inset, inset 0 1px 0 rgba(255, 255, 255, 0.3));
+  color: var(--gls-account-text);
   cursor: pointer;
   transition: box-shadow 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--gls-glass-blur, 10px));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur, 10px));
 }
 
 .account-trigger:hover,
 .account-trigger:focus-visible {
-  box-shadow: 0 12px 28px rgba(46, 139, 87, 0.22);
-  border-color: rgba(201, 244, 214, 0.3);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--gls-action-accent, #2e8b57) 20%, rgba(0, 0, 0, 0.2));
+  border-color: color-mix(in srgb, var(--gls-action-border-strong, rgba(46, 139, 87, 0.3)) 75%, rgba(255, 255, 255, 0.25));
   transform: translateY(-1px);
   outline: none;
 }
 
 .account-trigger:focus-visible {
-  outline: 2px solid rgba(236, 255, 244, 0.65);
-  outline-offset: 2px;
+  outline: 2px solid color-mix(in srgb, var(--gls-action-accent, #2e8b57) 45%, rgba(255, 255, 255, 0.65));
+  outline-offset: 3px;
 }
 
 .account-avatar,
@@ -453,13 +475,13 @@ select:focus-visible {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #c9f4d6, #2e8b57);
+  background: radial-gradient(circle at 32% 28%, #ffffff, var(--gls-account-avatar));
   color: #0f2a1d;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 6px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 6px 16px rgba(0, 0, 0, 0.18);
 }
 
 .account-text {
@@ -473,33 +495,45 @@ select:focus-visible {
 .account-name {
   font-weight: 700;
   font-size: 0.98rem;
-  color: #f6fff9;
+  color: var(--gls-account-text);
   white-space: nowrap;
 }
 
 .account-subtitle {
-  font-size: 0.78rem;
-  color: rgba(236, 255, 244, 0.7);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .account-caret {
   font-size: 0.8rem;
-  color: rgba(236, 255, 244, 0.8);
+  color: var(--gls-account-muted);
 }
 
 .account-menu {
   position: absolute;
   right: 0;
-  top: calc(100% + 10px);
-  min-width: 210px;
-  background: rgba(16, 32, 26, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  top: calc(100% + 8px);
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 24px));
+  background: color-mix(
+    in srgb,
+    var(--gls-glass-bg-strong, rgba(255, 255, 255, 0.42)) 35%,
+    rgba(10, 26, 21, 0.85)
+  );
+  border: 1px solid var(--gls-glass-border, rgba(255, 255, 255, 0.14));
   border-radius: 12px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  padding: 8px;
+  box-shadow: var(--gls-glass-shadow-hover, 0 14px 36px rgba(0, 0, 0, 0.22));
+  backdrop-filter: blur(var(--gls-glass-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur, 12px));
+  padding: 10px;
   z-index: 1050;
+  transform-origin: top right;
 }
 
 .account-menu[hidden] {
@@ -509,32 +543,39 @@ select:focus-visible {
 .account-menu-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .account-menu-item {
   display: block;
   width: 100%;
   border: none;
-  background: rgba(255, 255, 255, 0.02);
-  color: #f6fff9;
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.08), transparent);
+  color: var(--gls-account-text);
   text-decoration: none;
   text-align: left;
-  padding: 10px 12px;
+  padding: 9px 12px;
   border-radius: 10px;
   font-weight: 600;
+  font-size: 0.95rem;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .account-menu-item:hover,
 .account-menu-item:focus-visible {
-  background: rgba(46, 139, 87, 0.15);
-  color: #ffffff;
+  background: color-mix(in srgb, var(--gls-action-accent, #2e8b57) 16%, rgba(255, 255, 255, 0.08));
+  color: var(--gls-account-text);
   outline: none;
 }
 
 .account-menu-logout {
-  color: #f7c6c7;
+  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 35%, #f1c2c4 65%);
+}
+
+.account-menu-divider {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--gls-glass-border, rgba(30, 42, 51, 0.18)) 80%, transparent);
+  margin: 6px 2px;
 }
 
 .mobile-account-chip {
@@ -567,19 +608,19 @@ select:focus-visible {
 
 .nav-link-compact {
   padding: 0.85rem 1rem !important;
-  min-height: 44px;
+  min-height: 46px;
 }
 
 .nav-logout-link {
-  color: #c82333;
-  font-weight: 700;
+  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 60%, #b14a52 40%);
+  font-weight: 600;
   padding: 0.75rem 1rem;
 }
 
 .nav-logout-link:hover,
 .nav-logout-link:focus-visible {
-  background: rgba(200, 35, 51, 0.12);
-  color: #a31226;
+  background: color-mix(in srgb, var(--gls-action-accent, #2e8b57) 6%, rgba(0, 0, 0, 0.04));
+  color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 75%, #a63c45 25%);
   outline: none;
 }
 
