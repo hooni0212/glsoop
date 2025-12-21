@@ -1,4 +1,6 @@
+
 const DEFAULT_PRODUCTION_BASE = 'https://www.glsoop.com';
+
 
 /**
  * Return the base URL for external links (emails, etc.).
@@ -8,6 +10,10 @@ const DEFAULT_PRODUCTION_BASE = 'https://www.glsoop.com';
 function getBaseUrl(req) {
   if (process.env.BASE_URL) {
     return process.env.BASE_URL;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return DEFAULT_PRODUCTION_BASE;
   }
 
   const host = req && req.get ? req.get('host') : undefined;
