@@ -1,7 +1,7 @@
 /* =========================
    Winter Theme (글숲 겨울 스킨)
    - body에 .winter-theme 클래스가 붙었을 때만 적용
-   - 눈 애니메이션은 index(메인) + winter-theme 둘 다일 때만 적용
+   - 눈 애니메이션은 winter-theme + 눈 적용 페이지에서만 렌더링
 ========================= */
 
 /* 1. 전체 배경 & 텍스트 컬러 */
@@ -129,14 +129,16 @@ body.winter-theme .hero-card {
 /* CTA 버튼은 겨울 녹청색 느낌 */
 body.winter-theme .hero-card .hero-cta-btn {
   background-color: var(--gls-action-accent);
-  box-shadow: 0 12px 28px rgba(0, 150, 136, 0.35);
   color: #ffffff;
+  border: 1px solid var(--gls-action-border-strong);
+  box-shadow: var(--gls-action-glow, 0 12px 28px rgba(0, 150, 136, 0.35));
   text-decoration: none;
 }
 body.winter-theme .hero-card .hero-cta-btn:hover,
 body.winter-theme .hero-card .hero-cta-btn:focus-visible {
-  background-color: #00c39a;
-  box-shadow: 0 18px 42px rgba(0, 150, 136, 0.48);
+  background-color: #00bba1;
+  border-color: #00bba1;
+  box-shadow: 0 18px 42px rgba(0, 150, 136, 0.38);
   color: #ffffff;
   text-decoration: none;
 }
@@ -386,12 +388,14 @@ body.winter-theme .card {
 }
 
 /* =========================
-   7. 눈 효과 (메인 페이지 전용)
-   - body class="page-index winter-theme" 일 때만 보이게
+   7. 눈 효과 (홈 / 글 / 작가)
+   - winter-theme + 눈 적용 페이지(page-index / page-post / page-author)
 ========================= */
 
 /* 전체 화면 눈 레이어 (배경 위, 카드/텍스트 위에 얇게) */
-.page-index.winter-theme .snow-layer {
+.page-index.winter-theme .snow-layer,
+.page-post.winter-theme .snow-layer,
+.page-author.winter-theme .snow-layer {
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -400,7 +404,9 @@ body.winter-theme .card {
 }
 
 /* 공통 눈 조각 스타일 */
-.page-index.winter-theme .snowflake {
+.page-index.winter-theme .snowflake,
+.page-post.winter-theme .snowflake,
+.page-author.winter-theme .snowflake {
   position: absolute;
   top: -10px;
   border-radius: 50%;
@@ -414,14 +420,18 @@ body.winter-theme .card {
 }
 
 /* 가까운 큰 눈 (빠르게, 더 또렷하게) */
-.page-index.winter-theme .snowflake.big {
+.page-index.winter-theme .snowflake.big,
+.page-post.winter-theme .snowflake.big,
+.page-author.winter-theme .snowflake.big {
   width: 8px;
   height: 8px;
   animation-duration: 6s;
 }
 
 /* 중간 거리 눈 */
-.page-index.winter-theme .snowflake.mid {
+.page-index.winter-theme .snowflake.mid,
+.page-post.winter-theme .snowflake.mid,
+.page-author.winter-theme .snowflake.mid {
   width: 5px;
   height: 5px;
   animation-duration: 9s;
@@ -429,7 +439,9 @@ body.winter-theme .card {
 }
 
 /* 멀리 보이는 작은 눈 (느리게, 흐릿하게) */
-.page-index.winter-theme .snowflake.small {
+.page-index.winter-theme .snowflake.small,
+.page-post.winter-theme .snowflake.small,
+.page-author.winter-theme .snowflake.small {
   width: 3px;
   height: 3px;
   animation-duration: 13s;
@@ -461,15 +473,21 @@ body.winter-theme .card {
 ========================= */
 
 @media (max-width: 576px) {
-  .page-index.winter-theme .snowflake.big {
+  .page-index.winter-theme .snowflake.big,
+  .page-post.winter-theme .snowflake.big,
+  .page-author.winter-theme .snowflake.big {
     width: 7px;
     height: 7px;
   }
-  .page-index.winter-theme .snowflake.mid {
+  .page-index.winter-theme .snowflake.mid,
+  .page-post.winter-theme .snowflake.mid,
+  .page-author.winter-theme .snowflake.mid {
     width: 4px;
     height: 4px;
   }
-  .page-index.winter-theme .snowflake.small {
+  .page-index.winter-theme .snowflake.small,
+  .page-post.winter-theme .snowflake.small,
+  .page-author.winter-theme .snowflake.small {
     width: 2px;
     height: 2px;
   }
