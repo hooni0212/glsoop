@@ -10,17 +10,17 @@ body.spring-theme {
   /* 작가/카드 공통 변수 (봄톤) */
   --author-surface: rgba(255, 247, 250, 0.65);
   --author-card-bg: rgba(255, 250, 252, 0.96);
-  --author-card-shadow: 0 12px 32px rgba(255, 157, 184, 0.16);
-  --author-card-shadow-compact: 0 8px 18px rgba(255, 157, 184, 0.12);
-  --author-text-muted: #7a5b66;
-  --author-divider: rgba(199, 82, 122, 0.18);
-  --author-accent: #c7527a;
-  --gls-action-accent: #c7527a;
-  --gls-action-border: rgba(199, 82, 122, 0.22);
-  --gls-action-border-strong: rgba(199, 82, 122, 0.36);
-  --gls-action-surface: rgba(255, 250, 252, 0.9);
-  --gls-action-surface-strong: rgba(199, 82, 122, 0.08);
-  --gls-action-glow: 0 10px 26px rgba(199, 82, 122, 0.18);
+  --author-card-shadow: 0 12px 32px rgba(206, 118, 146, 0.14);
+  --author-card-shadow-compact: 0 8px 18px rgba(206, 118, 146, 0.1);
+  --author-text-muted: #735861;
+  --author-divider: rgba(184, 107, 133, 0.16);
+  --author-accent: #b86b85;
+  --gls-action-accent: #b86b85;
+  --gls-action-border: rgba(184, 107, 133, 0.2);
+  --gls-action-border-strong: rgba(184, 107, 133, 0.32);
+  --gls-action-surface: rgba(255, 250, 252, 0.92);
+  --gls-action-surface-strong: rgba(184, 107, 133, 0.08);
+  --gls-action-glow: 0 10px 26px rgba(184, 107, 133, 0.16);
 
   /* 배경 레이어 (겨울 구조 그대로, 색만 봄톤으로) */
   background-image:
@@ -101,9 +101,9 @@ body.spring-theme::after {
 
 body.spring-theme .custom-navbar,
 body.spring-theme .custom-footer {
-  /* 벚꽃 분홍 + 연두 그라디언트 */
-  background: linear-gradient(90deg, #FF9DB8, #87D37C);
-  box-shadow: 0 6px 18px rgba(255, 157, 184, 0.35);
+  /* 벚꽃 분홍 + 연두 그라디언트 (차분톤) */
+  background: linear-gradient(90deg, #f6cadd, #a5d7a3);
+  box-shadow: 0 6px 18px rgba(184, 107, 133, 0.28);
 }
 
 /* 네비 브랜드 글씨: 봄 느낌 분홍빛 그라디언트 */
@@ -125,40 +125,40 @@ body.spring-theme .footer-links a {
 
 /* 피드 탭 & 저장 버튼 테마 매핑 */
 body.spring-theme .feed-tabs .feed-tab {
-  color: #c7527a;
-  border-color: rgba(199, 82, 122, 0.25);
-  background: rgba(199, 82, 122, 0.08);
+  color: #b86b85;
+  border-color: rgba(184, 107, 133, 0.22);
+  background: rgba(184, 107, 133, 0.08);
 }
 
 body.spring-theme .feed-tabs .feed-tab.feed-tab-active,
 body.spring-theme .feed-tabs .feed-tab.active {
-  background: #c7527a;
-  border-color: #c7527a;
+  background: #b86b85;
+  border-color: #b86b85;
   color: #fff;
 }
 
 body.spring-theme .nav-category-item:hover,
 body.spring-theme .nav-category-item:focus-visible {
-  background: rgba(199, 82, 122, 0.12);
-  color: #a33b5f;
+  background: rgba(184, 107, 133, 0.12);
+  color: #9f566e;
 }
 
 body.spring-theme .post-category-label {
-  background: rgba(199, 82, 122, 0.08);
-  border-color: rgba(199, 82, 122, 0.24);
-  color: #a33b5f;
+  background: rgba(184, 107, 133, 0.08);
+  border-color: rgba(184, 107, 133, 0.24);
+  color: #9f566e;
 }
 
 body.spring-theme .gls-save-btn {
-  color: #c7527a;
-  border-color: #c7527a;
+  color: #b86b85;
+  border-color: #b86b85;
 }
 
 body.spring-theme .gls-save-btn:hover,
 body.spring-theme .gls-save-btn:focus-visible {
-  background: rgba(199, 82, 122, 0.12);
-  color: #c7527a;
-  border-color: #c7527a;
+  background: rgba(184, 107, 133, 0.12);
+  color: #b86b85;
+  border-color: #b86b85;
 }
 
 /* =========================
@@ -181,17 +181,17 @@ body.spring-theme .hero-card {
   border: 1px solid var(--gls-glass-border);
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
-  box-shadow: 0 18px 42px rgba(255, 157, 184, 0.25);
+  box-shadow: 0 18px 42px rgba(184, 107, 133, 0.2);
   border-radius: 1.4rem;
 }
 
 
 body.spring-theme .hero-title {
-  color: #C7527A; /* 메인 타이틀 분홍 */
+  color: #b86b85; /* 메인 타이틀 분홍 (톤 다운) */
 }
 
 body.spring-theme .hero-subtitle {
-  color: #6F7F4C; /* 연두 톤 글자 */
+  color: #6b8c5e; /* 연두 톤 글자 (차분) */
 }
 
 /* =========================
@@ -199,26 +199,26 @@ body.spring-theme .hero-subtitle {
 ========================= */
 
 body.spring-theme .hero-card .hero-cta-btn {
-  background-color: #87D37C;
-  box-shadow: 0 10px 24px rgba(135, 211, 124, 0.45);
+  background-color: #7fbf78;
+  box-shadow: 0 10px 24px rgba(127, 191, 120, 0.32);
   color: #ffffff;
   text-decoration: none;
 }
 
 body.spring-theme .hero-card .hero-cta-btn:hover,
 body.spring-theme .hero-card .hero-cta-btn:focus-visible {
-  background-color: #76BE6C;
-  box-shadow: 0 18px 42px rgba(135, 211, 124, 0.6);
+  background-color: #71ad6d;
+  box-shadow: 0 18px 42px rgba(127, 191, 120, 0.42);
   color: #ffffff;
   text-decoration: none;
 }
 
 /* 공통 버튼 (success / outline-success) 봄톤 */
 body.spring-theme .btn-success {
-  color: #76BE6C;
+  color: #71ad6d;
   background-color: transparent;
-  border: 1px solid rgba(135, 211, 124, 0.85);
-  box-shadow: 0 10px 24px rgba(135, 211, 124, 0.28);
+  border: 1px solid rgba(127, 191, 120, 0.68);
+  box-shadow: 0 10px 24px rgba(127, 191, 120, 0.24);
 }
 
 body.spring-theme .btn-success:hover,
@@ -226,17 +226,17 @@ body.spring-theme .btn-success:focus-visible,
 body.spring-theme .btn-success.active,
 body.spring-theme .btn-success:active {
   color: #ffffff;
-  background-color: #87D37C;
-  border-color: #87D37C;
+  background-color: #7fbf78;
+  border-color: #7fbf78;
   transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(135, 211, 124, 0.36);
+  box-shadow: 0 12px 28px rgba(127, 191, 120, 0.3);
 }
 
 body.spring-theme .btn-outline-success {
-  color: #76BE6C;
-  border-color: rgba(135, 211, 124, 0.7);
+  color: #71ad6d;
+  border-color: rgba(127, 191, 120, 0.62);
   background-color: transparent;
-  box-shadow: 0 8px 18px rgba(135, 211, 124, 0.2);
+  box-shadow: 0 8px 18px rgba(127, 191, 120, 0.18);
 }
 
 body.spring-theme .btn-outline-success:hover,
@@ -244,9 +244,9 @@ body.spring-theme .btn-outline-success:focus-visible,
 body.spring-theme .btn-outline-success.active,
 body.spring-theme .btn-outline-success:active {
   color: #ffffff;
-  background-color: #87D37C;
-  border-color: #87D37C;
-  box-shadow: 0 12px 28px rgba(135, 211, 124, 0.35);
+  background-color: #7fbf78;
+  border-color: #7fbf78;
+  box-shadow: 0 12px 28px rgba(127, 191, 120, 0.28);
 }
 
 /* =========================
@@ -258,12 +258,12 @@ body.spring-theme .quote-card {
   background-color: #FFF7FA; /* 연한 핑크 종이 */
   background-image: none;
   color: #34343A;
-  box-shadow: 0 10px 24px rgba(255, 157, 184, 0.18);
+  box-shadow: 0 10px 24px rgba(184, 107, 133, 0.16);
 }
 
 /* 메인 카드(피드/포스트) */
 body.spring-theme .card {
-  box-shadow: 0 10px 24px rgba(255, 157, 184, 0.12);
+  box-shadow: 0 10px 24px rgba(184, 107, 133, 0.12);
 }
 
 /* =========================
@@ -271,47 +271,47 @@ body.spring-theme .card {
 ========================= */
 
 body.spring-theme .gls-author-badge {
-  background-color: #FFF3F6 !important;
-  border-color: #FFC4D6 !important;
-  color: #C7527A !important;
+  background-color: #FFEAF1 !important;
+  border-color: #F3CDDB !important;
+  color: #b86b85 !important;
 }
 
 /* 카드/검색에서 사용되는 태그 버튼 */
 body.spring-theme .gls-tag-btn {
   background-color: transparent;
-  border-color: #FFC4D6;
-  color: #C7527A;
+  border-color: #F3CDDB;
+  color: #b86b85;
   box-shadow: none;
 }
 
 body.spring-theme .gls-tag-btn:hover,
 body.spring-theme .gls-tag-btn:focus-visible {
-  background-color: #FFE4EE;
-  border-color: #FFB2C9;
-  color: #A63F63;
+  background-color: #FFE1EC;
+  border-color: #E8BCCF;
+  color: #9f566e;
 }
 
 /* 선택된 해시태그 칩 (작성/검색 영역) */
 body.spring-theme .hashtag-chip {
-  background-color: #FFF3F6;
-  color: #C7527A;
-  border: 1px solid #FFC4D6;
+  background-color: #FFEAF1;
+  color: #b86b85;
+  border: 1px solid #F3CDDB;
 }
 body.spring-theme .hashtag-chip .hashtag-chip-remove {
-  color: #C7527A;
+  color: #b86b85;
 }
 body.spring-theme .hashtag-chip .hashtag-chip-remove:hover {
-  color: #A63F63;
+  color: #9f566e;
 }
 
 /* 상단 "적용 중인 태그" 필터 바 배지 */
 .page-index.spring-theme #tagFilterBar .badge.text-bg-success {
   background-color: #FFF3F6 !important;   /* 부드러운 봄 핑크 */
-  color: #C7527A !important;              /* 메인 분홍 텍스트 */
+  color: #b86b85 !important;              /* 메인 분홍 텍스트 */
   border-radius: var(--gls-btn-radius);
-  border: 1px solid #FFC4D6;
+  border: 1px solid #F3CDDB;
   padding: 0.35rem 0.7rem;
-  box-shadow: 0 2px 6px rgba(255, 157, 184, 0.18);
+  box-shadow: 0 2px 6px rgba(184, 107, 133, 0.16);
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -331,9 +331,9 @@ body.spring-theme .hashtag-chip .hashtag-chip-remove:hover {
 ========================= */
 
 body.spring-theme .like-btn .like-heart {
-  color: #A63F63;
+  color: #9f566e;
 }
 
 body.spring-theme .like-btn.liked .like-heart {
-  color: #FF6B8F;
+  color: #ef7d9a;
 }
