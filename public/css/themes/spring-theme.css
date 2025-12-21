@@ -21,6 +21,25 @@ body.spring-theme {
   --gls-action-surface: rgba(255, 250, 252, 0.92);
   --gls-action-surface-strong: rgba(184, 107, 133, 0.08);
   --gls-action-glow: 0 10px 26px rgba(184, 107, 133, 0.16);
+  --gls-account-surface: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.18),
+      rgba(255, 245, 250, 0.08)
+    ),
+    color-mix(in srgb, #b86b85 18%, rgba(58, 25, 35, 0.78));
+  --gls-account-border: color-mix(
+    in srgb,
+    rgba(184, 107, 133, 0.48) 70%,
+    rgba(255, 255, 255, 0.32)
+  );
+  --gls-account-text: #fff6fa;
+  --gls-account-muted: rgba(255, 230, 240, 0.78);
+  --gls-account-avatar: color-mix(in srgb, #ffeef6 48%, #b86b85 70%);
+  --gls-account-shadow: 0 12px 28px color-mix(
+      in srgb,
+      #b86b85 34%,
+      rgba(0, 0, 0, 0.16)
+    );
 
   /* 배경 레이어 (겨울 구조 그대로, 색만 봄톤으로) */
   background-image:

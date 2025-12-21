@@ -28,6 +28,25 @@ body.winter-theme {
   --gls-action-surface: rgba(255, 255, 255, 0.92);
   --gls-action-surface-strong: rgba(0, 150, 136, 0.08);
   --gls-action-glow: 0 10px 26px rgba(0, 150, 136, 0.18);
+  --gls-account-surface: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.18),
+      rgba(240, 249, 252, 0.08)
+    ),
+    color-mix(in srgb, #2f6c8a 16%, rgba(14, 33, 41, 0.78));
+  --gls-account-border: color-mix(
+    in srgb,
+    rgba(47, 108, 138, 0.5) 70%,
+    rgba(255, 255, 255, 0.3)
+  );
+  --gls-account-text: #f4fbff;
+  --gls-account-muted: rgba(230, 244, 255, 0.82);
+  --gls-account-avatar: color-mix(in srgb, #eef8ff 48%, #2f6c8a 70%);
+  --gls-account-shadow: 0 12px 28px color-mix(
+      in srgb,
+      #2f6c8a 32%,
+      rgba(0, 0, 0, 0.16)
+    );
 
   /* 배경 레이어:
      1~3: 안개/하이라이트

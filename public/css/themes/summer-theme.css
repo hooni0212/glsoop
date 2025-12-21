@@ -25,6 +25,25 @@ body.summer-theme {
   --gls-action-surface-strong: rgba(47, 145, 133, 0.08);
   --gls-action-glow: 0 10px 26px rgba(47, 145, 133, 0.18);
   --author-accent: #3c9ba0;
+  --gls-account-surface: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.16),
+      rgba(245, 255, 252, 0.08)
+    ),
+    color-mix(in srgb, #2f9185 18%, rgba(12, 40, 36, 0.78));
+  --gls-account-border: color-mix(
+    in srgb,
+    rgba(47, 145, 133, 0.46) 70%,
+    rgba(255, 255, 255, 0.3)
+  );
+  --gls-account-text: #f4fffd;
+  --gls-account-muted: rgba(235, 252, 250, 0.82);
+  --gls-account-avatar: color-mix(in srgb, #eaffff 52%, #2f9185 70%);
+  --gls-account-shadow: 0 12px 28px color-mix(
+      in srgb,
+      #2f9185 32%,
+      rgba(0, 0, 0, 0.14)
+    );
 }
 
 /* =========================
