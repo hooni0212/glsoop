@@ -7,7 +7,7 @@
 
 :root {
   --author-surface: var(--gls-color-bg);
-  --author-card-bg: var(--gls-glass-bg-subtle);
+  --author-card-bg: var(--gls-post-panel-bg);
   --author-card-shadow: var(--gls-glass-shadow);
   --author-card-shadow-compact: var(--gls-shadow-sm);
   --author-text-muted: var(--gls-color-muted);
@@ -15,7 +15,6 @@
   --author-accent: var(--gls-color-primary);
   --author-page-max: clamp(1200px, 92vw, 1320px);
   --author-page-padding: clamp(16px, 2.6vw, 32px);
-  --author-panel-bg: rgba(255, 255, 255, 0.16);
 }
 
 /* =========================
@@ -27,7 +26,6 @@ body.page-author {
   background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 35%),
     radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.4), transparent 28%),
     var(--gls-color-bg);
-  --gls-post-panel-bg: var(--author-panel-bg);
 }
 
 /* 섹션 배경색 (테마 변수를 우선 사용) */
