@@ -7,12 +7,14 @@
 
 :root {
   --author-surface: var(--gls-color-bg);
-  --author-card-bg: var(--gls-glass-bg-strong);
+  --author-card-bg: var(--gls-post-panel-bg);
   --author-card-shadow: var(--gls-glass-shadow);
   --author-card-shadow-compact: var(--gls-shadow-sm);
   --author-text-muted: var(--gls-color-muted);
   --author-divider: var(--gls-glass-border);
   --author-accent: var(--gls-color-primary);
+  --author-page-max: clamp(1200px, 92vw, 1320px);
+  --author-page-padding: clamp(16px, 2.6vw, 32px);
 }
 
 /* =========================
@@ -36,16 +38,16 @@ body.page-author {
 }
 
 .author-page-shell {
-  max-width: var(--gls-page-max-width);
+  max-width: var(--author-page-max);
   margin: 0 auto;
-  padding: 0 var(--gls-page-margin);
+  padding: 0 var(--author-page-padding);
 }
 
 .author-page-header {
   background: var(--gls-glass-bg-subtle);
-  border: 1px solid var(--gls-border);
+  border: 1px solid var(--gls-glass-border);
   border-radius: var(--gls-card-radius);
-  box-shadow: var(--gls-card-shadow);
+  box-shadow: var(--gls-glass-shadow);
   backdrop-filter: blur(var(--gls-blur));
   -webkit-backdrop-filter: blur(var(--gls-blur));
   padding: var(--gls-card-padding);
@@ -55,15 +57,23 @@ body.page-author {
 /* 메인 레이아웃: 두 컬럼(row) 상단 정렬 */
 .author-main-row,
 .author-page-main-row {
-  align-items: stretch;
-  gap: var(--gls-card-gap);
+  align-items: start;
   display: grid;
-  grid-template-columns: minmax(280px, 340px) 1fr;
+  grid-template-columns: minmax(320px, 360px) minmax(720px, 1fr);
+  gap: clamp(36px, 4vw, 44px);
+  justify-content: center;
 }
 
-@media (max-width: 991.98px) {
+.author-right-col {
+  min-width: 0;
+  max-width: 1020px;
+  width: 100%;
+}
+
+@media (max-width: 960px) {
   .author-page-main-row {
     grid-template-columns: 1fr;
+    gap: var(--gls-card-gap);
   }
 }
 
@@ -74,28 +84,29 @@ body.page-author {
 .author-profile-card,
 .author-posts-card {
   border-radius: var(--gls-card-radius);
-  border: 1px solid var(--gls-border);
-  box-shadow: var(--gls-card-shadow);
+  border: 1px solid var(--gls-glass-border);
+  box-shadow: var(--gls-glass-shadow);
   background: var(--author-card-bg);
   backdrop-filter: blur(var(--gls-blur));
   -webkit-backdrop-filter: blur(var(--gls-blur));
   position: relative;
 }
 
-.author-profile-card::after,
-.author-posts-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: var(--gls-glass-inset);
-  pointer-events: none;
-}
-
 /* 작가 정보 영역(왼쪽 카드 내용) */
 .author-profile-card .card-body {
-  font-size: 0.95rem;
-  padding: var(--gls-card-padding);
+  font-size: 0.96rem;
+  padding: calc(var(--gls-card-padding) + 2px);
+  gap: var(--gls-space-2);
+  word-break: normal;
+  overflow-wrap: normal;
+  overflow-y: auto;
+}
+
+.author-card-title {
+  font-weight: 700;
+  font-size: 1.02rem;
+  margin-bottom: var(--gls-space-2);
+  color: var(--gls-text);
 }
 
 /* 오른쪽: 글 목록 카드 안의 개별 글 카드 */
@@ -103,22 +114,193 @@ body.page-author {
   padding: 0;
 }
 
+.author-posts-card-body {
+  padding: calc(var(--gls-card-padding) + 6px);
+}
+
 #authorPostsList {
   display: grid;
   gap: var(--gls-card-gap);
 }
 
-.author-post-card.gls-post-card {
+.author-post-card {
   margin: 0;
-  box-shadow: var(--gls-card-shadow);
+  border: 1px solid var(--gls-glass-border);
+  border-radius: var(--gls-radius-card, var(--gls-card-radius));
+  background: var(--gls-post-panel-bg);
+  box-shadow: var(--gls-glass-shadow);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
+  position: relative;
+  overflow: hidden;
 }
 
-.author-post-card .card-body {
-  padding: var(--gls-card-padding);
+.author-post-card.gls-post-card {
+  box-shadow: none;
 }
 
-.author-posts-card .card-body {
-  padding: var(--gls-card-padding);
+.author-post-inner {
+  padding: clamp(18px, 2.8vw, 22px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-2);
+}
+
+.author-post-content {
+  margin-top: var(--gls-space-2);
+  text-align: left;
+}
+
+body.page-author .feed-post-content {
+  padding: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+body.page-author .author-post-preview {
+  position: relative;
+  padding: var(--gls-space-2) 0 var(--gls-space-1);
+  --author-preview-lines: 10;
+  --author-preview-height: calc(
+    (var(--author-preview-lines) * 1em * var(--gls-lh-relaxed, 1.7))
+    + 1.5rem
+  );
+  max-height: var(--author-preview-height);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 78%, rgba(0, 0, 0, 0));
+  mask-image: linear-gradient(180deg, #000 78%, rgba(0, 0, 0, 0));
+}
+
+body.page-author .author-post-preview .quote-card {
+  background: var(--gls-ghost-bg);
+  border: 1px solid var(--gls-ghost-border);
+  border-radius: var(--gls-btn-radius);
+  box-shadow: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.author-label {
+  color: var(--author-text-muted);
+  letter-spacing: -0.01em;
+}
+
+.author-identity-block {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--gls-space-3);
+  align-items: center;
+  padding-bottom: var(--gls-space-3);
+  border-bottom: 1px solid var(--author-divider);
+}
+
+.author-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(91, 150, 115, 0.35), rgba(255, 255, 255, 0.8));
+  color: var(--gls-text);
+  font-weight: 700;
+  font-size: 1.1rem;
+  border: 1px solid var(--author-divider);
+  box-shadow: var(--author-card-shadow-compact);
+}
+
+.author-identity-text {
+  min-width: 0;
+}
+
+.author-nickname {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 2px;
+  word-break: keep-all;
+}
+
+.author-growth {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid var(--author-divider);
+  border-radius: 999px;
+  color: var(--gls-text);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.author-email {
+  word-break: keep-all;
+}
+
+.author-bio-text,
+.author-about-text {
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.author-bio-text {
+  color: var(--gls-text);
+  font-weight: 500;
+}
+
+.author-about-text {
+  color: var(--gls-text);
+}
+
+.author-bio-block {
+  padding: var(--gls-space-3) 0 var(--gls-space-2);
+  border-bottom: 1px solid var(--author-divider);
+}
+
+.author-stats-card {
+  padding: var(--gls-space-3) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-2);
+}
+
+.author-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gls-space-2) var(--gls-space-3);
+}
+
+.author-stat {
+  padding: var(--gls-space-2) var(--gls-space-2);
+  border: 1px solid var(--author-divider);
+  border-radius: var(--gls-radius-md);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: var(--author-card-shadow-compact);
+}
+
+.author-stat .label {
+  display: block;
+  color: var(--author-text-muted);
+  font-size: 0.88rem;
+  margin-bottom: 2px;
+  word-break: keep-all;
+}
+
+.author-stat .value {
+  display: block;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.author-follow-block {
+  padding-top: var(--gls-space-2);
+  border-top: 1px solid var(--author-divider);
+}
+
+.author-follow-block .text-muted {
+  margin-top: var(--gls-space-2);
 }
 
 .author-post-title {
@@ -181,18 +363,66 @@ body.page-author {
   flex: 1 0 auto;
 }
 
-/* 데스크톱(넓은 화면)에서만 왼쪽 "컬럼 전체"를 sticky 로 고정 */
-@media (min-width: 992px) {
-  .author-left-col {
-    position: sticky;
-    top: var(--gls-sticky-offset);
-    align-self: flex-start;
-  }
+.author-left-col {
+  position: static;
+  min-width: 320px;
+}
 
-  /* sticky는 컬럼에만 적용하니, 카드는 일반 static 위치 */
+.author-profile-card {
+  position: sticky;
+  top: var(--gls-sticky-offset, calc(var(--gls-nav-height, 84px) + var(--gls-space-4, 16px)));
+  max-height: calc(100vh - (var(--gls-sticky-offset, calc(var(--gls-nav-height, 84px) + 16px)) + var(--gls-space-4, 16px)));
+  overflow: auto;
+}
+
+@media (max-width: 1024px) {
   .author-profile-card {
     position: static;
+    max-height: none;
+    overflow: visible;
   }
+}
+
+.break-anywhere {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.author-page-header h2,
+.author-page-header p,
+.author-profile-card h5,
+.author-profile-card dt,
+.author-profile-card strong,
+.author-posts-card h4,
+.author-post-title,
+.author-nickname,
+.author-growth,
+.author-label,
+.author-bio-text,
+.author-about-text,
+.author-stat .label,
+.author-stat .value {
+  word-break: keep-all;
+  line-height: var(--gls-lh-normal);
+}
+
+.author-bio-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.author-about-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-line;
+}
+
+.author-identity-text {
+  overflow: hidden;
 }
 
 /* =========================

@@ -16,7 +16,6 @@ let authorFollowProcessing = false;
 // 페이지가 완전히 로드되면 작가 페이지 초기화 + 프로필 카드 스티키 처리 설정
 document.addEventListener('DOMContentLoaded', () => {
   initAuthorPage();
-  setupAuthorProfileSticky();
 });
 
 /**
@@ -72,6 +71,7 @@ async function loadAuthorProfile(authorId) {
     const emailMasked = maskEmail(user.email || '');
     const bio = (user.bio || '').trim();     // 한 줄 소개
     const about = (user.about || '').trim(); // 여러 줄 자기소개
+    const level = Number(user.level) || 1;
 
     // 상단 타이틀 (ex: "홍길동님의 나무")
     const titleEl = document.getElementById('authorPageTitle');
@@ -79,10 +79,16 @@ async function loadAuthorProfile(authorId) {
       titleEl.textContent = `${nickname}님의 나무`;
     }
 
-    // 왼쪽 프로필 카드의 닉네임 표시
+    // 왼쪽 프로필 카드의 닉네임 표시 + 이니셜 아바타
     const nickEl = document.getElementById('authorNicknameDisplay');
     if (nickEl) {
       nickEl.textContent = nickname;
+    }
+
+    const avatarEl = document.getElementById('authorAvatarInitial');
+    if (avatarEl) {
+      const initial = nickname?.trim()?.charAt(0) || '🌿';
+      avatarEl.textContent = initial;
     }
 
     // 이메일 (마스킹된 값)
@@ -97,7 +103,7 @@ async function loadAuthorProfile(authorId) {
     const bioEl = document.getElementById('authorBio');
     if (bioEl) {
       if (bio) {
-        bioEl.textContent = `한 줄 소개: ${bio}`;
+        bioEl.textContent = bio;
       } else {
         bioEl.textContent = '아직 한 줄 소개가 등록되지 않았습니다.';
       }
@@ -113,6 +119,13 @@ async function loadAuthorProfile(authorId) {
         aboutEl.textContent = '';
         aboutEl.style.display = 'none';
       }
+    }
+
+    const growthEl = document.getElementById('authorGrowthBadge');
+    if (growthEl) {
+      const { display, ariaLabel } = getGrowthBadge(level);
+      growthEl.textContent = display;
+      growthEl.setAttribute('aria-label', ariaLabel);
     }
 
     // 통계 정보: 글 수, 총 좋아요 수
@@ -136,6 +149,34 @@ async function loadAuthorProfile(authorId) {
     console.error(e);
     alert('작가 정보를 불러오는 중 오류가 발생했습니다.');
   }
+}
+
+function getGrowthBadge(level) {
+  const n = Number(level) || 1;
+  let emoji = '🌰';
+  let label = '씨앗';
+
+  if (n >= 26) {
+    emoji = '🏛️';
+    label = '숲의 수호자';
+  } else if (n >= 21) {
+    emoji = '🌲';
+    label = '큰 나무';
+  } else if (n >= 16) {
+    emoji = '🌳';
+    label = '나무';
+  } else if (n >= 11) {
+    emoji = '🌿';
+    label = '묘목';
+  } else if (n >= 6) {
+    emoji = '🌱';
+    label = '새싹';
+  }
+
+  return {
+    display: `${emoji} Lv.${n} ${label}`,
+    ariaLabel: `레벨 ${n} ${label}`,
+  };
 }
 
 /**
@@ -357,8 +398,8 @@ function renderAuthorPosts(posts) {
           : '';
 
       return `
-        <div class="card gls-post-card author-post-card" data-post-id="${post.id}">
-          <div class="card-body">
+        <article class="post-panel gls-surface-panel gls-surface-veil author-post-card" data-post-id="${post.id}">
+          <div class="author-post-inner">
             <h6 class="author-post-title mb-1">${escapeHtml(post.title)}</h6>
 
             <div class="author-post-meta text-muted mb-1">
@@ -383,15 +424,15 @@ function renderAuthorPosts(posts) {
             </div>
 
             <!-- 글 내용 인스타 감성 카드 -->
-            <div class="post-content mt-2 text-end">
-              <div class="feed-post-content">
+            <div class="author-post-content">
+              <div class="feed-post-content author-post-preview">
                 <div class="quote-card ${quoteFontClass}">
                   ${safeHtml}
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </article>
       `;
     })
     .join('');
@@ -532,88 +573,5 @@ function buildHashtagHtml(post) {
  * - 상단 네비게이션 높이(NAV_OFFSET)만큼 띄워서 자연스럽게 따라오도록
  */
 function setupAuthorProfileSticky() {
-  const profileCard = document.querySelector('.author-profile-card');
-  if (!profileCard) return;
-
-  // 최초 위치 / 크기 저장용 변수
-  let baseTop = 0;
-  let baseLeft = 0;
-  let baseWidth = 0;
-
-  // 카드의 원래 위치/크기를 계산해서 저장
-  function captureBaseRect() {
-    const rect = profileCard.getBoundingClientRect();
-    baseTop =
-      rect.top +
-      (window.pageYOffset ||
-        document.documentElement.scrollTop ||
-        0);
-    baseLeft =
-      rect.left +
-      (window.pageXOffset ||
-        document.documentElement.scrollLeft ||
-        0);
-    baseWidth = rect.width;
-  }
-
-  // profileCard를 원래 상태로 되돌리기
-  function resetProfileCardStyle() {
-    profileCard.style.position = '';
-    profileCard.style.top = '';
-    profileCard.style.left = '';
-    profileCard.style.width = '';
-  }
-
-  // 스크롤 시 호출되는 함수
-  function handleStickyScroll() {
-    const viewportWidth =
-      window.innerWidth || document.documentElement.clientWidth || 0;
-
-    // 모바일 / 태블릿(폭 < 992px)에서는 따라다니지 않게 (원래 레이아웃 유지)
-    if (viewportWidth < 992) {
-      resetProfileCardStyle();
-      return;
-    }
-
-    const scrollY =
-      window.pageYOffset ||
-      document.documentElement.scrollTop ||
-      document.body.scrollTop ||
-      0;
-
-    // 네비게이션 높이 + 살짝 여백 (카드 상단 위치)
-    const NAV_OFFSET = 140;
-
-    // 아직 기본 크기/위치를 못 잡았으면 한 번 계산
-    if (!baseWidth) {
-      captureBaseRect();
-    }
-
-    // 스크롤이 카드의 원래 위치를 지나쳤을 때 → 화면에 고정
-    if (scrollY + NAV_OFFSET > baseTop) {
-      profileCard.style.position = 'fixed';
-      profileCard.style.top = NAV_OFFSET + 'px';
-      profileCard.style.left = baseLeft + 'px';
-      profileCard.style.width = baseWidth + 'px';
-    } else {
-      // 아직 원래 위치 위쪽이면 고정 해제
-      resetProfileCardStyle();
-    }
-  }
-
-  // 초기 기준값 계산
-  captureBaseRect();
-
-  // 스크롤 시마다 스티키 처리
-  window.addEventListener('scroll', handleStickyScroll);
-
-  // 창 크기 변경 시, 기준 다시 계산
-  window.addEventListener('resize', () => {
-    resetProfileCardStyle();
-    captureBaseRect();
-    handleStickyScroll();
-  });
-
-  // 최초 한 번 실행해서 초기 상태 맞추기
-  handleStickyScroll();
+  // Sticky 동작 비활성화 (의도적으로 빈 함수 유지)
 }
