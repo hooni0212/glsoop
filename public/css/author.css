@@ -276,12 +276,19 @@ body.page-author .author-post-preview .quote-card {
   position: relative;
   overflow: hidden;
   padding: var(--gls-space-2) var(--gls-space-2);
-  border: 1px solid color-mix(in srgb, var(--gls-border) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gls-border) 40%, transparent);
   border-radius: var(--gls-radius-md);
-  background: color-mix(in srgb, var(--gls-surface) 88%, #fff 12%);
+
+  /* Route A: inner tile (flat/soft). No backdrop blur here. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--gls-surface) 78%, transparent 22%),
+    color-mix(in srgb, var(--gls-surface) 66%, transparent 34%)
+  );
+
   box-shadow:
-    0 1px 0 color-mix(in srgb, #fff 55%, transparent) inset,
-    0 10px 24px color-mix(in srgb, var(--gls-border) 18%, transparent);
+    0 1px 0 color-mix(in srgb, #fff 45%, transparent) inset,
+    0 1px 2px color-mix(in srgb, var(--gls-border) 12%, transparent);
 }
 
 
