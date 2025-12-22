@@ -273,13 +273,29 @@ body.page-author .author-post-preview .quote-card {
 }
 
 .author-stat {
+  position: relative;
+  overflow: hidden;
   padding: var(--gls-space-2) var(--gls-space-2);
-  border: 1px solid var(--gls-border);
+  border: 1px solid color-mix(in srgb, var(--gls-border) 55%, transparent);
   border-radius: var(--gls-radius-md);
-  background: var(--gls-surface);
-  box-shadow: var(--gls-glass-shadow), var(--gls-glass-inset);
-  backdrop-filter: blur(var(--gls-blur));
-  -webkit-backdrop-filter: blur(var(--gls-blur));
+  background: color-mix(in srgb, var(--gls-surface) 88%, #fff 12%);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 55%, transparent) inset,
+    0 10px 24px color-mix(in srgb, var(--gls-border) 18%, transparent);
+}
+
+
+.author-stat::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 80% at 22% 0%,
+    rgba(255, 255, 255, 0.55),
+    rgba(255, 255, 255, 0) 60%
+  );
+  pointer-events: none;
+  opacity: 0.95;
 }
 
 .author-stat .label {
