@@ -13,7 +13,7 @@
   --author-text-muted: var(--gls-color-muted);
   --author-divider: var(--gls-glass-border);
   --author-accent: var(--gls-color-primary);
-  --author-page-max: clamp(980px, 78vw, 1200px);
+  --author-page-max: clamp(1040px, 82vw, 1200px);
 }
 
 /* =========================
@@ -57,12 +57,18 @@ body.page-author {
 .author-main-row,
 .author-page-main-row {
   align-items: start;
-  gap: clamp(var(--gls-space-6), 3vw, var(--gls-space-7));
   display: grid;
-  grid-template-columns: minmax(320px, 380px) 1fr;
+  grid-template-columns: 360px 1fr;
+  gap: 24px;
 }
 
-@media (max-width: 991.98px) {
+@media (max-width: 1080px) {
+  .author-page-main-row {
+    grid-template-columns: minmax(320px, 360px) 1fr;
+  }
+}
+
+@media (max-width: 920px) {
   .author-page-main-row {
     grid-template-columns: 1fr;
   }
@@ -98,6 +104,8 @@ body.page-author {
   font-size: 0.96rem;
   padding: calc(var(--gls-card-padding) + 10px);
   gap: var(--gls-space-3);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .author-card-title {
@@ -308,6 +316,7 @@ body.page-author {
 
 .author-left-col {
   position: static;
+  min-width: 320px;
 }
 
 .author-page-header h2,
