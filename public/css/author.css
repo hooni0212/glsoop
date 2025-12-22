@@ -100,6 +100,13 @@ body.page-author {
   gap: var(--gls-space-3);
 }
 
+.author-card-title {
+  font-weight: 700;
+  font-size: 1.02rem;
+  margin-bottom: var(--gls-space-2);
+  color: var(--gls-text);
+}
+
 /* 오른쪽: 글 목록 카드 안의 개별 글 카드 */
 .author-posts-card {
   padding: 0;
@@ -133,6 +140,8 @@ body.page-author {
   grid-template-columns: auto 1fr;
   gap: var(--gls-space-3);
   align-items: center;
+  padding-bottom: var(--gls-space-3);
+  border-bottom: 1px solid var(--author-divider);
 }
 
 .author-avatar {
@@ -190,6 +199,18 @@ body.page-author {
 
 .author-about-text {
   color: var(--gls-text);
+}
+
+.author-bio-block {
+  padding: var(--gls-space-3) 0;
+  border-bottom: 1px solid var(--author-divider);
+}
+
+.author-stats-card {
+  padding: var(--gls-space-3) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-3);
 }
 
 .author-stats-grid {

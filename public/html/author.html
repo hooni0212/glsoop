@@ -152,46 +152,51 @@
         <div class="col-12 col-lg-4 author-left-col">
           <div class="card author-profile-card">
             <div class="card-body d-flex flex-column">
-              <div class="author-identity-block mb-3">
+              <div class="author-card-title">작가 정보</div>
+
+              <div class="author-identity-block">
                 <div class="author-avatar" id="authorAvatarInitial" aria-hidden="true">
                   🌿
                 </div>
                 <div class="author-identity-text">
-                  <p class="author-label small mb-1">작가 정보</p>
-                  <p class="author-nickname mb-0" id="authorNicknameDisplay">닉네임</p>
-                  <p class="author-growth small" id="authorGrowthBadge">Lv.1 🌰 씨앗</p>
+                  <p class="author-nickname mb-1" id="authorNicknameDisplay">닉네임</p>
+                  <p class="author-growth small mb-1" id="authorGrowthBadge">Lv.1 🌰 씨앗</p>
                   <p class="author-email text-muted small mb-0" id="authorEmailDisplay">
                     이메일: -
                   </p>
                 </div>
               </div>
 
-              <div class="author-bio-block mb-3">
-                <p class="author-label small mb-1">한 줄 소개:</p>
-                <p id="authorBio" class="author-bio-text mb-2 text-muted">
+              <div class="author-bio-block">
+                <p class="author-label small mb-1">한 줄 소개</p>
+                <p id="authorBio" class="author-bio-text mb-3 text-muted">
                   <!-- 한 줄 소개 -->
                 </p>
+                <p class="author-label small mb-1">작가 소개</p>
                 <p id="authorAbout" class="author-about-text mb-0" style="white-space: pre-line;">
                   <!-- 자기소개 여러 줄 -->
                 </p>
               </div>
 
-              <div class="author-stats-grid mb-3">
-                <div class="author-stat">
-                  <span class="label">작성한 글 수</span>
-                  <span class="value" id="authorPostCount">0</span>
-                </div>
-                <div class="author-stat">
-                  <span class="label">받은 공감 수</span>
-                  <span class="value" id="authorLikeCount">0</span>
-                </div>
-                <div class="author-stat">
-                  <span class="label">팔로워</span>
-                  <span class="value" id="authorFollowerCount">0</span>
-                </div>
-                <div class="author-stat">
-                  <span class="label">팔로잉</span>
-                  <span class="value" id="authorFollowingCount">0</span>
+              <div class="author-stats-card">
+                <div class="author-label small mb-2">작가 활동 요약</div>
+                <div class="author-stats-grid">
+                  <div class="author-stat">
+                    <span class="label">작성한 글 수</span>
+                    <span class="value" id="authorPostCount">0</span>
+                  </div>
+                  <div class="author-stat">
+                    <span class="label">받은 공감 수</span>
+                    <span class="value" id="authorLikeCount">0</span>
+                  </div>
+                  <div class="author-stat">
+                    <span class="label">팔로워</span>
+                    <span class="value" id="authorFollowerCount">0</span>
+                  </div>
+                  <div class="author-stat">
+                    <span class="label">팔로잉</span>
+                    <span class="value" id="authorFollowingCount">0</span>
+                  </div>
                 </div>
               </div>
 
