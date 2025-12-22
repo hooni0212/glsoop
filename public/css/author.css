@@ -274,10 +274,12 @@ body.page-author .author-post-preview .quote-card {
 
 .author-stat {
   padding: var(--gls-space-2) var(--gls-space-2);
-  border: 1px solid var(--author-divider);
+  border: 1px solid var(--gls-border);
   border-radius: var(--gls-radius-md);
-  background: rgba(255, 255, 255, 0.62);
-  box-shadow: var(--author-card-shadow-compact);
+  background: var(--gls-surface);
+  box-shadow: var(--gls-glass-shadow), var(--gls-glass-inset);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
 }
 
 .author-stat .label {
