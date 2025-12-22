@@ -7,14 +7,15 @@
 
 :root {
   --author-surface: var(--gls-color-bg);
-  --author-card-bg: color-mix(in srgb, var(--gls-glass-bg-strong) 86%, rgba(255, 255, 255, 0.94));
+  --author-card-bg: color-mix(in srgb, var(--gls-glass-bg-strong) 82%, rgba(255, 255, 255, 0.9));
   --author-card-shadow: var(--gls-glass-shadow);
   --author-card-shadow-compact: var(--gls-shadow-sm);
   --author-text-muted: var(--gls-color-muted);
   --author-divider: var(--gls-glass-border);
   --author-accent: var(--gls-color-primary);
-  --author-page-max: clamp(1180px, 90vw, 1360px);
-  --author-page-padding: clamp(16px, 2.8vw, 30px);
+  --author-page-max: clamp(1200px, 92vw, 1320px);
+  --author-page-padding: clamp(16px, 2.6vw, 32px);
+  --author-panel-bg: rgba(255, 255, 255, 0.16);
 }
 
 /* =========================
@@ -26,6 +27,7 @@ body.page-author {
   background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 35%),
     radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.4), transparent 28%),
     var(--gls-color-bg);
+  --gls-post-panel-bg: var(--author-panel-bg);
 }
 
 /* 섹션 배경색 (테마 변수를 우선 사용) */
@@ -59,14 +61,14 @@ body.page-author {
 .author-page-main-row {
   align-items: start;
   display: grid;
-  grid-template-columns: minmax(320px, 360px) minmax(760px, 1fr);
-  gap: clamp(32px, 3.6vw, 40px);
+  grid-template-columns: minmax(320px, 360px) minmax(720px, 1fr);
+  gap: clamp(36px, 4vw, 44px);
   justify-content: center;
 }
 
 .author-right-col {
   min-width: 0;
-  max-width: 980px;
+  max-width: 1020px;
   width: 100%;
 }
 
@@ -135,10 +137,12 @@ body.page-author {
 
 .author-post-card {
   margin: 0;
-  border: 1px solid var(--gls-glass-border);
+  border: 1px solid var(--gls-border);
   border-radius: var(--gls-radius-card, var(--gls-card-radius));
-  background: color-mix(in srgb, var(--gls-glass-bg-strong) 82%, rgba(255, 255, 255, 0.92));
-  box-shadow: var(--gls-glass-shadow);
+  background: var(--gls-post-panel-bg);
+  box-shadow: var(--gls-card-shadow);
+  backdrop-filter: blur(var(--gls-blur));
+  -webkit-backdrop-filter: blur(var(--gls-blur));
   position: relative;
   overflow: hidden;
 }
@@ -165,6 +169,36 @@ body.page-author {
 
 .author-post-content {
   margin-top: var(--gls-space-2);
+  text-align: left;
+}
+
+body.page-author .feed-post-content {
+  padding: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+body.page-author .author-post-preview {
+  position: relative;
+  padding: var(--gls-space-2) 0 var(--gls-space-1);
+  --author-preview-lines: 10;
+  --author-preview-height: calc(
+    (var(--author-preview-lines) * 1em * var(--gls-lh-relaxed, 1.7))
+    + 1.5rem
+  );
+  max-height: var(--author-preview-height);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 78%, rgba(0, 0, 0, 0));
+  mask-image: linear-gradient(180deg, #000 78%, rgba(0, 0, 0, 0));
+}
+
+body.page-author .author-post-preview .quote-card {
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid var(--gls-ghost-border);
+  box-shadow: var(--author-card-shadow-compact);
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .author-label {
@@ -354,9 +388,9 @@ body.page-author {
 
 .author-profile-card {
   position: sticky;
-  top: calc(var(--header-height, var(--gls-nav-height, 84px)) + 18px);
-  max-height: calc(100vh - (var(--header-height, var(--gls-nav-height, 84px)) + 36px));
-  overflow: hidden;
+  top: var(--gls-sticky-offset, calc(var(--gls-nav-height, 84px) + var(--gls-space-4, 16px)));
+  max-height: calc(100vh - (var(--gls-sticky-offset, calc(var(--gls-nav-height, 84px) + 16px)) + var(--gls-space-4, 16px)));
+  overflow: auto;
 }
 
 @media (max-width: 1024px) {

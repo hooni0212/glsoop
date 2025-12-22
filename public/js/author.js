@@ -424,8 +424,8 @@ function renderAuthorPosts(posts) {
             </div>
 
             <!-- 글 내용 인스타 감성 카드 -->
-            <div class="author-post-content post-content text-end">
-              <div class="feed-post-content">
+            <div class="author-post-content">
+              <div class="feed-post-content author-post-preview">
                 <div class="quote-card ${quoteFontClass}">
                   ${safeHtml}
                 </div>
