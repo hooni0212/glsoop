@@ -13,6 +13,7 @@
   --author-text-muted: var(--gls-color-muted);
   --author-divider: var(--gls-glass-border);
   --author-accent: var(--gls-color-primary);
+  --author-page-max: clamp(980px, 78vw, 1200px);
 }
 
 /* =========================
@@ -36,7 +37,7 @@ body.page-author {
 }
 
 .author-page-shell {
-  max-width: var(--gls-page-max-width);
+  max-width: var(--author-page-max);
   margin: 0 auto;
   padding: 0 var(--gls-page-margin);
 }
@@ -55,10 +56,10 @@ body.page-author {
 /* 메인 레이아웃: 두 컬럼(row) 상단 정렬 */
 .author-main-row,
 .author-page-main-row {
-  align-items: stretch;
-  gap: var(--gls-card-gap);
+  align-items: start;
+  gap: clamp(var(--gls-space-6), 3vw, var(--gls-space-7));
   display: grid;
-  grid-template-columns: minmax(280px, 340px) 1fr;
+  grid-template-columns: minmax(320px, 380px) 1fr;
 }
 
 @media (max-width: 991.98px) {
@@ -76,7 +77,7 @@ body.page-author {
   border-radius: var(--gls-card-radius);
   border: 1px solid var(--gls-border);
   box-shadow: var(--gls-card-shadow);
-  background: var(--author-card-bg);
+  background: color-mix(in srgb, var(--author-card-bg) 82%, rgba(255, 255, 255, 0.9));
   backdrop-filter: blur(var(--gls-blur));
   -webkit-backdrop-filter: blur(var(--gls-blur));
   position: relative;
@@ -95,7 +96,7 @@ body.page-author {
 /* 작가 정보 영역(왼쪽 카드 내용) */
 .author-profile-card .card-body {
   font-size: 0.95rem;
-  padding: var(--gls-card-padding);
+  padding: calc(var(--gls-card-padding) + 4px);
 }
 
 /* 오른쪽: 글 목록 카드 안의 개별 글 카드 */
@@ -118,7 +119,7 @@ body.page-author {
 }
 
 .author-posts-card .card-body {
-  padding: var(--gls-card-padding);
+  padding: calc(var(--gls-card-padding) + 4px);
 }
 
 .author-post-title {
@@ -181,18 +182,19 @@ body.page-author {
   flex: 1 0 auto;
 }
 
-/* 데스크톱(넓은 화면)에서만 왼쪽 "컬럼 전체"를 sticky 로 고정 */
-@media (min-width: 992px) {
-  .author-left-col {
-    position: sticky;
-    top: var(--gls-sticky-offset);
-    align-self: flex-start;
-  }
+.author-left-col {
+  position: static;
+}
 
-  /* sticky는 컬럼에만 적용하니, 카드는 일반 static 위치 */
-  .author-profile-card {
-    position: static;
-  }
+.author-page-header h2,
+.author-page-header p,
+.author-profile-card h5,
+.author-profile-card dt,
+.author-profile-card strong,
+.author-posts-card h4,
+.author-post-title {
+  word-break: keep-all;
+  line-height: var(--gls-lh-normal);
 }
 
 /* =========================
