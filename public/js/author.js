@@ -398,8 +398,8 @@ function renderAuthorPosts(posts) {
           : '';
 
       return `
-        <div class="card gls-post-card author-post-card" data-post-id="${post.id}">
-          <div class="card-body">
+        <article class="post-panel gls-surface-panel gls-surface-veil author-post-card" data-post-id="${post.id}">
+          <div class="author-post-inner">
             <h6 class="author-post-title mb-1">${escapeHtml(post.title)}</h6>
 
             <div class="author-post-meta text-muted mb-1">
@@ -424,7 +424,7 @@ function renderAuthorPosts(posts) {
             </div>
 
             <!-- 글 내용 인스타 감성 카드 -->
-            <div class="post-content mt-2 text-end">
+            <div class="author-post-content post-content text-end">
               <div class="feed-post-content">
                 <div class="quote-card ${quoteFontClass}">
                   ${safeHtml}
@@ -432,7 +432,7 @@ function renderAuthorPosts(posts) {
               </div>
             </div>
           </div>
-        </div>
+        </article>
       `;
     })
     .join('');

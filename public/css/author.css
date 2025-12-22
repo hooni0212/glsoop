@@ -13,8 +13,8 @@
   --author-text-muted: var(--gls-color-muted);
   --author-divider: var(--gls-glass-border);
   --author-accent: var(--gls-color-primary);
-  --author-page-max: clamp(1180px, 86vw, 1320px);
-  --author-page-padding: clamp(18px, 3vw, 32px);
+  --author-page-max: clamp(1180px, 90vw, 1360px);
+  --author-page-padding: clamp(16px, 2.8vw, 30px);
 }
 
 /* =========================
@@ -59,13 +59,21 @@ body.page-author {
 .author-page-main-row {
   align-items: start;
   display: grid;
-  grid-template-columns: minmax(340px, 360px) minmax(680px, 1fr);
-  gap: 30px;
+  grid-template-columns: minmax(320px, 360px) minmax(760px, 1fr);
+  gap: clamp(32px, 3.6vw, 40px);
+  justify-content: center;
 }
 
-@media (max-width: 1100px) {
+.author-right-col {
+  min-width: 0;
+  max-width: 980px;
+  width: 100%;
+}
+
+@media (max-width: 960px) {
   .author-page-main-row {
     grid-template-columns: 1fr;
+    gap: var(--gls-card-gap);
   }
 }
 
@@ -116,22 +124,47 @@ body.page-author {
   padding: 0;
 }
 
+.author-posts-card-body {
+  padding: calc(var(--gls-card-padding) + 6px);
+}
+
 #authorPostsList {
   display: grid;
   gap: var(--gls-card-gap);
 }
 
-.author-post-card.gls-post-card {
+.author-post-card {
   margin: 0;
-  box-shadow: var(--gls-card-shadow);
+  border: 1px solid var(--gls-glass-border);
+  border-radius: var(--gls-radius-card, var(--gls-card-radius));
+  background: color-mix(in srgb, var(--gls-glass-bg-strong) 82%, rgba(255, 255, 255, 0.92));
+  box-shadow: var(--gls-glass-shadow);
+  position: relative;
+  overflow: hidden;
 }
 
-.author-post-card .card-body {
-  padding: var(--gls-card-padding);
+.author-post-card.gls-post-card {
+  box-shadow: none;
 }
 
-.author-posts-card .card-body {
-  padding: calc(var(--gls-card-padding) + 4px);
+.author-post-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-glass-inset);
+  pointer-events: none;
+}
+
+.author-post-inner {
+  padding: clamp(18px, 2.8vw, 22px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-2);
+}
+
+.author-post-content {
+  margin-top: var(--gls-space-2);
 }
 
 .author-label {
