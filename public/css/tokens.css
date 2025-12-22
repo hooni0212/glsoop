@@ -72,6 +72,7 @@
   --gls-glass-bg-strong: rgba(255, 255, 255, 0.42);
   --gls-glass-bg-subtle: rgba(255, 255, 255, 0.18);
   --gls-glass-blur: 12px;
+  --gls-ui-blur: 10px;
   --gls-glass-border: rgba(30, 42, 51, 0.12);
   --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
   --gls-glass-shadow: 0 12px 30px rgba(19, 34, 30, 0.10);
@@ -124,26 +125,34 @@
   /* Focus rings */
   --gls-focus-offset: 3px;
   --gls-focus-outline: 2px solid rgba(46, 139, 87, 0.35);
+
   /* Motion */
   --gls-ease: cubic-bezier(0.2, 0.9, 0.2, 1);
   --gls-duration-fast: 120ms;
+  --gls-duration-ui: 140ms;
   --gls-duration: 180ms;
   --gls-duration-slow: 260ms;
+
+  /* Common transitions (reuse in components) */
+  --gls-transition-surface: background var(--gls-duration, 180ms) var(--gls-ease, ease),
+    border-color var(--gls-duration, 180ms) var(--gls-ease, ease),
+    box-shadow var(--gls-duration, 180ms) var(--gls-ease, ease);
+  --gls-transition-lift: transform var(--gls-duration, 180ms) var(--gls-ease, ease),
+    box-shadow var(--gls-duration, 180ms) var(--gls-ease, ease),
+    background var(--gls-duration, 180ms) var(--gls-ease, ease),
+    border-color var(--gls-duration, 180ms) var(--gls-ease, ease);
+  --gls-transition-surface-ui: background var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    border-color var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    box-shadow var(--gls-duration-ui, 140ms) var(--gls-ease, ease);
+  --gls-transition-lift-ui: transform var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    box-shadow var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    background var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    border-color var(--gls-duration-ui, 140ms) var(--gls-ease, ease);
+
+  /* Blur presets */
+  --gls-blur-ui: 10px;
 
   /* Z-index */
-  --gls-z-header: 100;
-  --gls-z-dropdown: 300;
-  --gls-z-modal: 600;
-  --gls-z-toast: 800;
-
-  /* Legacy / unclassified (move into components/pages/themes as we refactor) */
-  --gls-font-sans: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --gls-font-hand: 'Nanum Pen Script', cursive;
-  --gls-font-serif: 'Nanum Myeongjo', serif;
-  --gls-ease: cubic-bezier(0.2, 0.9, 0.2, 1);
-  --gls-duration-fast: 120ms;
-  --gls-duration: 180ms;
-  --gls-duration-slow: 260ms;
   --gls-z-header: 100;
   --gls-z-dropdown: 300;
   --gls-z-modal: 600;

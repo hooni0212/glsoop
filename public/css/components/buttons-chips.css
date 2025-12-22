@@ -18,7 +18,7 @@
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   box-shadow: var(--gls-glass-inset);
-  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+  transition: var(--gls-transition-lift-ui);
 }
 
 
