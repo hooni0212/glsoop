@@ -1,0 +1,196 @@
+.card {
+    border: 1px solid var(--gls-ghost-border);
+    border-radius: var(--gls-card-radius, var(--gls-radius-card));
+    background: var(--gls-ghost-bg-hover);
+    box-shadow: var(--gls-card-shadow, var(--gls-glass-shadow));
+    backdrop-filter: blur(var(--gls-glass-blur));
+    -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+    position: relative;
+}
+
+.card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: var(--gls-glass-inset);
+    pointer-events: none;
+}
+
+.card-title {
+    font-size: var(--gls-fs-lg, 1.125rem);
+    line-height: var(--gls-lh-tight, 1.25);
+    font-weight: 600;
+}
+
+.section-heading {
+    font-size: clamp(1.1rem, 1.4vw, 1.4rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--gls-color-text, #1f2a2b);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--gls-space-2, 8px);
+}
+
+.post-content .border {
+    border-radius: 0.8rem !important;
+    background: var(--gls-ghost-bg);
+}
+
+
+.card-body small.text-muted {
+  font-size: var(--gls-fs-xs, 0.8125rem);
+  line-height: var(--gls-lh-normal, 1.55);
+}
+
+.gls-post-card {
+  border: 1px solid var(--gls-ghost-border);
+  border-radius: var(--gls-radius-card);
+  background: var(--gls-glass-bg-subtle);
+  box-shadow: var(--gls-glass-shadow);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-post-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--gls-glass-shadow-hover);
+  background: var(--gls-ghost-bg);
+  border-color: var(--gls-ghost-border-hover);
+}
+}
+
+
+.gls-post-card .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-card-gap, var(--gls-space-5, 20px));
+  padding: clamp(22px, 2.1vw, var(--gls-card-padding, 28px));
+}
+
+@media (max-width: 420px) {
+  .gls-post-card .card-body {
+    padding: var(--gls-space-5, 20px);
+  }
+}
+
+.gls-post-card .card-body > .d-flex.align-items-center.justify-content-between {
+  width: 100%;
+  gap: var(--gls-space-3, 12px);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 768px) {
+  .gls-post-card .card-body > .d-flex.align-items-center.justify-content-between {
+    align-items: center;
+  }
+}
+
+/* 카드 안 인용 텍스트(미리보기) */
+.gls-post-quote {
+margin-top: 0.25rem;
+}
+
+.gls-card-hashtags {
+word-break: keep-all;
+}
+
+
+.related-card.gls-post-card .card-body {
+  padding: var(--gls-space-5, 20px);
+  gap: var(--gls-space-3, 12px);
+}
+
+.related-card.gls-post-card .card-title {
+  font-size: clamp(1.02rem, 1.4vw, 1.12rem);
+  margin-bottom: var(--gls-space-1, 4px);
+}
+
+.related-card.gls-post-card .post-bottom-meta,
+.related-card.gls-post-card .post-hashtags {
+  display: none !important;
+}
+
+.related-card.gls-post-card .feed-post-content {
+  -webkit-line-clamp: 4;
+}
+
+
+@media (max-width: 420px) {
+  .gls-post-card .card-body {
+    padding: var(--gls-space-5, 20px);
+  }
+}
+
+/* 제목: 한 줄/두 줄에서 읽기 좋게 */
+.gls-post-card .card-title {
+  font-size: clamp(1.18rem, 2vw, 1.28rem);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--gls-space-2, 8px);
+  font-weight: 750;
+
+  /* 제목 길이에 따른 카드 높이 편차를 줄이기(최대 2줄) */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: calc(1.3em * 2);
+}
+
+/* 본문(카드 내 글): 줄간격/여백 정리 */
+.gls-post-card .feed-post-content {
+  margin-top: var(--gls-space-2, 8px);
+  font-size: var(--gls-fs-md, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.7);
+}
+
+/* 메타(작성자/좋아요 등): 작게, 하지만 가독성 있게 */
+.gls-post-card .text-muted.small,
+.gls-post-card .post-bottom-meta {
+  font-size: var(--gls-fs-xs, 0.8125rem);
+}
+
+.gls-post-card .post-bottom-meta {
+  margin-top: var(--gls-space-3, 12px);
+}
+
+/* 작성자 뱃지: 과하게 튀지 않게 크기/패딩 정리 */
+.gls-post-card .gls-author-badge {
+  font-size: 0.88rem;
+  padding: 0.42em 0.72em;
+  gap: 0.42em;
+}
+
+.gls-post-card .text-muted {
+  color: var(--gls-color-muted, #5c655e) !important;
+}
+
+
+body.mode-text .gls-post-card,
+body.mode-mono .gls-post-card,
+body.mode-dark .gls-post-card {
+  box-shadow: var(--gls-glass-shadow);
+  border-color: var(--gls-glass-border);
+  background: var(--gls-glass-bg-subtle);
+}
+
+.gls-post-card .card-title + .post-content {
+  margin-top: 2px;
+}
+
+
+.gls-post-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-glass-inset);
+  pointer-events: none;
+}

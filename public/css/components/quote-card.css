@@ -1,0 +1,59 @@
+.quote-card {
+    width: 100%;
+    margin: 0;
+    padding: var(--gls-space-3, 12px) var(--gls-space-4, 16px);
+    background: var(--gls-ghost-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--gls-ghost-border);
+    border-radius: var(--gls-radius-md, 14px);
+    box-shadow: none;
+    font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: var(--gls-fs-md, 1rem);
+    line-height: var(--gls-lh-relaxed, 1.7);
+    color: var(--gls-color-text, #1f2a2b);
+    word-break: keep-all;
+
+    /* NOTE:
+        - 미리보기(줄수/클램프)는 .feed-post-content가 담당
+        - quote-card 자체는 '종이 질감 박스' 역할만 (본문/상세/에디터 등에서 전체 표시)
+    */
+    display: block;
+}
+
+.quote-card > * {
+    margin: 0;
+    }
+
+@media (max-width: 576px) {
+    .quote-card {
+        padding: var(--gls-space-4, 16px);
+    }
+}
+
+.quote-card.quote-font-serif {
+font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+}
+
+.quote-card.quote-font-sans {
+font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+
+.quote-card.quote-font-hand {
+font-family: 'Nanum Pen Script', cursive;
+}
+
+.gls-post-card .quote-card {
+  font-size: var(--gls-fs-md, 1rem);
+  line-height: var(--gls-lh-relaxed, 1.7);
+}
+
+.gls-post-card .feed-post-content .quote-card {
+  background: var(--gls-ghost-bg);
+  border: 1px solid var(--gls-ghost-border);
+  border-radius: var(--gls-btn-radius);
+  box-shadow: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}

@@ -1,0 +1,15 @@
+
+/* 폰트 스타일 */
+.gls-font-serif {
+font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+}
+
+.gls-font-hand {
+font-family: 'Nanum Pen Script', 'Noto Sans KR', cursive;
+}
+
+.gls-font-sans {
+font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+

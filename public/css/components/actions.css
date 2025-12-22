@@ -1,0 +1,72 @@
+.post-bottom-meta {
+  margin-top: 12px;
+}
+
+.post-top-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gls-space-2, 8px);
+  margin-left: auto;
+}
+
+.post-bookmark-toggle,
+.gls-post-card .like-btn {
+  border: 1px solid var(--gls-action-border, var(--gls-ghost-border));
+  background: var(--gls-action-surface, var(--gls-ghost-bg));
+  color: var(--gls-color-text, #1f2a2b);
+  border-radius: var(--gls-btn-radius);
+  padding: 10px 14px;
+  min-height: 42px;
+  line-height: 1;
+  box-shadow: var(--gls-glass-inset);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+
+.post-bookmark-toggle .post-bookmark-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--gls-action-accent, var(--gls-color-primary, #2e8b57));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .post-bookmark-toggle:hover,
+  .post-bookmark-toggle:focus-visible,
+  .gls-post-card .like-btn:hover,
+  .gls-post-card .like-btn:focus-visible {
+    background: var(--gls-action-surface-hover, var(--gls-ghost-bg-hover));
+    border-color: var(--gls-action-border-strong, var(--gls-ghost-border-hover));
+    color: var(--gls-color-text, #1f2a2b);
+    text-decoration: none;
+    box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+  }
+}
+@media (hover: none) {
+  .post-bookmark-toggle:hover,
+  .gls-post-card .like-btn:hover {
+    background: var(--gls-color-surface-subtle, #f7f9f4);
+    border-color: var(--gls-color-border, #dfe6df);
+  }
+}
+
+.gls-post-card .post-bottom-meta {
+  border-top: 1px solid rgba(30, 42, 51, 0.10);
+  padding-top: var(--gls-space-3, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-2, 8px);
+}
+
+.post-category-row {
+  margin-bottom: var(--gls-space-2, 8px);
+}
+
+.post-bottom-meta .gls-card-hashtags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+}
+
