@@ -13,7 +13,8 @@
   --author-text-muted: var(--gls-color-muted);
   --author-divider: var(--gls-glass-border);
   --author-accent: var(--gls-color-primary);
-  --author-page-max: clamp(1080px, 82vw, 1200px);
+  --author-page-max: clamp(1180px, 86vw, 1320px);
+  --author-page-padding: clamp(18px, 3vw, 32px);
 }
 
 /* =========================
@@ -39,7 +40,7 @@ body.page-author {
 .author-page-shell {
   max-width: var(--author-page-max);
   margin: 0 auto;
-  padding: 0 var(--gls-page-margin);
+  padding: 0 var(--author-page-padding);
 }
 
 .author-page-header {
@@ -58,11 +59,11 @@ body.page-author {
 .author-page-main-row {
   align-items: start;
   display: grid;
-  grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
-  gap: 28px;
+  grid-template-columns: minmax(340px, 360px) minmax(680px, 1fr);
+  gap: 30px;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1100px) {
   .author-page-main-row {
     grid-template-columns: 1fr;
   }
@@ -96,8 +97,8 @@ body.page-author {
 /* 작가 정보 영역(왼쪽 카드 내용) */
 .author-profile-card .card-body {
   font-size: 0.96rem;
-  padding: calc(var(--gls-card-padding) + 10px);
-  gap: var(--gls-space-3);
+  padding: calc(var(--gls-card-padding) + 2px);
+  gap: var(--gls-space-2);
   word-break: normal;
   overflow-wrap: normal;
   overflow-y: auto;
@@ -205,7 +206,7 @@ body.page-author {
 }
 
 .author-bio-block {
-  padding: var(--gls-space-3) 0;
+  padding: var(--gls-space-3) 0 var(--gls-space-2);
   border-bottom: 1px solid var(--author-divider);
 }
 
@@ -213,17 +214,17 @@ body.page-author {
   padding: var(--gls-space-3) 0;
   display: flex;
   flex-direction: column;
-  gap: var(--gls-space-3);
+  gap: var(--gls-space-2);
 }
 
 .author-stats-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--gls-space-3) var(--gls-space-4);
+  gap: var(--gls-space-2) var(--gls-space-3);
 }
 
 .author-stat {
-  padding: var(--gls-space-2) var(--gls-space-3);
+  padding: var(--gls-space-2) var(--gls-space-2);
   border: 1px solid var(--author-divider);
   border-radius: var(--gls-radius-md);
   background: rgba(255, 255, 255, 0.62);
@@ -247,6 +248,10 @@ body.page-author {
 .author-follow-block {
   padding-top: var(--gls-space-2);
   border-top: 1px solid var(--author-divider);
+}
+
+.author-follow-block .text-muted {
+  margin-top: var(--gls-space-2);
 }
 
 .author-post-title {
@@ -316,8 +321,8 @@ body.page-author {
 
 .author-profile-card {
   position: sticky;
-  top: calc(var(--header-height, var(--gls-nav-height, 84px)) + 16px);
-  max-height: calc(100vh - (var(--header-height, var(--gls-nav-height, 84px)) + 32px));
+  top: calc(var(--header-height, var(--gls-nav-height, 84px)) + 18px);
+  max-height: calc(100vh - (var(--header-height, var(--gls-nav-height, 84px)) + 36px));
   overflow: hidden;
 }
 
@@ -350,6 +355,25 @@ body.page-author {
 .author-stat .value {
   word-break: keep-all;
   line-height: var(--gls-lh-normal);
+}
+
+.author-bio-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.author-about-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-line;
+}
+
+.author-identity-text {
+  overflow: hidden;
 }
 
 /* =========================
