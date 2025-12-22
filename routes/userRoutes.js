@@ -86,7 +86,8 @@ router.get('/users/:id/profile', (req, res) => {
       nickname,
       email,
       bio,
-      about
+      about,
+      COALESCE(level, 1) AS level
     FROM users
     WHERE id = ?
     `,
@@ -152,6 +153,7 @@ router.get('/users/:id/profile', (req, res) => {
                   email: user.email,
                   bio: user.bio || null,
                   about: user.about || null,
+                  level: user.level || 1,
                   postCount: stats?.post_count || 0,
                   totalLikes: stats?.total_likes || 0,
                   followerCount: followStats?.follower_count || 0,

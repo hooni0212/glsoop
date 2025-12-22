@@ -7,7 +7,7 @@
 
 :root {
   --author-surface: var(--gls-color-bg);
-  --author-card-bg: var(--gls-glass-bg-strong);
+  --author-card-bg: color-mix(in srgb, var(--gls-glass-bg-strong) 86%, rgba(255, 255, 255, 0.94));
   --author-card-shadow: var(--gls-glass-shadow);
   --author-card-shadow-compact: var(--gls-shadow-sm);
   --author-text-muted: var(--gls-color-muted);
@@ -77,7 +77,7 @@ body.page-author {
   border-radius: var(--gls-card-radius);
   border: 1px solid var(--gls-border);
   box-shadow: var(--gls-card-shadow);
-  background: color-mix(in srgb, var(--author-card-bg) 82%, rgba(255, 255, 255, 0.9));
+  background: var(--author-card-bg);
   backdrop-filter: blur(var(--gls-blur));
   -webkit-backdrop-filter: blur(var(--gls-blur));
   position: relative;
@@ -95,8 +95,9 @@ body.page-author {
 
 /* 작가 정보 영역(왼쪽 카드 내용) */
 .author-profile-card .card-body {
-  font-size: 0.95rem;
-  padding: calc(var(--gls-card-padding) + 4px);
+  font-size: 0.96rem;
+  padding: calc(var(--gls-card-padding) + 10px);
+  gap: var(--gls-space-3);
 }
 
 /* 오른쪽: 글 목록 카드 안의 개별 글 카드 */
@@ -120,6 +121,108 @@ body.page-author {
 
 .author-posts-card .card-body {
   padding: calc(var(--gls-card-padding) + 4px);
+}
+
+.author-label {
+  color: var(--author-text-muted);
+  letter-spacing: -0.01em;
+}
+
+.author-identity-block {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--gls-space-3);
+  align-items: center;
+}
+
+.author-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(91, 150, 115, 0.35), rgba(255, 255, 255, 0.8));
+  color: var(--gls-text);
+  font-weight: 700;
+  font-size: 1.1rem;
+  border: 1px solid var(--author-divider);
+  box-shadow: var(--author-card-shadow-compact);
+}
+
+.author-identity-text {
+  min-width: 0;
+}
+
+.author-nickname {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 2px;
+  word-break: keep-all;
+}
+
+.author-growth {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid var(--author-divider);
+  border-radius: 999px;
+  color: var(--gls-text);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.author-email {
+  word-break: keep-all;
+}
+
+.author-bio-text,
+.author-about-text {
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.author-bio-text {
+  color: var(--gls-text);
+  font-weight: 500;
+}
+
+.author-about-text {
+  color: var(--gls-text);
+}
+
+.author-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gls-space-3) var(--gls-space-4);
+}
+
+.author-stat {
+  padding: var(--gls-space-2) var(--gls-space-3);
+  border: 1px solid var(--author-divider);
+  border-radius: var(--gls-radius-md);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: var(--author-card-shadow-compact);
+}
+
+.author-stat .label {
+  display: block;
+  color: var(--author-text-muted);
+  font-size: 0.88rem;
+  margin-bottom: 2px;
+  word-break: keep-all;
+}
+
+.author-stat .value {
+  display: block;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.author-follow-block {
+  padding-top: var(--gls-space-2);
+  border-top: 1px solid var(--author-divider);
 }
 
 .author-post-title {
@@ -192,7 +295,14 @@ body.page-author {
 .author-profile-card dt,
 .author-profile-card strong,
 .author-posts-card h4,
-.author-post-title {
+.author-post-title,
+.author-nickname,
+.author-growth,
+.author-label,
+.author-bio-text,
+.author-about-text,
+.author-stat .label,
+.author-stat .value {
   word-break: keep-all;
   line-height: var(--gls-lh-normal);
 }
