@@ -1,20 +1,5 @@
 .card {
-    border: 1px solid var(--gls-ghost-border);
-    border-radius: var(--gls-card-radius, var(--gls-radius-card));
-    background: var(--gls-ghost-bg-hover);
-    box-shadow: var(--gls-card-shadow, var(--gls-glass-shadow));
-    backdrop-filter: blur(var(--gls-glass-blur));
-    -webkit-backdrop-filter: blur(var(--gls-glass-blur));
-    position: relative;
-}
-
-.card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    box-shadow: var(--gls-glass-inset);
-    pointer-events: none;
+  border-radius: var(--gls-radius-card, 16px);
 }
 
 .card-title {
@@ -45,12 +30,7 @@
 }
 
 .gls-post-card {
-  border: 1px solid var(--gls-ghost-border);
   border-radius: var(--gls-radius-card);
-  background: var(--gls-glass-bg-subtle);
-  box-shadow: var(--gls-glass-shadow);
-  backdrop-filter: blur(var(--gls-glass-blur));
-  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   transition: var(--gls-transition-lift);
   position: relative;
   overflow: hidden;
@@ -58,11 +38,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .gls-post-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--gls-glass-shadow-hover);
-  background: var(--gls-ghost-bg);
-  border-color: var(--gls-ghost-border-hover);
-}
+    transform: translateY(-1px);
+  }
 }
 
 
@@ -186,11 +163,3 @@ body.mode-dark .gls-post-card {
 }
 
 
-.gls-post-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: var(--gls-glass-inset);
-  pointer-events: none;
-}

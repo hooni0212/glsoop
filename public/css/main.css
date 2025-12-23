@@ -715,17 +715,6 @@ body[class*='-theme'] .btn-success:focus-visible {
 }
 
 
-/* =========================
-   10. 마이페이지 박스 스타일
-========================= */
-
-#userInfo {
-  background-color: #ffffff;
-  border-radius: 1rem;
-  padding: 1.2rem 1.5rem;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.04);
-}
-
 
 /* =========================
    11. 에디터 영역 (글쓰기 페이지)

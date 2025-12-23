@@ -77,6 +77,16 @@
   --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
   --gls-glass-shadow: 0 12px 30px rgba(19, 34, 30, 0.10);
   --gls-glass-shadow-hover: 0 18px 42px rgba(19, 34, 30, 0.14);
+
+  /* Glass Surface preset (중복 제거용) */
+  --gls-surface-glass-bg: var(--gls-glass-bg-subtle);
+  --gls-surface-glass-bg-hover: var(--gls-ghost-bg);
+  --gls-surface-glass-border: var(--gls-ghost-border);
+  --gls-surface-glass-border-hover: var(--gls-ghost-border-hover);
+  --gls-surface-glass-shadow: var(--gls-glass-shadow);
+  --gls-surface-glass-shadow-hover: var(--gls-glass-shadow-hover);
+  --gls-surface-glass-inset: var(--gls-glass-inset);
+  --gls-surface-glass-blur: var(--gls-glass-blur);
   --gls-muted: var(--gls-color-muted);
   --gls-surface: var(--gls-glass-bg);
   --gls-surface-overlay: rgba(255, 255, 255, 0.62);
@@ -96,6 +106,26 @@
   --gls-action-surface: rgba(255, 255, 255, 0.82);
   --gls-action-surface-hover: rgba(255, 255, 255, 0.9);
   --gls-action-surface-strong: rgba(46, 139, 87, 0.08);
+
+  /* Buttons/Chips (dedupe) */
+  --gls-btn-border-default: rgba(30, 42, 51, 0.14);
+  --gls-btn-border-hover: rgba(46, 139, 87, 0.18);
+  --gls-btn-shadow-hover: 0 10px 24px rgba(19, 34, 30, 0.10);
+  --gls-btn-secondary-bg: rgba(255, 255, 255, 0.14);
+  --gls-btn-secondary-border: rgba(30, 42, 51, 0.14);
+  --gls-btn-active-border: rgba(46, 139, 87, 0.30);
+  --gls-btn-active-bg: rgba(238, 252, 245, 0.52);
+
+  /* Chip remove */
+  --gls-chip-remove-fg: rgba(30, 42, 51, 0.65);
+  --gls-chip-remove-bg-hover: rgba(30, 42, 51, 0.08);
+  --gls-chip-remove-fg-hover: rgba(30, 42, 51, 0.85);
+
+  /* Tag button */
+  --gls-tag-btn-fg: rgba(30, 42, 51, 0.78);
+
+  /* Dividers */
+  --gls-divider-subtle: rgba(30, 42, 51, 0.10);
   /* Account menu */
   --gls-account-avatar: color-mix(in srgb, var(--gls-action-accent, #2e8b57) 58%, var(--gls-color-surface-subtle, #f7f9f4) 42%);
   --gls-account-avatar-size: 32px;

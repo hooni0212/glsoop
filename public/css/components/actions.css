@@ -24,6 +24,12 @@
   transition: var(--gls-transition-lift-ui);
 }
 
+.post-bookmark-toggle:focus-visible,
+.gls-post-card .like-btn:focus-visible {
+  outline: var(--gls-focus-outline);
+  outline-offset: var(--gls-focus-offset);
+}
+
 
 .post-bookmark-toggle .post-bookmark-icon {
   width: 18px;
@@ -52,7 +58,7 @@
 }
 
 .gls-post-card .post-bottom-meta {
-  border-top: 1px solid rgba(30, 42, 51, 0.10);
+  border-top: 1px solid var(--gls-divider-subtle);
   padding-top: var(--gls-space-3, 12px);
   display: flex;
   flex-direction: column;
