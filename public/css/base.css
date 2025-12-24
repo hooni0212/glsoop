@@ -515,14 +515,8 @@ select:focus-visible {
 }
 
 /* 네비게이션 내 주요 버튼들도 테마 액센트에 맞춰 일관되게 적용 */
-body[class*='-theme'] .custom-navbar .btn,
-body[class*='-theme'] .custom-navbar .btn-outline-success,
-body[class*='-theme'] .custom-navbar .btn-success,
-body[class*='-theme'] .custom-navbar .btn-primary,
-body[class*='-theme'] .navbar .btn,
-body[class*='-theme'] .navbar .btn-outline-success,
-body[class*='-theme'] .navbar .btn-success,
-body[class*='-theme'] .navbar .btn-primary {
+body[class*='-theme'] .custom-navbar .gls-btn,
+body[class*='-theme'] .navbar .gls-btn {
   color: var(--gls-action-accent, #2e8b57);
   border-color: var(--gls-action-border, rgba(30, 42, 51, 0.16));
   background: var(--gls-action-surface, rgba(255, 255, 255, 0.82));
@@ -531,10 +525,10 @@ body[class*='-theme'] .navbar .btn-primary {
     background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-body[class*='-theme'] .custom-navbar .btn:hover,
-body[class*='-theme'] .custom-navbar .btn:focus-visible,
-body[class*='-theme'] .navbar .btn:hover,
-body[class*='-theme'] .navbar .btn:focus-visible {
+body[class*='-theme'] .custom-navbar .gls-btn:hover,
+body[class*='-theme'] .custom-navbar .gls-btn:focus-visible,
+body[class*='-theme'] .navbar .gls-btn:hover,
+body[class*='-theme'] .navbar .gls-btn:focus-visible {
   color: #0f172a;
   background: var(--gls-action-surface-hover, rgba(255, 255, 255, 0.9));
   border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
@@ -873,7 +867,7 @@ body[class*='-theme'] .navbar .btn:focus-visible {
 ========================= */
 @media (hover: none) and (pointer: coarse) {
   /* 터치 환경에서 hover가 남아 어색해지는 경우가 있어 transform 기반 hover는 꺼둠 */
-  .btn:hover,
+  .gls-btn:hover,
   .gls-post-card:hover,
   .hero-card .hero-cta-btn:hover {
     transform: none !important;
@@ -898,23 +892,23 @@ button:focus-visible,
 }
 
 /* Bootstrap 입력폼 공통 (login/signup/editor/admin 등) */
-.form-control,
-.form-select,
-textarea.form-control,
-input.form-control,
-select.form-select {
+.gls-input,
+.gls-select,
+textarea.gls-input,
+input.gls-input,
+select.gls-select {
   border-radius: var(--gls-control-radius);
   background-color: var(--gls-control-bg);
   border-color: var(--gls-control-border);
 }
 
-.form-control:focus,
-.form-select:focus {
+.gls-input:focus,
+.gls-select:focus {
   border-color: var(--gls-control-border-focus);
   box-shadow: var(--gls-control-shadow-focus);
 }
 
 /* 체크박스/라디오도 포커스 링 통일 */
-.form-check-input:focus {
+.gls-check-input:focus {
   box-shadow: var(--gls-control-shadow-focus);
   border-color: var(--gls-control-border-focus);

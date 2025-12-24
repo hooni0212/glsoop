@@ -178,7 +178,7 @@ body.winter-theme .modal-content {
 }
 
 /* 선택된 해시태그 필터 바 배지 (상단 "적용 중인 태그" 영역) */
-.page-index.winter-theme #tagFilterBar .badge.text-bg-success {
+.page-index.winter-theme #tagFilterBar .gls-chip {
   background-color: #E6F0F7 !important;          /* 부드러운 파스텔 블루 */
   color: #1F4D68 !important;                     /* 짙은 청록 글자색 */
   border-radius: var(--gls-btn-radius);          /* pill 대신 둥근 직사각형 */
@@ -191,12 +191,12 @@ body.winter-theme .modal-content {
 }
 
 /* 필터 바 안의 X 버튼(개별 태그 제거) 색 보정 */
-.page-index.winter-theme #tagFilterBar .badge.text-bg-success .tag-filter-remove {
+.page-index.winter-theme #tagFilterBar .gls-chip .tag-filter-remove {
   filter: none;          /* btn-close-white의 invert 효과 제거 */
   opacity: 0.7;
 }
 
-.page-index.winter-theme #tagFilterBar .badge.text-bg-success .tag-filter-remove:hover {
+.page-index.winter-theme #tagFilterBar .gls-chip .tag-filter-remove:hover {
   opacity: 1;
 }
 

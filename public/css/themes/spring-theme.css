@@ -242,17 +242,17 @@ body.spring-theme .btn-success:active {
   box-shadow: 0 12px 28px rgba(127, 191, 120, 0.3);
 }
 
-body.spring-theme .btn-outline-success {
+body.spring-theme .gls-btn-secondary {
   color: #71ad6d;
   border-color: rgba(127, 191, 120, 0.62);
   background-color: transparent;
   box-shadow: 0 8px 18px rgba(127, 191, 120, 0.18);
 }
 
-body.spring-theme .btn-outline-success:hover,
-body.spring-theme .btn-outline-success:focus-visible,
-body.spring-theme .btn-outline-success.active,
-body.spring-theme .btn-outline-success:active {
+body.spring-theme .gls-btn-secondary:hover,
+body.spring-theme .gls-btn-secondary:focus-visible,
+body.spring-theme .gls-btn-secondary.active,
+body.spring-theme .gls-btn-secondary:active {
   color: #ffffff;
   background-color: #7fbf78;
   border-color: #7fbf78;
@@ -315,7 +315,7 @@ body.spring-theme .hashtag-chip .hashtag-chip-remove:hover {
 }
 
 /* 상단 "적용 중인 태그" 필터 바 배지 */
-.page-index.spring-theme #tagFilterBar .badge.text-bg-success {
+.page-index.spring-theme #tagFilterBar .gls-chip {
   background-color: #FFF3F6 !important;   /* 부드러운 봄 핑크 */
   color: #b86b85 !important;              /* 메인 분홍 텍스트 */
   border-radius: var(--gls-btn-radius);
@@ -328,11 +328,11 @@ body.spring-theme .hashtag-chip .hashtag-chip-remove:hover {
 }
 
 /* 필터 바 안의 X 버튼(개별 태그 제거) 색 보정 */
-.page-index.spring-theme #tagFilterBar .badge.text-bg-success .tag-filter-remove {
+.page-index.spring-theme #tagFilterBar .gls-chip .tag-filter-remove {
   filter: none;
   opacity: 0.7;
 }
-.page-index.spring-theme #tagFilterBar .badge.text-bg-success .tag-filter-remove:hover {
+.page-index.spring-theme #tagFilterBar .gls-chip .tag-filter-remove:hover {
   opacity: 1;
 }
 

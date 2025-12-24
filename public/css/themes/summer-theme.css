@@ -110,17 +110,17 @@ body.summer-theme .btn-success:active {
   box-shadow: 0 12px 28px rgba(47, 145, 133, 0.3);
 }
 
-body.summer-theme .btn-outline-success {
+body.summer-theme .gls-btn-secondary {
   color: #2f9185;
   border-color: rgba(47, 145, 133, 0.7);
   background-color: transparent;
   box-shadow: 0 8px 18px rgba(70, 156, 179, 0.16);
 }
 
-body.summer-theme .btn-outline-success:hover,
-body.summer-theme .btn-outline-success:focus-visible,
-body.summer-theme .btn-outline-success.active,
-body.summer-theme .btn-outline-success:active {
+body.summer-theme .gls-btn-secondary:hover,
+body.summer-theme .gls-btn-secondary:focus-visible,
+body.summer-theme .gls-btn-secondary.active,
+body.summer-theme .gls-btn-secondary:active {
   color: #ffffff;
   background-color: #3aa995;
   border-color: #3aa995;
