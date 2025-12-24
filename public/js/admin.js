@@ -337,26 +337,26 @@ Glsoop.AdminPage = (function () {
     if (filterBox) {
       filterBox.innerHTML = `
         <div class="admin-toolbar">
-          <input type="search" class="form-control form-control-sm" id="adminPostsSearch" placeholder="제목/작성자 검색" value="${
+          <input type="search" class="gls-input gls-input-sm" id="adminPostsSearch" placeholder="제목/작성자 검색" value="${
             postsState.search
           }" />
-          <select class="form-select form-select-sm" id="adminPostsCategory">
+          <select class="gls-select gls-select-sm" id="adminPostsCategory">
             <option value="all">전체</option>
             <option value="poem">시</option>
             <option value="essay">에세이</option>
             <option value="short">짧은 구절</option>
           </select>
-          <select class="form-select form-select-sm" id="adminPostsRange">
+          <select class="gls-select gls-select-sm" id="adminPostsRange">
             <option value="all">전체 기간</option>
             <option value="7">최근 7일</option>
             <option value="30">최근 30일</option>
           </select>
-          <select class="form-select form-select-sm" id="adminPostsSort">
+          <select class="gls-select gls-select-sm" id="adminPostsSort">
             <option value="recent">최신순</option>
             <option value="oldest">오래된순</option>
             <option value="likes">공감 많은순</option>
           </select>
-          <select class="form-select form-select-sm" id="adminPostsLimit">
+          <select class="gls-select gls-select-sm" id="adminPostsLimit">
             <option value="24">24개씩</option>
             <option value="48" selected>48개씩</option>
             <option value="96">96개씩</option>
@@ -676,20 +676,20 @@ Glsoop.AdminPage = (function () {
         </div>
         <div class="row g-2">
           <div class="col-md-4">
-            <label class="form-label small mb-1">제목</label>
-            <input class="form-control form-control-sm" name="name" value="${escapeHtml(
+            <label class="gls-label small mb-1">제목</label>
+            <input class="gls-input gls-input-sm" name="name" value="${escapeHtml(
               values.name || ''
             )}" required />
           </div>
           <div class="col-md-4">
-            <label class="form-label small mb-1">조건 타입</label>
-            <select class="form-select form-select-sm" name="condition_type" required>
+            <label class="gls-label small mb-1">조건 타입</label>
+            <select class="gls-select gls-select-sm" name="condition_type" required>
               ${buildConditionOptions(values.condition_type)}
             </select>
           </div>
           <div class="col-md-4">
-            <label class="form-label small mb-1">카테고리(선택)</label>
-            <select class="form-select form-select-sm" name="category">
+            <label class="gls-label small mb-1">카테고리(선택)</label>
+            <select class="gls-select gls-select-sm" name="category">
               <option value="">(전체)</option>
               <option value="poem" ${values.category === 'poem' ? 'selected' : ''}>시</option>
               <option value="essay" ${values.category === 'essay' ? 'selected' : ''}>에세이</option>
@@ -697,29 +697,29 @@ Glsoop.AdminPage = (function () {
             </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label small mb-1">목표</label>
-            <input type="number" min="1" class="form-control form-control-sm" name="target_value" value="${
+            <label class="gls-label small mb-1">목표</label>
+            <input type="number" min="1" class="gls-input gls-input-sm" name="target_value" value="${
               values.target_value || ''
             }" required />
           </div>
           <div class="col-md-3">
-            <label class="form-label small mb-1">보상 XP</label>
-            <input type="number" min="0" class="form-control form-control-sm" name="reward_xp" value="${
+            <label class="gls-label small mb-1">보상 XP</label>
+            <input type="number" min="0" class="gls-input gls-input-sm" name="reward_xp" value="${
               values.reward_xp || 0
             }" />
           </div>
           <div class="col-md-6">
-            <label class="form-label small mb-1">설명</label>
-            <input class="form-control form-control-sm" name="description" value="${escapeHtml(
+            <label class="gls-label small mb-1">설명</label>
+            <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
           </div>
           <div class="col-md-3 d-flex align-items-end">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="is_active" id="templateActive" ${
+            <div class="gls-check">
+              <input class="gls-check-input" type="checkbox" name="is_active" id="templateActive" ${
                 values.is_active || editingId === '' ? 'checked' : ''
               } />
-              <label class="form-check-label" for="templateActive">활성</label>
+              <label class="gls-check-label" for="templateActive">활성</label>
             </div>
           </div>
         </div>
@@ -874,12 +874,12 @@ Glsoop.AdminPage = (function () {
       .map((t) => {
         const found = selectedItems.find((i) => Number(i.template_id) === Number(t.id));
         return `
-          <div class="form-check form-check-inline mb-1">
-            <input class="form-check-input quest-campaign-template" type="checkbox" data-template-id="${t.id}" id="campaignTpl${t.id}" ${
+          <div class="gls-check gls-check-inline mb-1">
+            <input class="gls-check-input quest-campaign-template" type="checkbox" data-template-id="${t.id}" id="campaignTpl${t.id}" ${
           found ? 'checked' : ''
         } />
-            <label class="form-check-label" for="campaignTpl${t.id}">${escapeHtml(t.name)}</label>
-            <input type="number" class="form-control form-control-sm ms-2" style="width:80px" placeholder="순서" data-template-order="${t.id}" value="${
+            <label class="gls-check-label" for="campaignTpl${t.id}">${escapeHtml(t.name)}</label>
+            <input type="number" class="gls-input gls-input-sm ms-2" style="width:80px" placeholder="순서" data-template-order="${t.id}" value="${
           found ? found.sort_order || 0 : ''
         }" />
           </div>`;
@@ -910,14 +910,14 @@ Glsoop.AdminPage = (function () {
         </div>
         <div class="row g-2">
           <div class="col-md-4">
-            <label class="form-label small mb-1">이름</label>
-            <input class="form-control form-control-sm" name="name" value="${escapeHtml(
+            <label class="gls-label small mb-1">이름</label>
+            <input class="gls-input gls-input-sm" name="name" value="${escapeHtml(
               values.name || ''
             )}" required />
           </div>
           <div class="col-md-3">
-            <label class="form-label small mb-1">유형</label>
-            <select class="form-select form-select-sm" name="campaign_type">
+            <label class="gls-label small mb-1">유형</label>
+            <select class="gls-select gls-select-sm" name="campaign_type">
               ${typeOptions
                 .map(
                   (t) => `<option value="${t}" ${
@@ -928,35 +928,35 @@ Glsoop.AdminPage = (function () {
             </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label small mb-1">시작</label>
-            <input type="datetime-local" class="form-control form-control-sm" name="start_at" value="${
+            <label class="gls-label small mb-1">시작</label>
+            <input type="datetime-local" class="gls-input gls-input-sm" name="start_at" value="${
               values.start_at ? values.start_at.replace(' ', 'T') : ''
             }" />
           </div>
           <div class="col-md-3">
-            <label class="form-label small mb-1">종료</label>
-            <input type="datetime-local" class="form-control form-control-sm" name="end_at" value="${
+            <label class="gls-label small mb-1">종료</label>
+            <input type="datetime-local" class="gls-input gls-input-sm" name="end_at" value="${
               values.end_at ? values.end_at.replace(' ', 'T') : ''
             }" />
           </div>
           <div class="col-md-2">
-            <label class="form-label small mb-1">우선순위</label>
-            <input type="number" class="form-control form-control-sm" name="priority" value="${
+            <label class="gls-label small mb-1">우선순위</label>
+            <input type="number" class="gls-input gls-input-sm" name="priority" value="${
               values.priority || 1
             }" />
           </div>
           <div class="col-md-4">
-            <label class="form-label small mb-1">설명</label>
-            <input class="form-control form-control-sm" name="description" value="${escapeHtml(
+            <label class="gls-label small mb-1">설명</label>
+            <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
           </div>
           <div class="col-md-2 d-flex align-items-end">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="is_active" id="campaignActive" ${
+            <div class="gls-check">
+              <input class="gls-check-input" type="checkbox" name="is_active" id="campaignActive" ${
                 values.is_active ? 'checked' : ''
               } />
-              <label class="form-check-label" for="campaignActive">활성</label>
+              <label class="gls-check-label" for="campaignActive">활성</label>
             </div>
           </div>
         </div>

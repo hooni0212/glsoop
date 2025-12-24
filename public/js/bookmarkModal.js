@@ -44,7 +44,7 @@
               <div class="bookmark-modal-status text-muted small mb-2"></div>
               <div class="bookmark-modal-list list-group mb-3"></div>
               <div class="bookmark-modal-create d-flex gap-2 align-items-center">
-                <input type="text" class="form-control" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
+                <input type="text" class="gls-input" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
                 <button class="btn btn-primary bookmark-modal-create-btn" type="button" id="bookmarkNewListSubmit">추가</button>
               </div>
             </div>
@@ -107,7 +107,7 @@
       item.className = 'list-group-item d-flex justify-content-between align-items-center';
       const input = document.createElement('input');
       input.type = 'checkbox';
-      input.className = 'form-check-input me-2';
+      input.className = 'gls-check-input me-2';
       input.checked = selectedIds.has(list.id);
       input.addEventListener('change', () => toggleMembership(list.id, input.checked));
       item.appendChild(input);

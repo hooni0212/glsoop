@@ -177,19 +177,19 @@
               <div class="row g-3 align-items-end mb-3">
                 <!-- 제목 입력 -->
                 <div class="col-12 col-md-6">
-                  <label for="postTitle" class="form-label">제목</label>
+                  <label for="postTitle" class="gls-label">제목</label>
                   <input
                     type="text"
                     id="postTitle"
-                    class="form-control"
+                    class="gls-input"
                     placeholder="오늘의 글 제목을 입력하세요"
                   />
                 </div>
 
                 <!-- 폰트 선택 (select) -->
                 <div class="col-12 col-md-3">
-                  <label for="fontSelect" class="form-label">폰트</label>
-                  <select id="fontSelect" class="form-select form-select-sm">
+                  <label for="fontSelect" class="gls-label">폰트</label>
+                  <select id="fontSelect" class="gls-select gls-select-sm">
                     <option value="serif">감성 명조체 (기본)</option>
                     <option value="sans">담백한 고딕체</option>
                     <option value="hand">손글씨 느낌</option>
@@ -198,8 +198,8 @@
 
                 <!-- 카테고리 선택 -->
                 <div class="col-12 col-md-3">
-                  <label for="categorySelect" class="form-label">글 종류</label>
-                  <select id="categorySelect" class="form-select form-select-sm" required>
+                  <label for="categorySelect" class="gls-label">글 종류</label>
+                  <select id="categorySelect" class="gls-select gls-select-sm" required>
                     <option value="" selected disabled>카테고리 선택</option>
                     <option value="poem">시</option>
                     <option value="essay">에세이/일기</option>
@@ -210,7 +210,7 @@
 
               <!-- 본문 에디터 + 글자 수 카운터 -->
               <div class="mb-3 editor-wrapper position-relative">
-                <label class="form-label">내용</label>
+                <label class="gls-label">내용</label>
                 <!-- Quill 에디터가 바인딩되는 div -->
                 <div id="editor" class="editor-box" style="height: 260px;"></div>
 
@@ -224,11 +224,11 @@
               <div class="mb-1">
                 <div class="row g-2 align-items-end hashtag-save-row">
                   <div class="col-12 col-md-9 col-lg-8">
-                    <label for="postHashtags" class="form-label">해시태그</label>
+                    <label for="postHashtags" class="gls-label">해시태그</label>
                     <input
                       type="text"
                       id="postHashtags"
-                      class="form-control"
+                      class="gls-input"
                       placeholder="#태그 입력 후 Enter로 추가"
                     />
                     <!-- 사용 예시 안내 -->
