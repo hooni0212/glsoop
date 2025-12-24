@@ -76,3 +76,34 @@
   border-color: rgba(46, 139, 87, 0.30);
 }
 
+/* --------------------------------------------------------------------------
+   Bootstrap .btn theme look (compat)
+   - Phase A(겉모양) 치환 전까지, 계절 테마 색/글로우를 공유하게 한다.
+   -------------------------------------------------------------------------- */
+body[class*='-theme'] .btn-primary,
+body[class*='-theme'] .btn-outline-primary,
+body[class*='-theme'] .btn-outline-success,
+body[class*='-theme'] .btn-success {
+  color: var(--gls-action-accent, #2e8b57);
+  background: var(--gls-action-surface, rgba(255, 255, 255, 0.82));
+  border-color: var(--gls-action-border, rgba(30, 42, 51, 0.16));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+body[class*='-theme'] .btn-primary:hover,
+body[class*='-theme'] .btn-primary:focus-visible,
+body[class*='-theme'] .btn-outline-primary:hover,
+body[class*='-theme'] .btn-outline-primary:focus-visible,
+body[class*='-theme'] .btn-outline-success:hover,
+body[class*='-theme'] .btn-outline-success:focus-visible,
+body[class*='-theme'] .btn-success:hover,
+body[class*='-theme'] .btn-success:focus-visible {
+  color: #0f172a;
+  background: var(--gls-action-surface-hover, rgba(255, 255, 255, 0.9));
+  border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+  transform: translateY(-1px);
+}
+

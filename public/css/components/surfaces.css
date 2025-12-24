@@ -5,7 +5,7 @@
 ========================================================= */
 
 /* 기본 프리셋: Glass */
-:where(.gls-surface-glass, .card, .gls-post-card, #userInfo) {
+:where(.gls-surface-glass, .card, .gls-post-card, #userInfo, .glass-card) {
   background: var(--gls-surface-glass-bg, var(--gls-glass-bg-subtle));
   border: 1px solid var(--gls-surface-glass-border, var(--gls-ghost-border));
   box-shadow: var(--gls-surface-glass-shadow, var(--gls-glass-shadow));
@@ -14,7 +14,7 @@
   position: relative;
 }
 
-:where(.gls-surface-glass, .card, .gls-post-card, #userInfo)::after {
+:where(.gls-surface-glass, .card, .gls-post-card, #userInfo, .glass-card)::after {
   content: '';
   position: absolute;
   inset: 0;
