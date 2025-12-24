@@ -135,7 +135,7 @@ function ensureIgExportModal() {
               <label class="gls-label small mb-1">배경 이미지 URL (선택)</label>
               <input id="igOptBgUrl" class="gls-input gls-input-sm"
                      placeholder="예) /img/ig/bg.jpg 또는 https://..." />
-              <div class="form-text">
+              <div class="gls-form-help">
                 URL이 있으면 프리셋 대신 사진이 사용돼.
               </div>
             </div>
