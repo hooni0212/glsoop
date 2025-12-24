@@ -401,13 +401,13 @@ function renderAuthorPosts(posts) {
       return `
         <article class="post-panel gls-surface-panel gls-surface-veil author-post-card" data-post-id="${post.id}">
           <div class="author-post-inner">
-            <h6 class="author-post-title mb-1">${escapeHtml(post.title)}</h6>
+            <h6 class="author-post-title gls-mb-1">${escapeHtml(post.title)}</h6>
 
-            <div class="author-post-meta gls-text-muted mb-1">
+            <div class="author-post-meta gls-text-muted gls-mb-1">
               <gls-text-small>${dateStr}</gls-text-small>
             </div>
 
-            <div class="author-post-extra d-flex align-items-center mb-2">
+            <div class="author-post-extra gls-flex gls-items-center gls-mb-2">
               <!-- 공감 버튼 (index.js와 구조 맞춤) -->
               <button
                 class="like-btn ${liked ? 'liked' : ''}"
@@ -564,7 +564,7 @@ function buildHashtagHtml(post) {
     )
     .join('');
 
-  return `<div class="gls-card-hashtags mt-1 text-start">${pills}</div>`;
+  return `<div class="gls-card-hashtags gls-mt-1 gls-text-start">${pills}</div>`;
 }
 
 /**

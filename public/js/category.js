@@ -151,7 +151,7 @@
     if (!feedBox) return;
 
     const label = getCategoryLabel(currentCategory);
-    feedBox.innerHTML = `<div class="text-center gls-text-muted py-4">${escapeHtml(
+    feedBox.innerHTML = `<div class="gls-text-center gls-text-muted gls-py-4">${escapeHtml(
       `${label} 글이 아직 없습니다.`
     )}</div>`;
   }

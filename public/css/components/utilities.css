@@ -78,6 +78,8 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 
 /* alignment */
 .gls-text-center { text-align: center; }
+.gls-text-start { text-align: left; }
+.gls-text-end { text-align: right; }
 
 
 /* positioning & text transform (phase B) */
@@ -107,6 +109,7 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 .gls-mt-5 { margin-top: 3rem; }
 .gls-mt-3 { margin-top: 1rem; }
 .gls-mt-2 { margin-top: 0.5rem; }
+.gls-mt-1 { margin-top: 0.25rem; }
 
 .gls-mb-4 { margin-bottom: 1.5rem; }
 .gls-mb-3 { margin-bottom: 1rem; }
