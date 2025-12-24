@@ -40,6 +40,15 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
   gap: 0.5rem;
 }
 
+/* flex primitives (Phase B) */
+.gls-flex-wrap { flex-wrap: wrap; }
+.gls-items-center { align-items: center; }
+.gls-justify-between { justify-content: space-between; }
+.gls-justify-end { justify-content: flex-end; }
+.gls-items-start { align-items: flex-start; }
+.gls-items-end { align-items: flex-end; }
+.gls-w-100 { width: 100%; }
+
 /* ============================================================
    Phase B: layout utilities (bootstrap spacing/display replacement)
    - keep numbers aligned to bootstrap scale for smooth migration
@@ -72,6 +81,12 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 /* spacing extras (phase B) */
 .gls-mb-0 { margin-bottom: 0; }
 .gls-my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+.gls-my-3 { margin-top: 1rem; margin-bottom: 1rem; }
+
+/* gap (phase B) */
+.gls-gap-2 { gap: 0.5rem; }
+.gls-gap-3 { gap: 1rem; }
+.gls-gap-4 { gap: 1.5rem; }
 
 /* row helpers (phase B) */
 .gls-row-spread { align-items: center; justify-content: space-between; }
