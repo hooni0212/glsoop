@@ -156,7 +156,7 @@ function buildStandardPostCardHTML(post, options = {}) {
         <!-- 상단 메타 영역: 작성자 / 날짜 / 공감 버튼 -->
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="d-flex align-items-center gap-3" >
-            <span class="badge bg-light text-muted border gls-author-badge">
+            <span class="gls-author-badge">
               ${escapeHtml(author)}
             </span>
             <span class="text-muted small">${escapeHtml(dateStr)}</span>
@@ -192,7 +192,7 @@ function buildStandardPostCardHTML(post, options = {}) {
                 ? `
             <!-- 더보기 버튼 (내용이 넘칠 때만 노출) : 카드 내부 오버레이 -->
             <button
-              class="btn btn-link p-0 more-toggle gls-more-overlay"
+              class="more-toggle gls-more-overlay"
               type="button"
               style="display:none;"
             >

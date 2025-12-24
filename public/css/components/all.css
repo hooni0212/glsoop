@@ -3,12 +3,11 @@
 @import url("./feed-preview.css");
 @import url("./quote-card.css");
 @import url("./buttons-chips.css");
+@import url("./badges.css");
 @import url("./like.css");
 @import url("./actions.css");
 @import url("./actions-compat.css");
-@import url("./badges.css");
 @import url("./more-toggle.css");
 @import url("./editor-align.css");
 @import url("./bookmark-modal.css");
-/* 있으면 */
 @import url("./utilities.css");
