@@ -75,28 +75,6 @@ body.mode-text {
   background-image: none;
 }
 
-/* Responsive tokens */
-@media (max-width: 992px) {
-  :root {
-    --gls-page-margin: 22px;
-    --gls-inner-width: 1080px;
-  }
-}
-
-@media (max-width: 768px) {
-  :root {
-    --gls-page-margin: 14px;
-    --gls-gutter: 12px;
-    --gls-content-width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  :root {
-    --gls-page-margin: 12px;
-  }
-}
-
 /* =========================
    0. 전체 레이아웃 기본
 ========================= */

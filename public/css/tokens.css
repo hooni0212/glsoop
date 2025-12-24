@@ -188,3 +188,29 @@
   --gls-z-modal: 600;
   --gls-z-toast: 800;
 }
+
+/* =========================
+   Responsive tokens
+   - Keep responsive design token overrides here (single source of truth)
+========================= */
+
+@media (max-width: 992px) {
+  :root {
+    --gls-page-margin: 22px;
+    --gls-inner-width: 1080px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --gls-page-margin: 14px;
+    --gls-gutter: 12px;
+    --gls-content-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --gls-page-margin: 12px;
+  }
+}
