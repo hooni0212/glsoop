@@ -9,53 +9,12 @@
   margin-left: auto;
 }
 
-.post-bookmark-toggle,
-.gls-post-card .like-btn {
-  border: 1px solid var(--gls-action-border, var(--gls-ghost-border));
-  background: var(--gls-action-surface, var(--gls-ghost-bg));
-  color: var(--gls-color-text, #1f2a2b);
-  border-radius: var(--gls-btn-radius);
-  padding: 10px 14px;
-  min-height: 42px;
-  line-height: 1;
-  box-shadow: var(--gls-glass-inset);
-  backdrop-filter: blur(var(--gls-blur-ui, 10px));
-  -webkit-backdrop-filter: blur(var(--gls-blur-ui, 10px));
-  transition: var(--gls-transition-lift-ui);
-}
-
-.post-bookmark-toggle:focus-visible,
-.gls-post-card .like-btn:focus-visible {
-  outline: var(--gls-focus-outline);
-  outline-offset: var(--gls-focus-offset);
-}
-
-
 .post-bookmark-toggle .post-bookmark-icon {
   width: 18px;
   height: 18px;
   color: var(--gls-action-accent, var(--gls-color-primary, #2e8b57));
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .post-bookmark-toggle:hover,
-  .post-bookmark-toggle:focus-visible,
-  .gls-post-card .like-btn:hover,
-  .gls-post-card .like-btn:focus-visible {
-    background: var(--gls-action-surface-hover, var(--gls-ghost-bg-hover));
-    border-color: var(--gls-action-border-strong, var(--gls-ghost-border-hover));
-    color: var(--gls-color-text, #1f2a2b);
-    text-decoration: none;
-    box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
-  }
-}
-@media (hover: none) {
-  .post-bookmark-toggle:hover,
-  .gls-post-card .like-btn:hover {
-    background: var(--gls-color-surface-subtle, #f7f9f4);
-    border-color: var(--gls-color-border, #dfe6df);
-  }
-}
 
 .gls-post-card .post-bottom-meta {
   border-top: 1px solid var(--gls-divider-subtle);

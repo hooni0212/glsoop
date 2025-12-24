@@ -133,7 +133,7 @@ function buildStandardPostCardHTML(post, options = {}) {
   const bookmarkBtn = `
     <button
       type="button"
-      class="btn btn-sm post-bookmark-toggle"
+      class="gls-btn gls-btn-sm post-bookmark-toggle"
       data-post-id="${post.id}"
       aria-label="북마크 추가"
     >
@@ -161,16 +161,16 @@ function buildStandardPostCardHTML(post, options = {}) {
             </span>
             <span class="text-muted small">${escapeHtml(dateStr)}</span>
           </div>
-          <div class="post-top-actions d-flex align-items-center gap-2">
+          <div class="post-top-actions">
             ${bookmarkBtn}
             <button
               type="button"
-              class="btn btn-sm like-btn ${liked ? 'liked' : ''}"
+              class="gls-btn gls-btn-sm like-btn ${liked ? 'liked' : ''}"
               data-post-id="${post.id}"
               data-liked="${liked ? '1' : '0'}"
             >
               <span class="like-heart">${liked ? '♥' : '♡'}</span>
-              <span class="like-count ms-1">${likeCount}</span>
+              <span class="like-count">${likeCount}</span>
             </button>
           </div>
         </div>

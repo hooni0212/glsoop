@@ -441,46 +441,6 @@
   line-height: var(--gls-lh-relaxed, 1.75);
 }
 /* =========================
-   8. 메인 피드 좋아요 버튼 (.like-*)
-   - 메인 피드 JS(index.js)에서 사용하는 클래스들
-========================= */
-
-.like-btn {
-  text-decoration: none;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-.like-heart {
-  display: inline-block;              /* transform 잘 보이도록 */
-  font-size: 1.5rem;
-  line-height: 1;
-  color: var(--gls-action-accent, #2e8b57);
-  transform: scale(1);                /* 기본 크기 */
-  transition:
-    transform 0.22s ease-out,         /* 커졌다 작아지는 애니메이션 */
-    color 0.15s ease,
-    text-shadow 0.2s ease;
-}
-
-/* 좋아요 된 상태일 때 강조 컬러 */
-.like-btn.liked .like-heart {
-  color: var(--gls-action-accent, #2e8b57);
-  text-shadow: 0 4px 16px rgba(46, 139, 87, 0.32);
-}
-
-/* 숫자 */
-.like-count {
-  font-size: 1rem;
-}
-
-/* 범프 상태: 확실히 눈에 띄게 (★ 여기 s 빼는 게 중요!) */
-.like-heart.bump {
-  transform: scale(1.4);
-}
-
-/* =========================
    공통 버튼 테마 확장
    - 헤더 외 영역에서도 계절 테마 색상/글로우를 공유
 ========================= */
@@ -1127,55 +1087,6 @@ body.page-index {
   box-shadow: var(--gls-glass-inset);
 }
 
-
-
-.post-bottom-meta {
-  margin-top: 12px;
-}
-
-.post-action-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-  gap: 8px;
-}
-
-.post-bookmark-toggle {
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: #ffffff;
-  color: var(--author-accent, #2f2f2f);
-  border-radius: 999px;
-  padding: 6px 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-.post-bookmark-toggle .post-bookmark-icon {
-  width: 18px;
-  height: 18px;
-}
-
-/* 데스크탑 hover */
-@media (hover: hover) and (pointer: fine) {
-  .post-bookmark-toggle:hover,
-  .post-bookmark-toggle:focus-visible {
-    background: #f4f7ff;
-    border-color: rgba(0, 0, 0, 0.14);
-    color: var(--author-accent, #1d3a5c);
-  }
-}
-
-/* 터치 기기 hover 고정 방지 */
-@media (hover: none) {
-  .post-bookmark-toggle:hover {
-    background: #ffffff;
-    border-color: rgba(0, 0, 0, 0.08);
-    color: var(--author-accent, #2f2f2f);
-  }
-}
 
 
 .page-bookmarks .bookmarks-shell {

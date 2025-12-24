@@ -1,4 +1,4 @@
-.like-btn {
+.like-btn:not(.gls-btn) {
   text-decoration: none;
   border: none;
   background: transparent;
