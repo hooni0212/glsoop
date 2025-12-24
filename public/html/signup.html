@@ -114,18 +114,18 @@
   </nav>
 
   <!-- 회원가입 섹션: 상단 여백(py-5) + fixed-top 네비게이션 높이만큼 mt-5 -->
-  <section class="py-5 mt-5">
+  <section class="gls-py-5 gls-mt-5">
     <div class="container">
       <!-- 페이지 제목 -->
-      <h2 class="text-center mb-4">회원가입</h2>
+      <h2 class="gls-text-center gls-mb-4">회원가입</h2>
 
       <!-- 회원가입 폼 -->
       <form id="signupForm" class="mx-auto" style="max-width: 420px;">
 
         <!-- ✅ 약관 / 개인정보 동의 영역 (제목 바로 아래에 위치) -->
-        <div class="mb-4 p-3 border rounded bg-white">
+        <div class="gls-mb-4 gls-p-3 border rounded bg-white">
           <!-- 전체 동의 체크박스: 모든 하위 항목을 한 번에 토글 -->
-          <div class="gls-check mb-2">
+          <div class="gls-check gls-mb-2">
             <input class="gls-check-input" type="checkbox" id="agreeAll">
             <label class="gls-check-label fw-bold" for="agreeAll">
               전체 동의하기
@@ -137,7 +137,7 @@
 
           <!-- [필수] 만 14세 이상 -->
           <!-- .agree-required 클래스로 JS에서 필수 항목으로 묶어서 처리 -->
-          <div class="gls-check mb-2">
+          <div class="gls-check gls-mb-2">
             <input class="gls-check-input agree-required" type="checkbox" id="agreeAge" required>
             <label class="gls-check-label" for="agreeAge">
               [필수] 만 14세 이상입니다.
@@ -145,7 +145,7 @@
           </div>
 
           <!-- [필수] 서비스 이용약관 동의 -->
-          <div class="gls-check mb-2">
+          <div class="gls-check gls-mb-2">
             <input class="gls-check-input agree-required" type="checkbox" id="agreeTerms" required>
             <label class="gls-check-label" for="agreeTerms">
               [필수] 서비스 이용약관에 동의합니다.
@@ -155,7 +155,7 @@
           </div>
 
           <!-- [필수] 개인정보 수집·이용 동의 -->
-          <div class="gls-check mb-2">
+          <div class="gls-check gls-mb-2">
             <input class="gls-check-input agree-required" type="checkbox" id="agreePrivacy" required>
             <label class="gls-check-label" for="agreePrivacy">
               [필수] 개인정보 수집 및 이용에 동의합니다.
@@ -166,7 +166,7 @@
 
           <!-- [선택] 마케팅 이메일 수신 동의 -->
           <!-- .agree-optional 클래스로 필수와 분리해서 관리 -->
-          <div class="gls-check mb-1">
+          <div class="gls-check gls-mb-1">
             <input class="gls-check-input agree-optional" type="checkbox" id="agreeMarketing">
             <label class="gls-check-label" for="agreeMarketing">
               [선택] 이벤트/소식 등 이메일 수신에 동의합니다.
@@ -174,7 +174,7 @@
           </div>
 
           <!-- 약관 안내 문구 -->
-          <small class="gls-text-muted d-block mt-2">
+          <small class="gls-text-muted gls-block gls-mt-2">
             필수 항목에 동의하지 않으시면 회원가입이 어렵습니다.
           </small>
         </div>
@@ -182,32 +182,32 @@
         <!-- 기본 정보 입력 영역 -->
 
         <!-- 이름 입력 -->
-        <div class="mb-3">
+        <div class="gls-mb-3">
           <label class="gls-label">이름</label>
           <input type="text" name="name" class="gls-input" required>
         </div>
 
         <!-- 닉네임 입력 -->
         <!-- 서버에서는 이 닉네임을 author_nickname 등으로 활용 -->
-        <div class="mb-3">
+        <div class="gls-mb-3">
           <label class="gls-label">닉네임</label>
           <input type="text" name="nickname" class="gls-input" required>
         </div>
 
         <!-- 이메일 입력 -->
-        <div class="mb-3">
+        <div class="gls-mb-3">
           <label class="gls-label">이메일</label>
           <input type="email" name="email" class="gls-input" required>
         </div>
 
         <!-- 비밀번호 입력 -->
-        <div class="mb-3">
+        <div class="gls-mb-3">
           <label class="gls-label">비밀번호</label>
           <input type="password" name="pw" class="gls-input" required>
         </div>
 
         <!-- 가입 버튼 -->
-        <button type="submit" class="gls-btn gls-btn-primary gls-btn-block mt-2">가입하기</button>
+        <button type="submit" class="gls-btn gls-btn-primary gls-btn-block gls-mt-2">가입하기</button>
       </form>
     </div>
   </section>
@@ -216,12 +216,12 @@
   <footer class="custom-footer">
     <div class="container">
       <div class="row gy-2 align-items-center justify-content-between">
-        <div class="col-md-6 text-center text-md-start">
+        <div class="col-md-6 gls-text-center gls-text-md-start">
           <div class="footer-brand">글숲</div>
           <p class="footer-subtitle mb-0">마음을 나누는 작은 숲</p>
         </div>
-        <div class="col-md-6 text-center text-md-end footer-meta">
-          <p class="footer-copy mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
+        <div class="col-md-6 gls-text-center gls-text-md-end footer-meta">
+          <p class="footer-copy gls-mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
           <p class="footer-small mb-0">&copy; 2025 글숲</p>
         </div>
       </div>

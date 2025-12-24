@@ -39,3 +39,42 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
   justify-content: space-between;
   gap: 0.5rem;
 }
+
+/* ============================================================
+   Phase B: layout utilities (bootstrap spacing/display replacement)
+   - keep numbers aligned to bootstrap scale for smooth migration
+   ============================================================ */
+
+/* display */
+.gls-flex { display: flex; }
+.gls-flex-col { flex-direction: column; }
+.gls-block { display: block; }
+.gls-hidden { display: none; }
+
+@media (min-width: 768px) {
+  .gls-md-inline { display: inline; }
+  .gls-text-md-start { text-align: left; }
+  .gls-text-md-end { text-align: right; }
+}
+
+/* sizing */
+.gls-min-vh-100 { min-height: 100vh; }
+
+/* alignment */
+.gls-text-center { text-align: center; }
+
+/* auto margin */
+.gls-mt-auto { margin-top: auto; }
+
+/* spacing (bootstrap-like scale) */
+.gls-py-5 { padding-top: 3rem; padding-bottom: 3rem; }
+.gls-p-3 { padding: 1rem; }
+
+.gls-mt-5 { margin-top: 3rem; }
+.gls-mt-3 { margin-top: 1rem; }
+.gls-mt-2 { margin-top: 0.5rem; }
+
+.gls-mb-4 { margin-bottom: 1.5rem; }
+.gls-mb-3 { margin-bottom: 1rem; }
+.gls-mb-2 { margin-bottom: 0.5rem; }
+.gls-mb-1 { margin-bottom: 0.25rem; }
