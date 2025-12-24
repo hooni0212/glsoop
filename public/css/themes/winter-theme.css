@@ -10,6 +10,7 @@ body.winter-theme {
 
   /* 헤더/CTA용 공통 네이비 계열 그라디언트 */
   --gls-header-gradient: linear-gradient(90deg, #2C4C72, #3F668F);
+  --gls-navbar-brand-gradient: linear-gradient(120deg, #F8FDFF, #EAF5FF);
   --gls-header-strong: #345b83;
 
   /* 글/카드 톤 변수들 그대로 유지 */

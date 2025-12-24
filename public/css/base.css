@@ -240,9 +240,12 @@ select:focus-visible {
    2. 네비게이션 바
 ========================= */
 
-/* 상단 네비 전체 배경 */
+/* 상단 네비 전체 배경
+   - 기본값은 spring(그린) 톤
+   - 테마는 --gls-header-gradient 만 덮어쓰면 됨
+*/
 .custom-navbar {
-  background: linear-gradient(90deg, #2e8b57, #3ca66c);
+  background: var(--gls-header-gradient, linear-gradient(90deg, #2e8b57, #3ca66c));
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
@@ -253,8 +256,8 @@ select:focus-visible {
   letter-spacing: 0.08em;
   line-height: 1;
 
-  /* 🟢 거의 흰색에 가까운 연초록 그라디언트 */
-  background: linear-gradient(120deg, #f8fff9, #ecfff4);
+  /* 🟢 기본 로고 그라디언트 (테마에서 변수로 덮어쓰기 가능) */
+  background: var(--gls-navbar-brand-gradient, linear-gradient(120deg, #f8fff9, #ecfff4));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
