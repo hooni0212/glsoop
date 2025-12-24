@@ -31,3 +31,11 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
   line-height: 1.3;
   color: var(--gls-muted);
 }
+
+/* flex helpers (bootstrap d-flex + justify-content-between replacement) */
+.gls-spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}

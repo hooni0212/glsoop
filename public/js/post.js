@@ -124,10 +124,10 @@ function ensureIgExportModal() {
 
             <div class="col-6">
               <label class="gls-label small mb-1">오버레이 진하기</label>
-              <input id="igOptOverlay" type="range" class="form-range" min="0" max="0.65" step="0.01" value="0.35" />
-              <div class="d-flex justify-content-between">
-                <span class="text-muted small">밝게</span>
-                <span class="text-muted small">진하게</span>
+              <input id="igOptOverlay" type="range" class="gls-range" min="0" max="0.65" step="0.01" value="0.35" />
+              <div class="gls-spread">
+                <span class="gls-text-muted gls-text-small">밝게</span>
+                <span class="gls-text-muted gls-text-small">진하게</span>
               </div>
             </div>
 
@@ -143,8 +143,8 @@ function ensureIgExportModal() {
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">닫기</button>
-          <button type="button" class="btn btn-primary btn-sm" id="igExportRunBtn">PNG 저장</button>
+          <button type="button" class="gls-btn gls-btn-secondary gls-btn-sm" data-bs-dismiss="modal">닫기</button>
+          <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" id="igExportRunBtn">PNG 저장</button>
         </div>
       </div>
     </div>
