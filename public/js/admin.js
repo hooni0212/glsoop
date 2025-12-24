@@ -470,10 +470,10 @@ Glsoop.AdminPage = (function () {
         return `
           <article class="admin-post-card" data-post-id="${post.id}">
             <div class="admin-post-card__top">
-              <span class="badge rounded-pill bg-light text-dark admin-post-card__category">${
+              <span class="gls-badge gls-badge-soft admin-post-card__category">${
                 post.category || '카테고리 없음'
               }</span>
-              <button class="btn btn-icon admin-post-card__delete" type="button" aria-label="삭제" title="삭제">
+              <button class="gls-btn gls-btn-ghost gls-btn-xs admin-post-card__delete" type="button" aria-label="삭제" title="삭제">
                 ×
               </button>
             </div>
@@ -652,10 +652,10 @@ Glsoop.AdminPage = (function () {
         (t) => `
         <tr data-template-id="${t.id}">
           <td>${escapeHtml(t.name)}</td>
-          <td><span class="badge bg-light text-dark">${escapeHtml(
+          <td><span class="gls-badge gls-badge-soft">${escapeHtml(
             CONDITION_LABELS[t.condition_type] || t.condition_type
           )}</span> ${
-            t.category ? `<span class="badge bg-secondary ms-1">${escapeHtml(t.category)}</span>` : ''
+            t.category ? `<span class="gls-badge gls-badge--muted ms-1">${escapeHtml(t.category)}</span>` : ''
           }</td>
           <td>${t.target_value}</td>
           <td>${t.reward_xp || 0} XP</td>
