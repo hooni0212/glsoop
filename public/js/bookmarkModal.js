@@ -38,19 +38,19 @@
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">북마크 폴더 선택</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="gls-modal-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <div class="bookmark-modal-status text-muted small mb-2"></div>
+              <div class="bookmark-modal-status gls-text-muted gls-text-small mb-2"></div>
               <div class="bookmark-modal-list list-group mb-3"></div>
               <div class="bookmark-modal-create d-flex gap-2 align-items-center">
                 <input type="text" class="gls-input" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
-                <button class="btn btn-primary bookmark-modal-create-btn" type="button" id="bookmarkNewListSubmit">추가</button>
+                <button class="gls-btn gls-btn-primary gls-btn-sm bookmark-modal-create-btn" type="button" id="bookmarkNewListSubmit">추가</button>
               </div>
             </div>
             <div class="modal-footer">
-              <a href="/html/bookmarks.html" class="btn btn-secondary">북마크 페이지로 이동</a>
-              <button type="button" class="btn btn-primary" data-bs-dismiss="modal">완료</button>
+              <a href="/html/bookmarks.html" class="gls-btn gls-btn-secondary gls-btn-sm">북마크 페이지로 이동</a>
+              <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" data-bs-dismiss="modal">완료</button>
             </div>
           </div>
         </div>

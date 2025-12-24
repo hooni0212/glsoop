@@ -87,7 +87,7 @@ function ensureIgExportModal() {
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">인스타 이미지 내보내기</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+          <button type="button" class="gls-modal-close" data-bs-dismiss="modal" aria-label="닫기"></button>
         </div>
 
         <div class="modal-body">
