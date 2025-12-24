@@ -41,9 +41,9 @@
               <button type="button" class="gls-modal-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <div class="bookmark-modal-status gls-text-muted gls-text-small mb-2"></div>
-              <div class="bookmark-modal-list list-group mb-3"></div>
-              <div class="bookmark-modal-create d-flex gap-2 align-items-center">
+              <div class="bookmark-modal-status gls-text-muted gls-text-small gls-gls-mb-2"></div>
+              <div class="bookmark-modal-list list-group gls-gls-mb-3"></div>
+              <div class="bookmark-modal-create gls-flex gls-gap-2 gls-items-center">
                 <input type="text" class="gls-input" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
                 <button class="gls-btn gls-btn-primary gls-btn-sm bookmark-modal-create-btn" type="button" id="bookmarkNewListSubmit">추가</button>
               </div>
@@ -104,10 +104,10 @@
     listContainer.innerHTML = '';
     lists.forEach((list) => {
       const item = document.createElement('label');
-      item.className = 'list-group-item d-flex justify-content-between align-items-center';
+      item.className = 'list-group-item gls-flex gls-items-center gls-gap-2';
       const input = document.createElement('input');
       input.type = 'checkbox';
-      input.className = 'gls-check-input me-2';
+      input.className = 'gls-check-input';
       input.checked = selectedIds.has(list.id);
       input.addEventListener('change', () => toggleMembership(list.id, input.checked));
       item.appendChild(input);

@@ -58,6 +58,7 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 .gls-flex { display: flex; }
 .gls-flex-col { flex-direction: column; }
 .gls-block { display: block; }
+.gls-grid { display: grid; }
 .gls-hidden { display: none; }
 
 @media (min-width: 768px) {
