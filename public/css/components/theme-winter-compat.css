@@ -45,41 +45,9 @@ body.winter-theme .hero-card .hero-cta-btn:focus-visible {
   text-decoration: none;
 }
 
-/* 공통 버튼 (success / outline-success) 겨울톤 */
-body.winter-theme .btn-success {
-  color: var(--gls-action-accent);
-  background-color: transparent;
-  border: 1px solid rgba(0, 195, 154, 0.75);
-  box-shadow: 0 10px 24px rgba(0, 150, 136, 0.25);
-}
 
-body.winter-theme .btn-success:hover,
-body.winter-theme .btn-success:focus-visible,
-body.winter-theme .btn-success.active,
-body.winter-theme .btn-success:active {
-  color: #ffffff;
-  background-color: #00c39a;
-  border-color: #00c39a;
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0, 195, 154, 0.35);
-}
 
-body.winter-theme .btn-outline-success {
-  color: var(--gls-action-accent);
-  border-color: rgba(0, 195, 154, 0.75);
-  background-color: transparent;
-  box-shadow: 0 8px 18px rgba(0, 150, 136, 0.16);
-}
 
-body.winter-theme .btn-outline-success:hover,
-body.winter-theme .btn-outline-success:focus-visible,
-body.winter-theme .btn-outline-success.active,
-body.winter-theme .btn-outline-success:active {
-  color: #ffffff;
-  background-color: #00c39a;
-  border-color: #00c39a;
-  box-shadow: 0 12px 28px rgba(0, 195, 154, 0.28);
-}
 
 /* 해시태그 칩 겨울톤 */
 body.winter-theme .gls-tag-btn {
@@ -147,57 +115,13 @@ body.winter-theme .bookmark-empty-state {
   color: #3a5870;
 }
 
-body.winter-theme .btn-primary {
-  background: #2f6c8a;
-  border-color: #2f6c8a;
-  box-shadow: 0 12px 26px rgba(47, 108, 138, 0.26);
-}
 
-body.winter-theme .btn-primary:hover,
-body.winter-theme .btn-primary:focus-visible {
-  filter: brightness(0.92);
-  background: #2f6c8a;
-  border-color: #2f6c8a;
-}
 
-body.winter-theme .btn-secondary {
-  color: #2f6c8a;
-  border-color: #2f6c8a;
-  background: transparent;
-  box-shadow: none;
-}
 
-body.winter-theme .btn-secondary:hover,
-body.winter-theme .btn-secondary:focus-visible {
-  background: rgba(47, 108, 138, 0.12);
-  color: #1f2c3a;
-}
 
-body.winter-theme .btn-secondary.active,
-body.winter-theme .btn-secondary:active {
-  background: rgba(47, 108, 138, 0.18);
-  color: #102131;
-  border-color: #2f6c8a;
-}
 
-body.winter-theme .btn-ghost {
-  background: transparent;
-  border-color: rgba(207, 217, 228, 0.8);
-  color: #415165;
-}
 
-body.winter-theme .btn-ghost:hover,
-body.winter-theme .btn-ghost:focus-visible {
-  background: rgba(227, 240, 255, 0.55);
-  color: #0f2d44;
-  border-color: rgba(189, 205, 219, 0.95);
-}
 
-body.winter-theme .btn-danger {
-  color: #c0392b;
-  border-color: #c0392b;
-  box-shadow: 0 10px 22px rgba(192, 57, 43, 0.18);
-}
 
 body.winter-theme .post-bookmark-toggle {
   border-color: rgba(47, 108, 138, 0.35);
