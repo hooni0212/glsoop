@@ -253,16 +253,16 @@ Glsoop.AdminPage = (function () {
     const rowsHtml = users
       .map((u) => {
         const isAdminBadge = u.is_admin
-          ? '<span class="badge bg-danger ms-1">관리자</span>'
+          ? '<span class="gls-badge gls-badge--danger ms-1">관리자</span>'
           : '';
         const isVerifiedBadge =
           u.is_verified && Number(u.is_verified) === 1
-            ? '<span class="badge bg-success ms-1">인증완료</span>'
-            : '<span class="badge bg-secondary ms-1">미인증</span>';
+            ? '<span class="gls-badge gls-badge--success ms-1">인증완료</span>'
+            : '<span class="gls-badge gls-badge--muted ms-1">미인증</span>';
         const nicknameText =
           u.nickname && String(u.nickname).trim().length > 0
             ? escapeHtml(u.nickname)
-            : '<span class="text-muted">-</span>';
+            : '<span class="gls-text-muted">-</span>';
         const maskedEmail = maskEmail(u.email);
         return `
           <tr data-user-id="${u.id}">
@@ -274,7 +274,7 @@ Glsoop.AdminPage = (function () {
             <td>
               <button
                 type="button"
-                class="btn btn-sm btn-outline-danger admin-delete-user-btn"
+                class="gls-btn gls-btn-danger gls-btn-xs admin-delete-user-btn"
               >
                 삭제
               </button>
@@ -361,7 +361,7 @@ Glsoop.AdminPage = (function () {
             <option value="48" selected>48개씩</option>
             <option value="96">96개씩</option>
           </select>
-          <button class="btn btn-sm btn-outline-primary" id="adminPostsApply" type="button">적용</button>
+          <button class="gls-btn gls-btn-primary gls-btn-sm" id="adminPostsApply" type="button">적용</button>
         </div>
       `;
       filterBox.addEventListener('click', (e) => {
@@ -483,8 +483,8 @@ Glsoop.AdminPage = (function () {
           snippet.length >= 80 ? '…' : ''
         }</p>
             <div class="d-flex justify-content-between align-items-center admin-post-card__footer">
-              <span class="text-muted small">❤ ${post.like_count || 0}</span>
-              <button class="btn btn-sm btn-outline-primary admin-post-card__preview" type="button">미리보기</button>
+              <span class="gls-text-muted gls-text-small">❤ ${post.like_count || 0}</span>
+              <button class="gls-btn gls-btn-secondary gls-btn-xs admin-post-card__preview" type="button">미리보기</button>
             </div>
           </article>
         `;
@@ -498,9 +498,9 @@ Glsoop.AdminPage = (function () {
     const nextDisabled = page >= totalPages ? 'disabled' : '';
     return `
       <div class="d-flex justify-content-between align-items-center w-100">
-        <button class="btn btn-sm btn-outline-secondary" data-page="${page - 1}" ${prevDisabled}>이전</button>
-        <span class="text-muted small">${page} / ${totalPages} 페이지 · 총 ${total}건</span>
-        <button class="btn btn-sm btn-outline-secondary" data-page="${page + 1}" ${nextDisabled}>다음</button>
+        <button class="gls-btn gls-btn-secondary gls-btn-xs" data-page="${page - 1}" ${prevDisabled}>이전</button>
+        <span class="gls-text-muted gls-text-small">${page} / ${totalPages} 페이지 · 총 ${total}건</span>
+        <button class="gls-btn gls-btn-secondary gls-btn-xs" data-page="${page + 1}" ${nextDisabled}>다음</button>
       </div>
     `;
   }
@@ -661,8 +661,8 @@ Glsoop.AdminPage = (function () {
           <td>${t.reward_xp || 0} XP</td>
           <td>${t.is_active ? '활성' : '비활성'}</td>
           <td class="text-end">
-            <button class="btn btn-sm btn-outline-primary quest-template-edit" type="button">수정</button>
-            <button class="btn btn-sm btn-outline-danger quest-template-delete" type="button">삭제</button>
+            <button class="gls-btn gls-btn-secondary gls-btn-xs quest-template-edit" type="button">수정</button>
+            <button class="gls-btn gls-btn-danger gls-btn-xs quest-template-delete" type="button">삭제</button>
           </td>
         </tr>`
       )
@@ -672,7 +672,7 @@ Glsoop.AdminPage = (function () {
       <form id="questTemplateForm" class="quest-form card mb-3 p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h5 class="mb-0">${editingId ? '템플릿 수정' : '새 템플릿 추가'}</h5>
-          <button class="btn btn-sm btn-outline-secondary" type="button" id="questTemplateReset">초기화</button>
+          <button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" id="questTemplateReset">초기화</button>
         </div>
         <div class="row g-2">
           <div class="col-md-4">
@@ -725,7 +725,7 @@ Glsoop.AdminPage = (function () {
         </div>
         <div class="text-end mt-3">
           <input type="hidden" name="id" value="${editingId}" />
-          <button class="btn btn-primary btn-sm" type="submit">${editingId ? '수정 저장' : '추가'}</button>
+          <button class="gls-btn gls-btn-primary gls-btn-sm" type="submit">${editingId ? '수정 저장' : '추가'}</button>
         </div>
       </form>
       <div class="table-responsive">
@@ -895,8 +895,8 @@ Glsoop.AdminPage = (function () {
           <td>${c.start_at || '-'} ~ ${c.end_at || '-'}</td>
           <td>${c.is_active ? '활성' : '비활성'} (priority ${c.priority || 1})</td>
           <td class="text-end">
-            <button class="btn btn-sm btn-outline-primary quest-campaign-edit" type="button">편집</button>
-            <button class="btn btn-sm btn-outline-danger quest-campaign-delete" type="button">삭제</button>
+            <button class="gls-btn gls-btn-secondary gls-btn-xs quest-campaign-edit" type="button">편집</button>
+            <button class="gls-btn gls-btn-danger gls-btn-xs quest-campaign-delete" type="button">삭제</button>
           </td>
         </tr>`
       )
@@ -906,7 +906,7 @@ Glsoop.AdminPage = (function () {
       <form id="questCampaignForm" class="quest-form card mb-3 p-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h5 class="mb-0">${editingId ? '캠페인 수정' : '새 캠페인 추가'}</h5>
-          <button class="btn btn-sm btn-outline-secondary" type="button" id="questCampaignReset">초기화</button>
+          <button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" id="questCampaignReset">초기화</button>
         </div>
         <div class="row g-2">
           <div class="col-md-4">
@@ -968,7 +968,7 @@ Glsoop.AdminPage = (function () {
         </div>
         <div class="text-end mt-3">
           <input type="hidden" name="id" value="${editingId}" />
-          <button class="btn btn-primary btn-sm" type="submit">${editingId ? '수정 저장' : '추가'}</button>
+          <button class="gls-btn gls-btn-primary gls-btn-sm" type="submit">${editingId ? '수정 저장' : '추가'}</button>
         </div>
       </form>
       <div class="table-responsive">

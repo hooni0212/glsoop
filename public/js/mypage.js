@@ -112,7 +112,7 @@ async function loadMyPage() {
         </div>
         <button
           type="button"
-          class="btn btn-ghost btn-sm"
+          class="gls-btn gls-btn-ghost gls-btn-xs"
           data-bs-toggle="modal"
           data-bs-target="#userEditModal"
         >
@@ -308,13 +308,13 @@ function renderPostCard(post, options = {}) {
       <div class="d-flex justify-content-end w-100 mt-2 gap-2">
         <button
           type="button"
-          class="btn btn-sm btn-outline-secondary edit-post-btn"
+          class="gls-btn gls-btn-secondary gls-btn-xs edit-post-btn"
         >
           수정
         </button>
         <button
           type="button"
-          class="btn btn-sm btn-outline-danger delete-post-btn"
+          class="gls-btn gls-btn-danger gls-btn-xs delete-post-btn"
         >
           삭제
         </button>
@@ -359,14 +359,14 @@ function renderFollowingCard(user) {
           </div>
           <div class="d-flex flex-column gap-2 align-items-end">
             <a
-              class="btn btn-outline-primary btn-sm"
+              class="gls-btn gls-btn-primary gls-btn-xs"
               href="/html/author.html?userId=${encodeURIComponent(user.id)}"
             >
               프로필 보기
             </a>
             <button
               type="button"
-              class="btn btn-outline-danger btn-sm unfollow-btn"
+              class="gls-btn gls-btn-danger gls-btn-xs unfollow-btn"
               data-user-id="${user.id}"
             >
               언팔로우

@@ -89,8 +89,8 @@
         <div class="bookmark-folder-meta">
           <span class="bookmark-folder-count">글 ${list.item_count || 0}개</span>
           <div class="bookmark-folder-actions">
-            <button class="btn btn-sm btn-secondary" data-action="edit">수정</button>
-            <button class="btn btn-sm btn-danger" data-action="delete">삭제</button>
+            <button class="gls-btn gls-btn-secondary gls-btn-xs" data-action="edit">수정</button>
+            <button class="gls-btn gls-btn-danger gls-btn-xs" data-action="delete">삭제</button>
           </div>
         </div>
       `;
