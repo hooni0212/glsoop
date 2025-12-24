@@ -106,3 +106,11 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 .gls-mb-3 { margin-bottom: 1rem; }
 .gls-mb-2 { margin-bottom: 0.5rem; }
 .gls-mb-1 { margin-bottom: 0.25rem; }
+/* ============================
+ * Phase B (layout utils) additions
+ * ============================ */
+.gls-flex-1 { flex: 1 1 0%; }
+.gls-h-100 { height: 100%; }
+.gls-py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.gls-py-3 { padding-top: 1rem; padding-bottom: 1rem; }
+.gls-mt-4 { margin-top: 1.5rem; }

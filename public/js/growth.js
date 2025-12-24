@@ -221,18 +221,18 @@ function renderAchievementDetail(achievement) {
   detail.innerHTML = `
     <div class="forest-map-detail">
       <div class="forest-map-detail-label">선택한 업적</div>
-      <div class="d-flex align-items-center gap-3 mb-2">
+      <div class="gls-flex gls-items-center gls-gap-3 gls-mb-2">
         <div class="forest-map-detail-icon">${achievement.icon || '🌿'}</div>
         <div>
-          <p class="gls-text-muted gls-text-small forest-map-detail-category mb-1">${achievement.category || ''}</p>
-          <h4 class="mb-1 forest-map-detail-title">${achievement.name}</h4>
-          <p class="mb-0 gls-text-muted forest-map-detail-desc">${achievement.description || ''}</p>
+          <p class="gls-text-muted gls-text-small forest-map-detail-category gls-mb-1">${achievement.category || ''}</p>
+          <h4 class="gls-mb-1 forest-map-detail-title">${achievement.name}</h4>
+          <p class="gls-mb-0 gls-text-muted forest-map-detail-desc">${achievement.description || ''}</p>
         </div>
       </div>
       <div class="forest-map-detail-progress" role="progressbar" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100">
         <div class="forest-map-detail-progress-bar" style="width: ${progressPercent}%"></div>
       </div>
-      <div class="d-flex justify-content-between align-items-center mt-2 gls-text-small gls-text-muted">
+      <div class="gls-flex gls-justify-between gls-items-center gls-mt-2 gls-text-small gls-text-muted">
         <span>${achievement.progress || 0} / ${achievement.target || 0}</span>
         <span>${renderStatusLabel(achievement.status)}</span>
       </div>
@@ -343,7 +343,7 @@ function renderQuestGroups(campaigns = []) {
         <span>${campaign.dateLabel || ''}</span>
         <span>${(campaign.quests || []).length}개 퀘스트</span>
       </div>
-      ${campaign.description ? `<p class="campaign-desc gls-text-muted mb-0">${campaign.description}</p>` : ''}
+      ${campaign.description ? `<p class="campaign-desc gls-text-muted gls-mb-0">${campaign.description}</p>` : ''}
     `;
     campaignStack.appendChild(card);
   };
