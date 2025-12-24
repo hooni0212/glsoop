@@ -635,7 +635,7 @@ function setupCardInteractions(card, post) {
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'tagFilterBar';
-      bar.className = 'd-flex flex-wrap align-items-center gap-2 mb-3';
+      bar.className = 'gls-flex gls-flex-wrap gls-items-center gls-gap-2 gls-mb-3';
 
       // feedBox 바로 위에 삽입
       if (feedBox.parentNode) {

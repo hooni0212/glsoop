@@ -170,7 +170,7 @@ try {
   if (hashtagsInput) {
     hashtagChipContainer = document.createElement('div');
     hashtagChipContainer.id = 'hashtagChips';
-    hashtagChipContainer.className = 'd-flex flex-wrap';
+    hashtagChipContainer.className = 'gls-flex gls-flex-wrap';
     // 인풋 바로 아래에 붙이기
     hashtagsInput.insertAdjacentElement('afterend', hashtagChipContainer);
   }
@@ -556,7 +556,7 @@ try {
 
     // 에러 영역 초기화
     if (editorAlertEl) {
-      editorAlertEl.classList.add('d-none');
+      editorAlertEl.classList.add('gls-hidden');
       editorAlertEl.textContent = '';
     }
 
@@ -629,7 +629,7 @@ try {
       return;
     }
     editorAlertEl.textContent = msg;
-    editorAlertEl.classList.remove('d-none');
+    editorAlertEl.classList.remove('gls-hidden');
 
     // 에러 영역이 보이도록 살짝 위로 스크롤
     window.scrollTo({ top: editorAlertEl.offsetTop - 140, behavior: 'smooth' });
