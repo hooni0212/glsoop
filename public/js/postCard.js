@@ -159,7 +159,7 @@ function buildStandardPostCardHTML(post, options = {}) {
             <span class="gls-author-badge">
               ${escapeHtml(author)}
             </span>
-            <span class="text-muted small">${escapeHtml(dateStr)}</span>
+            <span class="gls-text-muted gls-text-small">${escapeHtml(dateStr)}</span>
           </div>
           <div class="post-top-actions">
             ${bookmarkBtn}

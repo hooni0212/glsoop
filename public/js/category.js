@@ -56,7 +56,7 @@
 
     if (feedBox) {
       feedBox.dataset.initialized = '';
-      feedBox.innerHTML = '<p class="text-muted">피드를 불러오는 중입니다...</p>';
+      feedBox.innerHTML = '<p class="gls-text-muted">피드를 불러오는 중입니다...</p>';
     }
 
     loadMore();
@@ -151,7 +151,7 @@
     if (!feedBox) return;
 
     const label = getCategoryLabel(currentCategory);
-    feedBox.innerHTML = `<div class="text-center text-muted py-4">${escapeHtml(
+    feedBox.innerHTML = `<div class="text-center gls-text-muted py-4">${escapeHtml(
       `${label} 글이 아직 없습니다.`
     )}</div>`;
   }

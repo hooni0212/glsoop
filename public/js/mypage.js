@@ -82,7 +82,7 @@ async function loadMyPage() {
 
     // 한 줄 소개(bio)가 있는 경우에만 줄 추가
     const bioHtml = meData.bio
-      ? `<p class="mb-1 text-muted small">한 줄 소개: ${escapeHtml(
+      ? `<p class="mb-1 gls-text-muted gls-text-small">한 줄 소개: ${escapeHtml(
           meData.bio
         )}</p>`
       : '';
@@ -90,7 +90,7 @@ async function loadMyPage() {
     // 자기소개(about)가 있는 경우에만 줄 추가
     // - white-space: pre-line; → 줄바꿈(\n)을 실제 줄바꿈으로 보여줌
     const aboutHtml = meData.about
-      ? `<p class="mb-0 small" style="white-space: pre-line;">${escapeHtml(
+      ? `<p class="mb-0 gls-text-small" style="white-space: pre-line;">${escapeHtml(
           meData.about
         )}</p>`
       : '';
@@ -105,7 +105,7 @@ async function loadMyPage() {
           <p class="mb-1">이메일: ${escapeHtml(meData.email)}</p>
           ${bioHtml}
           ${aboutHtml}
-          <div class="d-flex gap-3 flex-wrap mt-2 small text-muted">
+          <div class="d-flex gap-3 flex-wrap mt-2 gls-text-small gls-text-muted">
             <span>팔로워 <strong id="mypageFollowerCount">${followerCount}</strong></span>
             <span>팔로잉 <strong id="mypageFollowingCount">${followingCount}</strong></span>
           </div>
@@ -335,13 +335,13 @@ function renderFollowingCard(user) {
   const displayName = getDisplayName(user);
   const maskedEmail = maskEmail(user.email || '');
   const emailHtml = maskedEmail
-    ? `<p class="mb-1 text-muted small">${escapeHtml(maskedEmail)}</p>`
+    ? `<p class="mb-1 gls-text-muted gls-text-small">${escapeHtml(maskedEmail)}</p>`
     : '';
   const bioHtml = user.bio
-    ? `<p class="mb-1 text-muted small">${escapeHtml(user.bio)}</p>`
+    ? `<p class="mb-1 gls-text-muted gls-text-small">${escapeHtml(user.bio)}</p>`
     : '';
   const aboutHtml = user.about
-    ? `<p class="mb-1 small" style="white-space: pre-line;">${escapeHtml(
+    ? `<p class="mb-1 gls-text-small" style="white-space: pre-line;">${escapeHtml(
         user.about
       )}</p>`
     : '';
@@ -355,7 +355,7 @@ function renderFollowingCard(user) {
             ${emailHtml}
             ${bioHtml}
             ${aboutHtml}
-            <p class="mb-0 text-muted small">팔로워 ${user.followerCount || 0}</p>
+            <p class="mb-0 gls-text-muted gls-text-small">팔로워 ${user.followerCount || 0}</p>
           </div>
           <div class="d-flex flex-column gap-2 align-items-end">
             <a
@@ -400,7 +400,7 @@ async function loadMyPosts() {
 
   // 로딩 중 안내 문구
   postsBox.innerHTML =
-    '<p class="text-muted">글 목록을 불러오는 중입니다...</p>';
+    '<p class="gls-text-muted">글 목록을 불러오는 중입니다...</p>';
 
   try {
     const postsRes = await fetch('/api/posts/my');
@@ -427,7 +427,7 @@ async function loadMyPosts() {
     // 작성한 글이 하나도 없는 경우
     if (!posts.length) {
       postsBox.innerHTML =
-        '<p class="text-muted">아직 작성한 글이 없습니다.</p>';
+        '<p class="gls-text-muted">아직 작성한 글이 없습니다.</p>';
       myPostsLoaded = true;
       return;
     }
@@ -487,7 +487,7 @@ async function loadLikedPosts() {
 
   // 로딩 중 안내 문구
   likedBox.innerHTML =
-    '<p class="text-muted">공감한 글을 불러오는 중입니다...</p>';
+    '<p class="gls-text-muted">공감한 글을 불러오는 중입니다...</p>';
 
   try {
     const likedRes = await fetch('/api/posts/liked');
@@ -514,7 +514,7 @@ async function loadLikedPosts() {
     // 공감한 글이 하나도 없는 경우
     if (!likedPosts.length) {
       likedBox.innerHTML =
-        '<p class="text-muted">아직 공감한 글이 없습니다.</p>';
+        '<p class="gls-text-muted">아직 공감한 글이 없습니다.</p>';
       likedPostsLoaded = true;
       return;
     }
@@ -569,7 +569,7 @@ async function loadMyFollowings() {
   if (!followingsBox) return;
 
   followingsBox.innerHTML =
-    '<p class="text-muted">팔로잉 목록을 불러오는 중입니다...</p>';
+    '<p class="gls-text-muted">팔로잉 목록을 불러오는 중입니다...</p>';
 
   try {
     const res = await fetch('/api/me/followings');
@@ -591,7 +591,7 @@ async function loadMyFollowings() {
     const followings = data.followings || [];
     if (!followings.length) {
       followingsBox.innerHTML =
-        '<p class="text-muted">아직 팔로잉한 사람이 없습니다.</p>';
+        '<p class="gls-text-muted">아직 팔로잉한 사람이 없습니다.</p>';
       followingsLoaded = true;
       return;
     }
@@ -662,7 +662,7 @@ function setupFollowingListEvents() {
         // 카드가 모두 사라졌다면 안내 문구 노출
         if (!followingsBox.querySelector('.mypage-following-card')) {
           followingsBox.innerHTML =
-            '<p class="text-muted">아직 팔로잉한 사람이 없습니다.</p>';
+            '<p class="gls-text-muted">아직 팔로잉한 사람이 없습니다.</p>';
         }
       } else {
         // 여전히 팔로잉 상태라면 버튼만 복원
@@ -724,7 +724,7 @@ function setupMyPostCardEvents() {
         // 더 이상 카드가 없으면 "아직 작성한 글이 없습니다" 문구 출력
         if (!postsBox.querySelector('.mypage-post-card')) {
           postsBox.innerHTML =
-            '<p class="text-muted">아직 작성한 글이 없습니다.</p>';
+            '<p class="gls-text-muted">아직 작성한 글이 없습니다.</p>';
         }
       } catch (err) {
         console.error(err);

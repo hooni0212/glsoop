@@ -69,7 +69,7 @@ Glsoop.AdminPage = (function () {
       <p class="mb-1">
         <strong>${escapeHtml(me.name)}</strong> 님, 관리자 권한으로 접속했습니다.
       </p>
-      <p class="text-muted mb-0">
+      <p class="gls-text-muted mb-0">
         회원과 게시글, 퀘스트를 이 페이지에서 관리할 수 있습니다.
       </p>
     `;
@@ -236,7 +236,7 @@ Glsoop.AdminPage = (function () {
       }
       const users = data.users || [];
       if (!users.length) {
-        usersBox.innerHTML = '<p class="text-muted">현재 가입된 회원이 없습니다.</p>';
+        usersBox.innerHTML = '<p class="gls-text-muted">현재 가입된 회원이 없습니다.</p>';
         return;
       }
       usersBox.innerHTML = buildUsersTableHtml(users);
@@ -323,7 +323,7 @@ Glsoop.AdminPage = (function () {
       }
       tr.remove();
       if (!tbody.children.length) {
-        usersBox.innerHTML = '<p class="text-muted">현재 가입된 회원이 없습니다.</p>';
+        usersBox.innerHTML = '<p class="gls-text-muted">현재 가입된 회원이 없습니다.</p>';
       }
     } catch (err) {
       console.error(err);
@@ -392,7 +392,7 @@ Glsoop.AdminPage = (function () {
     const grid = postsBox?.querySelector('#adminPostsGrid');
     const pagination = postsBox?.querySelector('#adminPostsPagination');
     if (!grid) return;
-    grid.innerHTML = '<p class="text-muted">글 목록을 불러오는 중입니다...</p>';
+    grid.innerHTML = '<p class="gls-text-muted">글 목록을 불러오는 중입니다...</p>';
     if (pagination) pagination.innerHTML = '';
 
     const params = new URLSearchParams({
@@ -431,7 +431,7 @@ Glsoop.AdminPage = (function () {
 
       const posts = data.items || data.posts || [];
       if (!posts.length) {
-        grid.innerHTML = '<p class="text-muted">등록된 글이 없습니다.</p>';
+        grid.innerHTML = '<p class="gls-text-muted">등록된 글이 없습니다.</p>';
       } else {
         grid.innerHTML = buildPostsHtml(posts);
       }
@@ -600,7 +600,7 @@ Glsoop.AdminPage = (function () {
       if (card) card.remove();
       const grid = document.getElementById('adminPostsGrid');
       if (grid && !grid.querySelector('.admin-post-card')) {
-        grid.innerHTML = '<p class="text-muted">등록된 글이 없습니다.</p>';
+        grid.innerHTML = '<p class="gls-text-muted">등록된 글이 없습니다.</p>';
       }
       closePostModal();
     } catch (err) {
@@ -612,7 +612,7 @@ Glsoop.AdminPage = (function () {
     async function loadQuestTemplates() {
       const box = document.getElementById('questTemplates');
       if (!box) return;
-      box.innerHTML = '<p class="text-muted">템플릿을 불러오는 중입니다...</p>';
+      box.innerHTML = '<p class="gls-text-muted">템플릿을 불러오는 중입니다...</p>';
       try {
         const res = await fetch('/api/admin/quest-templates');
         if (res.status === 401 || res.status === 403) {
@@ -676,19 +676,19 @@ Glsoop.AdminPage = (function () {
         </div>
         <div class="row g-2">
           <div class="col-md-4">
-            <label class="gls-label small mb-1">제목</label>
+            <label class="gls-label gls-text-small mb-1">제목</label>
             <input class="gls-input gls-input-sm" name="name" value="${escapeHtml(
               values.name || ''
             )}" required />
           </div>
           <div class="col-md-4">
-            <label class="gls-label small mb-1">조건 타입</label>
+            <label class="gls-label gls-text-small mb-1">조건 타입</label>
             <select class="gls-select gls-select-sm" name="condition_type" required>
               ${buildConditionOptions(values.condition_type)}
             </select>
           </div>
           <div class="col-md-4">
-            <label class="gls-label small mb-1">카테고리(선택)</label>
+            <label class="gls-label gls-text-small mb-1">카테고리(선택)</label>
             <select class="gls-select gls-select-sm" name="category">
               <option value="">(전체)</option>
               <option value="poem" ${values.category === 'poem' ? 'selected' : ''}>시</option>
@@ -697,19 +697,19 @@ Glsoop.AdminPage = (function () {
             </select>
           </div>
           <div class="col-md-3">
-            <label class="gls-label small mb-1">목표</label>
+            <label class="gls-label gls-text-small mb-1">목표</label>
             <input type="number" min="1" class="gls-input gls-input-sm" name="target_value" value="${
               values.target_value || ''
             }" required />
           </div>
           <div class="col-md-3">
-            <label class="gls-label small mb-1">보상 XP</label>
+            <label class="gls-label gls-text-small mb-1">보상 XP</label>
             <input type="number" min="0" class="gls-input gls-input-sm" name="reward_xp" value="${
               values.reward_xp || 0
             }" />
           </div>
           <div class="col-md-6">
-            <label class="gls-label small mb-1">설명</label>
+            <label class="gls-label gls-text-small mb-1">설명</label>
             <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
@@ -827,7 +827,7 @@ Glsoop.AdminPage = (function () {
   async function loadQuestCampaigns() {
     const box = document.getElementById('questCampaigns');
     if (!box) return;
-    box.innerHTML = '<p class="text-muted">캠페인을 불러오는 중입니다...</p>';
+    box.innerHTML = '<p class="gls-text-muted">캠페인을 불러오는 중입니다...</p>';
     try {
       const res = await fetch('/api/admin/quest-campaigns');
       if (res.status === 401 || res.status === 403) {
@@ -910,13 +910,13 @@ Glsoop.AdminPage = (function () {
         </div>
         <div class="row g-2">
           <div class="col-md-4">
-            <label class="gls-label small mb-1">이름</label>
+            <label class="gls-label gls-text-small mb-1">이름</label>
             <input class="gls-input gls-input-sm" name="name" value="${escapeHtml(
               values.name || ''
             )}" required />
           </div>
           <div class="col-md-3">
-            <label class="gls-label small mb-1">유형</label>
+            <label class="gls-label gls-text-small mb-1">유형</label>
             <select class="gls-select gls-select-sm" name="campaign_type">
               ${typeOptions
                 .map(
@@ -928,25 +928,25 @@ Glsoop.AdminPage = (function () {
             </select>
           </div>
           <div class="col-md-3">
-            <label class="gls-label small mb-1">시작</label>
+            <label class="gls-label gls-text-small mb-1">시작</label>
             <input type="datetime-local" class="gls-input gls-input-sm" name="start_at" value="${
               values.start_at ? values.start_at.replace(' ', 'T') : ''
             }" />
           </div>
           <div class="col-md-3">
-            <label class="gls-label small mb-1">종료</label>
+            <label class="gls-label gls-text-small mb-1">종료</label>
             <input type="datetime-local" class="gls-input gls-input-sm" name="end_at" value="${
               values.end_at ? values.end_at.replace(' ', 'T') : ''
             }" />
           </div>
           <div class="col-md-2">
-            <label class="gls-label small mb-1">우선순위</label>
+            <label class="gls-label gls-text-small mb-1">우선순위</label>
             <input type="number" class="gls-input gls-input-sm" name="priority" value="${
               values.priority || 1
             }" />
           </div>
           <div class="col-md-4">
-            <label class="gls-label small mb-1">설명</label>
+            <label class="gls-label gls-text-small mb-1">설명</label>
             <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
@@ -961,9 +961,9 @@ Glsoop.AdminPage = (function () {
           </div>
         </div>
         <div class="mt-3">
-          <p class="small text-muted mb-1">캠페인에 포함할 템플릿을 선택하고 정렬 순서를 지정하세요.</p>
+          <p class="gls-text-small gls-text-muted mb-1">캠페인에 포함할 템플릿을 선택하고 정렬 순서를 지정하세요.</p>
           <div class="quest-template-select">
-            ${selection || '<p class="text-muted">등록된 템플릿이 없습니다.</p>'}
+            ${selection || '<p class="gls-text-muted">등록된 템플릿이 없습니다.</p>'}
           </div>
         </div>
         <div class="text-end mt-3">

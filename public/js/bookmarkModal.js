@@ -97,7 +97,7 @@
   function renderLists(lists, selectedIds = new Set()) {
     if (!listContainer) return;
     if (!lists.length) {
-      listContainer.innerHTML = '<div class="text-muted small">아직 폴더가 없습니다. 아래에서 새 폴더를 만들어주세요.</div>';
+      listContainer.innerHTML = '<div class="gls-text-muted gls-text-small">아직 폴더가 없습니다. 아래에서 새 폴더를 만들어주세요.</div>';
       return;
     }
 
