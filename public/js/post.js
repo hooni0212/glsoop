@@ -205,7 +205,7 @@ function attachIgShareButton(card, post) {
 
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'btn btn-outline-secondary btn-sm';
+  btn.className = 'gls-btn gls-btn-xs gls-btn-secondary ig-share-btn';
   btn.textContent = '⋯';
   btn.setAttribute('data-ig-share-btn', '1');
   btn.style.padding = '2px 10px';

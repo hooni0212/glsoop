@@ -15,6 +15,15 @@
   color: var(--gls-action-accent, var(--gls-color-primary, #2e8b57));
 }
 
+/* IG export (⋯) button in card header */
+.ig-share-btn {
+  padding: 2px 10px;
+  line-height: 1.2;
+  border-radius: 999px;
+  min-height: auto;
+}
+
+
 
 .gls-post-card .post-bottom-meta {
   border-top: 1px solid var(--gls-divider-subtle);
