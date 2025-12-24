@@ -367,11 +367,11 @@ try {
 
     // 30자 이하 남았을 때 빨간색
     if (remaining <= 30) {
-      charCounterEl.classList.remove('text-muted');
+      charCounterEl.classList.remove('gls-text-muted');
       charCounterEl.classList.add('text-danger');
     } else {
       charCounterEl.classList.remove('text-danger');
-      charCounterEl.classList.add('text-muted');
+      charCounterEl.classList.add('gls-text-muted');
     }
   }
 
@@ -395,7 +395,7 @@ try {
 
     let html = `<span class="me-2">폰트: ${escapeHtml(fontLabel)}</span>`;
     if (tagsText) {
-      html += `<span class="text-muted">태그: ${escapeHtml(tagsText)}</span>`;
+      html += `<span class="gls-text-muted">태그: ${escapeHtml(tagsText)}</span>`;
     }
 
     previewMetaEl.innerHTML = html;

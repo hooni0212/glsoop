@@ -93,7 +93,7 @@ function ensureIgExportModal() {
         <div class="modal-body">
           <div class="row g-2">
             <div class="col-6">
-              <label class="gls-label small mb-1">포맷</label>
+              <label class="gls-label gls-text-small mb-1">포맷</label>
               <select id="igOptFormat" class="gls-select gls-select-sm">
                 <option value="feed45">피드 4:5 (1080×1350)</option>
                 <option value="square">정사각 (1080×1080)</option>
@@ -101,7 +101,7 @@ function ensureIgExportModal() {
             </div>
 
             <div class="col-6">
-              <label class="gls-label small mb-1">스타일</label>
+              <label class="gls-label gls-text-small mb-1">스타일</label>
               <select id="igOptStyle" class="gls-select gls-select-sm">
                 <option value="photo-overlay">감성(오버레이)</option>
                 <option value="clean-card">클린 카드</option>
@@ -109,7 +109,7 @@ function ensureIgExportModal() {
             </div>
 
             <div class="col-6">
-              <label class="gls-label small mb-1">배경 프리셋</label>
+              <label class="gls-label gls-text-small mb-1">배경 프리셋</label>
               <select id="igOptBgKey" class="gls-select gls-select-sm">
                 <option value="forestMist">숲 안개</option>
                 <option value="deepGreen">딥 그린</option>
@@ -123,7 +123,7 @@ function ensureIgExportModal() {
             </div>
 
             <div class="col-6">
-              <label class="gls-label small mb-1">오버레이 진하기</label>
+              <label class="gls-label gls-text-small mb-1">오버레이 진하기</label>
               <input id="igOptOverlay" type="range" class="gls-range" min="0" max="0.65" step="0.01" value="0.35" />
               <div class="gls-spread">
                 <span class="gls-text-muted gls-text-small">밝게</span>
@@ -132,7 +132,7 @@ function ensureIgExportModal() {
             </div>
 
             <div class="col-12 mt-2">
-              <label class="gls-label small mb-1">배경 이미지 URL (선택)</label>
+              <label class="gls-label gls-text-small mb-1">배경 이미지 URL (선택)</label>
               <input id="igOptBgUrl" class="gls-input gls-input-sm"
                      placeholder="예) /img/ig/bg.jpg 또는 https://..." />
               <div class="gls-form-help">
@@ -425,11 +425,11 @@ async function loadRelatedPosts(currentPost) {
   const box = hasSidebarTargets ? null : legacyBox;
 
   if (hasSidebarTargets) {
-    highlightEl.innerHTML = '<p class="text-muted small mb-0">관련 글을 불러오는 중입니다...</p>';
+    highlightEl.innerHTML = '<p class="gls-text-muted gls-text-small mb-0">관련 글을 불러오는 중입니다...</p>';
     listEl.innerHTML = '';
   } else {
     if (!box) return;
-    box.innerHTML = '<p class="text-muted">관련 글을 불러오는 중입니다...</p>';
+    box.innerHTML = '<p class="gls-text-muted">관련 글을 불러오는 중입니다...</p>';
   }
 
   try {
@@ -440,10 +440,10 @@ async function loadRelatedPosts(currentPost) {
     if (!res.ok) {
       if (hasSidebarTargets) {
         highlightEl.innerHTML =
-          '<p class="text-muted small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+          '<p class="gls-text-muted gls-text-small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
       } else if (box) {
         box.innerHTML =
-          '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+          '<p class="gls-text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
       }
       return;
     }
@@ -452,10 +452,10 @@ async function loadRelatedPosts(currentPost) {
     if (!data.ok) {
       if (hasSidebarTargets) {
         highlightEl.innerHTML =
-          '<p class="text-muted small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+          '<p class="gls-text-muted gls-text-small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
       } else if (box) {
         box.innerHTML =
-          '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+          '<p class="gls-text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
       }
       return;
     }
@@ -467,11 +467,11 @@ async function loadRelatedPosts(currentPost) {
     if (!posts.length) {
       if (hasSidebarTargets) {
         highlightEl.innerHTML =
-          '<p class="text-muted small mb-0">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
+          '<p class="gls-text-muted gls-text-small mb-0">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
         listEl.innerHTML = '';
       } else if (box) {
         box.innerHTML =
-          '<p class="text-muted">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
+          '<p class="gls-text-muted">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
       }
       return;
     }
@@ -485,11 +485,11 @@ async function loadRelatedPosts(currentPost) {
     console.error(e);
     if (highlightEl && listEl) {
       highlightEl.innerHTML =
-        '<p class="text-muted small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+        '<p class="gls-text-muted gls-text-small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
       listEl.innerHTML = '';
     } else if (legacyBox) {
       legacyBox.innerHTML =
-        '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+        '<p class="gls-text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
     }
   }
 }
@@ -685,7 +685,7 @@ function renderRelatedPosts(box, posts, currentPostId) {
 
   if (!list.length) {
     box.innerHTML =
-      '<p class="text-muted small mb-0">아직 관련된 글이 없습니다.</p>';
+      '<p class="gls-text-muted gls-text-small mb-0">아직 관련된 글이 없습니다.</p>';
     return;
   }
 

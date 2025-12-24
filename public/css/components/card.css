@@ -24,7 +24,7 @@
 }
 
 
-.card-body small.text-muted {
+.card-body small.gls-text-muted {
   font-size: var(--gls-fs-xs, 0.8125rem);
   line-height: var(--gls-lh-normal, 1.55);
 }
@@ -132,7 +132,7 @@ margin-top: 0.25rem;
 }
 
 /* 메타(작성자/좋아요 등): 작게, 하지만 가독성 있게 */
-.gls-post-card .text-muted.small,
+.gls-post-card .gls-text-muted.gls-text-small,
 .gls-post-card .post-bottom-meta {
   font-size: var(--gls-fs-xs, 0.8125rem);
 }
@@ -148,7 +148,7 @@ margin-top: 0.25rem;
   gap: 0.42em;
 }
 
-.gls-post-card .text-muted {
+.gls-post-card .gls-text-muted {
   color: var(--gls-color-muted, #5c655e) !important;
 }
 

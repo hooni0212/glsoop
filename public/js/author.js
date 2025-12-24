@@ -403,8 +403,8 @@ function renderAuthorPosts(posts) {
           <div class="author-post-inner">
             <h6 class="author-post-title mb-1">${escapeHtml(post.title)}</h6>
 
-            <div class="author-post-meta text-muted mb-1">
-              <small>${dateStr}</small>
+            <div class="author-post-meta gls-text-muted mb-1">
+              <gls-text-small>${dateStr}</gls-text-small>
             </div>
 
             <div class="author-post-extra d-flex align-items-center mb-2">

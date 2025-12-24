@@ -324,7 +324,7 @@ body.page-author .author-post-preview .quote-card {
   border-top: 1px solid var(--author-divider);
 }
 
-.author-follow-block .text-muted {
+.author-follow-block .gls-text-muted {
   margin-top: var(--gls-space-2);
 }
 
@@ -337,7 +337,7 @@ body.page-author .author-post-preview .quote-card {
   font-size: 0.82rem;
 }
 
-.author-profile-card .text-muted,
+.author-profile-card .gls-text-muted,
 .author-post-meta,
 .author-post-extra,
 #authorPostsLoading,
