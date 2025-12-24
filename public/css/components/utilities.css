@@ -63,6 +63,18 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 /* alignment */
 .gls-text-center { text-align: center; }
 
+
+/* positioning & text transform (phase B) */
+.gls-relative { position: relative; }
+.gls-overflow-hidden { overflow: hidden; }
+.gls-uppercase { text-transform: uppercase; }
+
+/* spacing extras (phase B) */
+.gls-mb-0 { margin-bottom: 0; }
+.gls-my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+
+/* row helpers (phase B) */
+.gls-row-spread { align-items: center; justify-content: space-between; }
 /* auto margin */
 .gls-mt-auto { margin-top: auto; }
 
