@@ -18,3 +18,8 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 .gls-btn-block {
   width: 100%;
 }
+
+
+/* text utilities (bootstrap .text-muted / .small replacement) */
+.gls-text-muted { color: var(--gls-muted); }
+.gls-text-small { font-size: 0.85rem; line-height: 1.25; }

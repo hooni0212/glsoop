@@ -148,3 +148,19 @@
 /* Utility: full-width button (bootstrap w-100 replacement) */
 .gls-btn-block { width: 100%; }
 
+
+
+.gls-btn-danger {
+  background: color-mix(in srgb, rgba(220, 38, 38, 0.12) 70%, var(--gls-glass-bg-subtle));
+  border-color: rgba(220, 38, 38, 0.34);
+  color: color-mix(in srgb, rgba(127, 29, 29, 1) 92%, rgba(0, 0, 0, 0.12));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-btn-danger:hover,
+  .gls-btn-danger:focus-visible {
+    background: color-mix(in srgb, rgba(220, 38, 38, 0.16) 70%, var(--gls-ghost-bg));
+    border-color: rgba(220, 38, 38, 0.45);
+    box-shadow: var(--gls-glass-inset), 0 10px 26px rgba(220, 38, 38, 0.14);
+  }
+}
