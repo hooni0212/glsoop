@@ -41,8 +41,8 @@
               <button type="button" class="gls-modal-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <div class="bookmark-modal-status gls-text-muted gls-text-small gls-gls-mb-2"></div>
-              <div class="bookmark-modal-list list-group gls-gls-mb-3"></div>
+              <div class="bookmark-modal-status gls-text-muted gls-text-small gls-mb-2"></div>
+              <div class="bookmark-modal-list list-group gls-mb-3"></div>
               <div class="bookmark-modal-create gls-flex gls-gap-2 gls-items-center">
                 <input type="text" class="gls-input" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
                 <button class="gls-btn gls-btn-primary gls-btn-sm bookmark-modal-create-btn" type="button" id="bookmarkNewListSubmit">추가</button>

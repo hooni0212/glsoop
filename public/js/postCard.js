@@ -151,11 +151,11 @@ function buildStandardPostCardHTML(post, options = {}) {
     : 'feed-post-content gls-fade-glass';
 
   return `
-    <div class="card mb-3 gls-post-card${extraClass}" data-post-id="${post.id}">
+    <div class="card gls-mb-3 gls-post-card${extraClass}" data-post-id="${post.id}">
       <div class="card-body">
         <!-- 상단 메타 영역: 작성자 / 날짜 / 공감 버튼 -->
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="d-flex align-items-center gap-3" >
+        <div class="gls-flex gls-justify-between gls-items-center gls-mb-2">
+          <div class="gls-flex gls-items-center gls-gap-3" >
             <span class="gls-author-badge">
               ${escapeHtml(author)}
             </span>
@@ -176,12 +176,12 @@ function buildStandardPostCardHTML(post, options = {}) {
         </div>
 
         <!-- 제목 -->
-        <h5 class="card-title mb-2">
+        <h5 class="card-title gls-mb-2">
           ${escapeHtml(post.title || '')}
         </h5>
 
         <!-- 본문 카드 영역 -->
-        <div class="post-content mt-2">
+        <div class="post-content gls-mt-2">
           <div class="${feedContentClass}">
             <div class="quote-card ${quoteFontClass}">
               ${safeHtml}

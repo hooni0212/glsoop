@@ -66,10 +66,10 @@ Glsoop.AdminPage = (function () {
     if (!me) return;
 
     statusBox.innerHTML = `
-      <p class="mb-1">
+      <p class="gls-mb-1">
         <strong>${escapeHtml(me.name)}</strong> 님, 관리자 권한으로 접속했습니다.
       </p>
-      <p class="gls-text-muted mb-0">
+      <p class="gls-text-muted gls-mb-0">
         회원과 게시글, 퀘스트를 이 페이지에서 관리할 수 있습니다.
       </p>
     `;

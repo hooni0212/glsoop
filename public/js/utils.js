@@ -273,7 +273,7 @@ function buildHashtagHtml(source) {
     .join('');
 
   return `
-    <div class="mt-2 text-start gls-card-hashtags">
+    <div class="gls-mt-2 gls-text-start gls-card-hashtags">
       ${pills}
     </div>
   `;
