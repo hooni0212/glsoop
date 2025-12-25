@@ -69,8 +69,12 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
   .gls-text-md-end { text-align: right; }
 }
 
+
 @media (min-width: 992px) {
   .gls-lg-flex { display: flex; }
+  .gls-lg-flex-row { flex-direction: row; }
+  .gls-lg-items-center { align-items: center; }
+  .gls-lg-items-end { align-items: flex-end; }
 }
 
 /* sizing */
@@ -123,3 +127,7 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 .gls-py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
 .gls-py-3 { padding-top: 1rem; padding-bottom: 1rem; }
 .gls-mt-4 { margin-top: 1.5rem; }
+
+/* logical spacing start (bootstrap ms-1/ms-2 replacement; LTR baseline) */
+.gls-ms-1 { margin-left: 0.25rem; }
+.gls-ms-2 { margin-left: 0.5rem; }
