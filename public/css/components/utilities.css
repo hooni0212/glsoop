@@ -63,6 +63,7 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 
 @media (min-width: 768px) {
   .gls-md-inline { display: inline; }
+  .gls-md-block { display: block; }
   .gls-md-flex-row { flex-direction: row; }
   .gls-md-items-center { align-items: center; }
   .gls-text-md-start { text-align: left; }

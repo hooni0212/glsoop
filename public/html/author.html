@@ -135,24 +135,24 @@
   </nav>
 
   <!-- 작가 페이지 본문 -->
-  <!-- fixed-top 네비게이션 때문에 py-5 + mt-5로 상단 여백 확보 -->
+  <!-- fixed-top 네비게이션 때문에 gls-py-5 + gls-mt-5로 상단 여백 확보 -->
   <section class="author-page-section">
     <div class="author-page-shell">
       <!-- 페이지 상단 타이틀/설명 -->
       <div class="author-page-header">
         <!-- JS에서 닉네임 불러와 “OOO님의 나무” 등으로 바뀜 -->
-        <h2 id="authorPageTitle" class="mb-1">작가님의 글숲</h2>
-        <p class="mb-0 gls-text-muted gls-text-small">
+        <h2 id="authorPageTitle" class="gls-mb-1">작가님의 글숲</h2>
+        <p class="gls-mb-0 gls-text-muted gls-text-small">
           이 작가가 남긴 글들과 공감 기록을 한 눈에 볼 수 있어요.
         </p>
       </div>
 
       <!-- 메인 레이아웃: 왼쪽 프로필 카드 + 오른쪽 글 목록 -->
-      <div class="author-page-main-row align-items-start">
+      <div class="author-page-main-row gls-items-start">
         <!-- 왼쪽: 작가 정보 카드 -->
         <aside class="author-left-col">
           <div class="card author-profile-card gls-surface-panel gls-surface-veil">
-            <div class="card-body d-flex flex-column">
+            <div class="card-body gls-flex gls-flex-col">
               <div class="author-card-title">작가 정보</div>
 
               <div class="author-identity-block">
@@ -160,27 +160,27 @@
                   🌿
                 </div>
                 <div class="author-identity-text">
-                  <p class="author-nickname mb-1" id="authorNicknameDisplay">닉네임</p>
-                  <p class="author-growth gls-text-small mb-1" id="authorGrowthBadge">Lv.1 🌰 씨앗</p>
-                  <p class="author-email gls-text-muted gls-text-small mb-0 break-anywhere" id="authorEmailDisplay">
+                  <p class="author-nickname gls-mb-1" id="authorNicknameDisplay">닉네임</p>
+                  <p class="author-growth gls-text-small gls-mb-1" id="authorGrowthBadge">Lv.1 🌰 씨앗</p>
+                  <p class="author-email gls-text-muted gls-text-small gls-mb-0 break-anywhere" id="authorEmailDisplay">
                     이메일: -
                   </p>
                 </div>
               </div>
 
               <div class="author-bio-block">
-                <p class="author-label gls-text-small mb-1">한 줄 소개</p>
-                <p id="authorBio" class="author-bio-text mb-3 gls-text-muted">
+                <p class="author-label gls-text-small gls-mb-1">한 줄 소개</p>
+                <p id="authorBio" class="author-bio-text gls-mb-3 gls-text-muted">
                   <!-- 한 줄 소개 -->
                 </p>
-                <p class="author-label gls-text-small mb-1">작가 소개</p>
-                <p id="authorAbout" class="author-about-text mb-0">
+                <p class="author-label gls-text-small gls-mb-1">작가 소개</p>
+                <p id="authorAbout" class="author-about-text gls-mb-0">
                   <!-- 자기소개 여러 줄 -->
                 </p>
               </div>
 
               <div class="author-stats-card">
-                <div class="author-label gls-text-small mb-2">작가 활동 요약</div>
+                <div class="author-label gls-text-small gls-mb-2">작가 활동 요약</div>
                 <div class="author-stats-grid">
                   <div class="author-stat">
                     <span class="label">작성한 글 수</span>
@@ -210,7 +210,7 @@
                 >
                   팔로우
                 </button>
-                <p class="gls-text-muted gls-text-small mb-0 mt-2" id="authorFollowHint">
+                <p class="gls-text-muted gls-text-small gls-mb-0 gls-mt-2" id="authorFollowHint">
                   홈 피드에서 이 작가의 카드를 눌러도 이 페이지로 다시 올 수 있어요.
                 </p>
               </div>
@@ -221,10 +221,10 @@
         <!-- 오른쪽: 작가의 글 목록 카드 -->
         <div class="author-right-col">
           <!-- 상단 제목 + 설명 -->
-          <div class="d-flex justify-content-between align-items-end mb-2">
-            <h4 class="mb-0">이 작가의 글</h4>
+          <div class="gls-flex gls-justify-between gls-items-end gls-mb-2">
+            <h4 class="gls-mb-0">이 작가의 글</h4>
             <!-- 데스크톱에서만 보이는 스크롤 안내 텍스트 -->
-            <p class="gls-text-muted gls-text-small mb-0 d-none d-md-block">
+            <p class="gls-text-muted gls-text-small gls-mb-0 gls-hidden gls-md-block">
               아래로 스크롤하면 더 많은 글을 볼 수 있어요.
             </p>
           </div>
@@ -238,7 +238,7 @@
               <!-- 글 로딩 중 메시지 -->
               <div
                 id="authorPostsLoading"
-                class="text-center gls-text-muted gls-text-small py-3"
+                class="gls-text-center gls-text-muted gls-text-small gls-py-3"
                 style="display: none;"
               >
                 글을 불러오는 중입니다...
@@ -247,7 +247,7 @@
               <!-- 이 작가가 글을 한 편도 쓰지 않았을 때 -->
               <div
                 id="authorPostsEmpty"
-                class="text-center gls-text-muted gls-text-small py-5"
+                class="gls-text-center gls-text-muted gls-text-small gls-py-5"
                 style="display: none;"
               >
                 아직 이 작가가 남긴 글이 없습니다.
@@ -256,7 +256,7 @@
               <!-- 더 불러올 글이 없을 때(마지막까지 내려왔을 때) -->
               <div
                 id="authorPostsEnd"
-                class="text-center gls-text-muted gls-text-small py-3"
+                class="gls-text-center gls-text-muted gls-text-small gls-py-3"
                 style="display: none;"
               >
                 마지막 글까지 다 보셨어요.
@@ -270,8 +270,8 @@
 
   <!-- 푸터 -->
   <!-- 이 페이지는 사이트 공통 custom-footer 대신, author 전용 라이트한 푸터 사용 -->
-  <footer class="site-footer mt-5 py-4">
-    <div class="container text-center gls-text-muted gls-text-small">
+  <footer class="site-footer gls-mt-5 gls-py-4">
+    <div class="container gls-text-center gls-text-muted gls-text-small">
       © 2025 글숲 · 오늘의 문장을 천천히 적어 내려가요.
     </div>
   </footer>
