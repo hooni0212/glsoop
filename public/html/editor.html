@@ -165,18 +165,18 @@
       <!-- 에디터 + 미리보기 영역 -->
       <!-- row: 왼쪽(입력/설정) + 오른쪽(미리보기) 두 컬럼 구조 -->
       <!-- align-items-stretch: 좌우 카드 높이 얼추 맞춰주기 -->
-      <div class="row g-4 gls-items-start gls-items-stretch editor-main-row">
+      <div class="editor-main-grid gls-gap-4">
 
         <!-- 📝 왼쪽: 제목 + 폰트 선택 + 에디터 + 해시태그 -->
         <!-- d-flex flex-column: 카드가 세로로 꽉 차도록 -->
-        <div class="col-12 col-lg-6 gls-flex gls-flex-col">
+        <div class="gls-flex gls-flex-col">
           <div class="card h-100">
             <div class="card-body">
 
               <!-- 상단: 제목 입력 + 폰트 선택 한 줄 정렬(데스크톱 기준) -->
-              <div class="row g-3 gls-items-end gls-mb-3">
+              <div class="editor-top-grid gls-mb-3">
                 <!-- 제목 입력 -->
-                <div class="col-12 col-md-6">
+                <div class="editor-top-grid__title">
                   <label for="postTitle" class="gls-label">제목</label>
                   <input
                     type="text"
@@ -187,7 +187,7 @@
                 </div>
 
                 <!-- 폰트 선택 (select) -->
-                <div class="col-12 col-md-3">
+                <div class="editor-top-grid__font">
                   <label for="fontSelect" class="gls-label">폰트</label>
                   <select id="fontSelect" class="gls-select gls-select-sm">
                     <option value="serif">감성 명조체 (기본)</option>
@@ -197,7 +197,7 @@
                 </div>
 
                 <!-- 카테고리 선택 -->
-                <div class="col-12 col-md-3">
+                <div class="editor-top-grid__category">
                   <label for="categorySelect" class="gls-label">글 종류</label>
                   <select id="categorySelect" class="gls-select gls-select-sm" required>
                     <option value="" selected disabled>카테고리 선택</option>
@@ -222,8 +222,8 @@
 
               <!-- 해시태그 입력 영역 + 저장 버튼 한 줄 배치 -->
               <div class="gls-mb-1">
-                <div class="row g-2 gls-items-end hashtag-save-row">
-                  <div class="col-12 col-md-9 col-lg-8">
+                <div class="hashtag-save-grid">
+                  <div class="hashtag-save-grid__input">
                     <label for="postHashtags" class="gls-label">해시태그</label>
                     <input
                       type="text"
@@ -236,7 +236,7 @@
                       예) <code>#힐링 #밤산책 #공부기록</code> — 앞에 <code>#</code>를 붙이고 Enter를 눌러 해시태그를 추가하세요.
                     </div>
                   </div>
-                  <div class="col-12 col-md-3 col-lg-4 gls-flex gls-md-justify-end">
+                  <div class="hashtag-save-grid__action gls-flex gls-md-justify-end">
                     <button id="saveBtn" class="gls-btn gls-btn-primary gls-save-btn gls-px-4 gls-mt-2 gls-md-mt-4">
                       저장하기
                     </button>
@@ -249,7 +249,7 @@
         </div>
 
         <!-- 👀 오른쪽: 피드에서 보이는 모습 미리보기 -->
-        <div class="col-12 col-lg-6 gls-flex gls-flex-col">
+        <div class="gls-flex gls-flex-col">
           <!-- 상단 안내 카드 -->
           <div class="card gls-mb-3">
             <div class="card-body">
@@ -262,7 +262,7 @@
 
           <!-- 실제 피드 카드 모양 미리보기 -->
           <!-- flex-grow-1: 남은 세로 공간을 채워서 아래쪽 카드가 크게 보이도록 -->
-          <div class="card editor-preview-card flex-grow-1">
+          <div class="card editor-preview-card gls-flex-1">
             <div class="card-body">
               <!-- 라벨(지금은 비워둠, 필요하면 안내 텍스트 추가 가능) -->
               <p class="gls-text-muted gls-text-small gls-mb-1"></p>
