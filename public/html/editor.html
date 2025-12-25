@@ -149,14 +149,14 @@
 
   <!-- 본문 영역 -->
   <!-- fixed-top 네비게이션 때문에 py-5 + mt-5로 상단 여백 확보 -->
-  <section class="py-5 mt-5">
+  <section class="gls-py-5 gls-mt-5">
     <div class="container" style="max-width: 1100px;">
 
       <!-- 페이지 제목 + 간단 설명 -->
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-4">
+      <div class="gls-flex gls-flex-col gls-md-flex-row gls-justify-between gls-md-items-end gls-mb-4">
         <div>
-          <h2 class="mb-1">글쓰기</h2>
-          <p class="mb-0 gls-text-muted gls-text-small">
+          <h2 class="gls-mb-1">글쓰기</h2>
+          <p class="gls-mb-0 gls-text-muted gls-text-small">
             오늘의 문장을 남기고, 오른쪽 카드에서 바로 피드 모습을 확인해 보세요.
           </p>
         </div>
@@ -165,16 +165,16 @@
       <!-- 에디터 + 미리보기 영역 -->
       <!-- row: 왼쪽(입력/설정) + 오른쪽(미리보기) 두 컬럼 구조 -->
       <!-- align-items-stretch: 좌우 카드 높이 얼추 맞춰주기 -->
-      <div class="row g-4 align-items-start align-items-stretch editor-main-row">
+      <div class="row g-4 gls-items-start gls-items-stretch editor-main-row">
 
         <!-- 📝 왼쪽: 제목 + 폰트 선택 + 에디터 + 해시태그 -->
         <!-- d-flex flex-column: 카드가 세로로 꽉 차도록 -->
-        <div class="col-12 col-lg-6 d-flex flex-column">
+        <div class="col-12 col-lg-6 gls-flex gls-flex-col">
           <div class="card h-100">
             <div class="card-body">
 
               <!-- 상단: 제목 입력 + 폰트 선택 한 줄 정렬(데스크톱 기준) -->
-              <div class="row g-3 align-items-end mb-3">
+              <div class="row g-3 gls-items-end gls-mb-3">
                 <!-- 제목 입력 -->
                 <div class="col-12 col-md-6">
                   <label for="postTitle" class="gls-label">제목</label>
@@ -209,7 +209,7 @@
               </div>
 
               <!-- 본문 에디터 + 글자 수 카운터 -->
-              <div class="mb-3 editor-wrapper position-relative">
+              <div class="gls-mb-3 editor-wrapper gls-relative">
                 <label class="gls-label">내용</label>
                 <!-- Quill 에디터가 바인딩되는 div -->
                 <div id="editor" class="editor-box" style="height: 260px;"></div>
@@ -221,8 +221,8 @@
               </div>
 
               <!-- 해시태그 입력 영역 + 저장 버튼 한 줄 배치 -->
-              <div class="mb-1">
-                <div class="row g-2 align-items-end hashtag-save-row">
+              <div class="gls-mb-1">
+                <div class="row g-2 gls-items-end hashtag-save-row">
                   <div class="col-12 col-md-9 col-lg-8">
                     <label for="postHashtags" class="gls-label">해시태그</label>
                     <input
@@ -236,8 +236,8 @@
                       예) <code>#힐링 #밤산책 #공부기록</code> — 앞에 <code>#</code>를 붙이고 Enter를 눌러 해시태그를 추가하세요.
                     </div>
                   </div>
-                  <div class="col-12 col-md-3 col-lg-4 d-flex justify-content-md-end">
-                    <button id="saveBtn" class="gls-btn gls-btn-primary gls-save-btn px-4 mt-2 mt-md-4">
+                  <div class="col-12 col-md-3 col-lg-4 gls-flex gls-md-justify-end">
+                    <button id="saveBtn" class="gls-btn gls-btn-primary gls-save-btn gls-px-4 gls-mt-2 gls-md-mt-4">
                       저장하기
                     </button>
                   </div>
@@ -249,12 +249,12 @@
         </div>
 
         <!-- 👀 오른쪽: 피드에서 보이는 모습 미리보기 -->
-        <div class="col-12 col-lg-6 d-flex flex-column">
+        <div class="col-12 col-lg-6 gls-flex gls-flex-col">
           <!-- 상단 안내 카드 -->
-          <div class="card mb-3">
+          <div class="card gls-mb-3">
             <div class="card-body">
-              <h4 class="card-title mb-2">피드에서 보이는 모습 미리보기</h4>
-              <p class="gls-text-muted gls-text-small mb-0">
+              <h4 class="card-title gls-mb-2">피드에서 보이는 모습 미리보기</h4>
+              <p class="gls-text-muted gls-text-small gls-mb-0">
                 홈 피드 카드에서 아래와 같이 보여요.
               </p>
             </div>
@@ -265,10 +265,10 @@
           <div class="card editor-preview-card flex-grow-1">
             <div class="card-body">
               <!-- 라벨(지금은 비워둠, 필요하면 안내 텍스트 추가 가능) -->
-              <p class="gls-text-muted gls-text-small mb-1"></p>
+              <p class="gls-text-muted gls-text-small gls-mb-1"></p>
 
               <!-- 제목 미리보기: JS(editor.js)에서 실시간으로 변경 -->
-              <h5 id="previewTitle" class="mb-3">
+              <h5 id="previewTitle" class="gls-mb-3">
                 제목 미리보기
               </h5>
 
