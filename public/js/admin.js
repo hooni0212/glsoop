@@ -676,19 +676,19 @@ Glsoop.AdminPage = (function () {
         </div>
         <div class="row g-2">
           <div class="col-md-4">
-            <label class="gls-label gls-text-small mb-1">제목</label>
+            <label class="gls-label gls-text-small gls-mb-1">제목</label>
             <input class="gls-input gls-input-sm" name="name" value="${escapeHtml(
               values.name || ''
             )}" required />
           </div>
           <div class="col-md-4">
-            <label class="gls-label gls-text-small mb-1">조건 타입</label>
+            <label class="gls-label gls-text-small gls-mb-1">조건 타입</label>
             <select class="gls-select gls-select-sm" name="condition_type" required>
               ${buildConditionOptions(values.condition_type)}
             </select>
           </div>
           <div class="col-md-4">
-            <label class="gls-label gls-text-small mb-1">카테고리(선택)</label>
+            <label class="gls-label gls-text-small gls-mb-1">카테고리(선택)</label>
             <select class="gls-select gls-select-sm" name="category">
               <option value="">(전체)</option>
               <option value="poem" ${values.category === 'poem' ? 'selected' : ''}>시</option>
@@ -697,19 +697,19 @@ Glsoop.AdminPage = (function () {
             </select>
           </div>
           <div class="col-md-3">
-            <label class="gls-label gls-text-small mb-1">목표</label>
+            <label class="gls-label gls-text-small gls-mb-1">목표</label>
             <input type="number" min="1" class="gls-input gls-input-sm" name="target_value" value="${
               values.target_value || ''
             }" required />
           </div>
           <div class="col-md-3">
-            <label class="gls-label gls-text-small mb-1">보상 XP</label>
+            <label class="gls-label gls-text-small gls-mb-1">보상 XP</label>
             <input type="number" min="0" class="gls-input gls-input-sm" name="reward_xp" value="${
               values.reward_xp || 0
             }" />
           </div>
           <div class="col-md-6">
-            <label class="gls-label gls-text-small mb-1">설명</label>
+            <label class="gls-label gls-text-small gls-mb-1">설명</label>
             <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
@@ -910,13 +910,13 @@ Glsoop.AdminPage = (function () {
         </div>
         <div class="row g-2">
           <div class="col-md-4">
-            <label class="gls-label gls-text-small mb-1">이름</label>
+            <label class="gls-label gls-text-small gls-mb-1">이름</label>
             <input class="gls-input gls-input-sm" name="name" value="${escapeHtml(
               values.name || ''
             )}" required />
           </div>
           <div class="col-md-3">
-            <label class="gls-label gls-text-small mb-1">유형</label>
+            <label class="gls-label gls-text-small gls-mb-1">유형</label>
             <select class="gls-select gls-select-sm" name="campaign_type">
               ${typeOptions
                 .map(
@@ -928,25 +928,25 @@ Glsoop.AdminPage = (function () {
             </select>
           </div>
           <div class="col-md-3">
-            <label class="gls-label gls-text-small mb-1">시작</label>
+            <label class="gls-label gls-text-small gls-mb-1">시작</label>
             <input type="datetime-local" class="gls-input gls-input-sm" name="start_at" value="${
               values.start_at ? values.start_at.replace(' ', 'T') : ''
             }" />
           </div>
           <div class="col-md-3">
-            <label class="gls-label gls-text-small mb-1">종료</label>
+            <label class="gls-label gls-text-small gls-mb-1">종료</label>
             <input type="datetime-local" class="gls-input gls-input-sm" name="end_at" value="${
               values.end_at ? values.end_at.replace(' ', 'T') : ''
             }" />
           </div>
           <div class="col-md-2">
-            <label class="gls-label gls-text-small mb-1">우선순위</label>
+            <label class="gls-label gls-text-small gls-mb-1">우선순위</label>
             <input type="number" class="gls-input gls-input-sm" name="priority" value="${
               values.priority || 1
             }" />
           </div>
           <div class="col-md-4">
-            <label class="gls-label gls-text-small mb-1">설명</label>
+            <label class="gls-label gls-text-small gls-mb-1">설명</label>
             <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
@@ -961,7 +961,7 @@ Glsoop.AdminPage = (function () {
           </div>
         </div>
         <div class="gls-mt-3">
-          <p class="gls-text-small gls-text-muted mb-1">캠페인에 포함할 템플릿을 선택하고 정렬 순서를 지정하세요.</p>
+          <p class="gls-text-small gls-text-muted gls-mb-1">캠페인에 포함할 템플릿을 선택하고 정렬 순서를 지정하세요.</p>
           <div class="quest-template-select">
             ${selection || '<p class="gls-text-muted">등록된 템플릿이 없습니다.</p>'}
           </div>
