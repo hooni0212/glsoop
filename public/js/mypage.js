@@ -113,8 +113,8 @@ async function loadMyPage() {
     <button
      type="button"
      class="gls-btn gls-btn-ghost gls-btn-xs"
-     data-bs-toggle="modal"
-     data-bs-target="#userEditModal"
+     data-gls-toggle="modal"
+     data-gls-target="#userEditModal"
     >
      내 정보 수정
     </button>
@@ -879,15 +879,9 @@ function setupUserEditForm() {
    if (newPwInput) newPwInput.value = '';
    if (newPwConfirmInput) newPwConfirmInput.value = '';
 
-   // ✅ 모달 닫기 (Bootstrap Modal 사용)
+   // ✅ 모달 닫기 (GLS Modal)
    const modalEl = document.getElementById('userEditModal');
-   if (modalEl && window.bootstrap && window.bootstrap.Modal) {
-    // 이미 생성된 인스턴스가 있으면 사용, 없으면 새로 생성
-    const modalInstance =
-     window.bootstrap.Modal.getInstance(modalEl) ||
-     new window.bootstrap.Modal(modalEl);
-    modalInstance.hide();
-   }
+   if (modalEl && window.glsModal) window.glsModal.close(modalEl);
 
    // 상단 프로필 영역도 바로 갱신 (새 닉네임/소개 반영)
    await loadMyPage();

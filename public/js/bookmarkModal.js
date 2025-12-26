@@ -1,6 +1,5 @@
 (function () {
   const modalId = 'bookmarkSelectModal';
-  let bootstrapModal = null;
   let currentPostId = null;
   let listContainer = null;
   let createInput = null;
@@ -21,9 +20,7 @@
 
   function ensureModal() {
     let modalEl = document.getElementById(modalId);
-    if (modalEl) {
-      bootstrapModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-      listContainer = modalEl.querySelector('.bookmark-modal-list');
+    if (modalEl) {      listContainer = modalEl.querySelector('.bookmark-modal-list');
       createInput = modalEl.querySelector('#bookmarkNewListInput');
       createBtn = modalEl.querySelector('#bookmarkNewListSubmit');
       statusText = modalEl.querySelector('.bookmark-modal-status');
@@ -38,7 +35,7 @@
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">북마크 폴더 선택</h5>
-              <button type="button" class="gls-modal-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="gls-modal-close" data-gls-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
               <div class="bookmark-modal-status gls-text-muted gls-text-small gls-mb-2"></div>
@@ -50,7 +47,7 @@
             </div>
             <div class="modal-footer">
               <a href="/html/bookmarks.html" class="gls-btn gls-btn-secondary gls-btn-sm">북마크 페이지로 이동</a>
-              <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" data-bs-dismiss="modal">완료</button>
+              <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" data-gls-dismiss="modal">완료</button>
             </div>
           </div>
         </div>
@@ -58,9 +55,7 @@
     `;
     document.body.appendChild(wrapper.firstElementChild);
 
-    modalEl = document.getElementById(modalId);
-    bootstrapModal = new bootstrap.Modal(modalEl);
-    listContainer = modalEl.querySelector('.bookmark-modal-list');
+    modalEl = document.getElementById(modalId);    listContainer = modalEl.querySelector('.bookmark-modal-list');
     createInput = modalEl.querySelector('#bookmarkNewListInput');
     createBtn = modalEl.querySelector('#bookmarkNewListSubmit');
     statusText = modalEl.querySelector('.bookmark-modal-status');
@@ -189,7 +184,7 @@
     currentPostId = postId;
     ensureModal();
     await loadData();
-    bootstrapModal.show();
+    if (window.glsModal) window.glsModal.open(document.getElementById(modalId));
   }
 
   document.addEventListener('click', (e) => {

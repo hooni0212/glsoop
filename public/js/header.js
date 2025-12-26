@@ -407,3 +407,132 @@ async function handleLogout() {
     window.location.href = '/index.html';
   }
 }
+
+// =========================
+// GLS Modal (Bootstrap 제거 대비)
+// - data-gls-toggle="modal" + data-gls-target="#id" 로 open
+// - data-gls-dismiss="modal" 로 close
+// - ESC / backdrop 클릭 / focus return 지원
+// =========================
+(function () {
+  if (window.glsModal) return;
+
+  let activeModal = null;
+  let activeTrigger = null;
+  let backdropEl = null;
+
+  function ensureBackdrop() {
+    if (backdropEl) return backdropEl;
+    const el = document.createElement('div');
+    el.className = 'gls-modal-backdrop';
+    el.addEventListener('click', () => {
+      if (activeModal) close(activeModal);
+    });
+    backdropEl = el;
+    return backdropEl;
+  }
+
+  function setAria(modalEl, isOpen) {
+    modalEl.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    if (isOpen) {
+      modalEl.removeAttribute('inert');
+    } else {
+      // inert는 지원 안 되는 브라우저도 있으므로 없어도 됨
+      modalEl.setAttribute('inert', '');
+    }
+  }
+
+  function focusFirst(modalEl) {
+    const focusable = modalEl.querySelector(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable) focusable.focus();
+    else modalEl.focus?.();
+  }
+
+  function bindDismiss(modalEl) {
+    if (modalEl.dataset.glsModalBound === '1') return;
+    modalEl.dataset.glsModalBound = '1';
+
+    // close buttons
+    modalEl.querySelectorAll('[data-gls-dismiss="modal"], .gls-modal-close').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        close(modalEl);
+      });
+    });
+
+    // click outside dialog closes
+    modalEl.addEventListener('mousedown', (e) => {
+      const dialog = e.target.closest('.modal-dialog');
+      if (!dialog) {
+        close(modalEl);
+      }
+    });
+  }
+
+  function open(modalEl, triggerEl) {
+    if (!modalEl) return;
+
+    // close current
+    if (activeModal && activeModal !== modalEl) close(activeModal);
+
+    activeModal = modalEl;
+    activeTrigger = triggerEl || activeTrigger;
+
+    bindDismiss(modalEl);
+
+    const backdrop = ensureBackdrop();
+    if (!document.body.contains(backdrop)) document.body.appendChild(backdrop);
+
+    document.body.classList.add('gls-modal-open');
+    modalEl.classList.add('is-open');
+    setAria(modalEl, true);
+
+    // focus management
+    setTimeout(() => focusFirst(modalEl), 0);
+  }
+
+  function close(modalEl) {
+    if (!modalEl) return;
+    modalEl.classList.remove('is-open');
+    setAria(modalEl, false);
+
+    if (backdropEl && backdropEl.parentNode) backdropEl.parentNode.removeChild(backdropEl);
+    document.body.classList.remove('gls-modal-open');
+
+    const toFocus = activeTrigger;
+    activeModal = null;
+    activeTrigger = null;
+
+    if (toFocus && typeof toFocus.focus === 'function') {
+      setTimeout(() => toFocus.focus(), 0);
+    }
+  }
+
+  function getTarget(triggerEl) {
+    const sel = triggerEl.getAttribute('data-gls-target') || triggerEl.getAttribute('href');
+    if (!sel) return null;
+    if (sel.startsWith('#')) return document.querySelector(sel);
+    return null;
+  }
+
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('[data-gls-toggle="modal"]');
+    if (!trigger) return;
+    const target = getTarget(trigger);
+    if (!target) return;
+    e.preventDefault();
+    open(target, trigger);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (activeModal) {
+      e.preventDefault();
+      close(activeModal);
+    }
+  });
+
+  window.glsModal = { open, close };
+})();

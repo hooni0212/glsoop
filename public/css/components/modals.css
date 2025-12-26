@@ -1,8 +1,59 @@
 /* =========================
-   Modals (Bootstrap structure, GLS appearance)
-   - Bootstrap의 modal 마크업은 JS 동작을 위해 유지
-   - 겉모양(닫기 버튼/배경/구분선)은 GLS 토큰 기반으로 통일
+   Modals (GLS modal system)
+   - Bootstrap 없이도 동작하도록 overlay/positioning까지 포함
+   - JS: header.js 에서 glsModal (open/close, backdrop, ESC, focus)
    ========================= */
+
+/* Base modal layout (Bootstrap 제거 대비) */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.modal.is-open {
+  display: flex;
+}
+
+.modal[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+.modal-dialog {
+  width: 100%;
+  max-width: min(560px, calc(100vw - 32px));
+  margin: 0;
+}
+
+.modal-dialog.modal-lg {
+  max-width: min(800px, calc(100vw - 32px));
+}
+
+.modal-dialog.modal-dialog-centered {
+  display: block;
+}
+
+.modal-dialog.modal-dialog-scrollable .modal-body {
+  max-height: min(60vh, 520px);
+  overflow: auto;
+}
+
+.gls-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+body.gls-modal-open {
+  overflow: hidden;
+}
+
 
 .modal-content {
   background: var(--gls-glass-bg, rgba(255, 255, 255, 0.08));

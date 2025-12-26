@@ -87,7 +87,7 @@ function ensureIgExportModal() {
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">인스타 이미지 내보내기</h5>
-          <button type="button" class="gls-modal-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+          <button type="button" class="gls-modal-close" data-gls-dismiss="modal" aria-label="닫기"></button>
         </div>
 
         <div class="modal-body">
@@ -143,7 +143,7 @@ function ensureIgExportModal() {
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="gls-btn gls-btn-secondary gls-btn-sm" data-bs-dismiss="modal">닫기</button>
+          <button type="button" class="gls-btn gls-btn-secondary gls-btn-sm" data-gls-dismiss="modal">닫기</button>
           <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" id="igExportRunBtn">PNG 저장</button>
         </div>
       </div>
@@ -182,8 +182,7 @@ function ensureIgExportModal() {
 
       // 모달 닫기
       const modalEl = document.getElementById('igExportModal');
-      const modal = bootstrap.Modal.getInstance(modalEl);
-      if (modal) modal.hide();
+      if (window.glsModal) window.glsModal.close(modalEl);
     } catch (e) {
       console.error(e);
       alert('이미지 생성 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
@@ -242,8 +241,7 @@ function attachIgShareButton(card, post) {
 
     // 모달 열기
     const modalEl = document.getElementById('igExportModal');
-    const modal = new bootstrap.Modal(modalEl);
-    modal.show();
+    if (window.glsModal) window.glsModal.open(modalEl);
   });
 }
 
@@ -385,8 +383,7 @@ function bindSideActions(card, post) {
       ensureIgExportModal();
       window.__igExportTargetPost = post;
       const modalEl = document.getElementById('igExportModal');
-      const modal = new bootstrap.Modal(modalEl);
-      modal.show();
+      if (window.glsModal) window.glsModal.open(modalEl);
     } catch (err) {
       console.error(err);
       alert('공유 모달을 열지 못했습니다. 콘솔을 확인해주세요.');

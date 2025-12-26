@@ -14,12 +14,10 @@
   let offset = 0;
   const LIMIT = 10;
   let hasMore = false;
-  let listModal = null;
 
   document.addEventListener('DOMContentLoaded', init);
 
   async function init() {
-    if (listModalEl) listModal = new bootstrap.Modal(listModalEl);
     await ensureLogin();
     await loadLists();
     bindEvents();
@@ -118,14 +116,14 @@
   }
 
   function openListModal(list = null) {
-    if (!listModal) return;
+    if (!listModalEl || !window.glsModal) return;
     nameInput.value = list ? list.name : '';
     descInput.value = list ? list.description || '' : '';
     editIdInput.value = list ? list.id : '';
     document.getElementById('listFormTitle').textContent = list
       ? '폴더 수정'
       : '새 폴더 만들기';
-    listModal.show();
+    window.glsModal.open(listModalEl);
   }
 
   async function saveList() {
@@ -154,7 +152,7 @@
       }
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.message || '저장에 실패했습니다.');
-      listModal.hide();
+      window.glsModal.close(listModalEl);
       await loadLists(editId || (data.list && data.list.id));
     } catch (e) {
       console.error(e);
