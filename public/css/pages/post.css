@@ -172,6 +172,8 @@ body.page-post #postDetail .quote-card > *:last-child {
 ========================= */
 
 body.page-post .post-meta-bar {
+  --gls-meta-chip-h: 34px;
+  --gls-meta-chip-px: 12px;
   margin-top: var(--gls-space-4, 16px);
   padding: var(--gls-space-4, 16px) var(--gls-space-5, 20px);
   border-radius: var(--gls-radius-card, 18px);
@@ -221,7 +223,7 @@ body.page-post .post-meta-tags-wrap {
 body.page-post .post-tags-label {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 0 var(--gls-meta-chip-px);
   font-size: 0.78rem;
   font-weight: 900;
   letter-spacing: -0.2px;
@@ -229,6 +231,8 @@ body.page-post .post-tags-label {
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.12);
   color: rgba(30, 42, 51, 0.62);
+  height: var(--gls-meta-chip-h);
+  line-height: 1;
 }
 
 body.mode-dark.page-post .post-tags-label {
@@ -266,7 +270,7 @@ body.page-post .post-type-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 0 var(--gls-meta-chip-px);
   font-size: 0.9rem;
   font-weight: 800;
   letter-spacing: -0.1px;
@@ -278,6 +282,8 @@ body.page-post .post-type-chip {
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   box-shadow: var(--gls-glass-inset);
   white-space: nowrap;
+  height: var(--gls-meta-chip-h);
+  line-height: 1;
 }
 
 body.page-post .post-type-chip::before {
@@ -288,7 +294,7 @@ body.page-post .post-type-chip::before {
 
 body.page-post .post-tag-chip,
 body.page-post .post-meta-bar .gls-tag-btn {
-  padding: 7px 12px !important;
+  padding: 0 var(--gls-meta-chip-px) !important;
   font-size: 0.9rem !important;
   font-weight: 750 !important;
   border-radius: var(--gls-chip-radius) !important;
@@ -300,6 +306,10 @@ body.page-post .post-meta-bar .gls-tag-btn {
   backdrop-filter: blur(var(--gls-glass-blur)) !important;
   -webkit-backdrop-filter: blur(var(--gls-glass-blur)) !important;
   box-shadow: var(--gls-glass-inset) !important;
+  height: var(--gls-meta-chip-h) !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
 }
 
 @media (hover: hover) and (pointer: fine) {
