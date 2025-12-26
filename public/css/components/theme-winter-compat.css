@@ -192,7 +192,7 @@ body.winter-theme .modal-content {
 
 /* 필터 바 안의 X 버튼(개별 태그 제거) 색 보정 */
 .page-index.winter-theme #tagFilterBar .gls-chip .tag-filter-remove {
-  filter: none;          /* btn-close-white의 invert 효과 제거 */
+  filter: none;          /* close-white의 invert 효과 제거 */
   opacity: 0.7;
 }
 

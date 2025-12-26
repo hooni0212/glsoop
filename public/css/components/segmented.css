@@ -1,7 +1,7 @@
 /* ==========================================================================
    segmented.css
    목적:
-   - bootstrap btn-group + gls-seg-input 의존을 줄이고,
+   - legacy segmented group + gls-seg-input 의존을 줄이고,
      라디오 기반 세그먼트 컨트롤을 gls-btn 톤으로 보여준다.
    ========================================================================== */
 
@@ -12,7 +12,7 @@
   align-items: center;
 }
 
-/* keep the existing .btn-check semantics, but hide it */
+/* keep the existing radio-input semantics, but hide it */
 .gls-segmented .gls-seg-input {
   position: absolute;
   opacity: 0;

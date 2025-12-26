@@ -34,7 +34,7 @@
   font-weight: 700;
 }
 
-/* GLS close button (replaces bootstrap btn-close appearance) */
+/* GLS close button (replaces legacy close button appearance) */
 .gls-modal-close {
   appearance: none;
   border: none;

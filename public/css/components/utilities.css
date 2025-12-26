@@ -20,11 +20,11 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 }
 
 
-/* text utilities (bootstrap .text-muted / .small replacement) */
+/* text utilities (legacy muted/small replacement) */
 .gls-text-muted { color: var(--gls-muted); }
 .gls-text-small { font-size: 0.85rem; line-height: 1.25; }
 
-/* form helper text (bootstrap .form-text replacement) */
+/* form helper text (legacy form helper replacement) */
 .gls-form-help {
   margin-top: 0.25rem;
   font-size: 0.85rem;
@@ -32,7 +32,7 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
   color: var(--gls-muted);
 }
 
-/* flex helpers (bootstrap flex layout utilities replacement) */
+/* flex helpers (legacy flex layout utilities replacement) */
 .gls-spread {
   display: flex;
   align-items: center;
@@ -50,8 +50,8 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 .gls-w-100 { width: 100%; }
 
 /* ============================================================
-   Phase B: layout utilities (bootstrap spacing/display replacement)
-   - keep numbers aligned to bootstrap scale for smooth migration
+   Phase B: layout utilities (spacing/display replacement)
+   - keep numbers aligned to the existing scale for smooth migration
    ============================================================ */
 
 /* display */
@@ -63,7 +63,7 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 /* grid templates (phase B) */
 .gls-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-/* Phase B: 12-column grid helpers (bootstrap grid replacement) */
+/* Phase B: 12-column grid helpers (grid replacement) */
 .gls-grid-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
 .gls-col-span-12 { grid-column: span 12 / span 12; }
 
@@ -123,7 +123,7 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 /* auto margin */
 .gls-mt-auto { margin-top: auto; }
 
-/* spacing (bootstrap-like scale) */
+/* spacing (existing scale) */
 .gls-py-5 { padding-top: 3rem; padding-bottom: 3rem; }
 .gls-p-3 { padding: 1rem; }
 
@@ -145,6 +145,6 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 .gls-py-3 { padding-top: 1rem; padding-bottom: 1rem; }
 .gls-mt-4 { margin-top: 1.5rem; }
 
-/* logical spacing start (bootstrap ms-1/ms-2 replacement; LTR baseline) */
+/* logical spacing start (logical margin-start helpers; LTR baseline) */
 .gls-ms-1 { margin-left: 0.25rem; }
 .gls-ms-2 { margin-left: 0.5rem; }

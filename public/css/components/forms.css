@@ -10,7 +10,7 @@
 .gls-check-input:focus-visible{outline:none;border-color:var(--gls-control-border-focus);box-shadow:var(--gls-control-shadow-focus);} 
 .gls-check-label{line-height:1.35;}
 
-/* range (bootstrap .form-range replacement) */
+/* range (legacy range replacement) */
 .gls-range {
   width: 100%;
   accent-color: var(--gls-color-primary);

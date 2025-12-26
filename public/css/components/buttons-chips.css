@@ -145,7 +145,7 @@
   transform: translateY(0);
 }
 
-/* Utility: full-width button (bootstrap w-100 replacement) */
+/* Utility: full-width button (legacy w-100 replacement) */
 .gls-btn-block { width: 100%; }
 
 

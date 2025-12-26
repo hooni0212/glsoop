@@ -1,7 +1,7 @@
 /* ==========================================================================
    actions-compat.css
    목적:
-   - 기존(bootstrap/legacy) 액션 버튼(.post-bookmark-toggle, .like-btn)을
+   - 기존(legacy/legacy) 액션 버튼(.post-bookmark-toggle, .like-btn)을
      gls 버튼 톤(유리/고스트)으로 "겉모양"만 통일해주는 호환 레이어.
    - JS/HTML 클래스 치환(gls-btn 전환) 전까지 임시로 유지하고,
      전환이 끝나면 파일 자체를 제거(졸업)한다.
@@ -43,7 +43,7 @@
     box-shadow 0.14s ease;
 }
 
-/* 작은 버튼 톤(기존 btn-sm 느낌) */
+/* 작은 버튼 톤(기존 small 톤 느낌) */
 .post-bookmark-toggle:not(.gls-btn).btn-sm,
 .gls-post-card .like-btn:not(.gls-btn).btn-sm {
   min-height: 38px;

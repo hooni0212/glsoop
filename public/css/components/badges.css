@@ -53,7 +53,7 @@
   box-shadow: var(--gls-glass-inset);
 }
 
-/* Generic badge (bootstrap .badge replacement) */
+/* Generic label pill (legacy helper replacement) */
 .gls-badge {
   display: inline-flex;
   align-items: center;
