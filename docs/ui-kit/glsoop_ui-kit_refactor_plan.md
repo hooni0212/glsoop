@@ -139,18 +139,18 @@ body.winter-theme {
 
 ---
 
-## 5. Bootstrap 의존도 제거 전략
+## 5. 레거시 UI 프레임워크 의존도 제거 전략 (완료)
 
 ### 5.1 제거 순서
 
-1. ui-kit에서 Bootstrap 없이 동작하는 컴포넌트 확정
+1. ui-kit에서 레거시 프레임워크 없이 동작하는 컴포넌트 확정
    - Navbar
    - Dropdown
    - Modal
    - Container/Grid
-2. JS에서 `bootstrap.*` 호출 제거
-3. 페이지 단위로 Bootstrap 클래스 제거
-4. Bootstrap CSS/JS 로드 제거
+2. JS에서 `legacy framework.*` 호출 제거
+3. 페이지 단위로 레거시 클래스 제거
+4. 레거시 CSS/JS 로드 제거
 
 ### 5.2 핵심 원칙
 
@@ -166,7 +166,7 @@ body.winter-theme {
 - [ ] winter-theme.css 규칙 분류 (컴포넌트/페이지/테마)
 - [ ] 구조 CSS를 원래 소속 파일로 이동
 - [ ] ui-kit에서 테마 토글 테스트
-- [ ] Bootstrap 대체 컴포넌트 구현 시작
+- [x] 레거시 대체 컴포넌트 구현 시작
 
 ---
 

@@ -87,30 +87,30 @@ function ensureIgExportModal() {
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">인스타 이미지 내보내기</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+          <button type="button" class="gls-modal-close" data-bs-dismiss="modal" aria-label="닫기"></button>
         </div>
 
         <div class="modal-body">
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label small mb-1">포맷</label>
-              <select id="igOptFormat" class="form-select form-select-sm">
+          <div class="gls-grid gls-grid-2 gls-gap-2">
+            <div>
+              <label class="gls-label gls-text-small gls-mb-1">포맷</label>
+              <select id="igOptFormat" class="gls-select gls-select-sm">
                 <option value="feed45">피드 4:5 (1080×1350)</option>
                 <option value="square">정사각 (1080×1080)</option>
               </select>
             </div>
 
-            <div class="col-6">
-              <label class="form-label small mb-1">스타일</label>
-              <select id="igOptStyle" class="form-select form-select-sm">
+            <div>
+              <label class="gls-label gls-text-small gls-mb-1">스타일</label>
+              <select id="igOptStyle" class="gls-select gls-select-sm">
                 <option value="photo-overlay">감성(오버레이)</option>
                 <option value="clean-card">클린 카드</option>
               </select>
             </div>
 
-            <div class="col-6">
-              <label class="form-label small mb-1">배경 프리셋</label>
-              <select id="igOptBgKey" class="form-select form-select-sm">
+            <div>
+              <label class="gls-label gls-text-small gls-mb-1">배경 프리셋</label>
+              <select id="igOptBgKey" class="gls-select gls-select-sm">
                 <option value="forestMist">숲 안개</option>
                 <option value="deepGreen">딥 그린</option>
                 <option value="dawnSky">새벽 하늘</option>
@@ -122,20 +122,20 @@ function ensureIgExportModal() {
               </select>
             </div>
 
-            <div class="col-6">
-              <label class="form-label small mb-1">오버레이 진하기</label>
-              <input id="igOptOverlay" type="range" class="form-range" min="0" max="0.65" step="0.01" value="0.35" />
-              <div class="d-flex justify-content-between">
-                <span class="text-muted small">밝게</span>
-                <span class="text-muted small">진하게</span>
+            <div>
+              <label class="gls-label gls-text-small gls-mb-1">오버레이 진하기</label>
+              <input id="igOptOverlay" type="range" class="gls-range" min="0" max="0.65" step="0.01" value="0.35" />
+              <div class="gls-spread">
+                <span class="gls-text-muted gls-text-small">밝게</span>
+                <span class="gls-text-muted gls-text-small">진하게</span>
               </div>
             </div>
 
-            <div class="col-12 mt-2">
-              <label class="form-label small mb-1">배경 이미지 URL (선택)</label>
-              <input id="igOptBgUrl" class="form-control form-control-sm"
+            <div class="gls-col-span-2 gls-mt-2">
+              <label class="gls-label gls-text-small gls-mb-1">배경 이미지 URL (선택)</label>
+              <input id="igOptBgUrl" class="gls-input gls-input-sm"
                      placeholder="예) /img/ig/bg.jpg 또는 https://..." />
-              <div class="form-text">
+              <div class="gls-form-help">
                 URL이 있으면 프리셋 대신 사진이 사용돼.
               </div>
             </div>
@@ -143,8 +143,8 @@ function ensureIgExportModal() {
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">닫기</button>
-          <button type="button" class="btn btn-primary btn-sm" id="igExportRunBtn">PNG 저장</button>
+          <button type="button" class="gls-btn gls-btn-secondary gls-btn-sm" data-bs-dismiss="modal">닫기</button>
+          <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" id="igExportRunBtn">PNG 저장</button>
         </div>
       </div>
     </div>
@@ -205,7 +205,7 @@ function attachIgShareButton(card, post) {
 
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'btn btn-outline-secondary btn-sm';
+  btn.className = 'gls-btn gls-btn-xs gls-btn-secondary ig-share-btn';
   btn.textContent = '⋯';
   btn.setAttribute('data-ig-share-btn', '1');
   btn.style.padding = '2px 10px';
@@ -425,11 +425,11 @@ async function loadRelatedPosts(currentPost) {
   const box = hasSidebarTargets ? null : legacyBox;
 
   if (hasSidebarTargets) {
-    highlightEl.innerHTML = '<p class="text-muted small mb-0">관련 글을 불러오는 중입니다...</p>';
+    highlightEl.innerHTML = '<p class="gls-text-muted gls-text-small gls-mb-0">관련 글을 불러오는 중입니다...</p>';
     listEl.innerHTML = '';
   } else {
     if (!box) return;
-    box.innerHTML = '<p class="text-muted">관련 글을 불러오는 중입니다...</p>';
+    box.innerHTML = '<p class="gls-text-muted">관련 글을 불러오는 중입니다...</p>';
   }
 
   try {
@@ -440,10 +440,10 @@ async function loadRelatedPosts(currentPost) {
     if (!res.ok) {
       if (hasSidebarTargets) {
         highlightEl.innerHTML =
-          '<p class="text-muted small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+          '<p class="gls-text-muted gls-text-small gls-mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
       } else if (box) {
         box.innerHTML =
-          '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+          '<p class="gls-text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
       }
       return;
     }
@@ -452,10 +452,10 @@ async function loadRelatedPosts(currentPost) {
     if (!data.ok) {
       if (hasSidebarTargets) {
         highlightEl.innerHTML =
-          '<p class="text-muted small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+          '<p class="gls-text-muted gls-text-small gls-mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
       } else if (box) {
         box.innerHTML =
-          '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+          '<p class="gls-text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
       }
       return;
     }
@@ -467,11 +467,11 @@ async function loadRelatedPosts(currentPost) {
     if (!posts.length) {
       if (hasSidebarTargets) {
         highlightEl.innerHTML =
-          '<p class="text-muted small mb-0">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
+          '<p class="gls-text-muted gls-text-small gls-mb-0">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
         listEl.innerHTML = '';
       } else if (box) {
         box.innerHTML =
-          '<p class="text-muted">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
+          '<p class="gls-text-muted">아직 함께 읽어볼 만한 관련 글이 없습니다.</p>';
       }
       return;
     }
@@ -485,11 +485,11 @@ async function loadRelatedPosts(currentPost) {
     console.error(e);
     if (highlightEl && listEl) {
       highlightEl.innerHTML =
-        '<p class="text-muted small mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+        '<p class="gls-text-muted gls-text-small gls-mb-0">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
       listEl.innerHTML = '';
     } else if (legacyBox) {
       legacyBox.innerHTML =
-        '<p class="text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
+        '<p class="gls-text-muted">관련 글을 불러오는 중 오류가 발생했습니다.</p>';
     }
   }
 }
@@ -685,7 +685,7 @@ function renderRelatedPosts(box, posts, currentPostId) {
 
   if (!list.length) {
     box.innerHTML =
-      '<p class="text-muted small mb-0">아직 관련된 글이 없습니다.</p>';
+      '<p class="gls-text-muted gls-text-small gls-mb-0">아직 관련된 글이 없습니다.</p>';
     return;
   }
 

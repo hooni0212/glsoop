@@ -157,7 +157,7 @@ Glsoop.FeedPage = (function () {
         currentFeedType === 'following'
           ? '팔로잉 피드를 불러오는 중입니다...'
           : '피드를 불러오는 중입니다...';
-      feedBox.innerHTML = `<p class="text-muted">${loadingLabel}</p>`;
+      feedBox.innerHTML = `<p class="gls-text-muted">${loadingLabel}</p>`;
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -262,7 +262,7 @@ Glsoop.FeedPage = (function () {
 
         if (res.status === 401 && requestType === 'following' && sessionKey === feedSession) {
           feedBox.innerHTML =
-            '<p class="text-muted">로그인 후 팔로잉 피드를 볼 수 있습니다.</p>';
+            '<p class="gls-text-muted">로그인 후 팔로잉 피드를 볼 수 있습니다.</p>';
           feedDone = true;
         }
 
@@ -298,15 +298,15 @@ Glsoop.FeedPage = (function () {
             typeof followingCount === 'number' && followingCount === 0
               ? '아직 팔로우한 작가가 없습니다. 작가 페이지에서 마음에 드는 작가를 팔로우해 보세요.'
               : '팔로우한 작가들의 글이 아직 없습니다.';
-          feedBox.innerHTML = `<p class="text-muted">${message}</p>`;
+          feedBox.innerHTML = `<p class="gls-text-muted">${message}</p>`;
         } else if (currentTags.length > 0) {
           const label = currentTags
             .map((t) => `#${escapeHtml(t)}`)
             .join(', ');
-          feedBox.innerHTML = `<p class="text-muted">${label} 태그를 모두 포함하는 글이 아직 없습니다.</p>`;
+          feedBox.innerHTML = `<p class="gls-text-muted">${label} 태그를 모두 포함하는 글이 아직 없습니다.</p>`;
         } else {
           feedBox.innerHTML =
-            '<p class="text-muted">아직 작성된 글이 없습니다.</p>';
+            '<p class="gls-text-muted">아직 작성된 글이 없습니다.</p>';
         }
         feedDone = true;
         feedLoading = false;
@@ -611,7 +611,7 @@ function setupCardInteractions(card, post) {
       // 첫 로드 플래그 초기화
       feedBox.dataset.initialized = '';
       const label = currentTags.map((t) => `#${escapeHtml(t)}`).join(', ');
-      feedBox.innerHTML = `<p class="text-muted">${label} 태그를 포함한 글을 불러오는 중입니다...</p>`;
+      feedBox.innerHTML = `<p class="gls-text-muted">${label} 태그를 포함한 글을 불러오는 중입니다...</p>`;
     }
 
     // 상단 필터 바 갱신
@@ -635,7 +635,7 @@ function setupCardInteractions(card, post) {
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'tagFilterBar';
-      bar.className = 'd-flex flex-wrap align-items-center gap-2 mb-3';
+      bar.className = 'gls-flex gls-flex-wrap gls-items-center gls-gap-2 gls-mb-3';
 
       // feedBox 바로 위에 삽입
       if (feedBox.parentNode) {
@@ -675,7 +675,7 @@ function setupCardInteractions(card, post) {
 
     // 바 전체 HTML
     bar.innerHTML = `
-      <span class="me-1 small text-muted">적용 중인 태그:</span>
+      <span class="me-1 gls-text-small gls-text-muted">적용 중인 태그:</span>
       ${tagsHtml}
       <button type="button" class="gls-btn gls-btn-secondary gls-btn-sm" id="tagFilterClearBtn">
         필터 지우기
@@ -711,7 +711,7 @@ function setupCardInteractions(card, post) {
     if (feedBox) {
       feedBox.dataset.initialized = '';
       feedBox.innerHTML =
-        '<p class="text-muted">전체 글을 불러오는 중입니다...</p>';
+        '<p class="gls-text-muted">전체 글을 불러오는 중입니다...</p>';
     }
 
     // 필터 바 갱신(숨기기)
@@ -743,7 +743,7 @@ function setupCardInteractions(card, post) {
     if (feedBox) {
       feedBox.dataset.initialized = '';
       const label = currentTags.map((t) => `#${escapeHtml(t)}`).join(', ');
-      feedBox.innerHTML = `<p class="text-muted">${label} 태그를 포함한 글을 불러오는 중입니다...</p>`;
+      feedBox.innerHTML = `<p class="gls-text-muted">${label} 태그를 포함한 글을 불러오는 중입니다...</p>`;
     }
 
     renderTagFilterBar();

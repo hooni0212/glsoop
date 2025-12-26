@@ -1,0 +1,17 @@
+.ql-editor .ql-align-center,
+.quote-card .ql-align-center,
+.paper-content .ql-align-center {
+text-align: center;
+}
+
+.ql-editor .ql-align-right,
+.quote-card .ql-align-right,
+.paper-content .ql-align-right {
+text-align: right;
+}
+
+.ql-editor .ql-align-justify,
+.quote-card .ql-align-justify,
+.paper-content .ql-align-justify {
+text-align: justify;
+}

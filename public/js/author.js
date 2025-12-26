@@ -193,12 +193,13 @@ function updateAuthorFollowUI() {
     followBtn.dataset.bound = 'true';
   }
 
-  followBtn.classList.remove('btn-primary', 'btn-outline-primary', 'btn-outline-secondary');
+  followBtn.classList.remove('gls-btn-primary', 'gls-btn-secondary', 'is-active');
+  followBtn.classList.add('gls-btn');
   followBtn.disabled = false;
 
   if (!authorFollowState.isLoggedIn) {
     followBtn.textContent = '로그인 후 팔로우';
-    followBtn.classList.add('btn-outline-secondary');
+    followBtn.classList.add('gls-btn-secondary');
     followBtn.disabled = true;
     if (hintEl)
       hintEl.textContent = '팔로우하려면 로그인해주세요.';
@@ -207,7 +208,7 @@ function updateAuthorFollowUI() {
 
   if (authorFollowState.isOwnProfile) {
     followBtn.textContent = '내 프로필입니다';
-    followBtn.classList.add('btn-outline-secondary');
+    followBtn.classList.add('gls-btn-secondary');
     followBtn.disabled = true;
     if (hintEl)
       hintEl.textContent = '내 페이지에서는 팔로우 버튼이 비활성화됩니다.';
@@ -216,12 +217,12 @@ function updateAuthorFollowUI() {
 
   if (authorFollowState.isFollowing) {
     followBtn.textContent = '팔로잉';
-    followBtn.classList.add('btn-primary');
+    followBtn.classList.add('gls-btn-primary','is-active');
     if (hintEl)
       hintEl.textContent = '팔로잉을 해제하면 새 소식을 받지 않게 돼요.';
   } else {
     followBtn.textContent = '팔로우';
-    followBtn.classList.add('btn-outline-primary');
+    followBtn.classList.add('gls-btn-secondary');
     if (hintEl)
       hintEl.textContent = '팔로우해서 작가의 소식을 받아보세요!';
   }
@@ -400,13 +401,13 @@ function renderAuthorPosts(posts) {
       return `
         <article class="post-panel gls-surface-panel gls-surface-veil author-post-card" data-post-id="${post.id}">
           <div class="author-post-inner">
-            <h6 class="author-post-title mb-1">${escapeHtml(post.title)}</h6>
+            <h6 class="author-post-title gls-mb-1">${escapeHtml(post.title)}</h6>
 
-            <div class="author-post-meta text-muted mb-1">
-              <small>${dateStr}</small>
+            <div class="author-post-meta gls-text-muted gls-mb-1">
+              <gls-text-small>${dateStr}</gls-text-small>
             </div>
 
-            <div class="author-post-extra d-flex align-items-center mb-2">
+            <div class="author-post-extra gls-flex gls-items-center gls-mb-2">
               <!-- 공감 버튼 (index.js와 구조 맞춤) -->
               <button
                 class="like-btn ${liked ? 'liked' : ''}"
@@ -558,12 +559,12 @@ function buildHashtagHtml(post) {
     .map(
       (t) =>
         `<button type="button"
-                  class="btn btn-sm btn-outline-success me-1 mb-1 hashtag-pill"
+                  class="gls-tag-btn hashtag-pill"
                   data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`
     )
     .join('');
 
-  return `<div class="mt-1 text-start">${pills}</div>`;
+  return `<div class="gls-card-hashtags gls-mt-1 gls-text-start">${pills}</div>`;
 }
 
 /**

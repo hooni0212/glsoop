@@ -1,0 +1,32 @@
+.more-toggle {
+border: none;
+background: none;
+padding: 0;
+margin-top: 0.25rem;
+margin-right: 0.25rem;
+
+font-size: 0.85rem;
+font-weight: 500;
+color: #6b5b4b;
+
+cursor: pointer;
+text-decoration: none;
+
+display: block;      /* 한 줄 전부 차지하게 만들고 */
+margin-left: auto;   /* 오른쪽으로 붙이기 */
+
+transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.more-toggle:hover {
+color: #4f4337;
+opacity: 0.9;
+text-decoration: none;
+}
+
+.more-toggle:active {
+opacity: 0.7;
+text-decoration: none;
+}

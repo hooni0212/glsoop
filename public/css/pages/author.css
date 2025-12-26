@@ -324,7 +324,7 @@ body.page-author .author-post-preview .quote-card {
   border-top: 1px solid var(--author-divider);
 }
 
-.author-follow-block .text-muted {
+.author-follow-block .gls-text-muted {
   margin-top: var(--gls-space-2);
 }
 
@@ -337,7 +337,7 @@ body.page-author .author-post-preview .quote-card {
   font-size: 0.82rem;
 }
 
-.author-profile-card .text-muted,
+.author-profile-card .gls-text-muted,
 .author-post-meta,
 .author-post-extra,
 #authorPostsLoading,
@@ -351,20 +351,23 @@ body.page-author .author-post-preview .quote-card {
   border-color: var(--author-divider);
 }
 
-#authorFollowBtn.btn-primary {
-  background-color: var(--author-accent);
-  border-color: var(--author-accent);
+#authorFollowBtn.gls-btn-primary,
+#authorFollowBtn.is-active {
+  --gls-btn-primary-bg: var(--author-accent);
+  --gls-btn-primary-border: var(--author-accent);
+  --gls-btn-primary-text: #fff;
 }
 
-#authorFollowBtn.btn-outline-primary {
-  color: var(--author-accent);
-  border-color: var(--author-accent);
+#authorFollowBtn.gls-btn-secondary {
+  --gls-btn-secondary-bg: transparent;
+  --gls-btn-secondary-border: color-mix(in srgb, var(--author-accent) 42%, transparent);
+  --gls-btn-secondary-text: var(--author-accent);
 }
 
-#authorFollowBtn.btn-outline-primary:hover,
-#authorFollowBtn.btn-outline-primary:focus-visible {
-  background-color: var(--author-accent);
-  color: #fff;
+#authorFollowBtn.gls-btn-secondary:hover,
+#authorFollowBtn.gls-btn-secondary:focus-visible {
+  --gls-btn-secondary-bg: color-mix(in srgb, var(--author-accent) 10%, transparent);
+  --gls-btn-secondary-border: color-mix(in srgb, var(--author-accent) 52%, transparent);
 }
 
 /* 좋아요/해시태그 라인 간격 */

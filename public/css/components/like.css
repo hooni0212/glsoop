@@ -1,0 +1,68 @@
+.like-btn:not(.gls-btn) {
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.like-heart {
+  display: inline-block; /* transform 잘 보이도록 */
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--gls-action-accent, #2e8b57);
+  transform: scale(1); /* 기본 크기 */
+  transition:
+    transform 0.22s ease-out, /* 커졌다 작아지는 애니메이션 */
+    color 0.15s ease,
+    text-shadow 0.2s ease;
+}
+
+/* 좋아요 된 상태일 때 강조 컬러 */
+.like-btn.liked .like-heart {
+  color: var(--gls-action-accent, #2e8b57);
+  text-shadow: 0 4px 16px rgba(46, 139, 87, 0.32);
+}
+
+/* 숫자 */
+.like-count {
+  font-size: 1rem;
+}
+
+/* 범프 상태: 확실히 눈에 띄게 */
+.like-heart.bump {
+  transform: scale(1.4);
+}
+
+.mypage-like-heart {
+color: #e53935;
+font-size: 1.4rem;
+line-height: 1;
+}
+
+.mypage-like-count {
+font-size: 1.1rem;
+}
+
+.mypage-like {
+cursor: default;
+}
+
+
+.gls-post-card .like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.gls-post-card .like-btn .like-heart {
+  font-size: 1.05rem;
+  color: var(--gls-action-accent, var(--gls-color-primary, #2e8b57));
+  transform: none;
+}
+
+.gls-post-card .like-btn.liked {
+  background: var(--gls-action-surface-strong, rgba(238, 252, 245, 0.62));
+  border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+}

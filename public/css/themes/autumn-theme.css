@@ -105,17 +105,17 @@ body.autumn-theme .btn-success:active {
   box-shadow: 0 12px 28px rgba(152, 96, 70, 0.28);
 }
 
-body.autumn-theme .btn-outline-success {
+body.autumn-theme .gls-btn-secondary {
   color: #a86d42;
   border-color: rgba(183, 122, 79, 0.72);
   background-color: transparent;
   box-shadow: 0 8px 18px rgba(152, 96, 70, 0.16);
 }
 
-body.autumn-theme .btn-outline-success:hover,
-body.autumn-theme .btn-outline-success:focus-visible,
-body.autumn-theme .btn-outline-success.active,
-body.autumn-theme .btn-outline-success:active {
+body.autumn-theme .gls-btn-secondary:hover,
+body.autumn-theme .gls-btn-secondary:focus-visible,
+body.autumn-theme .gls-btn-secondary.active,
+body.autumn-theme .gls-btn-secondary:active {
   color: #ffffff;
   background-color: #c08354;
   border-color: #c08354;

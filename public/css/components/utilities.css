@@ -1,0 +1,150 @@
+
+/* 폰트 스타일 */
+.gls-font-serif {
+font-family: 'Nanum Myeongjo', 'Noto Serif KR', serif;
+}
+
+.gls-font-hand {
+font-family: 'Nanum Pen Script', 'Noto Sans KR', cursive;
+}
+
+.gls-font-sans {
+font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+
+
+/* width utilities */
+.gls-btn-block {
+  width: 100%;
+}
+
+
+/* text utilities (legacy muted/small replacement) */
+.gls-text-muted { color: var(--gls-muted); }
+.gls-text-small { font-size: 0.85rem; line-height: 1.25; }
+
+/* form helper text (legacy form helper replacement) */
+.gls-form-help {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  color: var(--gls-muted);
+}
+
+/* flex helpers (legacy flex layout utilities replacement) */
+.gls-spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* flex primitives (Phase B) */
+.gls-flex-wrap { flex-wrap: wrap; }
+.gls-items-center { align-items: center; }
+.gls-justify-between { justify-content: space-between; }
+.gls-justify-end { justify-content: flex-end; }
+.gls-items-start { align-items: flex-start; }
+.gls-items-end { align-items: flex-end; }
+.gls-w-100 { width: 100%; }
+
+/* ============================================================
+   Phase B: layout utilities (spacing/display replacement)
+   - keep numbers aligned to the existing scale for smooth migration
+   ============================================================ */
+
+/* display */
+.gls-flex { display: flex; }
+.gls-flex-col { flex-direction: column; }
+.gls-block { display: block; }
+.gls-grid { display: grid; }
+
+/* grid templates (phase B) */
+.gls-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* Phase B: 12-column grid helpers (grid replacement) */
+.gls-grid-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.gls-col-span-12 { grid-column: span 12 / span 12; }
+
+@media (min-width: 768px) {
+  .gls-md-col-span-2 { grid-column: span 2 / span 2; }
+  .gls-md-col-span-3 { grid-column: span 3 / span 3; }
+  .gls-md-col-span-4 { grid-column: span 4 / span 4; }
+  .gls-md-col-span-6 { grid-column: span 6 / span 6; }
+  .gls-md-col-span-12 { grid-column: span 12 / span 12; }
+}
+.gls-col-span-2 { grid-column: 1 / -1; }
+.gls-hidden { display: none; }
+
+@media (min-width: 768px) {
+  .gls-md-inline { display: inline; }
+  .gls-md-block { display: block; }
+  .gls-md-flex-row { flex-direction: row; }
+  .gls-md-items-center { align-items: center; }
+  .gls-text-md-start { text-align: left; }
+  .gls-text-md-end { text-align: right; }
+}
+
+
+@media (min-width: 992px) {
+  .gls-lg-flex { display: flex; }
+  .gls-lg-flex-row { flex-direction: row; }
+  .gls-lg-items-center { align-items: center; }
+  .gls-lg-items-end { align-items: flex-end; }
+}
+
+/* sizing */
+.gls-min-vh-100 { min-height: 100vh; }
+
+/* alignment */
+.gls-text-center { text-align: center; }
+.gls-text-start { text-align: left; }
+.gls-text-end { text-align: right; }
+
+
+/* positioning & text transform (phase B) */
+.gls-relative { position: relative; }
+.gls-overflow-hidden { overflow: hidden; }
+.gls-uppercase { text-transform: uppercase; }
+
+/* spacing extras (phase B) */
+.gls-mb-0 { margin-bottom: 0; }
+.gls-my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+.gls-my-3 { margin-top: 1rem; margin-bottom: 1rem; }
+
+/* gap (phase B) */
+.gls-gap-2 { gap: 0.5rem; }
+.gls-gap-3 { gap: 1rem; }
+.gls-gap-4 { gap: 1.5rem; }
+
+/* layout helpers (phase B) */
+.gls-row-spread { align-items: center; justify-content: space-between; }
+/* auto margin */
+.gls-mt-auto { margin-top: auto; }
+
+/* spacing (existing scale) */
+.gls-py-5 { padding-top: 3rem; padding-bottom: 3rem; }
+.gls-p-3 { padding: 1rem; }
+
+.gls-mt-5 { margin-top: 3rem; }
+.gls-mt-3 { margin-top: 1rem; }
+.gls-mt-2 { margin-top: 0.5rem; }
+.gls-mt-1 { margin-top: 0.25rem; }
+
+.gls-mb-4 { margin-bottom: 1.5rem; }
+.gls-mb-3 { margin-bottom: 1rem; }
+.gls-mb-2 { margin-bottom: 0.5rem; }
+.gls-mb-1 { margin-bottom: 0.25rem; }
+/* ============================
+ * Phase B (layout utils) additions
+ * ============================ */
+.gls-flex-1 { flex: 1 1 0%; }
+.gls-h-100 { height: 100%; }
+.gls-py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.gls-py-3 { padding-top: 1rem; padding-bottom: 1rem; }
+.gls-mt-4 { margin-top: 1.5rem; }
+
+/* logical spacing start (logical margin-start helpers; LTR baseline) */
+.gls-ms-1 { margin-left: 0.25rem; }
+.gls-ms-2 { margin-left: 0.5rem; }

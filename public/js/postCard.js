@@ -133,7 +133,7 @@ function buildStandardPostCardHTML(post, options = {}) {
   const bookmarkBtn = `
     <button
       type="button"
-      class="btn btn-sm post-bookmark-toggle"
+      class="gls-btn gls-btn-sm post-bookmark-toggle"
       data-post-id="${post.id}"
       aria-label="북마크 추가"
     >
@@ -151,37 +151,37 @@ function buildStandardPostCardHTML(post, options = {}) {
     : 'feed-post-content gls-fade-glass';
 
   return `
-    <div class="card mb-3 gls-post-card${extraClass}" data-post-id="${post.id}">
+    <div class="card gls-mb-3 gls-post-card${extraClass}" data-post-id="${post.id}">
       <div class="card-body">
         <!-- 상단 메타 영역: 작성자 / 날짜 / 공감 버튼 -->
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="d-flex align-items-center gap-3" >
-            <span class="badge bg-light text-muted border gls-author-badge">
+        <div class="gls-flex gls-justify-between gls-items-center gls-mb-2">
+          <div class="gls-flex gls-items-center gls-gap-3" >
+            <span class="gls-author-badge">
               ${escapeHtml(author)}
             </span>
-            <span class="text-muted small">${escapeHtml(dateStr)}</span>
+            <span class="gls-text-muted gls-text-small">${escapeHtml(dateStr)}</span>
           </div>
-          <div class="post-top-actions d-flex align-items-center gap-2">
+          <div class="post-top-actions">
             ${bookmarkBtn}
             <button
               type="button"
-              class="btn btn-sm like-btn ${liked ? 'liked' : ''}"
+              class="gls-btn gls-btn-sm like-btn ${liked ? 'liked' : ''}"
               data-post-id="${post.id}"
               data-liked="${liked ? '1' : '0'}"
             >
               <span class="like-heart">${liked ? '♥' : '♡'}</span>
-              <span class="like-count ms-1">${likeCount}</span>
+              <span class="like-count">${likeCount}</span>
             </button>
           </div>
         </div>
 
         <!-- 제목 -->
-        <h5 class="card-title mb-2">
+        <h5 class="card-title gls-mb-2">
           ${escapeHtml(post.title || '')}
         </h5>
 
         <!-- 본문 카드 영역 -->
-        <div class="post-content mt-2">
+        <div class="post-content gls-mt-2">
           <div class="${feedContentClass}">
             <div class="quote-card ${quoteFontClass}">
               ${safeHtml}
@@ -192,7 +192,7 @@ function buildStandardPostCardHTML(post, options = {}) {
                 ? `
             <!-- 더보기 버튼 (내용이 넘칠 때만 노출) : 카드 내부 오버레이 -->
             <button
-              class="btn btn-link p-0 more-toggle gls-more-overlay"
+              class="more-toggle gls-more-overlay"
               type="button"
               style="display:none;"
             >

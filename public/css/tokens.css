@@ -1,0 +1,216 @@
+/* 글숲 Design Tokens: tokens.css */
+:root {
+  /* Layout / Width */
+  --gls-content-max: 1120px;
+  --gls-content-read: 860px;
+  --gls-content-width: 760px;
+  --gls-fullbleed-width: 1400px;
+  --gls-gutter: 16px;
+  --gls-inner-width: 1320px;
+  --gls-nav-height: 110px;
+  --gls-page-margin: 32px;
+  --gls-page-max-width: var(--gls-content-max);
+  --gls-sticky-offset: calc(var(--gls-nav-height) + var(--gls-space-4, 16px));
+  /* Spacing */
+  --gls-space-1: 4px;
+  --gls-space-2: 8px;
+  --gls-space-3: 12px;
+  --gls-space-4: 16px;
+  --gls-space-5: 20px;
+  --gls-space-6: 24px;
+  --gls-space-7: 32px;
+  --gls-space-8: 40px;
+  /* Radius */
+  --gls-btn-radius: 12px;
+  --gls-card-gap: var(--gls-space-5, 20px);
+  --gls-radius-card: var(--gls-radius-lg);
+  --gls-radius-hero: 20px;
+  --gls-radius-lg: 18px;
+  --gls-radius-md: 14px;
+  --gls-radius-pill: 999px;
+  --gls-radius-sm: 10px;
+  /* Typography */
+  --gls-font-sans: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --gls-font-hand: 'Nanum Pen Script', cursive;
+  --gls-font-serif: 'Nanum Myeongjo', serif;
+  --gls-btn-font-weight: 600;
+  --gls-fs-lg: 1.22rem;
+  --gls-fs-md: 1.0625rem;
+  --gls-fs-sm: 0.95rem;
+  --gls-fs-xl: 1.52rem;
+  --gls-fs-xs: 0.8125rem;
+  --gls-lh-normal: 1.6;
+  --gls-lh-relaxed: 1.7;
+  --gls-lh-tight: 1.28;
+
+  /* Colors (semantic) */
+  --gls-color-bg: #e9ece5;
+  --gls-color-border: #d5decf;
+  --gls-color-highlight: #e7f2e8;
+  --gls-color-muted: #5c655e;
+  --gls-color-overlay: rgba(255, 255, 255, 0.7);
+  --gls-color-overlay-strong: rgba(255, 255, 255, 0.85);
+  --gls-color-primary: #2e8b57;
+  --gls-color-primary-fade: rgba(46, 139, 87, 0.08);
+  --gls-color-primary-strong: #226b45;
+  --gls-color-surface: #ffffff;
+  --gls-color-surface-strong: #f0f3ec;
+  --gls-color-surface-subtle: #f7f9f4;
+  --gls-color-text: #1f2a2b;
+  /* Shadows */
+  --gls-shadow-accent: 0 12px 30px rgba(46, 139, 87, 0.2);
+  --gls-shadow-card: var(--gls-shadow-sm);
+  --gls-shadow-card-hover: var(--gls-shadow-hover);
+  --gls-shadow-hover: 0 16px 32px rgba(19, 34, 30, 0.12);
+  --gls-shadow-md: 0 12px 30px rgba(19, 34, 30, 0.08);
+  --gls-shadow-sm: 0 8px 20px rgba(19, 34, 30, 0.06);
+  --gls-shadow-surface: var(--gls-shadow-md);
+  /* Glass / Surface helpers */
+  --gls-blur: var(--gls-glass-blur);
+  --gls-border: var(--gls-glass-border);
+  --gls-glass-bg: rgba(255, 255, 255, 0.28);
+  --gls-glass-bg-strong: rgba(255, 255, 255, 0.42);
+  --gls-glass-bg-subtle: rgba(255, 255, 255, 0.18);
+  --gls-glass-blur: 12px;
+  --gls-ui-blur: 10px;
+  --gls-glass-border: rgba(30, 42, 51, 0.12);
+  --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
+  --gls-glass-shadow: 0 12px 30px rgba(19, 34, 30, 0.10);
+  --gls-glass-shadow-hover: 0 18px 42px rgba(19, 34, 30, 0.14);
+
+  /* Glass Surface preset (중복 제거용) */
+  --gls-surface-glass-bg: var(--gls-glass-bg-subtle);
+  --gls-surface-glass-bg-hover: var(--gls-ghost-bg);
+  --gls-surface-glass-border: var(--gls-ghost-border);
+  --gls-surface-glass-border-hover: var(--gls-ghost-border-hover);
+  --gls-surface-glass-shadow: var(--gls-glass-shadow);
+  --gls-surface-glass-shadow-hover: var(--gls-glass-shadow-hover);
+  --gls-surface-glass-inset: var(--gls-glass-inset);
+  --gls-surface-glass-blur: var(--gls-glass-blur);
+  --gls-muted: var(--gls-color-muted);
+  --gls-surface: var(--gls-glass-bg);
+  --gls-surface-overlay: rgba(255, 255, 255, 0.62);
+  --gls-text: var(--gls-color-text);
+  /* Ghost buttons */
+  --gls-ghost-bg: rgba(255, 255, 255, 0.10);
+  --gls-ghost-bg-active: rgba(255, 255, 255, 0.22);
+  --gls-ghost-bg-hover: rgba(255, 255, 255, 0.16);
+  --gls-ghost-border: rgba(30, 42, 51, 0.14);
+  --gls-ghost-border-hover: rgba(46, 139, 87, 0.26);
+  --gls-ghost-text: rgba(30, 42, 51, 0.84);
+  /* Action / CTA */
+  --gls-action-accent: var(--gls-color-primary, #2e8b57);
+  --gls-action-border: rgba(30, 42, 51, 0.16);
+  --gls-action-border-strong: rgba(46, 139, 87, 0.28);
+  --gls-action-glow: 0 10px 26px rgba(46, 139, 87, 0.16);
+  --gls-action-surface: rgba(255, 255, 255, 0.82);
+  --gls-action-surface-hover: rgba(255, 255, 255, 0.9);
+  --gls-action-surface-strong: rgba(46, 139, 87, 0.08);
+
+  /* Buttons/Chips (dedupe) */
+  --gls-btn-border-default: rgba(30, 42, 51, 0.14);
+  --gls-btn-border-hover: rgba(46, 139, 87, 0.18);
+  --gls-btn-shadow-hover: 0 10px 24px rgba(19, 34, 30, 0.10);
+  --gls-btn-secondary-bg: rgba(255, 255, 255, 0.14);
+  --gls-btn-secondary-border: rgba(30, 42, 51, 0.14);
+  --gls-btn-active-border: rgba(46, 139, 87, 0.30);
+  --gls-btn-active-bg: rgba(238, 252, 245, 0.52);
+
+  /* Chip remove */
+  --gls-chip-remove-fg: rgba(30, 42, 51, 0.65);
+  --gls-chip-remove-bg-hover: rgba(30, 42, 51, 0.08);
+  --gls-chip-remove-fg-hover: rgba(30, 42, 51, 0.85);
+
+  /* Tag button */
+  --gls-tag-btn-fg: rgba(30, 42, 51, 0.78);
+
+  /* Dividers */
+  --gls-divider-subtle: rgba(30, 42, 51, 0.10);
+  /* Account menu */
+  --gls-account-avatar: color-mix(in srgb, var(--gls-action-accent, #2e8b57) 58%, var(--gls-color-surface-subtle, #f7f9f4) 42%);
+  --gls-account-avatar-size: 32px;
+  --gls-account-border: color-mix(in srgb, var(--gls-glass-border, rgba(30, 42, 51, 0.16)) 80%, #ffffff 20%);
+  --gls-account-gap: 10px;
+  --gls-account-item-height: 44px;
+  --gls-account-item-radius: 10px;
+  --gls-account-menu-border: color-mix(in srgb, var(--gls-glass-border, rgba(30, 42, 51, 0.16)) 90%, rgba(255, 255, 255, 0.24));
+  --gls-account-menu-gap: 6px;
+  --gls-account-menu-radius: 10px 10px 14px 14px;
+  --gls-account-menu-shadow: var(--gls-shadow-card);
+  --gls-account-menu-surface: color-mix(in srgb, var(--gls-color-surface, #ffffff) 78%, var(--gls-glass-bg, rgba(255, 255, 255, 0.28)) 22%);
+  --gls-account-muted: color-mix(in srgb, var(--gls-color-muted, #5c655e) 76%, rgba(255, 255, 255, 0.7));
+  --gls-account-padding-x: 12px;
+  --gls-account-padding-y: 8px;
+  --gls-account-radius: 12px;
+  --gls-account-shadow: var(--gls-shadow-sm);
+  --gls-account-shadow-hover: var(--gls-shadow-md);
+  --gls-account-surface: var(--gls-glass-bg-subtle, rgba(255, 255, 255, 0.18));
+  --gls-account-text: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 92%, rgba(0, 0, 0, 0.08));
+  /* Controls (inputs) */
+  --gls-control-bg: var(--gls-glass-bg-strong);
+  --gls-control-border: rgba(30, 42, 51, 0.18);
+  --gls-control-border-focus: rgba(46, 139, 87, 0.55);
+  --gls-control-radius: 12px;
+  --gls-control-shadow-focus: 0 0 0 3px rgba(46, 139, 87, 0.18);
+  /* Focus rings */
+  --gls-focus-offset: 3px;
+  --gls-focus-outline: 2px solid rgba(46, 139, 87, 0.35);
+
+  /* Motion */
+  --gls-ease: cubic-bezier(0.2, 0.9, 0.2, 1);
+  --gls-duration-fast: 120ms;
+  --gls-duration-ui: 140ms;
+  --gls-duration: 180ms;
+  --gls-duration-slow: 260ms;
+
+  /* Common transitions (reuse in components) */
+  --gls-transition-surface: background var(--gls-duration, 180ms) var(--gls-ease, ease),
+    border-color var(--gls-duration, 180ms) var(--gls-ease, ease),
+    box-shadow var(--gls-duration, 180ms) var(--gls-ease, ease);
+  --gls-transition-lift: transform var(--gls-duration, 180ms) var(--gls-ease, ease),
+    box-shadow var(--gls-duration, 180ms) var(--gls-ease, ease),
+    background var(--gls-duration, 180ms) var(--gls-ease, ease),
+    border-color var(--gls-duration, 180ms) var(--gls-ease, ease);
+  --gls-transition-surface-ui: background var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    border-color var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    box-shadow var(--gls-duration-ui, 140ms) var(--gls-ease, ease);
+  --gls-transition-lift-ui: transform var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    box-shadow var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    background var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    border-color var(--gls-duration-ui, 140ms) var(--gls-ease, ease);
+
+  /* Blur presets */
+  --gls-blur-ui: 10px;
+
+  /* Z-index */
+  --gls-z-header: 100;
+  --gls-z-dropdown: 300;
+  --gls-z-modal: 600;
+  --gls-z-toast: 800;
+}
+
+/* =========================
+   Responsive tokens
+   - Keep responsive design token overrides here (single source of truth)
+========================= */
+
+@media (max-width: 992px) {
+  :root {
+    --gls-page-margin: 22px;
+    --gls-inner-width: 1080px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --gls-page-margin: 14px;
+    --gls-gutter: 12px;
+    --gls-content-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --gls-page-margin: 12px;
+  }
+}

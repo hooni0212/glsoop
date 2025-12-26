@@ -119,7 +119,7 @@ function buildAccountMenus() {
 
     // 데스크톱 계정 버튼 + 메뉴
     const accountLi = document.createElement('li');
-    accountLi.className = 'nav-item d-none d-lg-flex align-items-center position-relative nav-account-pill';
+    accountLi.className = 'nav-item gls-hidden gls-lg-flex gls-items-center gls-relative nav-account-pill';
 
     const trigger = document.createElement('button');
     trigger.type = 'button';

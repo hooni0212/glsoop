@@ -1,12 +1,4 @@
-/* =============================================================
-   로그인/회원가입 계열 공통 스타일 (public/css/login.css)
-   - page-login(page-reset/page-forgot 등) 테마 레이아웃을 제어
-   - hero 배경, 2단 카드 배치, 계정 폼 강조 색상을 여기서 관리
-   - 관련 페이지: html/login.html, html/signup.html, html/forgot-password.html, html/reset-password.html
-   - 섹션 번호: 0 히어로, 1 카드, 2 폼/버튼, 3 푸터, 4 반응형 순으로 배치
-   ============================================================= */
 
-/* 로그인 전용 겨울 무드 레이어 */
 .page-login {
   /* 모바일 주소창/하단바 변화로 100vh가 튀는 문제를 줄이기 위해 dvh 우선 */
   min-height: 100dvh;
@@ -127,25 +119,25 @@
   margin-bottom: 1.4rem;
 }
 
-.page-login .auth-card .form-control {
+.page-login .auth-card .gls-input {
   border-radius: 12px;
   border-color: rgba(47, 108, 138, 0.28);
   background-color: rgba(255, 255, 255, 0.9);
 }
 
-.page-login .auth-card .form-control:focus {
+.page-login .auth-card .gls-input:focus {
   box-shadow: 0 0 0 0.18rem rgba(47, 108, 138, 0.2);
   border-color: #2f6c8a;
 }
 
-.page-login .auth-card .btn-success {
+.page-login .auth-card .gls-btn-primary {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* 터치 디바이스에서 :hover가 '고정'되는 느낌을 줄이기 위해
    hover 가능한 환경에서만 살짝 띄우는 애니메이션을 적용 */
 @media (hover: hover) and (pointer: fine) {
-  .page-login .auth-card .btn-success:hover {
+  .page-login .auth-card .gls-btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 26px rgba(34, 70, 104, 0.24);
   }
@@ -153,7 +145,7 @@
 
 /* 터치 디바이스에서는 :hover가 "걸린 채" 남아 어색해지는 경우가 많아서 hover 전용 모션은 꺼둠 */
 @media (hover: none) and (pointer: coarse) {
-  .page-login .auth-card .btn-success:hover {
+  .page-login .auth-card .gls-btn-primary:hover {
     transform: none;
     box-shadow: none;
   }

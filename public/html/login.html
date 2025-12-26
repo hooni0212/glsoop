@@ -28,9 +28,10 @@
   >
 
   <!-- Custom CSS: 글숲 공통 스타일 -->
+  <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <link rel="stylesheet" href="/css/login.css">
+  <link rel="stylesheet" href="/css/components/all.css">
+  <link rel="stylesheet" href="/css/pages/login.css">
   <link rel="stylesheet" href="/css/themes/spring-theme.css">
   <link rel="stylesheet" href="/css/themes/summer-theme.css">
   <link rel="stylesheet" href="/css/themes/autumn-theme.css">
@@ -38,7 +39,7 @@
 </head>
 
 <!-- 🔽 전체를 세로 플렉스 + 화면 높이 채우기 (푸터를 항상 하단에 붙이기 위함) -->
-<body class="d-flex flex-column min-vh-100 winter-theme page-login">
+<body class="gls-flex gls-flex-col gls-min-vh-100 winter-theme page-login">
   <!-- 헤더 네비게이션 바 -->
   <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
     <div class="container">
@@ -129,24 +130,24 @@
   </nav>
 
   <!-- 로그인 섹션 -->
-  <!-- fixed-top 헤더와 겹치지 않도록 py-5 + mt-5로 상단 여백 확보 -->
-  <section class="py-5 mt-5 auth-hero position-relative overflow-hidden">
+  <!-- fixed-top 헤더와 겹치지 않도록 gls-py-5 + gls-mt-5로 상단 여백 확보 -->
+  <section class="gls-py-5 gls-mt-5 auth-hero gls-relative gls-overflow-hidden">
     <div class="snowfall snowfall-near"></div>
     <div class="snowfall snowfall-mid"></div>
     <div class="snowfall snowfall-far"></div>
-    <div class="container position-relative">
+    <div class="container gls-relative">
       <!-- 페이지 제목 -->
-      <div class="text-center mb-4">
-        <p class="auth-eyebrow text-uppercase mb-2">겨울 아카이브</p>
+      <div class="gls-text-center gls-mb-4">
+        <p class="auth-eyebrow gls-uppercase gls-mb-2">겨울 아카이브</p>
         <h2 class="fw-bold">로그인</h2>
-        <p class="text-muted small mb-0">포근한 숲 속에서 계정을 열어보세요.</p>
+        <p class="gls-text-muted gls-text-small gls-mb-0">포근한 숲 속에서 계정을 열어보세요.</p>
       </div>
 
       <div class="auth-shell mx-auto">
         <div class="auth-aside">
           <span class="auth-chip">겨울 감성 유지 중</span>
-          <h3 class="fw-bold mt-3">잔잔한 설경 속에서<br class="d-none d-md-inline"> 글숲과 다시 연결돼요.</h3>
-          <p class="text-muted mt-2 mb-3">
+          <h3 class="fw-bold gls-mt-3">잔잔한 설경 속에서<br class="gls-hidden gls-md-inline"> 글숲과 다시 연결돼요.</h3>
+          <p class="gls-text-muted gls-mt-2 gls-mb-3">
             고요한 배경 위에 얇은 유리 패널을 더해, 눈 내리는 분위기를 해치지 않으면서도 또렷한 로그인 경험을 준비했어요.
           </p>
           <div class="auth-meta">
@@ -165,31 +166,31 @@
         <form id="loginForm" class="auth-card" style="max-width: 480px;">
           <div class="auth-card__header">
             <div>
-              <p class="auth-eyebrow text-uppercase mb-1">Sign in</p>
-              <h4 class="mb-0">계정으로 돌아오기</h4>
+              <p class="auth-eyebrow gls-uppercase gls-mb-1">Sign in</p>
+              <h4 class="gls-mb-0">계정으로 돌아오기</h4>
             </div>
-            <a class="btn btn-outline-success btn-sm" href="/html/signup.html">회원가입</a>
+            <a class="gls-btn gls-btn-sm gls-btn-secondary" href="/html/signup.html">회원가입</a>
           </div>
 
           <!-- 이메일 입력 -->
-          <div class="mb-3">
-            <label class="form-label">이메일</label>
+          <div class="gls-mb-3">
+            <label class="gls-label">이메일</label>
             <input
               type="email"
               name="email"
-              class="form-control"
+              class="gls-input"
               required
               autofocus
             >
           </div>
 
           <!-- 비밀번호 입력 -->
-          <div class="mb-3">
-            <label class="form-label">비밀번호</label>
+          <div class="gls-mb-3">
+            <label class="gls-label">비밀번호</label>
             <input
               type="password"
               name="pw"
-              class="form-control"
+              class="gls-input"
               required
               autocomplete="current-password"
             >
@@ -199,15 +200,15 @@
           <!-- login.js에서 submit 이벤트를 잡아 /api/login 호출 -->
           <button
             type="submit"
-            class="btn btn-success w-100"
+            class="gls-btn gls-btn-primary gls-btn-block"
           >
             로그인
           </button>
 
           <!-- 비밀번호 찾기 링크: forgot-password.html로 이동 -->
-          <div class="d-flex justify-content-between align-items-center mt-3 small">
-            <span class="text-muted">안전한 접속을 위해 HTTPS를 사용해요.</span>
-            <a href="/html/forgot-password.html" class="text-muted">
+          <div class="gls-spread gls-mt-3 gls-text-small">
+            <span class="gls-text-muted">안전한 접속을 위해 HTTPS를 사용해요.</span>
+            <a href="/html/forgot-password.html" class="gls-text-muted">
               비밀번호를 잊으셨나요?
             </a>
           </div>
@@ -218,16 +219,16 @@
 
   <!-- 글숲 공통 푸터 -->
   <!-- body에 flex-column + min-vh-100, 푸터에 mt-auto → 화면 하단에 고정 느낌 -->
-  <footer class="custom-footer mt-auto">
+  <footer class="custom-footer gls-mt-auto">
     <div class="container">
-      <div class="row gy-2 align-items-center justify-content-between">
-        <div class="col-md-6 text-center text-md-start">
+      <div class="gls-flex gls-flex-col gls-gap-2 gls-md-flex-row gls-justify-between gls-items-center">
+        <div class="gls-text-center gls-text-md-start">
           <div class="footer-brand">글숲</div>
-          <p class="footer-subtitle mb-0">마음을 나누는 작은 숲</p>
+          <p class="footer-subtitle gls-mb-0">마음을 나누는 작은 숲</p>
         </div>
-        <div class="col-md-6 text-center text-md-end footer-meta">
-          <p class="footer-copy mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
-          <p class="footer-small mb-0">&copy; 2025 글숲</p>
+        <div class="gls-text-center gls-text-md-end footer-meta">
+          <p class="footer-copy gls-mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
+          <p class="footer-small gls-mb-0">&copy; 2025 글숲</p>
         </div>
       </div>
     </div>

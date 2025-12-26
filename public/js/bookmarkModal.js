@@ -38,19 +38,19 @@
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">북마크 폴더 선택</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="gls-modal-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <div class="bookmark-modal-status text-muted small mb-2"></div>
-              <div class="bookmark-modal-list list-group mb-3"></div>
-              <div class="bookmark-modal-create d-flex gap-2 align-items-center">
-                <input type="text" class="form-control" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
-                <button class="btn btn-primary bookmark-modal-create-btn" type="button" id="bookmarkNewListSubmit">추가</button>
+              <div class="bookmark-modal-status gls-text-muted gls-text-small gls-mb-2"></div>
+              <div class="bookmark-modal-list list-group gls-mb-3"></div>
+              <div class="bookmark-modal-create gls-flex gls-gap-2 gls-items-center">
+                <input type="text" class="gls-input" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
+                <button class="gls-btn gls-btn-primary gls-btn-sm bookmark-modal-create-btn" type="button" id="bookmarkNewListSubmit">추가</button>
               </div>
             </div>
             <div class="modal-footer">
-              <a href="/html/bookmarks.html" class="btn btn-secondary">북마크 페이지로 이동</a>
-              <button type="button" class="btn btn-primary" data-bs-dismiss="modal">완료</button>
+              <a href="/html/bookmarks.html" class="gls-btn gls-btn-secondary gls-btn-sm">북마크 페이지로 이동</a>
+              <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" data-bs-dismiss="modal">완료</button>
             </div>
           </div>
         </div>
@@ -97,17 +97,17 @@
   function renderLists(lists, selectedIds = new Set()) {
     if (!listContainer) return;
     if (!lists.length) {
-      listContainer.innerHTML = '<div class="text-muted small">아직 폴더가 없습니다. 아래에서 새 폴더를 만들어주세요.</div>';
+      listContainer.innerHTML = '<div class="gls-text-muted gls-text-small">아직 폴더가 없습니다. 아래에서 새 폴더를 만들어주세요.</div>';
       return;
     }
 
     listContainer.innerHTML = '';
     lists.forEach((list) => {
       const item = document.createElement('label');
-      item.className = 'list-group-item d-flex justify-content-between align-items-center';
+      item.className = 'list-group-item gls-flex gls-items-center gls-gap-2';
       const input = document.createElement('input');
       input.type = 'checkbox';
-      input.className = 'form-check-input me-2';
+      input.className = 'gls-check-input';
       input.checked = selectedIds.has(list.id);
       input.addEventListener('change', () => toggleMembership(list.id, input.checked));
       item.appendChild(input);

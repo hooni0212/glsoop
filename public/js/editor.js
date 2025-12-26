@@ -170,7 +170,7 @@ try {
   if (hashtagsInput) {
     hashtagChipContainer = document.createElement('div');
     hashtagChipContainer.id = 'hashtagChips';
-    hashtagChipContainer.className = 'd-flex flex-wrap';
+    hashtagChipContainer.className = 'gls-flex gls-flex-wrap';
     // 인풋 바로 아래에 붙이기
     hashtagsInput.insertAdjacentElement('afterend', hashtagChipContainer);
   }
@@ -367,11 +367,11 @@ try {
 
     // 30자 이하 남았을 때 빨간색
     if (remaining <= 30) {
-      charCounterEl.classList.remove('text-muted');
+      charCounterEl.classList.remove('gls-text-muted');
       charCounterEl.classList.add('text-danger');
     } else {
       charCounterEl.classList.remove('text-danger');
-      charCounterEl.classList.add('text-muted');
+      charCounterEl.classList.add('gls-text-muted');
     }
   }
 
@@ -395,7 +395,7 @@ try {
 
     let html = `<span class="me-2">폰트: ${escapeHtml(fontLabel)}</span>`;
     if (tagsText) {
-      html += `<span class="text-muted">태그: ${escapeHtml(tagsText)}</span>`;
+      html += `<span class="gls-text-muted">태그: ${escapeHtml(tagsText)}</span>`;
     }
 
     previewMetaEl.innerHTML = html;
@@ -556,7 +556,7 @@ try {
 
     // 에러 영역 초기화
     if (editorAlertEl) {
-      editorAlertEl.classList.add('d-none');
+      editorAlertEl.classList.add('gls-hidden');
       editorAlertEl.textContent = '';
     }
 
@@ -629,7 +629,7 @@ try {
       return;
     }
     editorAlertEl.textContent = msg;
-    editorAlertEl.classList.remove('d-none');
+    editorAlertEl.classList.remove('gls-hidden');
 
     // 에러 영역이 보이도록 살짝 위로 스크롤
     window.scrollTo({ top: editorAlertEl.offsetTop - 140, behavior: 'smooth' });

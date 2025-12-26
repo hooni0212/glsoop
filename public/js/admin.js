@@ -66,10 +66,10 @@ Glsoop.AdminPage = (function () {
     if (!me) return;
 
     statusBox.innerHTML = `
-      <p class="mb-1">
+      <p class="gls-mb-1">
         <strong>${escapeHtml(me.name)}</strong> 님, 관리자 권한으로 접속했습니다.
       </p>
-      <p class="text-muted mb-0">
+      <p class="gls-text-muted gls-mb-0">
         회원과 게시글, 퀘스트를 이 페이지에서 관리할 수 있습니다.
       </p>
     `;
@@ -170,7 +170,7 @@ Glsoop.AdminPage = (function () {
         tabButtons.forEach((b) => b.classList.toggle('active', b === btn));
         panels.forEach((panel) => {
           const isTarget = panel.id === targetId;
-          panel.classList.toggle('d-none', !isTarget);
+          panel.classList.toggle('gls-hidden', !isTarget);
         });
       });
     });
@@ -236,7 +236,7 @@ Glsoop.AdminPage = (function () {
       }
       const users = data.users || [];
       if (!users.length) {
-        usersBox.innerHTML = '<p class="text-muted">현재 가입된 회원이 없습니다.</p>';
+        usersBox.innerHTML = '<p class="gls-text-muted">현재 가입된 회원이 없습니다.</p>';
         return;
       }
       usersBox.innerHTML = buildUsersTableHtml(users);
@@ -253,16 +253,16 @@ Glsoop.AdminPage = (function () {
     const rowsHtml = users
       .map((u) => {
         const isAdminBadge = u.is_admin
-          ? '<span class="badge bg-danger ms-1">관리자</span>'
+          ? '<span class="gls-badge gls-badge--danger gls-ms-1">관리자</span>'
           : '';
         const isVerifiedBadge =
           u.is_verified && Number(u.is_verified) === 1
-            ? '<span class="badge bg-success ms-1">인증완료</span>'
-            : '<span class="badge bg-secondary ms-1">미인증</span>';
+            ? '<span class="gls-badge gls-badge--success gls-ms-1">인증완료</span>'
+            : '<span class="gls-badge gls-badge--muted gls-ms-1">미인증</span>';
         const nicknameText =
           u.nickname && String(u.nickname).trim().length > 0
             ? escapeHtml(u.nickname)
-            : '<span class="text-muted">-</span>';
+            : '<span class="gls-text-muted">-</span>';
         const maskedEmail = maskEmail(u.email);
         return `
           <tr data-user-id="${u.id}">
@@ -274,7 +274,7 @@ Glsoop.AdminPage = (function () {
             <td>
               <button
                 type="button"
-                class="btn btn-sm btn-outline-danger admin-delete-user-btn"
+                class="gls-btn gls-btn-danger gls-btn-xs admin-delete-user-btn"
               >
                 삭제
               </button>
@@ -323,7 +323,7 @@ Glsoop.AdminPage = (function () {
       }
       tr.remove();
       if (!tbody.children.length) {
-        usersBox.innerHTML = '<p class="text-muted">현재 가입된 회원이 없습니다.</p>';
+        usersBox.innerHTML = '<p class="gls-text-muted">현재 가입된 회원이 없습니다.</p>';
       }
     } catch (err) {
       console.error(err);
@@ -337,31 +337,31 @@ Glsoop.AdminPage = (function () {
     if (filterBox) {
       filterBox.innerHTML = `
         <div class="admin-toolbar">
-          <input type="search" class="form-control form-control-sm" id="adminPostsSearch" placeholder="제목/작성자 검색" value="${
+          <input type="search" class="gls-input gls-input-sm" id="adminPostsSearch" placeholder="제목/작성자 검색" value="${
             postsState.search
           }" />
-          <select class="form-select form-select-sm" id="adminPostsCategory">
+          <select class="gls-select gls-select-sm" id="adminPostsCategory">
             <option value="all">전체</option>
             <option value="poem">시</option>
             <option value="essay">에세이</option>
             <option value="short">짧은 구절</option>
           </select>
-          <select class="form-select form-select-sm" id="adminPostsRange">
+          <select class="gls-select gls-select-sm" id="adminPostsRange">
             <option value="all">전체 기간</option>
             <option value="7">최근 7일</option>
             <option value="30">최근 30일</option>
           </select>
-          <select class="form-select form-select-sm" id="adminPostsSort">
+          <select class="gls-select gls-select-sm" id="adminPostsSort">
             <option value="recent">최신순</option>
             <option value="oldest">오래된순</option>
             <option value="likes">공감 많은순</option>
           </select>
-          <select class="form-select form-select-sm" id="adminPostsLimit">
+          <select class="gls-select gls-select-sm" id="adminPostsLimit">
             <option value="24">24개씩</option>
             <option value="48" selected>48개씩</option>
             <option value="96">96개씩</option>
           </select>
-          <button class="btn btn-sm btn-outline-primary" id="adminPostsApply" type="button">적용</button>
+          <button class="gls-btn gls-btn-primary gls-btn-sm" id="adminPostsApply" type="button">적용</button>
         </div>
       `;
       filterBox.addEventListener('click', (e) => {
@@ -392,7 +392,7 @@ Glsoop.AdminPage = (function () {
     const grid = postsBox?.querySelector('#adminPostsGrid');
     const pagination = postsBox?.querySelector('#adminPostsPagination');
     if (!grid) return;
-    grid.innerHTML = '<p class="text-muted">글 목록을 불러오는 중입니다...</p>';
+    grid.innerHTML = '<p class="gls-text-muted">글 목록을 불러오는 중입니다...</p>';
     if (pagination) pagination.innerHTML = '';
 
     const params = new URLSearchParams({
@@ -431,7 +431,7 @@ Glsoop.AdminPage = (function () {
 
       const posts = data.items || data.posts || [];
       if (!posts.length) {
-        grid.innerHTML = '<p class="text-muted">등록된 글이 없습니다.</p>';
+        grid.innerHTML = '<p class="gls-text-muted">등록된 글이 없습니다.</p>';
       } else {
         grid.innerHTML = buildPostsHtml(posts);
       }
@@ -470,10 +470,10 @@ Glsoop.AdminPage = (function () {
         return `
           <article class="admin-post-card" data-post-id="${post.id}">
             <div class="admin-post-card__top">
-              <span class="badge rounded-pill bg-light text-dark admin-post-card__category">${
+              <span class="gls-badge gls-badge-soft admin-post-card__category">${
                 post.category || '카테고리 없음'
               }</span>
-              <button class="btn btn-icon admin-post-card__delete" type="button" aria-label="삭제" title="삭제">
+              <button class="gls-btn gls-btn-ghost gls-btn-xs admin-post-card__delete" type="button" aria-label="삭제" title="삭제">
                 ×
               </button>
             </div>
@@ -482,9 +482,9 @@ Glsoop.AdminPage = (function () {
             <p class="admin-post-card__snippet">${escapeHtml(snippet)}${
           snippet.length >= 80 ? '…' : ''
         }</p>
-            <div class="d-flex justify-content-between align-items-center admin-post-card__footer">
-              <span class="text-muted small">❤ ${post.like_count || 0}</span>
-              <button class="btn btn-sm btn-outline-primary admin-post-card__preview" type="button">미리보기</button>
+            <div class="gls-spread admin-post-card__footer">
+              <span class="gls-text-muted gls-text-small">❤ ${post.like_count || 0}</span>
+              <button class="gls-btn gls-btn-secondary gls-btn-xs admin-post-card__preview" type="button">미리보기</button>
             </div>
           </article>
         `;
@@ -497,10 +497,10 @@ Glsoop.AdminPage = (function () {
     const prevDisabled = page <= 1 ? 'disabled' : '';
     const nextDisabled = page >= totalPages ? 'disabled' : '';
     return `
-      <div class="d-flex justify-content-between align-items-center w-100">
-        <button class="btn btn-sm btn-outline-secondary" data-page="${page - 1}" ${prevDisabled}>이전</button>
-        <span class="text-muted small">${page} / ${totalPages} 페이지 · 총 ${total}건</span>
-        <button class="btn btn-sm btn-outline-secondary" data-page="${page + 1}" ${nextDisabled}>다음</button>
+      <div class="gls-spread gls-w-100">
+        <button class="gls-btn gls-btn-secondary gls-btn-xs" data-page="${page - 1}" ${prevDisabled}>이전</button>
+        <span class="gls-text-muted gls-text-small">${page} / ${totalPages} 페이지 · 총 ${total}건</span>
+        <button class="gls-btn gls-btn-secondary gls-btn-xs" data-page="${page + 1}" ${nextDisabled}>다음</button>
       </div>
     `;
   }
@@ -568,7 +568,7 @@ Glsoop.AdminPage = (function () {
       } · ${post.category || ''}`;
       document.getElementById('adminPostModalMeta').innerText = meta;
       document.getElementById('adminPostModalBody').innerHTML = sanitizePostHtml(post.content || '');
-      modal.classList.remove('d-none');
+      modal.classList.remove('gls-hidden');
     } catch (err) {
       console.error(err);
       alert('글 정보를 불러오는 중 오류가 발생했습니다.');
@@ -578,7 +578,7 @@ Glsoop.AdminPage = (function () {
   function closePostModal() {
     const modal = document.getElementById('adminPostModal');
     if (!modal) return;
-    modal.classList.add('d-none');
+    modal.classList.add('gls-hidden');
     modal.dataset.postId = '';
   }
 
@@ -600,7 +600,7 @@ Glsoop.AdminPage = (function () {
       if (card) card.remove();
       const grid = document.getElementById('adminPostsGrid');
       if (grid && !grid.querySelector('.admin-post-card')) {
-        grid.innerHTML = '<p class="text-muted">등록된 글이 없습니다.</p>';
+        grid.innerHTML = '<p class="gls-text-muted">등록된 글이 없습니다.</p>';
       }
       closePostModal();
     } catch (err) {
@@ -612,7 +612,7 @@ Glsoop.AdminPage = (function () {
     async function loadQuestTemplates() {
       const box = document.getElementById('questTemplates');
       if (!box) return;
-      box.innerHTML = '<p class="text-muted">템플릿을 불러오는 중입니다...</p>';
+      box.innerHTML = '<p class="gls-text-muted">템플릿을 불러오는 중입니다...</p>';
       try {
         const res = await fetch('/api/admin/quest-templates');
         if (res.status === 401 || res.status === 403) {
@@ -652,85 +652,85 @@ Glsoop.AdminPage = (function () {
         (t) => `
         <tr data-template-id="${t.id}">
           <td>${escapeHtml(t.name)}</td>
-          <td><span class="badge bg-light text-dark">${escapeHtml(
+          <td><span class="gls-badge gls-badge-soft">${escapeHtml(
             CONDITION_LABELS[t.condition_type] || t.condition_type
           )}</span> ${
-            t.category ? `<span class="badge bg-secondary ms-1">${escapeHtml(t.category)}</span>` : ''
+            t.category ? `<span class="gls-badge gls-badge--muted gls-ms-1">${escapeHtml(t.category)}</span>` : ''
           }</td>
           <td>${t.target_value}</td>
           <td>${t.reward_xp || 0} XP</td>
           <td>${t.is_active ? '활성' : '비활성'}</td>
-          <td class="text-end">
-            <button class="btn btn-sm btn-outline-primary quest-template-edit" type="button">수정</button>
-            <button class="btn btn-sm btn-outline-danger quest-template-delete" type="button">삭제</button>
+          <td class="gls-text-end">
+            <button class="gls-btn gls-btn-secondary gls-btn-xs quest-template-edit" type="button">수정</button>
+            <button class="gls-btn gls-btn-danger gls-btn-xs quest-template-delete" type="button">삭제</button>
           </td>
         </tr>`
       )
       .join('');
 
     return `
-      <form id="questTemplateForm" class="quest-form card mb-3 p-3">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="mb-0">${editingId ? '템플릿 수정' : '새 템플릿 추가'}</h5>
-          <button class="btn btn-sm btn-outline-secondary" type="button" id="questTemplateReset">초기화</button>
+      <form id="questTemplateForm" class="quest-form card gls-mb-3 gls-p-3">
+        <div class="gls-spread gls-mb-2">
+          <h5 class="gls-mb-0">${editingId ? '템플릿 수정' : '새 템플릿 추가'}</h5>
+          <button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" id="questTemplateReset">초기화</button>
         </div>
-        <div class="row g-2">
-          <div class="col-md-4">
-            <label class="form-label small mb-1">제목</label>
-            <input class="form-control form-control-sm" name="name" value="${escapeHtml(
+        <div class="gls-grid gls-grid-12 gls-gap-2">
+          <div class="gls-col-span-12 gls-md-col-span-4">
+            <label class="gls-label gls-text-small gls-mb-1">제목</label>
+            <input class="gls-input gls-input-sm" name="name" value="${escapeHtml(
               values.name || ''
             )}" required />
           </div>
-          <div class="col-md-4">
-            <label class="form-label small mb-1">조건 타입</label>
-            <select class="form-select form-select-sm" name="condition_type" required>
+          <div class="gls-col-span-12 gls-md-col-span-4">
+            <label class="gls-label gls-text-small gls-mb-1">조건 타입</label>
+            <select class="gls-select gls-select-sm" name="condition_type" required>
               ${buildConditionOptions(values.condition_type)}
             </select>
           </div>
-          <div class="col-md-4">
-            <label class="form-label small mb-1">카테고리(선택)</label>
-            <select class="form-select form-select-sm" name="category">
+          <div class="gls-col-span-12 gls-md-col-span-4">
+            <label class="gls-label gls-text-small gls-mb-1">카테고리(선택)</label>
+            <select class="gls-select gls-select-sm" name="category">
               <option value="">(전체)</option>
               <option value="poem" ${values.category === 'poem' ? 'selected' : ''}>시</option>
               <option value="essay" ${values.category === 'essay' ? 'selected' : ''}>에세이</option>
               <option value="short" ${values.category === 'short' ? 'selected' : ''}>짧은 구절</option>
             </select>
           </div>
-          <div class="col-md-3">
-            <label class="form-label small mb-1">목표</label>
-            <input type="number" min="1" class="form-control form-control-sm" name="target_value" value="${
+          <div class="gls-col-span-12 gls-md-col-span-3">
+            <label class="gls-label gls-text-small gls-mb-1">목표</label>
+            <input type="number" min="1" class="gls-input gls-input-sm" name="target_value" value="${
               values.target_value || ''
             }" required />
           </div>
-          <div class="col-md-3">
-            <label class="form-label small mb-1">보상 XP</label>
-            <input type="number" min="0" class="form-control form-control-sm" name="reward_xp" value="${
+          <div class="gls-col-span-12 gls-md-col-span-3">
+            <label class="gls-label gls-text-small gls-mb-1">보상 XP</label>
+            <input type="number" min="0" class="gls-input gls-input-sm" name="reward_xp" value="${
               values.reward_xp || 0
             }" />
           </div>
-          <div class="col-md-6">
-            <label class="form-label small mb-1">설명</label>
-            <input class="form-control form-control-sm" name="description" value="${escapeHtml(
+          <div class="gls-col-span-12 gls-md-col-span-6">
+            <label class="gls-label gls-text-small gls-mb-1">설명</label>
+            <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
           </div>
-          <div class="col-md-3 d-flex align-items-end">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="is_active" id="templateActive" ${
+          <div class="gls-col-span-12 gls-md-col-span-3 gls-flex gls-items-end">
+            <div class="gls-check">
+              <input class="gls-check-input" type="checkbox" name="is_active" id="templateActive" ${
                 values.is_active || editingId === '' ? 'checked' : ''
               } />
-              <label class="form-check-label" for="templateActive">활성</label>
+              <label class="gls-check-label" for="templateActive">활성</label>
             </div>
           </div>
         </div>
-        <div class="text-end mt-3">
+        <div class="gls-text-end gls-mt-3">
           <input type="hidden" name="id" value="${editingId}" />
-          <button class="btn btn-primary btn-sm" type="submit">${editingId ? '수정 저장' : '추가'}</button>
+          <button class="gls-btn gls-btn-primary gls-btn-sm" type="submit">${editingId ? '수정 저장' : '추가'}</button>
         </div>
       </form>
       <div class="table-responsive">
         <table class="table align-middle table-sm">
-          <thead><tr><th>제목</th><th>조건</th><th>목표</th><th>보상</th><th>상태</th><th class="text-end">관리</th></tr></thead>
+          <thead><tr><th>제목</th><th>조건</th><th>목표</th><th>보상</th><th>상태</th><th class="gls-text-end">관리</th></tr></thead>
           <tbody>${listHtml}</tbody>
         </table>
       </div>
@@ -827,7 +827,7 @@ Glsoop.AdminPage = (function () {
   async function loadQuestCampaigns() {
     const box = document.getElementById('questCampaigns');
     if (!box) return;
-    box.innerHTML = '<p class="text-muted">캠페인을 불러오는 중입니다...</p>';
+    box.innerHTML = '<p class="gls-text-muted">캠페인을 불러오는 중입니다...</p>';
     try {
       const res = await fetch('/api/admin/quest-campaigns');
       if (res.status === 401 || res.status === 403) {
@@ -874,12 +874,12 @@ Glsoop.AdminPage = (function () {
       .map((t) => {
         const found = selectedItems.find((i) => Number(i.template_id) === Number(t.id));
         return `
-          <div class="form-check form-check-inline mb-1">
-            <input class="form-check-input quest-campaign-template" type="checkbox" data-template-id="${t.id}" id="campaignTpl${t.id}" ${
+          <div class="gls-check gls-check-inline gls-mb-1">
+            <input class="gls-check-input quest-campaign-template" type="checkbox" data-template-id="${t.id}" id="campaignTpl${t.id}" ${
           found ? 'checked' : ''
         } />
-            <label class="form-check-label" for="campaignTpl${t.id}">${escapeHtml(t.name)}</label>
-            <input type="number" class="form-control form-control-sm ms-2" style="width:80px" placeholder="순서" data-template-order="${t.id}" value="${
+            <label class="gls-check-label" for="campaignTpl${t.id}">${escapeHtml(t.name)}</label>
+            <input type="number" class="gls-input gls-input-sm gls-ms-2" style="width:80px" placeholder="순서" data-template-order="${t.id}" value="${
           found ? found.sort_order || 0 : ''
         }" />
           </div>`;
@@ -894,30 +894,30 @@ Glsoop.AdminPage = (function () {
           <td>${escapeHtml(CAMPAIGN_TYPE_LABELS[c.campaign_type] || c.campaign_type || '')}</td>
           <td>${c.start_at || '-'} ~ ${c.end_at || '-'}</td>
           <td>${c.is_active ? '활성' : '비활성'} (priority ${c.priority || 1})</td>
-          <td class="text-end">
-            <button class="btn btn-sm btn-outline-primary quest-campaign-edit" type="button">편집</button>
-            <button class="btn btn-sm btn-outline-danger quest-campaign-delete" type="button">삭제</button>
+          <td class="gls-text-end">
+            <button class="gls-btn gls-btn-secondary gls-btn-xs quest-campaign-edit" type="button">편집</button>
+            <button class="gls-btn gls-btn-danger gls-btn-xs quest-campaign-delete" type="button">삭제</button>
           </td>
         </tr>`
       )
       .join('');
 
     return `
-      <form id="questCampaignForm" class="quest-form card mb-3 p-3">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h5 class="mb-0">${editingId ? '캠페인 수정' : '새 캠페인 추가'}</h5>
-          <button class="btn btn-sm btn-outline-secondary" type="button" id="questCampaignReset">초기화</button>
+      <form id="questCampaignForm" class="quest-form card gls-mb-3 gls-p-3">
+        <div class="gls-spread gls-mb-2">
+          <h5 class="gls-mb-0">${editingId ? '캠페인 수정' : '새 캠페인 추가'}</h5>
+          <button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" id="questCampaignReset">초기화</button>
         </div>
-        <div class="row g-2">
-          <div class="col-md-4">
-            <label class="form-label small mb-1">이름</label>
-            <input class="form-control form-control-sm" name="name" value="${escapeHtml(
+        <div class="gls-grid gls-grid-12 gls-gap-2">
+          <div class="gls-col-span-12 gls-md-col-span-4">
+            <label class="gls-label gls-text-small gls-mb-1">이름</label>
+            <input class="gls-input gls-input-sm" name="name" value="${escapeHtml(
               values.name || ''
             )}" required />
           </div>
-          <div class="col-md-3">
-            <label class="form-label small mb-1">유형</label>
-            <select class="form-select form-select-sm" name="campaign_type">
+          <div class="gls-col-span-12 gls-md-col-span-3">
+            <label class="gls-label gls-text-small gls-mb-1">유형</label>
+            <select class="gls-select gls-select-sm" name="campaign_type">
               ${typeOptions
                 .map(
                   (t) => `<option value="${t}" ${
@@ -927,53 +927,53 @@ Glsoop.AdminPage = (function () {
                 .join('')}
             </select>
           </div>
-          <div class="col-md-3">
-            <label class="form-label small mb-1">시작</label>
-            <input type="datetime-local" class="form-control form-control-sm" name="start_at" value="${
+          <div class="gls-col-span-12 gls-md-col-span-3">
+            <label class="gls-label gls-text-small gls-mb-1">시작</label>
+            <input type="datetime-local" class="gls-input gls-input-sm" name="start_at" value="${
               values.start_at ? values.start_at.replace(' ', 'T') : ''
             }" />
           </div>
-          <div class="col-md-3">
-            <label class="form-label small mb-1">종료</label>
-            <input type="datetime-local" class="form-control form-control-sm" name="end_at" value="${
+          <div class="gls-col-span-12 gls-md-col-span-3">
+            <label class="gls-label gls-text-small gls-mb-1">종료</label>
+            <input type="datetime-local" class="gls-input gls-input-sm" name="end_at" value="${
               values.end_at ? values.end_at.replace(' ', 'T') : ''
             }" />
           </div>
-          <div class="col-md-2">
-            <label class="form-label small mb-1">우선순위</label>
-            <input type="number" class="form-control form-control-sm" name="priority" value="${
+          <div class="gls-col-span-12 gls-md-col-span-2">
+            <label class="gls-label gls-text-small gls-mb-1">우선순위</label>
+            <input type="number" class="gls-input gls-input-sm" name="priority" value="${
               values.priority || 1
             }" />
           </div>
-          <div class="col-md-4">
-            <label class="form-label small mb-1">설명</label>
-            <input class="form-control form-control-sm" name="description" value="${escapeHtml(
+          <div class="gls-col-span-12 gls-md-col-span-4">
+            <label class="gls-label gls-text-small gls-mb-1">설명</label>
+            <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
           </div>
-          <div class="col-md-2 d-flex align-items-end">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="is_active" id="campaignActive" ${
+          <div class="gls-col-span-12 gls-md-col-span-2 gls-flex gls-items-end">
+            <div class="gls-check">
+              <input class="gls-check-input" type="checkbox" name="is_active" id="campaignActive" ${
                 values.is_active ? 'checked' : ''
               } />
-              <label class="form-check-label" for="campaignActive">활성</label>
+              <label class="gls-check-label" for="campaignActive">활성</label>
             </div>
           </div>
         </div>
-        <div class="mt-3">
-          <p class="small text-muted mb-1">캠페인에 포함할 템플릿을 선택하고 정렬 순서를 지정하세요.</p>
+        <div class="gls-mt-3">
+          <p class="gls-text-small gls-text-muted gls-mb-1">캠페인에 포함할 템플릿을 선택하고 정렬 순서를 지정하세요.</p>
           <div class="quest-template-select">
-            ${selection || '<p class="text-muted">등록된 템플릿이 없습니다.</p>'}
+            ${selection || '<p class="gls-text-muted">등록된 템플릿이 없습니다.</p>'}
           </div>
         </div>
-        <div class="text-end mt-3">
+        <div class="gls-text-end gls-mt-3">
           <input type="hidden" name="id" value="${editingId}" />
-          <button class="btn btn-primary btn-sm" type="submit">${editingId ? '수정 저장' : '추가'}</button>
+          <button class="gls-btn gls-btn-primary gls-btn-sm" type="submit">${editingId ? '수정 저장' : '추가'}</button>
         </div>
       </form>
       <div class="table-responsive">
         <table class="table align-middle table-sm">
-          <thead><tr><th>이름</th><th>유형</th><th>기간</th><th>상태</th><th class="text-end">관리</th></tr></thead>
+          <thead><tr><th>이름</th><th>유형</th><th>기간</th><th>상태</th><th class="gls-text-end">관리</th></tr></thead>
           <tbody>${listHtml}</tbody>
         </table>
       </div>

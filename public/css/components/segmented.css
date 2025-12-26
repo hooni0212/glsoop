@@ -1,0 +1,30 @@
+/* ==========================================================================
+   segmented.css
+   목적:
+   - legacy segmented group + gls-seg-input 의존을 줄이고,
+     라디오 기반 세그먼트 컨트롤을 gls-btn 톤으로 보여준다.
+   ========================================================================== */
+
+.gls-segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+  align-items: center;
+}
+
+/* keep the existing radio-input semantics, but hide it */
+.gls-segmented .gls-seg-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.gls-segmented .gls-btn {
+  transform: none;
+}
+
+/* checked state: input + label */
+.gls-segmented .gls-seg-input:checked + .gls-btn {
+  border-color: var(--gls-btn-active-border);
+  background: var(--gls-btn-active-bg);
+}

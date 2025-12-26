@@ -32,9 +32,11 @@
   />
 
   <!-- Custom CSS: 글숲 공통 스타일 (header, footer, 카드 등) -->
+  <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <link rel="stylesheet" href="/css/page-shell.css">
+  <link rel="stylesheet" href="/css/components/all.css">
+  <link rel="stylesheet" href="/css/shells/page-shell.css">
+  <link rel="stylesheet" href="/css/pages/mypage.css">
   <link rel="stylesheet" href="/css/themes/spring-theme.css">
   <link rel="stylesheet" href="/css/themes/summer-theme.css">
   <link rel="stylesheet" href="/css/themes/autumn-theme.css">
@@ -137,27 +139,27 @@
     <div class="gls-container mypage-panels">
       <div class="page-hero-card gls-surface-veil">
         <div class="page-hero-meta">
-          <p class="eyebrow mb-0">나의 공간</p>
+          <p class="eyebrow gls-mb-0">나의 공간</p>
           <span class="pill">읽고 쓴 발자국</span>
         </div>
-        <h2 class="mt-2 mb-1">마이페이지</h2>
-        <p class="mb-0 text-muted">홈/상세 페이지와 같은 유리 톤으로 내 정보와 기록을 정리했어요.</p>
+        <h2 class="gls-mt-2 gls-mb-1">마이페이지</h2>
+        <p class="gls-mb-0 gls-text-muted">홈/상세 페이지와 같은 유리 톤으로 내 정보와 기록을 정리했어요.</p>
       </div>
 
       <div id="userInfo" class="mypage-card gls-surface-veil">
-        <p class="text-muted mb-0">내 정보를 불러오는 중입니다...</p>
+        <p class="gls-text-muted gls-mb-0">내 정보를 불러오는 중입니다...</p>
       </div>
 
-      <div id="mypageGrowthMini" class="mypage-growth-mini mypage-card gls-surface-veil d-none">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-          <div class="mypage-growth-summary-text text-muted">성장 정보를 불러오는 중...</div>
+      <div id="mypageGrowthMini" class="mypage-growth-mini mypage-card gls-surface-veil gls-hidden">
+        <div class="gls-flex gls-flex-wrap gls-justify-between gls-items-center gls-gap-3">
+          <div class="mypage-growth-summary-text gls-text-muted">성장 정보를 불러오는 중...</div>
           <a href="/html/growth.html" class="mypage-growth-link">숲 지도에서 더 보기 →</a>
         </div>
       </div>
 
       <div class="mypage-section mypage-section--posts mypage-card gls-surface-veil">
-        <div class="mypage-section-header d-flex justify-content-between align-items-center mb-3">
-          <h4 class="mypage-section-title mb-0">내 글 관리</h4>
+        <div class="mypage-section-header gls-spread gls-mb-3">
+          <h4 class="mypage-section-title gls-mb-0">내 글 관리</h4>
         </div>
 
         <div class="mypage-tabs" role="tablist">
@@ -180,22 +182,22 @@
           <!-- mypage.js → loadMyPosts() 결과가 #myPosts 안에 렌더링 -->
           <div id="myPostsSection" class="mypage-tab-panel">
             <div id="myPosts">
-              <p class="text-muted">글 목록을 불러오는 중입니다...</p>
+              <p class="gls-text-muted">글 목록을 불러오는 중입니다...</p>
             </div>
           </div>
 
-          <!-- 내가 공감한 글 섹션 (초기에는 d-none으로 숨김) -->
+          <!-- 내가 공감한 글 섹션 (초기에는 gls-hidden으로 숨김) -->
           <!-- mypage.js → loadLikedPosts() 결과가 #likedPosts 안에 렌더링 -->
-          <div id="likedPostsSection" class="d-none mypage-tab-panel">
+          <div id="likedPostsSection" class="gls-hidden mypage-tab-panel">
             <div id="likedPosts">
-              <p class="text-muted">공감한 글을 불러오는 중입니다...</p>
+              <p class="gls-text-muted">공감한 글을 불러오는 중입니다...</p>
             </div>
           </div>
 
-          <!-- 내가 팔로잉하는 사람들 섹션 (초기에는 d-none) -->
-          <div id="followingsSection" class="d-none mypage-tab-panel">
+          <!-- 내가 팔로잉하는 사람들 섹션 (초기에는 gls-hidden) -->
+          <div id="followingsSection" class="gls-hidden mypage-tab-panel">
             <div id="followingsList">
-              <p class="text-muted">팔로잉 목록을 불러오는 중입니다...</p>
+              <p class="gls-text-muted">팔로잉 목록을 불러오는 중입니다...</p>
             </div>
           </div>
         </div>
@@ -222,7 +224,7 @@
             <!-- 모달 닫기 버튼 -->
             <button
               type="button"
-              class="btn-close"
+              class="gls-modal-close"
               data-bs-dismiss="modal"
               aria-label="닫기"
             ></button>
@@ -230,81 +232,81 @@
 
           <div class="modal-body">
             <!-- 닉네임 -->
-            <div class="mb-3">
-              <label for="nicknameInput" class="form-label">닉네임</label>
+            <div class="gls-mb-3">
+              <label for="nicknameInput" class="gls-label">닉네임</label>
               <input
                 type="text"
-                class="form-control"
+                class="gls-input"
                 id="nicknameInput"
                 placeholder="표시할 닉네임"
               />
-              <div class="form-text">
+              <div class="gls-form-help">
                 사이트에서 이름 대신 보여줄 닉네임입니다. 비워두면 이름이 표시됩니다.
               </div>
             </div>
 
             <!-- 한 줄 소개 -->
-            <div class="mb-3">
-              <label for="bioInput" class="form-label">한 줄 소개</label>
+            <div class="gls-mb-3">
+              <label for="bioInput" class="gls-label">한 줄 소개</label>
               <input
                 type="text"
-                class="form-control"
+                class="gls-input"
                 id="bioInput"
                 maxlength="100"
                 placeholder="예) 조용히 마음을 적어두는 사람입니다."
               />
-              <div class="form-text">
+              <div class="gls-form-help">
                 작가 카드에 짧게 보여줄 소개 문장입니다.
               </div>
             </div>
 
             <!-- 자기소개 / 작가 소개 (여러 줄) -->
-            <div class="mb-3">
-              <label for="aboutInput" class="form-label">자기소개 / 작가 소개</label>
+            <div class="gls-mb-3">
+              <label for="aboutInput" class="gls-label">자기소개 / 작가 소개</label>
               <textarea
-                class="form-control"
+                class="gls-input"
                 id="aboutInput"
                 rows="4"
                 placeholder="글을 쓰게 된 계기나 좋아하는 주제 등을 적어보세요."
               ></textarea>
-              <div class="form-text">
+              <div class="gls-form-help">
                 조금 길게 적어도 괜찮아요. 줄바꿈도 그대로 보여줍니다.
               </div>
             </div>
 
-            <hr class="my-3" />
+            <hr class="gls-my-3" />
 
             <!-- 비밀번호 변경 영역 -->
-            <h6 class="mb-3">비밀번호 변경</h6>
+            <h6 class="gls-mb-3">비밀번호 변경</h6>
 
             <!-- 현재 비밀번호 -->
-            <div class="mb-3">
-              <label for="currentPwInput" class="form-label">현재 비밀번호</label>
+            <div class="gls-mb-3">
+              <label for="currentPwInput" class="gls-label">현재 비밀번호</label>
               <input
                 type="password"
-                class="form-control"
+                class="gls-input"
                 id="currentPwInput"
                 autocomplete="current-password"
               />
             </div>
 
             <!-- 새 비밀번호 -->
-            <div class="mb-3">
-              <label for="newPwInput" class="form-label">새 비밀번호</label>
+            <div class="gls-mb-3">
+              <label for="newPwInput" class="gls-label">새 비밀번호</label>
               <input
                 type="password"
-                class="form-control"
+                class="gls-input"
                 id="newPwInput"
                 autocomplete="new-password"
               />
             </div>
 
             <!-- 새 비밀번호 확인 -->
-            <div class="mb-3">
-              <label for="newPwConfirmInput" class="form-label">새 비밀번호 확인</label>
+            <div class="gls-mb-3">
+              <label for="newPwConfirmInput" class="gls-label">새 비밀번호 확인</label>
               <input
                 type="password"
-                class="form-control"
+                class="gls-input"
                 id="newPwConfirmInput"
                 autocomplete="new-password"
               />
@@ -313,12 +315,12 @@
 
           <div class="modal-footer">
             <!-- 서버 응답/에러 메시지 표시 영역 -->
-            <small id="userEditMessage" class="me-auto text-muted"></small>
+            <small id="userEditMessage" class="gls-modal-msg gls-text-muted gls-text-small"></small>
 
             <!-- 모달 닫기 버튼 -->
             <button
               type="button"
-              class="btn btn-secondary"
+              class="gls-btn gls-btn-secondary"
               data-bs-dismiss="modal"
             >
               닫기
@@ -326,7 +328,7 @@
 
             <!-- 수정 내용 저장 버튼 -->
             <!-- mypage.js → /api/me PUT 요청 보내고 성공 시 상단 프로필 재로딩 -->
-            <button type="submit" class="btn btn-primary">저장하기</button>
+            <button type="submit" class="gls-btn gls-btn-primary">저장하기</button>
           </div>
         </form>
       </div>
@@ -336,14 +338,14 @@
   <!-- 글숲 공통 푸터 -->
   <footer class="custom-footer">
     <div class="container">
-      <div class="row gy-2 align-items-center justify-content-between">
-        <div class="col-md-6 text-center text-md-start">
+      <div class="gls-flex gls-flex-col gls-gap-2 gls-md-flex-row gls-justify-between gls-items-center">
+        <div class="gls-text-center gls-text-md-start">
           <div class="footer-brand">글숲</div>
-          <p class="footer-subtitle mb-0">마음을 나누는 작은 숲</p>
+          <p class="footer-subtitle gls-mb-0">마음을 나누는 작은 숲</p>
         </div>
-        <div class="col-md-6 text-center text-md-end footer-meta">
-          <p class="footer-copy mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
-          <p class="footer-small mb-0">&copy; 2025 글숲</p>
+        <div class="gls-text-center gls-text-md-end footer-meta">
+          <p class="footer-copy gls-mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
+          <p class="footer-small gls-mb-0">&copy; 2025 글숲</p>
         </div>
       </div>
     </div>

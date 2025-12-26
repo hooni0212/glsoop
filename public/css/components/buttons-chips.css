@@ -1,0 +1,182 @@
+.gls-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--gls-ghost-border);
+  background: var(--gls-glass-bg-subtle);
+  color: var(--gls-color-text);
+  border-radius: var(--gls-btn-radius);
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  box-shadow: var(--gls-glass-inset);
+  transition: var(--gls-transition-lift-ui);
+}
+
+
+.gls-btn:focus-visible {
+  outline: var(--gls-focus-outline);
+  outline-offset: var(--gls-focus-offset);
+}
+
+.gls-btn:disabled,
+.gls-btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-btn:hover,
+  .gls-btn:focus-visible {
+    transform: translateY(-1px);
+    background: var(--gls-ghost-bg);
+    border-color: var(--gls-btn-border-hover);
+    box-shadow: var(--gls-glass-inset),
+      var(--gls-btn-shadow-hover);
+  }
+}
+
+
+.gls-btn:active {
+  transform: translateY(0);
+}
+
+.gls-btn-primary {
+  background: var(--gls-ghost-bg);
+  border-color: var(--gls-btn-border-default);
+}
+
+.gls-btn-secondary {
+  background: var(--gls-btn-secondary-bg);
+  border-color: var(--gls-btn-border-default);
+}
+
+
+.gls-btn[aria-pressed="true"],
+.gls-btn.is-active {
+  border-color: var(--gls-btn-active-border);
+  background: var(--gls-btn-active-bg);
+}
+
+
+.gls-btn-sm {
+  padding: 8px 10px;
+  font-size: 0.92rem;
+  border-radius: var(--gls-btn-radius);
+}
+
+.gls-btn-xs {
+  padding: 6px 8px;
+  font-size: 0.82rem;
+  border-radius: var(--gls-btn-radius);
+}
+
+.gls-chip {
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  border-radius: var(--gls-chip-radius);
+  gap: 6px;
+  transform: none !important;
+}
+
+.gls-chip.gls-btn-secondary {
+  background: color-mix(in srgb, var(--gls-btn-secondary-bg) 86%, transparent);
+}
+
+
+.gls-chip-remove {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--gls-chip-remove-fg);
+  padding: 0;
+  margin-left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--gls-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-chip-remove:hover,
+  .gls-chip-remove:focus-visible {
+    background: var(--gls-chip-remove-bg-hover);
+    color: var(--gls-chip-remove-fg-hover);
+  }
+}
+
+.gls-tag-btn {
+  border-radius: var(--gls-chip-radius) !important;
+  border: 1px solid var(--gls-ghost-border) !important;
+  background: var(--gls-ghost-bg) !important;
+  color: var(--gls-tag-btn-fg) !important;
+  backdrop-filter: blur(var(--gls-glass-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur)) !important;
+  box-shadow: var(--gls-glass-inset) !important;
+  padding: 8px 14px !important;
+  font-size: 0.90rem !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-tag-btn:hover,
+  .gls-tag-btn:focus-visible {
+    background: var(--gls-ghost-bg-hover) !important;
+    border-color: var(--gls-ghost-border-hover) !important;
+  }
+}
+
+.gls-tag-btn:active {
+  transform: translateY(0);
+}
+
+/* Utility: full-width button (legacy w-100 replacement) */
+.gls-btn-block { width: 100%; }
+
+
+
+.gls-btn-danger {
+  background: color-mix(in srgb, rgba(220, 38, 38, 0.12) 70%, var(--gls-glass-bg-subtle));
+  border-color: rgba(220, 38, 38, 0.34);
+  color: color-mix(in srgb, rgba(127, 29, 29, 1) 92%, rgba(0, 0, 0, 0.12));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-btn-danger:hover,
+  .gls-btn-danger:focus-visible {
+    background: color-mix(in srgb, rgba(220, 38, 38, 0.16) 70%, var(--gls-ghost-bg));
+    border-color: rgba(220, 38, 38, 0.45);
+    box-shadow: var(--gls-glass-inset), 0 10px 26px rgba(220, 38, 38, 0.14);
+  }
+}
+
+
+/* Ghost button (subtle action) */
+.gls-btn-ghost {
+  border: 1px solid var(--gls-ghost-border);
+  background: var(--gls-ghost-bg);
+  color: var(--gls-color-text, #1f2a2b);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
+  backdrop-filter: blur(var(--gls-blur-ui, 10px));
+  -webkit-backdrop-filter: blur(var(--gls-blur-ui, 10px));
+}
+.gls-btn-ghost:hover,
+.gls-btn-ghost:focus-visible {
+  background: color-mix(in srgb, var(--gls-ghost-bg) 75%, rgba(255, 255, 255, 0.35));
+  border-color: color-mix(in srgb, var(--gls-ghost-border) 85%, rgba(0, 0, 0, 0.06));
+}

@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>글숲 - 북마크</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <link rel="stylesheet" href="/css/page-shell.css">
-  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components/all.css">
+  <link rel="stylesheet" href="/css/shells/page-shell.css">
   <link rel="stylesheet" href="/css/themes/spring-theme.css">
   <link rel="stylesheet" href="/css/themes/summer-theme.css">
   <link rel="stylesheet" href="/css/themes/autumn-theme.css">
@@ -71,36 +71,36 @@
 
   <main class="page-shell">
     <div class="gls-container">
-      <div class="page-hero-card gls-surface-veil d-flex justify-content-between align-items-start gap-3">
+      <div class="page-hero-card gls-surface-veil gls-flex gls-justify-between gls-items-start gls-gap-3">
         <div>
           <div class="page-hero-meta">
-            <p class="eyebrow mb-0">내 북마크 폴더</p>
+            <p class="eyebrow gls-mb-0">내 북마크 폴더</p>
             <span class="pill">정리된 숲길</span>
           </div>
-          <h2 class="mt-2 mb-1">북마크</h2>
-          <p class="mb-0 text-muted">찜한 글들을 같은 유리 패널 톤으로 둘러볼 수 있게 정리했어요.</p>
+          <h2 class="gls-mt-2 gls-mb-1">북마크</h2>
+          <p class="gls-mb-0 gls-text-muted">찜한 글들을 같은 유리 패널 톤으로 둘러볼 수 있게 정리했어요.</p>
         </div>
-        <button class="btn btn-primary" id="createListBtn">+ 새 폴더</button>
+        <button class="gls-btn gls-btn-primary" id="createListBtn">+ 새 폴더</button>
       </div>
 
       <div class="page-grid-split">
         <div class="page-panel gls-surface-veil">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0">폴더</h5>
-            <span class="text-muted small">정렬된 북마크</span>
+          <div class="gls-spread gls-mb-3">
+            <h5 class="gls-mb-0">폴더</h5>
+            <span class="gls-text-muted gls-text-small">정렬된 북마크</span>
           </div>
           <ul class="bookmark-folder-list" id="bookmarkLists"></ul>
         </div>
         <div class="page-panel gls-surface-veil" id="bookmarkContent">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0">저장한 글</h5>
-            <span class="text-muted small">글을 선택해 감상하세요</span>
+          <div class="gls-spread gls-mb-3">
+            <h5 class="gls-mb-0">저장한 글</h5>
+            <span class="gls-text-muted gls-text-small">글을 선택해 감상하세요</span>
           </div>
           <div id="bookmarkPosts">
-            <p class="text-muted mb-0">폴더를 선택하면 저장된 글을 볼 수 있습니다.</p>
+            <p class="gls-text-muted gls-mb-0">폴더를 선택하면 저장된 글을 볼 수 있습니다.</p>
           </div>
-          <div class="d-grid mt-3" id="bookmarkLoadMoreWrap" style="display:none;">
-            <button class="btn btn-secondary" id="bookmarkLoadMore">더 보기</button>
+          <div class="gls-grid gls-mt-3" id="bookmarkLoadMoreWrap" style="display:none;">
+            <button class="gls-btn gls-btn-secondary" id="bookmarkLoadMore">더 보기</button>
           </div>
         </div>
       </div>
@@ -112,22 +112,22 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="listFormTitle">새 폴더 만들기</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="gls-modal-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <div class="mb-3">
-            <label for="listNameInput" class="form-label">폴더 이름</label>
-            <input type="text" class="form-control" id="listNameInput" maxlength="80" required>
+          <div class="gls-mb-3">
+            <label for="listNameInput" class="gls-label">폴더 이름</label>
+            <input type="text" class="gls-input" id="listNameInput" maxlength="80" required>
           </div>
-          <div class="mb-3">
-            <label for="listDescInput" class="form-label">설명 (선택)</label>
-            <textarea class="form-control" id="listDescInput" rows="2"></textarea>
+          <div class="gls-mb-3">
+            <label for="listDescInput" class="gls-label">설명 (선택)</label>
+            <textarea class="gls-input" id="listDescInput" rows="2"></textarea>
           </div>
           <input type="hidden" id="listEditId" value="">
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-          <button type="button" class="btn btn-primary" id="saveListBtn">저장</button>
+          <button type="button" class="gls-btn gls-btn-secondary" data-bs-dismiss="modal">취소</button>
+          <button type="button" class="gls-btn gls-btn-primary" id="saveListBtn">저장</button>
         </div>
       </div>
     </div>

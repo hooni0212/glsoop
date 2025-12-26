@@ -1,0 +1,25 @@
+
+.gls-bookmark-modal .bookmark-modal-create {
+  flex-wrap: nowrap;
+}
+
+.gls-bookmark-modal #bookmarkNewListInput {
+  min-width: 0;
+}
+
+.gls-bookmark-modal .bookmark-modal-create-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding-inline: 14px;
+  min-width: 64px;
+}
+
+/* 모바일에서는 입력줄이 좁아질 수 있으니 줄바꿈 허용 */
+@media (max-width: 420px) {
+  .gls-bookmark-modal .bookmark-modal-create {
+    flex-wrap: wrap;
+  }
+  .gls-bookmark-modal .bookmark-modal-create-btn {
+    width: 100%;
+  }
+}

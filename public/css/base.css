@@ -11,153 +11,10 @@
    - 폭/라운딩/그림자 등 반복되는 값은 변수로 통일
 ========================= */
 
-:root {
-  /* Layout widths */
-  --gls-content-width: 760px;
-  --gls-content-max: 1120px;
-  --gls-content-read: 860px;
-  --gls-page-margin: 32px;
-  --gls-gutter: 16px;
-  --gls-inner-width: 1320px;
-  --gls-fullbleed-width: 1400px;
-  --gls-page-max-width: var(--gls-content-max);
 
-  /* Navigation / sticky offsets */
-  --gls-nav-height: 110px;
-  --gls-sticky-offset: calc(var(--gls-nav-height) + var(--gls-space-4, 16px));
+/* NOTE: Design tokens are defined in /css/tokens.css (loaded before base.css).
+   base.css keeps only element/base rules. */
 
-  /* Color palette */
-  --gls-color-bg: #e9ece5;
-  --gls-color-surface: #ffffff;
-  --gls-color-surface-subtle: #f7f9f4;
-  --gls-color-surface-strong: #f0f3ec;
-  --gls-color-text: #1f2a2b;
-  --gls-color-muted: #5c655e;
-  --gls-color-border: #d5decf;
-  --gls-color-primary: #2e8b57;
-  --gls-color-primary-strong: #226b45;
-  --gls-color-primary-fade: rgba(46, 139, 87, 0.08);
-  --gls-color-highlight: #e7f2e8;
-  --gls-color-overlay: rgba(255, 255, 255, 0.7);
-  --gls-color-overlay-strong: rgba(255, 255, 255, 0.85);
-
-  /* Glass (global) */
-  --gls-glass-bg-subtle: rgba(255, 255, 255, 0.18);
-  --gls-glass-bg: rgba(255, 255, 255, 0.28);
-  --gls-glass-bg-strong: rgba(255, 255, 255, 0.42);
-  --gls-glass-border: rgba(30, 42, 51, 0.12);
-  --gls-glass-blur: 12px;
-  --gls-glass-shadow: 0 12px 30px rgba(19, 34, 30, 0.10);
-  --gls-glass-shadow-hover: 0 18px 42px rgba(19, 34, 30, 0.14);
-  --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
-
-  /* Tokens surfaced for page-level 레이아웃/컴포넌트에서 재사용 */
-  --gls-card-radius: var(--gls-radius-card);
-  --gls-card-shadow: var(--gls-shadow-card);
-  --gls-card-padding: var(--gls-space-5, 20px);
-  --gls-card-gap: var(--gls-space-5, 20px);
-  --gls-surface: var(--gls-glass-bg);
-  --gls-border: var(--gls-glass-border);
-  --gls-text: var(--gls-color-text);
-  --gls-muted: var(--gls-color-muted);
-  --gls-blur: var(--gls-glass-blur);
-
-  /* Ghost buttons (glass-friendly) */
-  --gls-ghost-bg: rgba(255, 255, 255, 0.10);
-  --gls-ghost-bg-hover: rgba(255, 255, 255, 0.16);
-  --gls-ghost-bg-active: rgba(255, 255, 255, 0.22);
-  --gls-ghost-border: rgba(30, 42, 51, 0.14);
-  --gls-ghost-border-hover: rgba(46, 139, 87, 0.26);
-  --gls-ghost-text: rgba(30, 42, 51, 0.84);
-
-  /* Action chips (공감/스크랩) */
-  --gls-action-surface: rgba(255, 255, 255, 0.82);
-  --gls-action-surface-strong: rgba(46, 139, 87, 0.08);
-  --gls-action-surface-hover: rgba(255, 255, 255, 0.9);
-  --gls-action-border: rgba(30, 42, 51, 0.16);
-  --gls-action-border-strong: rgba(46, 139, 87, 0.28);
-  --gls-action-accent: var(--gls-color-primary, #2e8b57);
-  --gls-action-glow: 0 10px 26px rgba(46, 139, 87, 0.16);
-
-  /* Account menu system */
-  --gls-account-radius: 12px;
-  --gls-account-avatar-size: 32px;
-  --gls-account-padding-y: 8px;
-  --gls-account-padding-x: 12px;
-  --gls-account-gap: 10px;
-  --gls-account-menu-gap: 6px;
-  --gls-account-menu-radius: 10px 10px 14px 14px;
-  --gls-account-item-radius: 10px;
-  --gls-account-item-height: 44px;
-  --gls-account-surface: var(--gls-glass-bg-subtle, rgba(255, 255, 255, 0.18));
-  --gls-account-border: color-mix(in srgb, var(--gls-glass-border, rgba(30, 42, 51, 0.16)) 80%, #ffffff 20%);
-  --gls-account-menu-surface: color-mix(in srgb, var(--gls-color-surface, #ffffff) 78%, var(--gls-glass-bg, rgba(255, 255, 255, 0.28)) 22%);
-  --gls-account-menu-border: color-mix(in srgb, var(--gls-glass-border, rgba(30, 42, 51, 0.16)) 90%, rgba(255, 255, 255, 0.24));
-  --gls-account-text: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 92%, rgba(0, 0, 0, 0.08));
-  --gls-account-muted: color-mix(in srgb, var(--gls-color-muted, #5c655e) 76%, rgba(255, 255, 255, 0.7));
-  --gls-account-avatar: color-mix(in srgb, var(--gls-action-accent, #2e8b57) 58%, var(--gls-color-surface-subtle, #f7f9f4) 42%);
-  --gls-account-shadow: var(--gls-shadow-sm);
-  --gls-account-shadow-hover: var(--gls-shadow-md);
-  --gls-account-menu-shadow: var(--gls-shadow-card);
-
-
-
-  /* Radius */
-  --gls-radius-sm: 10px;
-  --gls-radius-md: 14px;
-  --gls-radius-lg: 18px;
-  --gls-radius-pill: 999px;
-  --gls-radius-card: var(--gls-radius-lg);
-  --gls-radius-hero: 20px;
-  --gls-btn-radius: 12px;
-  --gls-chip-radius: 12px;
-
-  /* Shadows */
-  --gls-shadow-sm: 0 8px 20px rgba(19, 34, 30, 0.06);
-  --gls-shadow-md: 0 12px 30px rgba(19, 34, 30, 0.08);
-  --gls-shadow-hover: 0 16px 32px rgba(19, 34, 30, 0.12);
-  --gls-shadow-card: var(--gls-shadow-sm);
-  --gls-shadow-card-hover: var(--gls-shadow-hover);
-  --gls-shadow-surface: var(--gls-shadow-md);
-  --gls-shadow-accent: 0 12px 30px rgba(46, 139, 87, 0.2);
-
-  /* Buttons */
-  --gls-btn-font-weight: 600;
-  --gls-btn-transition: all 0.2s ease;
-
-  /* Type scale */
-  --gls-fs-xs: 0.8125rem; /* 13px */
-  --gls-fs-sm: 0.95rem; /* ~15px */
-  --gls-fs-md: 1.0625rem; /* 17px */
-  --gls-fs-lg: 1.22rem; /* ~19.5px */
-  --gls-fs-xl: 1.52rem; /* ~24px */
-
-  /* Line heights */
-  --gls-lh-tight: 1.28;
-  --gls-lh-normal: 1.6;
-  --gls-lh-relaxed: 1.7;
-
-  /* Spacing scale */
-  --gls-space-1: 4px;
-  --gls-space-2: 8px;
-  --gls-space-3: 12px;
-  --gls-space-4: 16px;
-  --gls-space-5: 20px;
-  --gls-space-6: 24px;
-  --gls-space-7: 32px;
-  --gls-space-8: 40px;
-
-  /* Focus + controls */
-  --gls-focus-outline: 2px solid rgba(46, 139, 87, 0.35);
-  --gls-focus-offset: 3px;
-
-  --gls-control-radius: 12px;
-  --gls-control-bg: var(--gls-glass-bg-strong);
-  --gls-control-border: rgba(30, 42, 51, 0.18);
-  --gls-control-border-focus: rgba(46, 139, 87, 0.55);
-  --gls-control-shadow-focus: 0 0 0 3px rgba(46, 139, 87, 0.18);
-  --gls-surface-overlay: rgba(255, 255, 255, 0.62);
-}
 
 body.mode-dark {
   /* Ghost buttons (dark) */
@@ -216,28 +73,6 @@ body.mode-text {
   --gls-color-surface-strong: #f4f4ee;
   --gls-color-overlay: rgba(255, 255, 255, 0.86);
   background-image: none;
-}
-
-/* Responsive tokens */
-@media (max-width: 992px) {
-  :root {
-    --gls-page-margin: 22px;
-    --gls-inner-width: 1080px;
-  }
-}
-
-@media (max-width: 768px) {
-  :root {
-    --gls-page-margin: 14px;
-    --gls-gutter: 12px;
-    --gls-content-width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  :root {
-    --gls-page-margin: 12px;
-  }
 }
 
 /* =========================
@@ -383,9 +218,12 @@ select:focus-visible {
    2. 네비게이션 바
 ========================= */
 
-/* 상단 네비 전체 배경 */
+/* 상단 네비 전체 배경
+   - 기본값은 spring(그린) 톤
+   - 테마는 --gls-header-gradient 만 덮어쓰면 됨
+*/
 .custom-navbar {
-  background: linear-gradient(90deg, #2e8b57, #3ca66c);
+  background: var(--gls-header-gradient, linear-gradient(90deg, #2e8b57, #3ca66c));
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
@@ -396,8 +234,8 @@ select:focus-visible {
   letter-spacing: 0.08em;
   line-height: 1;
 
-  /* 🟢 거의 흰색에 가까운 연초록 그라디언트 */
-  background: linear-gradient(120deg, #f8fff9, #ecfff4);
+  /* 🟢 기본 로고 그라디언트 (테마에서 변수로 덮어쓰기 가능) */
+  background: var(--gls-navbar-brand-gradient, linear-gradient(120deg, #f8fff9, #ecfff4));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -677,14 +515,8 @@ select:focus-visible {
 }
 
 /* 네비게이션 내 주요 버튼들도 테마 액센트에 맞춰 일관되게 적용 */
-body[class*='-theme'] .custom-navbar .btn,
-body[class*='-theme'] .custom-navbar .btn-outline-success,
-body[class*='-theme'] .custom-navbar .btn-success,
-body[class*='-theme'] .custom-navbar .btn-primary,
-body[class*='-theme'] .navbar .btn,
-body[class*='-theme'] .navbar .btn-outline-success,
-body[class*='-theme'] .navbar .btn-success,
-body[class*='-theme'] .navbar .btn-primary {
+body[class*='-theme'] .custom-navbar .gls-btn,
+body[class*='-theme'] .navbar .gls-btn {
   color: var(--gls-action-accent, #2e8b57);
   border-color: var(--gls-action-border, rgba(30, 42, 51, 0.16));
   background: var(--gls-action-surface, rgba(255, 255, 255, 0.82));
@@ -693,10 +525,10 @@ body[class*='-theme'] .navbar .btn-primary {
     background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-body[class*='-theme'] .custom-navbar .btn:hover,
-body[class*='-theme'] .custom-navbar .btn:focus-visible,
-body[class*='-theme'] .navbar .btn:hover,
-body[class*='-theme'] .navbar .btn:focus-visible {
+body[class*='-theme'] .custom-navbar .gls-btn:hover,
+body[class*='-theme'] .custom-navbar .gls-btn:focus-visible,
+body[class*='-theme'] .navbar .gls-btn:hover,
+body[class*='-theme'] .navbar .gls-btn:focus-visible {
   color: #0f172a;
   background: var(--gls-action-surface-hover, rgba(255, 255, 255, 0.9));
   border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
@@ -1035,7 +867,7 @@ body[class*='-theme'] .navbar .btn:focus-visible {
 ========================= */
 @media (hover: none) and (pointer: coarse) {
   /* 터치 환경에서 hover가 남아 어색해지는 경우가 있어 transform 기반 hover는 꺼둠 */
-  .btn:hover,
+  .gls-btn:hover,
   .gls-post-card:hover,
   .hero-card .hero-cta-btn:hover {
     transform: none !important;
@@ -1060,24 +892,23 @@ button:focus-visible,
 }
 
 /* Bootstrap 입력폼 공통 (login/signup/editor/admin 등) */
-.form-control,
-.form-select,
-textarea.form-control,
-input.form-control,
-select.form-select {
+.gls-input,
+.gls-select,
+textarea.gls-input,
+input.gls-input,
+select.gls-select {
   border-radius: var(--gls-control-radius);
   background-color: var(--gls-control-bg);
   border-color: var(--gls-control-border);
 }
 
-.form-control:focus,
-.form-select:focus {
+.gls-input:focus,
+.gls-select:focus {
   border-color: var(--gls-control-border-focus);
   box-shadow: var(--gls-control-shadow-focus);
 }
 
 /* 체크박스/라디오도 포커스 링 통일 */
-.form-check-input:focus {
+.gls-check-input:focus {
   box-shadow: var(--gls-control-shadow-focus);
   border-color: var(--gls-control-border-focus);
-}

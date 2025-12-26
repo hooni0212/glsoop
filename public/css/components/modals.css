@@ -1,0 +1,74 @@
+/* =========================
+   Modals (Bootstrap structure, GLS appearance)
+   - Bootstrap의 modal 마크업은 JS 동작을 위해 유지
+   - 겉모양(닫기 버튼/배경/구분선)은 GLS 토큰 기반으로 통일
+   ========================= */
+
+.modal-content {
+  background: var(--gls-glass-bg, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--gls-glass-border, rgba(255, 255, 255, 0.14));
+  border-radius: var(--gls-radius-lg, 18px);
+  box-shadow: var(--gls-shadow-lg, 0 24px 64px rgba(0, 0, 0, 0.24));
+  backdrop-filter: blur(var(--gls-glass-blur, 12px));
+}
+
+.modal-header,
+.modal-footer {
+  border-color: var(--gls-border-soft, rgba(255, 255, 255, 0.10));
+}
+
+.modal-header {
+  padding: 14px 16px;
+}
+
+.modal-body {
+  padding: 14px 16px;
+}
+
+.modal-footer {
+  padding: 12px 16px;
+  gap: 8px;
+}
+
+.modal-title {
+  font-weight: 700;
+}
+
+/* GLS close button (replaces legacy close button appearance) */
+.gls-modal-close {
+  appearance: none;
+  border: none;
+  background: transparent;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: var(--gls-color-ink-muted, rgba(255, 255, 255, 0.78));
+  transition: background-color 0.18s ease, transform 0.18s ease;
+}
+
+.gls-modal-close::before {
+  content: "×";
+  font-size: 22px;
+  line-height: 1;
+}
+
+.gls-modal-close:hover {
+  background: var(--gls-ghost-bg, rgba(255, 255, 255, 0.10));
+}
+
+.gls-modal-close:active {
+  transform: translateY(1px);
+}
+
+.gls-modal-close:focus-visible {
+  outline: 2px solid var(--gls-focus, rgba(160, 216, 255, 0.65));
+  outline-offset: 2px;
+}
+
+/* Footer message helper */
+.gls-modal-msg {
+  margin-right: auto;
+}

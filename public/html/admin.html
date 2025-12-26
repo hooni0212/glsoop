@@ -33,8 +33,9 @@
 
   <!-- 커스텀 공통 스타일(main.css) -->
   <!-- admin.html은 /html 폴더 안에 있으므로 ../로 상위 폴더 접근 -->
+  <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/components/all.css">
   <link rel="stylesheet" href="/css/themes/spring-theme.css">
   <link rel="stylesheet" href="/css/themes/summer-theme.css">
   <link rel="stylesheet" href="/css/themes/autumn-theme.css">
@@ -132,19 +133,19 @@
     </div>
   </nav>
 
-  <section class="py-5 mt-5 admin-shell">
+  <section class="gls-py-5 gls-mt-5 admin-shell">
     <div class="container admin-container">
-      <div class="d-flex flex-column flex-lg-row gap-4">
-        <aside class="admin-sidebar card glass-card p-3">
-          <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="gls-flex gls-flex-col gls-lg-flex-row gls-gap-4">
+        <aside class="admin-sidebar card glass-card gls-p-3">
+          <div class="gls-spread gls-mb-3">
             <div>
-              <p class="text-muted small mb-0">관리자</p>
-              <h4 class="mb-0">글숲 운영실</h4>
+              <p class="gls-text-muted gls-text-small gls-mb-0">관리자</p>
+              <h4 class="gls-mb-0">글숲 운영실</h4>
             </div>
-            <span class="badge bg-light text-dark">v2</span>
+            <span class="gls-badge gls-badge-soft">v2</span>
           </div>
-          <div id="adminStatus" class="mb-3">
-            <p class="text-muted">접근 권한을 확인하는 중입니다...</p>
+          <div id="adminStatus" class="gls-mb-3">
+            <p class="gls-text-muted">접근 권한을 확인하는 중입니다...</p>
           </div>
           <div class="nav flex-column nav-pills admin-tabs" role="tablist" aria-orientation="vertical">
             <button class="nav-link active" data-target="usersTab" type="button">Users</button>
@@ -153,115 +154,115 @@
           </div>
         </aside>
 
-        <div class="flex-fill">
+        <div class="gls-flex-1">
           <div id="adminContent" class="admin-content" style="display:none;">
-            <div class="admin-theme-card card glass-card mb-4">
-              <div class="card-body d-flex flex-column flex-lg-row gap-3 align-items-lg-center justify-content-between">
+            <div class="admin-theme-card card glass-card gls-mb-4">
+              <div class="card-body gls-flex gls-flex-col gls-lg-flex-row gls-gap-3 gls-lg-items-center gls-justify-between">
                 <div>
-                  <p class="text-muted small mb-1">테마 설정</p>
-                  <h5 class="mb-1">계절 테마를 선택하고 적용하세요</h5>
-                  <p class="text-muted mb-0">봄·여름·가을·겨울 테마를 미리보기 후 적용 버튼으로 확정하세요.</p>
+                  <p class="gls-text-muted gls-text-small gls-mb-1">테마 설정</p>
+                  <h5 class="gls-mb-1">계절 테마를 선택하고 적용하세요</h5>
+                  <p class="gls-text-muted gls-mb-0">봄·여름·가을·겨울 테마를 미리보기 후 적용 버튼으로 확정하세요.</p>
                 </div>
-                <div class="admin-theme-controls d-flex flex-column align-items-lg-end gap-2">
-                  <div class="btn-group" role="group" aria-label="계절 테마 선택">
-                    <input type="radio" class="btn-check" name="adminTheme" id="adminThemeSpring" value="spring">
-                    <label class="btn btn-outline-primary" for="adminThemeSpring">봄</label>
+                <div class="admin-theme-controls gls-flex gls-flex-col gls-lg-items-end gls-gap-2">
+                  <div class="gls-segmented" role="group" aria-label="계절 테마 선택">
+                    <input type="radio" class="gls-seg-input" name="adminTheme" id="adminThemeSpring" value="spring">
+                    <label class="gls-btn gls-btn-sm gls-btn-secondary" for="adminThemeSpring">봄</label>
 
-                    <input type="radio" class="btn-check" name="adminTheme" id="adminThemeSummer" value="summer">
-                    <label class="btn btn-outline-primary" for="adminThemeSummer">여름</label>
+                    <input type="radio" class="gls-seg-input" name="adminTheme" id="adminThemeSummer" value="summer">
+                    <label class="gls-btn gls-btn-sm gls-btn-secondary" for="adminThemeSummer">여름</label>
 
-                    <input type="radio" class="btn-check" name="adminTheme" id="adminThemeAutumn" value="autumn">
-                    <label class="btn btn-outline-primary" for="adminThemeAutumn">가을</label>
+                    <input type="radio" class="gls-seg-input" name="adminTheme" id="adminThemeAutumn" value="autumn">
+                    <label class="gls-btn gls-btn-sm gls-btn-secondary" for="adminThemeAutumn">가을</label>
 
-                    <input type="radio" class="btn-check" name="adminTheme" id="adminThemeWinter" value="winter">
-                    <label class="btn btn-outline-primary" for="adminThemeWinter">겨울</label>
+                    <input type="radio" class="gls-seg-input" name="adminTheme" id="adminThemeWinter" value="winter">
+                    <label class="gls-btn gls-btn-sm gls-btn-secondary" for="adminThemeWinter">겨울</label>
                   </div>
-                  <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
-                    <button type="button" class="btn btn-primary btn-sm" id="applyThemeBtn">적용</button>
-                    <div class="admin-theme-preview text-muted small">현재 테마: 겨울</div>
+                  <div class="gls-flex gls-flex-col gls-lg-flex-row gls-lg-items-center gls-gap-2">
+                    <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" id="applyThemeBtn">적용</button>
+                    <div class="admin-theme-preview gls-text-muted gls-text-small">현재 테마: 겨울</div>
                   </div>
                 </div>
               </div>
             </div>
             <div class="tab-panel" id="usersTab">
-              <div class="admin-panel card glass-card mb-4">
+              <div class="admin-panel card glass-card gls-mb-4">
                 <div class="card-body">
-                  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3 sticky-admin-toolbar">
+                  <div class="gls-flex gls-flex-wrap gls-gap-2 gls-items-center gls-justify-between gls-mb-3 sticky-admin-toolbar">
                     <div>
-                      <h3 class="mb-0">회원 관리</h3>
-                      <p class="text-muted small mb-0">검색·정렬·필터로 회원을 관리하세요.</p>
+                      <h3 class="gls-mb-0">회원 관리</h3>
+                      <p class="gls-text-muted gls-text-small gls-mb-0">검색·정렬·필터로 회원을 관리하세요.</p>
                     </div>
                     <div class="admin-filter-group" id="adminUsersFilters"></div>
                   </div>
                   <div id="adminUsers">
-                    <p class="text-muted">회원 목록을 불러오는 중입니다...</p>
+                    <p class="gls-text-muted">회원 목록을 불러오는 중입니다...</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="tab-panel d-none" id="postsTab">
-              <div class="admin-panel card glass-card mb-4">
+            <div class="tab-panel gls-hidden" id="postsTab">
+              <div class="admin-panel card glass-card gls-mb-4">
                 <div class="card-body">
-                  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3 sticky-admin-toolbar">
+                  <div class="gls-flex gls-flex-wrap gls-gap-2 gls-items-center gls-justify-between gls-mb-3 sticky-admin-toolbar">
                     <div>
-                      <h3 class="mb-0">글 관리</h3>
-                      <p class="text-muted small mb-0">검색·필터 후 글을 미리보기하고 삭제하세요.</p>
+                      <h3 class="gls-mb-0">글 관리</h3>
+                      <p class="gls-text-muted gls-text-small gls-mb-0">검색·필터 후 글을 미리보기하고 삭제하세요.</p>
                     </div>
                     <div class="admin-filter-group" id="adminPostsFilters"></div>
                   </div>
                   <div id="adminPosts">
-                    <p class="text-muted">글 목록을 불러오는 중입니다...</p>
+                    <p class="gls-text-muted">글 목록을 불러오는 중입니다...</p>
                   </div>
                 </div>
               </div>
-              <div id="postPreviewDrawer" class="post-preview drawer d-none"></div>
-              <div id="adminPostModal" class="admin-modal d-none" role="dialog" aria-modal="true">
+              <div id="postPreviewDrawer" class="post-preview drawer gls-hidden"></div>
+              <div id="adminPostModal" class="admin-modal gls-hidden" role="dialog" aria-modal="true">
                 <div class="admin-modal__overlay" data-dismiss="adminPostModal"></div>
                 <div class="admin-modal__dialog glass-card">
                   <div class="admin-modal__header">
                     <div>
-                      <p class="text-muted small mb-1">글 미리보기</p>
-                      <h5 id="adminPostModalTitle" class="mb-0"></h5>
-                      <div id="adminPostModalMeta" class="small text-muted"></div>
+                      <p class="gls-text-muted gls-text-small gls-mb-1">글 미리보기</p>
+                      <h5 id="adminPostModalTitle" class="gls-mb-0"></h5>
+                      <div id="adminPostModalMeta" class="gls-text-muted gls-text-small"></div>
                     </div>
-                    <button class="btn-close" type="button" data-dismiss="adminPostModal" aria-label="닫기"></button>
+                    <button class="gls-modal-close" type="button" data-dismiss="adminPostModal" aria-label="닫기"></button>
                   </div>
                   <div id="adminPostModalBody" class="admin-modal__body"></div>
-                  <div class="admin-modal__footer d-flex justify-content-end gap-2">
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dismiss="adminPostModal">닫기</button>
-                    <button class="btn btn-outline-danger btn-sm" type="button" id="adminPostModalDelete">이 글 삭제</button>
+                  <div class="admin-modal__footer gls-flex gls-justify-end gls-gap-2">
+                    <button class="gls-btn gls-btn-secondary gls-btn-sm" type="button" data-dismiss="adminPostModal">닫기</button>
+                    <button class="gls-btn gls-btn-danger gls-btn-sm" type="button" id="adminPostModalDelete">이 글 삭제</button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="tab-panel d-none" id="questsTab">
-              <div class="admin-panel card glass-card mb-4">
+            <div class="tab-panel gls-hidden" id="questsTab">
+              <div class="admin-panel card glass-card gls-mb-4">
                 <div class="card-body">
-                  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3 sticky-admin-toolbar">
+                  <div class="gls-flex gls-flex-wrap gls-gap-2 gls-items-center gls-justify-between gls-mb-3 sticky-admin-toolbar">
                     <div>
-                      <h3 class="mb-0">퀘스트 템플릿</h3>
-                      <p class="text-muted small mb-0">조건·보상 기반 템플릿을 관리합니다.</p>
+                      <h3 class="gls-mb-0">퀘스트 템플릿</h3>
+                      <p class="gls-text-muted gls-text-small gls-mb-0">조건·보상 기반 템플릿을 관리합니다.</p>
                     </div>
-                    <button class="btn btn-sm btn-outline-primary" id="addTemplateBtn">새 템플릿</button>
+                    <button class="gls-btn gls-btn-secondary gls-btn-sm" id="addTemplateBtn">새 템플릿</button>
                   </div>
                   <div id="questTemplates">
-                    <p class="text-muted">템플릿을 불러오는 중입니다...</p>
+                    <p class="gls-text-muted">템플릿을 불러오는 중입니다...</p>
                   </div>
                 </div>
               </div>
               <div class="admin-panel card glass-card">
                 <div class="card-body">
-                  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3 sticky-admin-toolbar">
+                  <div class="gls-flex gls-flex-wrap gls-gap-2 gls-items-center gls-justify-between gls-mb-3 sticky-admin-toolbar">
                     <div>
-                      <h3 class="mb-0">캠페인 관리</h3>
-                      <p class="text-muted small mb-0">활성 캠페인과 기간을 설정합니다.</p>
+                      <h3 class="gls-mb-0">캠페인 관리</h3>
+                      <p class="gls-text-muted gls-text-small gls-mb-0">활성 캠페인과 기간을 설정합니다.</p>
                     </div>
-                    <button class="btn btn-sm btn-outline-primary" id="addCampaignBtn">새 캠페인</button>
+                    <button class="gls-btn gls-btn-secondary gls-btn-sm" id="addCampaignBtn">새 캠페인</button>
                   </div>
                   <div id="questCampaigns">
-                    <p class="text-muted">캠페인을 불러오는 중입니다...</p>
+                    <p class="gls-text-muted">캠페인을 불러오는 중입니다...</p>
                   </div>
                 </div>
               </div>
@@ -275,14 +276,14 @@
   <!-- 공통 푸터 -->
   <footer class="custom-footer">
     <div class="container">
-      <div class="row gy-2 align-items-center justify-content-between">
-        <div class="col-md-6 text-center text-md-start">
+      <div class="gls-flex gls-flex-col gls-gap-2 gls-md-flex-row gls-justify-between gls-items-center">
+        <div class="gls-text-center gls-text-md-start">
           <div class="footer-brand">글숲</div>
-          <p class="footer-subtitle mb-0">마음을 나누는 작은 숲</p>
+          <p class="footer-subtitle gls-mb-0">마음을 나누는 작은 숲</p>
         </div>
-        <div class="col-md-6 text-center text-md-end footer-meta">
-          <p class="footer-copy mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
-          <p class="footer-small mb-0">&copy; 2025 글숲</p>
+        <div class="gls-text-center gls-text-md-end footer-meta">
+          <p class="footer-copy gls-mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
+          <p class="footer-small gls-mb-0">&copy; 2025 글숲</p>
         </div>
       </div>
     </div>

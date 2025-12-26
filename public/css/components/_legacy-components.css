@@ -1,0 +1,42 @@
+/* TODO(refactor):
+ * #userInfo is mypage-specific.
+ * Candidate for promotion to a reusable glass-card component
+ * after UI-kit stabilization.
+ */
+
+#userInfo {
+  background: var(--gls-ghost-bg-hover);
+  border: 1px solid var(--gls-ghost-border);
+  border-radius: 1rem;
+  padding: 1.2rem 1.5rem;
+  box-shadow: var(--gls-glass-shadow);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  position: relative;
+}
+
+#userInfo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-glass-inset);
+  pointer-events: none;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -50,13 +50,10 @@
   <!-- Bootstrap CSS (레이아웃 / 반응형 유틸) -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-  <!-- Custom CSS
-       - 공통 베이스/컴포넌트: /css/base.css, /css/components.css
-       - 홈 전용: /css/index.css -->
+  <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/components.css">
-  <link rel="stylesheet" href="/css/index.css">
-  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components/all.css">
+  <link rel="stylesheet" href="/css/pages/index.css">
   <!-- 계절별 배경 스타일 추가-->
   <link rel="stylesheet" id="seasonTheme" href="/css/themes/winter-theme.css">
 
@@ -176,7 +173,7 @@
           오늘의 생각, 감정을 천천히 적어 내려가 보세요.
         </p>
 
-        <a href="/html/editor.html" class="btn btn-success hero-cta-btn">
+        <a href="/html/editor.html" class="gls-btn gls-btn-primary hero-cta-btn">
           <span class="hero-cta-text">바로 글 쓰러 가기</span>
         </a>
       </div>
@@ -188,8 +185,8 @@
        ========================= -->
     <section class="page-section">
       <div class="container gls-container">
-      <div class="d-flex flex-column flex-md-row gap-3 align-items-md-center mb-3">
-        <h3 class="mb-0">피드</h3>
+      <div class="gls-flex gls-flex-col gls-md-flex-row gls-gap-3 gls-md-items-center gls-mb-3">
+        <h3 class="gls-mb-0">피드</h3>
         <div class="feed-tabs nav nav-pills" role="tablist">
           <button
             type="button"
@@ -227,7 +224,7 @@
            - index.js(Glsoop.FeedPage)가 /api/posts/feed를 호출하여
              카드들을 무한 스크롤 방식으로 추가 렌더링 -->
       <div id="feedPosts">
-        <p class="text-muted">피드를 불러오는 중입니다...</p>
+        <p class="gls-text-muted">피드를 불러오는 중입니다...</p>
       </div>
     </div>
   </section>
@@ -237,14 +234,14 @@
        ========================= -->
   <footer class="custom-footer">
     <div class="container gls-container">
-      <div class="row gy-2 align-items-center justify-content-between">
-        <div class="col-md-6 text-center text-md-start">
+      <div class="gls-flex gls-flex-col gls-gap-2 gls-md-flex-row gls-justify-between gls-items-center">
+        <div class="gls-text-center gls-text-md-start">
           <div class="footer-brand">글숲</div>
-          <p class="footer-subtitle mb-0">마음을 나누는 작은 숲</p>
+          <p class="footer-subtitle gls-mb-0">마음을 나누는 작은 숲</p>
         </div>
-        <div class="col-md-6 text-center text-md-end footer-meta">
-          <p class="footer-copy mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
-          <p class="footer-small mb-0">&copy; 2025 글숲</p>
+        <div class="gls-text-center gls-text-md-end footer-meta">
+          <p class="footer-copy gls-mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
+          <p class="footer-gls-text-small gls-mb-0">&copy; 2025 글숲</p>
         </div>
       </div>
     </div>
