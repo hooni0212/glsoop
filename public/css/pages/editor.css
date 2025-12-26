@@ -9,6 +9,64 @@
    1. 에디터 레이아웃 & Quill 기본
 ========================= */
 
+/* =============================================================
+   Layout (refactor-safe)
+   - 목표:
+     1) 데스크탑: 2컬럼(작성/미리보기) + 유리톤 카드(3번 스샷 느낌)
+     2) 모바일: 세로 스택(1~2번 스샷 흐름)
+   - 방식: editor.html에 추가된 .page-editor 범위에서만 Bootstrap .card를 덮어씀
+============================================================= */
+
+/* Bootstrap의 .card 배경(#fff)이 glass surface를 이기는 문제를 페이지 범위에서만 해결 */
+.page-editor .card {
+  background: var(--gls-surface-glass-bg, var(--gls-glass-bg-subtle));
+  border: 1px solid var(--gls-surface-glass-border, var(--gls-ghost-border));
+  box-shadow: var(--gls-surface-glass-shadow, var(--gls-glass-shadow));
+  backdrop-filter: blur(var(--gls-surface-glass-blur, var(--gls-glass-blur)));
+  -webkit-backdrop-filter: blur(var(--gls-surface-glass-blur, var(--gls-glass-blur)));
+}
+
+/* 본문 2컬럼 그리드(데스크탑) / 세로 스택(모바일) */
+.editor-main-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+@media (min-width: 992px) {
+  .editor-main-grid {
+    grid-template-columns: minmax(420px, 1fr) minmax(360px, 0.9fr);
+  }
+}
+
+/* 상단 입력 3개(제목/폰트/카테고리) 정렬 */
+.editor-top-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--gls-space-3, 12px);
+}
+
+@media (min-width: 768px) {
+  .editor-top-grid {
+    grid-template-columns: 1.4fr 0.8fr 0.8fr;
+    align-items: end;
+  }
+}
+
+/* 해시태그 입력 + 저장 버튼: 데스크탑에서 한 줄, 모바일에서 스택 */
+.hashtag-save-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--gls-space-3, 12px);
+}
+
+@media (min-width: 768px) {
+  .hashtag-save-grid {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+}
+
 /* 네비게이션바가 fixed-top 이므로 에디터가 가려지지 않도록 상단 패딩 */
 .editor-container-wrapper {
   padding-top: calc(var(--gls-nav-height) + var(--gls-space-2));
