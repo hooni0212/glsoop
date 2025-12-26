@@ -279,30 +279,37 @@ function renderPostDetail(container, post) {
 
   // ✅ 메타 바(타입 + 해시태그 + 피드 링크)를 카드 아래에서 하나로 묶기
   const metaBar = document.getElementById('postMetaBar');
-  const metaChips = document.getElementById('postMetaChips');
+  const metaCategory = document.getElementById('postMetaCategory');
+  const metaTags = document.getElementById('postMetaTags');
   const backLink = document.getElementById('backToFeedLink');
 
-  if (metaBar && metaChips) {
-    metaChips.innerHTML = '';
+  if (metaBar && metaCategory && metaTags) {
+    metaCategory.innerHTML = '';
+    metaTags.innerHTML = '';
 
     const legacyMeta = card?.querySelector('.post-bottom-meta');
     if (legacyMeta) {
-      const fragments = Array.from(legacyMeta.children || []);
-      fragments.forEach((node) => {
-        if (node.classList?.contains('post-category-row')) {
-          node.classList.add('post-type-chip-row');
-        }
-        metaChips.appendChild(node);
+      // category row + hashtag row(s)를 분리해서 담기
+      const categoryRow = legacyMeta.querySelector('.post-category-row');
+      if (categoryRow) {
+        const categoryBadge = categoryRow.querySelector('.post-category-label');
+        if (categoryBadge) categoryBadge.classList.add('post-type-chip');
+        metaCategory.appendChild(categoryRow);
+      }
+
+      // 해시태그 컨테이너(.gls-card-hashtags)는 그대로 옮기되 버튼 클래스를 통일
+      legacyMeta.querySelectorAll('.gls-tag-btn').forEach((btn) => {
+        btn.classList.add('post-tag-chip');
       });
+
+      Array.from(legacyMeta.children || []).forEach((node) => {
+        // categoryRow는 이미 이동했으니 스킵
+        if (node.classList?.contains('post-category-row')) return;
+        metaTags.appendChild(node);
+      });
+
       legacyMeta.remove();
     }
-
-    const categoryBadge = metaChips.querySelector('.post-category-label');
-    if (categoryBadge) categoryBadge.classList.add('post-type-chip');
-
-    metaChips.querySelectorAll('.gls-tag-btn').forEach((btn) => {
-      btn.classList.add('post-tag-chip');
-    });
 
     metaBar.hidden = false;
     setupHashtagSearch(metaBar);

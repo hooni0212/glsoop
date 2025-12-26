@@ -194,15 +194,32 @@ body.mode-dark.page-post .post-meta-bar {
 }
 
 body.page-post .post-meta-left {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: var(--gls-space-3, 12px);
+  row-gap: var(--gls-space-2, 8px);
+}
+
+body.page-post .post-meta-category {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--gls-space-2, 8px);
-  row-gap: var(--gls-space-2, 8px);
-  flex: 1 1 auto;
   min-width: 0;
 }
 
+body.page-post .post-meta-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+  min-width: 0;
+}
+
+/* (호환) 구버전 컨테이너가 남아있어도 안전하게 */
 body.page-post .post-meta-chips {
   display: flex;
   align-items: center;
@@ -239,12 +256,15 @@ body.page-post .post-type-chip {
 
 body.page-post .post-tag-chip,
 body.page-post .post-meta-bar .gls-tag-btn {
-  padding: 8px 12px !important;
+  padding: 7px 12px !important;
   font-size: 0.9rem !important;
+  font-weight: 750 !important;
   border-radius: var(--gls-chip-radius) !important;
-  border: 1px solid var(--gls-ghost-border) !important;
-  background: var(--gls-ghost-bg) !important;
-  color: rgba(30, 42, 51, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: rgba(30, 42, 51, 0.78) !important;
+  text-decoration: none !important;
+  cursor: pointer;
   backdrop-filter: blur(var(--gls-glass-blur)) !important;
   -webkit-backdrop-filter: blur(var(--gls-glass-blur)) !important;
   box-shadow: var(--gls-glass-inset) !important;
@@ -253,8 +273,8 @@ body.page-post .post-meta-bar .gls-tag-btn {
 @media (hover: hover) and (pointer: fine) {
   body.page-post .post-tag-chip:hover,
   body.page-post .post-meta-bar .gls-tag-btn:hover {
-    background: var(--gls-ghost-bg-hover) !important;
-    border-color: var(--gls-ghost-border-hover) !important;
+    background: rgba(255, 255, 255, 0.30) !important;
+    border-color: rgba(255, 255, 255, 0.28) !important;
   }
 }
 
@@ -292,6 +312,15 @@ body.page-post .post-back-link:active {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--gls-space-2, 8px);
+  }
+
+  body.page-post .post-meta-left {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  body.page-post .post-meta-tags {
+    width: 100%;
   }
 
   body.page-post .post-back-link {
