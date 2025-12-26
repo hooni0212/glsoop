@@ -91,8 +91,8 @@ function ensureIgExportModal() {
         </div>
 
         <div class="modal-body">
-          <div class="row g-2">
-            <div class="col-6">
+          <div class="gls-grid gls-grid-2 gls-gap-2">
+            <div>
               <label class="gls-label gls-text-small gls-mb-1">포맷</label>
               <select id="igOptFormat" class="gls-select gls-select-sm">
                 <option value="feed45">피드 4:5 (1080×1350)</option>
@@ -100,7 +100,7 @@ function ensureIgExportModal() {
               </select>
             </div>
 
-            <div class="col-6">
+            <div>
               <label class="gls-label gls-text-small gls-mb-1">스타일</label>
               <select id="igOptStyle" class="gls-select gls-select-sm">
                 <option value="photo-overlay">감성(오버레이)</option>
@@ -108,7 +108,7 @@ function ensureIgExportModal() {
               </select>
             </div>
 
-            <div class="col-6">
+            <div>
               <label class="gls-label gls-text-small gls-mb-1">배경 프리셋</label>
               <select id="igOptBgKey" class="gls-select gls-select-sm">
                 <option value="forestMist">숲 안개</option>
@@ -122,7 +122,7 @@ function ensureIgExportModal() {
               </select>
             </div>
 
-            <div class="col-6">
+            <div>
               <label class="gls-label gls-text-small gls-mb-1">오버레이 진하기</label>
               <input id="igOptOverlay" type="range" class="gls-range" min="0" max="0.65" step="0.01" value="0.35" />
               <div class="gls-spread">
@@ -131,7 +131,7 @@ function ensureIgExportModal() {
               </div>
             </div>
 
-            <div class="col-12 gls-mt-2">
+            <div class="gls-col-span-2 gls-mt-2">
               <label class="gls-label gls-text-small gls-mb-1">배경 이미지 URL (선택)</label>
               <input id="igOptBgUrl" class="gls-input gls-input-sm"
                      placeholder="예) /img/ig/bg.jpg 또는 https://..." />
