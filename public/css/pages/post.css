@@ -180,11 +180,13 @@ body.page-post .post-meta-bar {
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   box-shadow: var(--gls-glass-shadow);
-  display: flex;
+
+  /* 카테고리(고정) / 태그(유동) / 돌아가기(고정) */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--gls-space-3, 12px);
-  flex-wrap: wrap;
+  column-gap: var(--gls-space-3, 12px);
+  row-gap: var(--gls-space-2, 8px);
 }
 
 body.mode-dark.page-post .post-meta-bar {
@@ -193,22 +195,46 @@ body.mode-dark.page-post .post-meta-bar {
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25);
 }
 
+/* 내부 래퍼는 레이아웃에 관여하지 않고 슬롯만 제공 */
 body.page-post .post-meta-left {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  column-gap: var(--gls-space-3, 12px);
-  row-gap: var(--gls-space-2, 8px);
+  display: contents;
 }
 
 body.page-post .post-meta-category {
+  grid-column: 1;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--gls-space-2, 8px);
   min-width: 0;
+}
+
+body.page-post .post-meta-tags-wrap {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+  min-width: 0;
+}
+
+body.page-post .post-tags-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: -0.2px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(30, 42, 51, 0.62);
+}
+
+body.mode-dark.page-post .post-tags-label {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.18);
+  color: rgba(255, 255, 255, 0.68);
 }
 
 body.page-post .post-meta-tags {
@@ -245,13 +271,19 @@ body.page-post .post-type-chip {
   font-weight: 800;
   letter-spacing: -0.1px;
   border-radius: var(--gls-chip-radius);
-  border: 1px solid var(--gls-ghost-border);
-  background: var(--gls-ghost-bg);
-  color: rgba(30, 42, 51, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.28);
+  color: rgba(30, 42, 51, 0.86);
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
   box-shadow: var(--gls-glass-inset);
   white-space: nowrap;
+}
+
+body.page-post .post-type-chip::before {
+  content: "•";
+  display: inline-block;
+  opacity: 0.7;
 }
 
 body.page-post .post-tag-chip,
@@ -279,6 +311,8 @@ body.page-post .post-meta-bar .gls-tag-btn {
 }
 
 body.page-post .post-back-link {
+  grid-column: 3;
+  justify-self: end;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -309,22 +343,21 @@ body.page-post .post-back-link:active {
 
 @media (max-width: 640px) {
   body.page-post .post-meta-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--gls-space-2, 8px);
-  }
-
-  body.page-post .post-meta-left {
-    width: 100%;
     grid-template-columns: 1fr;
+    align-items: start;
   }
 
-  body.page-post .post-meta-tags {
-    width: 100%;
+  body.page-post .post-meta-category {
+    grid-column: 1;
+  }
+
+  body.page-post .post-meta-tags-wrap {
+    grid-column: 1;
   }
 
   body.page-post .post-back-link {
-    align-self: flex-end;
+    grid-column: 1;
+    justify-self: end;
   }
 }
 
