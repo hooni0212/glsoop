@@ -32,7 +32,7 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
   color: var(--gls-muted);
 }
 
-/* flex helpers (bootstrap d-flex + justify-content-between replacement) */
+/* flex helpers (bootstrap flex layout utilities replacement) */
 .gls-spread {
   display: flex;
   align-items: center;
@@ -63,7 +63,7 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 /* grid templates (phase B) */
 .gls-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-/* Phase B: 12-column grid helpers (bootstrap row/col replacement) */
+/* Phase B: 12-column grid helpers (bootstrap grid replacement) */
 .gls-grid-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
 .gls-col-span-12 { grid-column: span 12 / span 12; }
 
@@ -118,7 +118,7 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 .gls-gap-3 { gap: 1rem; }
 .gls-gap-4 { gap: 1.5rem; }
 
-/* row helpers (phase B) */
+/* layout helpers (phase B) */
 .gls-row-spread { align-items: center; justify-content: space-between; }
 /* auto margin */
 .gls-mt-auto { margin-top: auto; }
