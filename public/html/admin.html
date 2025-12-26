@@ -61,7 +61,7 @@
 
       <!-- 네비게이션 링크 영역 -->
       <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav me-lg-3 category-dropdown-nav">
+        <ul class="navbar-nav gls-me-lg-3 category-dropdown-nav">
           <li class="nav-item dropdown">
             <a
               class="nav-link dropdown-toggle"
@@ -83,7 +83,7 @@
         </ul>
 
         <!-- 로그인 전 노출되는 메뉴 -->
-        <ul class="navbar-nav ms-auto before-login">
+        <ul class="navbar-nav gls-ms-auto before-login">
           <li class="nav-item">
             <a class="nav-link" href="/html/login.html">로그인</a>
           </li>
@@ -93,7 +93,7 @@
         </ul>
 
         <!-- 로그인 후 노출되는 메뉴 (기본은 display:none; → header.js에서 토글) -->
-        <ul class="navbar-nav ms-auto after-login" style="display: none;">
+        <ul class="navbar-nav gls-ms-auto after-login" style="display: none;">
           <li class="nav-item">
             <!-- 로그인한 사용자 이름 표시 -->
             <span class="nav-link" id="navUserName"></span>
@@ -147,7 +147,7 @@
           <div id="adminStatus" class="gls-mb-3">
             <p class="gls-text-muted">접근 권한을 확인하는 중입니다...</p>
           </div>
-          <div class="nav flex-column nav-pills admin-tabs" role="tablist" aria-orientation="vertical">
+          <div class="admin-tabs" role="tablist" aria-orientation="vertical">
             <button class="nav-link active" data-target="usersTab" type="button">Users</button>
             <button class="nav-link" data-target="postsTab" type="button">Posts</button>
             <button class="nav-link" data-target="questsTab" type="button">Quests</button>

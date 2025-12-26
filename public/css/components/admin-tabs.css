@@ -4,6 +4,12 @@
    - theme overrides (winter) live in components/theme-winter-compat.css
 ========================================================= */
 
+.admin-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .admin-sidebar .admin-tabs .nav-link {
   cursor: pointer;
   border-radius: 0.8rem;

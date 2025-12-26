@@ -148,3 +148,11 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 /* logical spacing start (logical margin-start helpers; LTR baseline) */
 .gls-ms-1 { margin-left: 0.25rem; }
 .gls-ms-2 { margin-left: 0.5rem; }
+
+.gls-ms-auto { margin-left: auto; }
+.gls-me-auto { margin-right: auto; }
+.gls-fw-bold { font-weight: 700; }
+
+@media (min-width: 992px) {
+  .gls-me-lg-3 { margin-right: 1rem; }
+}
