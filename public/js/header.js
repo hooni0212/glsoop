@@ -236,40 +236,87 @@ function createMobileNavItems() {
 function setupMobileNavCloseBehavior() {
   const navbarNav = document.getElementById('navbarNav');
   const toggler = document.querySelector('.navbar-toggler');
+  if (!navbarNav || !toggler) return;
 
-  if (!navbarNav || !toggler || typeof bootstrap === 'undefined') return;
+  const isMobile = () => window.innerWidth < 992;
+  const openNav = () => {
+    navbarNav.classList.add('is-open');
+    navbarNav.classList.add('show');
+    toggler.setAttribute('aria-expanded', 'true');
+  };
+  const closeNav = () => {
+    navbarNav.classList.remove('is-open');
+    navbarNav.classList.remove('show');
+    toggler.setAttribute('aria-expanded', 'false');
+  };
 
-  const collapse = bootstrap.Collapse.getOrCreateInstance(navbarNav, {
-    toggle: false,
+  toggler.addEventListener('click', (e) => {
+    e.preventDefault();
+    const willOpen = !navbarNav.classList.contains('is-open');
+    if (willOpen) openNav();
+    else closeNav();
   });
 
-  // 메뉴 항목 클릭 시 자동 닫힘
   navbarNav.querySelectorAll('a.nav-link, button.nav-link').forEach((item) => {
     item.addEventListener('click', () => {
-      if (window.innerWidth < 992 && navbarNav.classList.contains('show')) {
-        collapse.hide();
+      if (isMobile()) closeNav();
+    });
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!isMobile()) return;
+    if (!navbarNav.classList.contains('is-open')) return;
+    if (navbarNav.contains(e.target)) return;
+    if (toggler.contains(e.target)) return;
+    closeNav();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (navbarNav.classList.contains('is-open')) {
+      closeNav();
+      toggler.focus();
+    }
+    closeAllDropdowns();
+  });
+
+  const dropdownToggles = Array.from(document.querySelectorAll('[data-gls-toggle="dropdown"]'));
+
+  const closeAllDropdowns = (except) => {
+    dropdownToggles.forEach((toggle) => {
+      const dd = toggle.closest('.dropdown');
+      if (!dd) return;
+      if (except && dd === except) return;
+      dd.classList.remove('is-open');
+      toggle.setAttribute('aria-expanded', 'false');
+    });
+  };
+
+  dropdownToggles.forEach((toggle) => {
+    toggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      const dd = toggle.closest('.dropdown');
+      if (!dd) return;
+      const willOpen = !dd.classList.contains('is-open');
+      closeAllDropdowns(dd);
+      if (willOpen) {
+        dd.classList.add('is-open');
+        toggle.setAttribute('aria-expanded', 'true');
+      } else {
+        dd.classList.remove('is-open');
+        toggle.setAttribute('aria-expanded', 'false');
       }
     });
   });
 
-  // 외부 클릭 시 닫힘
-  document.addEventListener('click', (event) => {
-    const isOpen = navbarNav.classList.contains('show');
-    if (!isOpen) return;
-    const clickedInsideNav = navbarNav.contains(event.target);
-    const clickedToggler = toggler.contains(event.target);
-
-    if (!clickedInsideNav && !clickedToggler) {
-      collapse.hide();
-    }
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-gls-toggle="dropdown"]')) return;
+    if (e.target.closest('.dropdown-menu')) return;
+    closeAllDropdowns();
   });
 
-  document.addEventListener('keydown', (event) => {
-    const isOpen = navbarNav.classList.contains('show');
-    if (event.key === 'Escape' && isOpen) {
-      collapse.hide();
-      toggler?.focus();
-    }
+  document.querySelectorAll('.dropdown-menu a, .dropdown-menu button').forEach((item) => {
+    item.addEventListener('click', () => closeAllDropdowns());
   });
 }
 
