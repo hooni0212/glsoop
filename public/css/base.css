@@ -780,7 +780,7 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
   padding: 0.65rem 0;
 }
 
-.custom-footer .container {
+.custom-footer :where(.gls-container, .container) {
   padding-top: 0.8rem;
   padding-bottom: 0.8rem;
 }
@@ -823,7 +823,7 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
     padding: 0.55rem 0;
   }
 
-  .custom-footer .container {
+  .custom-footer :where(.gls-container, .container) {
     padding-top: 0.55rem;
     padding-bottom: 0.55rem;
   }

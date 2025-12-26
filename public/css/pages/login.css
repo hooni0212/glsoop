@@ -18,7 +18,7 @@
   flex-shrink: 0;
 }
 
-.page-login .auth-hero > .container {
+.page-login .auth-hero > :where(.gls-container, .container) {
   position: relative;
   z-index: 2;
 }
