@@ -674,20 +674,20 @@ Glsoop.AdminPage = (function () {
           <h5 class="gls-mb-0">${editingId ? '템플릿 수정' : '새 템플릿 추가'}</h5>
           <button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" id="questTemplateReset">초기화</button>
         </div>
-        <div class="row g-2">
-          <div class="col-md-4">
+        <div class="gls-grid gls-grid-12 gls-gap-2">
+          <div class="gls-col-span-12 gls-md-col-span-4">
             <label class="gls-label gls-text-small gls-mb-1">제목</label>
             <input class="gls-input gls-input-sm" name="name" value="${escapeHtml(
               values.name || ''
             )}" required />
           </div>
-          <div class="col-md-4">
+          <div class="gls-col-span-12 gls-md-col-span-4">
             <label class="gls-label gls-text-small gls-mb-1">조건 타입</label>
             <select class="gls-select gls-select-sm" name="condition_type" required>
               ${buildConditionOptions(values.condition_type)}
             </select>
           </div>
-          <div class="col-md-4">
+          <div class="gls-col-span-12 gls-md-col-span-4">
             <label class="gls-label gls-text-small gls-mb-1">카테고리(선택)</label>
             <select class="gls-select gls-select-sm" name="category">
               <option value="">(전체)</option>
@@ -696,25 +696,25 @@ Glsoop.AdminPage = (function () {
               <option value="short" ${values.category === 'short' ? 'selected' : ''}>짧은 구절</option>
             </select>
           </div>
-          <div class="col-md-3">
+          <div class="gls-col-span-12 gls-md-col-span-3">
             <label class="gls-label gls-text-small gls-mb-1">목표</label>
             <input type="number" min="1" class="gls-input gls-input-sm" name="target_value" value="${
               values.target_value || ''
             }" required />
           </div>
-          <div class="col-md-3">
+          <div class="gls-col-span-12 gls-md-col-span-3">
             <label class="gls-label gls-text-small gls-mb-1">보상 XP</label>
             <input type="number" min="0" class="gls-input gls-input-sm" name="reward_xp" value="${
               values.reward_xp || 0
             }" />
           </div>
-          <div class="col-md-6">
+          <div class="gls-col-span-12 gls-md-col-span-6">
             <label class="gls-label gls-text-small gls-mb-1">설명</label>
             <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
           </div>
-          <div class="col-md-3 gls-flex gls-items-end">
+          <div class="gls-col-span-12 gls-md-col-span-3 gls-flex gls-items-end">
             <div class="gls-check">
               <input class="gls-check-input" type="checkbox" name="is_active" id="templateActive" ${
                 values.is_active || editingId === '' ? 'checked' : ''
@@ -908,14 +908,14 @@ Glsoop.AdminPage = (function () {
           <h5 class="gls-mb-0">${editingId ? '캠페인 수정' : '새 캠페인 추가'}</h5>
           <button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" id="questCampaignReset">초기화</button>
         </div>
-        <div class="row g-2">
-          <div class="col-md-4">
+        <div class="gls-grid gls-grid-12 gls-gap-2">
+          <div class="gls-col-span-12 gls-md-col-span-4">
             <label class="gls-label gls-text-small gls-mb-1">이름</label>
             <input class="gls-input gls-input-sm" name="name" value="${escapeHtml(
               values.name || ''
             )}" required />
           </div>
-          <div class="col-md-3">
+          <div class="gls-col-span-12 gls-md-col-span-3">
             <label class="gls-label gls-text-small gls-mb-1">유형</label>
             <select class="gls-select gls-select-sm" name="campaign_type">
               ${typeOptions
@@ -927,31 +927,31 @@ Glsoop.AdminPage = (function () {
                 .join('')}
             </select>
           </div>
-          <div class="col-md-3">
+          <div class="gls-col-span-12 gls-md-col-span-3">
             <label class="gls-label gls-text-small gls-mb-1">시작</label>
             <input type="datetime-local" class="gls-input gls-input-sm" name="start_at" value="${
               values.start_at ? values.start_at.replace(' ', 'T') : ''
             }" />
           </div>
-          <div class="col-md-3">
+          <div class="gls-col-span-12 gls-md-col-span-3">
             <label class="gls-label gls-text-small gls-mb-1">종료</label>
             <input type="datetime-local" class="gls-input gls-input-sm" name="end_at" value="${
               values.end_at ? values.end_at.replace(' ', 'T') : ''
             }" />
           </div>
-          <div class="col-md-2">
+          <div class="gls-col-span-12 gls-md-col-span-2">
             <label class="gls-label gls-text-small gls-mb-1">우선순위</label>
             <input type="number" class="gls-input gls-input-sm" name="priority" value="${
               values.priority || 1
             }" />
           </div>
-          <div class="col-md-4">
+          <div class="gls-col-span-12 gls-md-col-span-4">
             <label class="gls-label gls-text-small gls-mb-1">설명</label>
             <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
           </div>
-          <div class="col-md-2 gls-flex gls-items-end">
+          <div class="gls-col-span-12 gls-md-col-span-2 gls-flex gls-items-end">
             <div class="gls-check">
               <input class="gls-check-input" type="checkbox" name="is_active" id="campaignActive" ${
                 values.is_active ? 'checked' : ''
