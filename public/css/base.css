@@ -99,48 +99,6 @@ body.mode-text {
   padding-inline: var(--gls-page-margin);
 }
 
-.gls-surface-panel {
-  background: var(--gls-glass-bg-subtle);
-  border: 1px solid var(--gls-glass-border);
-  border-radius: var(--gls-radius-lg, 18px);
-  box-shadow: var(--gls-glass-shadow);
-  backdrop-filter: blur(var(--gls-glass-blur));
-  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
-  position: relative;
-}
-
-.gls-surface-panel::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: var(--gls-glass-inset);
-  pointer-events: none;
-}
-
-.gls-surface-veil {
-  position: relative;
-}
-
-.gls-surface-veil::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.18),
-    rgba(255, 255, 255, 0.06)
-  );
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.gls-surface-veil > * {
-  position: relative;
-  z-index: 1;
-}
-
 html,
 body {
   height: 100%;
@@ -1004,3 +962,4 @@ select.gls-select {
 .gls-check-input:focus {
   box-shadow: var(--gls-control-shadow-focus);
   border-color: var(--gls-control-border-focus);
+}
