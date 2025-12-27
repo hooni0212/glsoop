@@ -43,3 +43,55 @@
   gap: var(--gls-space-2, 8px);
 }
 
+.gls-view-toggles {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  background: var(--gls-glass-bg);
+  color: var(--gls-color-text);
+  border: 1px solid var(--gls-glass-border);
+  border-radius: var(--gls-radius-pill);
+  box-shadow: var(--gls-shadow-sm);
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 12;
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+}
+
+.gls-view-toggle-btn {
+  border: 1px solid var(--gls-color-border);
+  background: var(--gls-color-surface);
+  color: var(--gls-color-text);
+  border-radius: var(--gls-radius-pill);
+  padding: 6px 10px;
+  font-size: var(--gls-fs-xs);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.gls-view-toggle-btn:focus-visible {
+  outline: var(--gls-focus-outline);
+  outline-offset: 2px;
+}
+
+.gls-view-toggle-btn.is-active {
+  background: var(--gls-color-primary-fade);
+  border-color: rgba(46, 139, 87, 0.35);
+  color: var(--gls-color-primary-strong);
+}
+
+@media (max-width: 640px) {
+  .gls-view-toggles {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .gls-view-toggle-btn {
+    padding: 6px 8px;
+  }
+}

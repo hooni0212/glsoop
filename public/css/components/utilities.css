@@ -265,3 +265,15 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
   background: transparent;
   text-decoration: underline;
 }
+
+/* =========================
+   17. 모바일 터치에서 hover "고정" 방지
+========================= */
+@media (hover: none) and (pointer: coarse) {
+  /* 터치 환경에서 hover가 남아 어색해지는 경우가 있어 transform 기반 hover는 꺼둠 */
+  .gls-btn:hover,
+  .gls-post-card:hover,
+  .hero-card .hero-cta-btn:hover {
+    transform: none !important;
+  }
+}

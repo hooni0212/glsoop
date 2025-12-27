@@ -15,3 +15,25 @@
   width: 100%;
   accent-color: var(--gls-color-primary);
 }
+
+.gls-input,
+.gls-select,
+textarea.gls-input,
+input.gls-input,
+select.gls-select {
+  border-radius: var(--gls-control-radius);
+  background-color: var(--gls-control-bg);
+  border-color: var(--gls-control-border);
+}
+
+.gls-input:focus,
+.gls-select:focus {
+  border-color: var(--gls-control-border-focus);
+  box-shadow: var(--gls-control-shadow-focus);
+}
+
+/* 체크박스/라디오도 포커스 링 통일 */
+.gls-check-input:focus {
+  box-shadow: var(--gls-control-shadow-focus);
+  border-color: var(--gls-control-border-focus);
+}
