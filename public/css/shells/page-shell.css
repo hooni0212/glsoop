@@ -5,14 +5,6 @@
    - 사용: body에 page-XXXX 클래스 + main.page-shell 구조
    ============================================================= */
 
-:root {
-  /* 서브 페이지 카드/헤더에 사용할 배경과 그림자 강도 */
-  --gls-sub-surface: var(--gls-glass-bg-subtle);
-  --gls-sub-surface-strong: var(--gls-glass-bg);
-  --gls-sub-border: var(--gls-glass-border);
-  --gls-sub-shadow: var(--gls-glass-shadow);
-}
-
 /* =========================
    1) 배경 / 기본 레이아웃
 ========================= */

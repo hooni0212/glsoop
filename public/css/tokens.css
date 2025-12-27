@@ -187,6 +187,12 @@
   --gls-z-dropdown: 300;
   --gls-z-modal: 600;
   --gls-z-toast: 800;
+
+    /* Shell sub-surface presets */
+  --gls-sub-surface: var(--gls-glass-bg-subtle);
+  --gls-sub-surface-strong: var(--gls-glass-bg);
+  --gls-sub-border: var(--gls-glass-border);
+  --gls-sub-shadow: var(--gls-glass-shadow);
 }
 
 /* =========================

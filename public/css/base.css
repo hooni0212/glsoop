@@ -11,9 +11,7 @@
    - 폭/라운딩/그림자 등 반복되는 값은 변수로 통일
 ========================= */
 
-
-/* NOTE: Design tokens are defined in /css/tokens.css (loaded before base.css).
-   base.css keeps only element/base rules. */
+/* NOTE: body.mode-* overrides tokens.css for alternate modes (dark/mono/text). */
 
 
 body.mode-dark {
