@@ -410,7 +410,7 @@ function renderAuthorPosts(posts) {
             <div class="author-post-extra gls-flex gls-items-center gls-mb-2">
               <!-- 공감 버튼 (index.js와 구조 맞춤) -->
               <button
-                class="like-btn ${liked ? 'liked' : ''}"
+                class="gls-btn gls-btn-sm like-btn ${liked ? 'liked' : ''}"
                 type="button"
                 data-post-id="${post.id}"
                 data-liked="${liked ? '1' : '0'}"

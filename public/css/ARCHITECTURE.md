@@ -40,7 +40,6 @@ tokens → base → shells → components(all) → pages → themes
   - ❌ no component ownership here
 
 ### Legacy / Compat (Temporary)
-- components/actions-compat.css
 - components/_legacy-components.css
 - components/theme-winter-compat.css
   - scheduled for removal after migration
