@@ -588,7 +588,7 @@ body.page-post .post-related-item-meta {
 
 /* 구버전 relatedPosts는 숨김 */
 body.page-post #relatedPosts.post-related-legacy[hidden] {
-  display: none !important;
+  display: none;
 }
 
 /* 상세 본문 */
