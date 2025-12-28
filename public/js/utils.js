@@ -376,3 +376,59 @@ function sanitizePostHtml(html) {
   });
 })();
 
+
+// =============================================================================
+// Modal helper (Bootstrap-first) — window.glsModal shim
+// -----------------------------------------------------------------------------
+// 배경:
+// - 일부 페이지/스크립트(post.js, bookmarks.js, mypage.js 등)가
+//   window.glsModal.open/close를 호출하는데, 특정 페이지에서 header.js가 로드되지
+//   않거나 실행이 끊기면 모달이 "조용히" 안 뜨는 문제가 발생할 수 있음.
+// - 프로젝트에서 Bootstrap 모달을 다시 사용하기로 했다면, 공용으로 항상 로드되는
+//   utils.js에서 glsModal을 Bootstrap으로 래핑해 두면 가장 안전함.
+//
+// 동작:
+// - Bootstrap(bundle) 로드 시: bootstrap.Modal.getOrCreateInstance(...).show()/hide()
+// - Bootstrap 미로드 시: 최소한의 class/display 토글만 수행(완전한 대체는 아님)
+(function bootstrapGlsModalShim() {
+  if (window.glsModal && typeof window.glsModal.open === 'function') return;
+
+  const getBootstrapModal = () => {
+    const b = window.bootstrap;
+    return b && b.Modal ? b.Modal : null;
+  };
+
+  const open = (modalEl, options = {}) => {
+    if (!modalEl) return;
+    const Modal = getBootstrapModal();
+    if (Modal) {
+      Modal.getOrCreateInstance(modalEl, options).show();
+      return;
+    }
+
+    // Fallback (Bootstrap JS가 없을 때): 완벽하진 않지만 "안 보이는" 문제는 방지
+    modalEl.classList.add('show');
+    modalEl.style.display = 'block';
+    modalEl.removeAttribute('aria-hidden');
+    modalEl.setAttribute('aria-modal', 'true');
+    document.body.classList.add('modal-open');
+  };
+
+  const close = (modalEl) => {
+    if (!modalEl) return;
+    const Modal = getBootstrapModal();
+    if (Modal) {
+      const inst = Modal.getInstance(modalEl);
+      if (inst) inst.hide();
+      return;
+    }
+
+    modalEl.classList.remove('show');
+    modalEl.style.display = 'none';
+    modalEl.setAttribute('aria-hidden', 'true');
+    modalEl.removeAttribute('aria-modal');
+    document.body.classList.remove('modal-open');
+  };
+
+  window.glsModal = { open, close };
+})();
