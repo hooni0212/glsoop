@@ -1,6 +1,6 @@
 /* =========================================================
    글숲 css 아키택쳐
-   tokens → base → shells → components(all) → pages → themes
+   tokens → base → shells(all) → components(all) → pages(all) → themes(all)
    ========================================================= */
 
 /* 1) tokens */
@@ -10,23 +10,13 @@
 @import url("/css/base.css");
 
 /* 3) shells */
-@import url("/css/shells/page-shell.css");
-@import url("/css/shells/readability.css");
+@import url("/css/shells/all.css");
 
 /* 4) components (bundle) */
 @import url("/css/components/all.css");
 
-/* 5) pages (keep minimal overrides only) */
-@import url("/css/pages/index.css");
-@import url("/css/pages/post.css");
-@import url("/css/pages/author.css");
-@import url("/css/pages/mypage.css");
-@import url("/css/pages/login.css");
-@import url("/css/pages/editor.css");
-@import url("/css/pages/ig-export.css");
+/* 5) pages */
+@import url("/css/pages/all.css");
 
-/* 6) themes (override tokens/selectors) */
-@import url("/css/themes/spring-theme.css");
-@import url("/css/themes/summer-theme.css");
-@import url("/css/themes/autumn-theme.css");
-@import url("/css/themes/winter-theme.css");
+/* 6) themes */
+@import url("/css/themes/all.css");
