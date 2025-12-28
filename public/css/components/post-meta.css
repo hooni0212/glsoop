@@ -1,0 +1,192 @@
+body.page-post .post-tags-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--gls-meta-chip-px);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: -0.2px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(30, 42, 51, 0.62);
+  height: var(--gls-meta-chip-h);
+  line-height: 1;
+}
+body.page-post .post-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 var(--gls-meta-chip-px);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: -0.1px;
+  border-radius: var(--gls-chip-radius);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.28);
+  color: rgba(30, 42, 51, 0.86);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  box-shadow: var(--gls-glass-inset);
+  white-space: nowrap;
+  height: var(--gls-meta-chip-h);
+  line-height: 1;
+}
+body.page-post .post-tag-chip {
+  padding: 0 var(--gls-meta-chip-px);
+  font-size: 0.9rem;
+  font-weight: 750;
+  border-radius: var(--gls-chip-radius);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.22);
+  color: rgba(30, 42, 51, 0.78);
+  text-decoration: none;
+  cursor: pointer;
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  box-shadow: var(--gls-glass-inset);
+  height: var(--gls-meta-chip-h);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+@media (hover: hover) and (pointer: fine) {
+  body.page-post .post-tag-chip:hover,
+  body.page-post .post-tag-chip:focus-visible {
+    background: rgba(255, 255, 255, 0.30);
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+}
+body.page-post .post-type-chip::before {
+  content: "•";
+  display: inline-block;
+  opacity: 0.7;
+}
+body.mode-dark.page-post .post-tags-label {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(0, 0, 0, 0.18);
+  color: rgba(255, 255, 255, 0.68);
+}
+
+body.page-post .post-meta-bar {
+  --gls-meta-chip-h: 34px;
+  --gls-meta-chip-px: 12px;
+  margin-top: var(--gls-space-4, 16px);
+  padding: var(--gls-space-4, 16px) var(--gls-space-5, 20px);
+  border-radius: var(--gls-radius-card, 18px);
+  background: var(--gls-glass-bg-strong);
+  border: 1px solid var(--gls-glass-border);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  box-shadow: var(--gls-glass-shadow);
+
+  /* 카테고리(고정) / 태그(유동) / 돌아가기(고정) */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: var(--gls-space-3, 12px);
+  row-gap: var(--gls-space-2, 8px);
+}
+
+body.mode-dark.page-post .post-meta-bar {
+  background: rgba(15, 22, 19, 0.36);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.25);
+}
+
+/* 내부 래퍼는 레이아웃에 관여하지 않고 슬롯만 제공 */
+body.page-post .post-meta-left {
+  display: contents;
+}
+
+body.page-post .post-meta-category {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+  min-width: 0;
+}
+
+body.page-post .post-meta-tags-wrap {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+  min-width: 0;
+}
+
+body.page-post .post-meta-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+  min-width: 0;
+}
+
+/* (호환) 구버전 컨테이너가 남아있어도 안전하게 */
+body.page-post .post-meta-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+  row-gap: var(--gls-space-2, 8px);
+}
+
+body.page-post .post-meta-bar .gls-card-hashtags {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2, 8px);
+}
+body.page-post .post-back-link {
+  grid-column: 3;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-weight: 800;
+  color: rgba(30, 42, 51, 0.8);
+  text-decoration: none;
+  border-radius: var(--gls-btn-radius);
+  transition: color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+  white-space: nowrap;
+}
+
+body.mode-dark.page-post .post-back-link {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body.page-post .post-back-link:hover {
+    color: rgba(30, 42, 51, 0.95);
+    background: rgba(255, 255, 255, 0.26);
+    transform: translateY(-1px);
+  }
+}
+
+body.page-post .post-back-link:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+  body.page-post .post-meta-bar {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  body.page-post .post-meta-category {
+    grid-column: 1;
+  }
+
+  body.page-post .post-meta-tags-wrap {
+    grid-column: 1;
+  }
+
+  body.page-post .post-back-link {
+    grid-column: 1;
+    justify-self: end;
+  }
+}
