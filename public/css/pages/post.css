@@ -124,9 +124,8 @@ body.page-post #postDetail .gls-post-card .card-body {
 
 /* 상세 페이지: 카드 내부(헤더) 액션 버튼은 우측 액션바로 통일 */
 body.page-post #postDetail .gls-post-card .post-top-actions {
-  display: none !important;
+  display: none;
 }
-
 
 /* 타이틀을 상세 페이지에서만 조금 더 키움 */
 body.page-post #postDetail .card-title {
