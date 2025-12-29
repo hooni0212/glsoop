@@ -1,5 +1,5 @@
 /* =============================================================
-   글숲 공통 베이스 스타일 (public/css/base.css)
+   글숲 공통 베이스 스타일 (public/css/gls/base.css)
    - 사용 위치: 모든 페이지 공통(/index.html, /html/*.html)
    - 네비게이션 높이, 배경 톤, 기본 폰트 설정을 묶어둠
    - 상세 레이아웃/컴포넌트 스타일은 components.css에서 확장
@@ -169,5 +169,4 @@ select:focus-visible {
     scroll-behavior: auto !important;
   }
 }
-
 

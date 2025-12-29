@@ -36,7 +36,7 @@
 
     const themeLink = document.getElementById('seasonTheme');
     if (themeLink) {
-      const nextHref = `/css/themes/${safeTheme}-theme.css`;
+      const nextHref = `/css/gls/themes/${safeTheme}-theme.css`;
       if (themeLink.getAttribute('href') !== nextHref) {
         themeLink.setAttribute('href', nextHref);
       }

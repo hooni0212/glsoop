@@ -1,6 +1,6 @@
 // public/js/falling.js
 // - 메인 홈(index.html)에서만 실행되는 단일 눈 배경 스크립트
-// - CSS 애니메이션 정의는 public/css/themes/winter-theme.css 참고
+// - CSS 애니메이션 정의는 public/css/gls/themes/winter-theme.css 참고
 // - seasonal.js가 겨울 테마 전반을 담당한다면, 이 파일은 단순 눈 파티클 버전
 
 // DOM이 준비되면 계절 배경 세팅

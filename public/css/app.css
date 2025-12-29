@@ -4,19 +4,22 @@
    ========================================================= */
 
 /* 1) tokens */
-@import url("/css/tokens.css");
+@import url("/css/gls/tokens.css");
 
 /* 2) base */
-@import url("/css/base.css");
+@import url("/css/gls/base.css");
 
-/* 3) shells */
-@import url("/css/shells/all.css");
+/* 3) vendor overrides (Bootstrap shims & overrides only) */
+@import url("/css/vendor/bootstrap-overrides.css");
 
-/* 4) components (bundle) */
-@import url("/css/components/all.css");
+/* 4) shells */
+@import url("/css/gls/shells/all.css");
 
-/* 5) pages */
-@import url("/css/pages/all.css");
+/* 5) components (bundle) */
+@import url("/css/gls/components/all.css");
 
-/* 6) themes */
-@import url("/css/themes/all.css");
+/* 6) pages */
+@import url("/css/gls/pages/all.css");
+
+/* 7) themes */
+@import url("/css/gls/themes/all.css");

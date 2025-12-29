@@ -1,0 +1,208 @@
+/* What: Bootstrap 5 overrides and shims for GLS */
+/* Scope: Only Bootstrap class names (utilities, buttons, nav/dropdown fallbacks) */
+/* Where: Loaded after CDN Bootstrap via /css/app.css */
+
+/* Spacing utilities (Bootstrap compatibility) */
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 1rem; }
+.mb-4 { margin-bottom: 1.5rem; }
+
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 1rem; }
+.mt-4 { margin-top: 1.5rem; }
+.mt-5 { margin-top: 3rem; }
+
+.my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+.my-3 { margin-top: 1rem; margin-bottom: 1rem; }
+
+.p-3 { padding: 1rem; }
+.py-3 { padding-top: 1rem; padding-bottom: 1rem; }
+.py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.py-5 { padding-top: 3rem; padding-bottom: 3rem; }
+
+.ms-1 { margin-left: 0.25rem; }
+.ms-2 { margin-left: 0.5rem; }
+.ms-auto { margin-left: auto; }
+.me-auto { margin-right: auto; }
+
+@media (min-width: 992px) {
+  .me-lg-3 { margin-right: 1rem; }
+}
+
+.fw-bold { font-weight: 700; }
+
+/* Button resets (Bootstrap class names only) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font: inherit;
+  line-height: 1.15;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--gls-chip-radius, 14px);
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.65rem;
+  border-radius: calc(var(--gls-chip-radius, 14px) - 4px);
+  font-size: 0.9rem;
+}
+
+.btn-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+}
+
+.btn-primary,
+.btn-success {
+  border-radius: var(--gls-btn-radius);
+  padding: 0.55rem 1.4rem;
+  font-weight: var(--gls-btn-font-weight);
+  border: none;
+}
+
+.btn-success {
+  background-color: #2e8b57;
+}
+.btn-success:hover {
+  background-color: #267349;
+}
+
+.btn:focus-visible {
+  outline: 2px solid rgba(46, 139, 87, 0.35);
+  outline-offset: 2px;
+}
+
+/* Navbar + dropdown behavior overrides (Bootstrap fallback) */
+.navbar-toggler {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.08);
+  color: #fff;
+  border-radius: 12px;
+  padding: 0.5rem 0.65rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.navbar-toggler:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 2px;
+}
+
+.navbar-toggler-icon {
+  width: 22px;
+  height: 14px;
+  display: inline-block;
+  background: linear-gradient(currentColor, currentColor) 0 0 / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) 0 50% / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) 0 100% / 100% 2px no-repeat;
+  opacity: 0.95;
+}
+
+@media (min-width: 992px) {
+  .navbar-toggler {
+    display: none;
+  }
+}
+
+@media (max-width: 991.98px) {
+  #navbarNav {
+    display: none;
+    width: 100%;
+    margin-top: 0.75rem;
+  }
+
+  #navbarNav.is-open,
+  #navbarNav.show {
+    display: block;
+  }
+
+  #navbarNav .navbar-nav {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  #navbarNav .nav-link {
+    padding: 0.55rem 0.75rem;
+  }
+}
+
+@media (min-width: 992px) {
+  #navbarNav {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+  }
+}
+
+.dropdown-menu {
+  display: none;
+}
+
+.dropdown.is-open > .dropdown-menu {
+  display: block;
+}
+
+@media (min-width: 992px) {
+  .navbar .dropdown {
+    position: relative;
+  }
+
+  .navbar .dropdown-menu {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 0.35rem);
+    z-index: 1000;
+    min-width: 12rem;
+  }
+}
+
+.category-dropdown-nav .dropdown-menu {
+  border-radius: 12px;
+  padding: 0.5rem 0;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+  min-width: 12rem;
+}
+
+.category-dropdown-nav .dropdown-item {
+  font-weight: 500;
+  padding: 0.55rem 1rem;
+}
+
+.category-dropdown-nav .dropdown-item:active,
+.category-dropdown-nav .dropdown-item:focus,
+.category-dropdown-nav .dropdown-item:hover {
+  background-color: rgba(46, 139, 87, 0.12);
+}
+
+@media (max-width: 991px) {
+  .category-dropdown-nav {
+    margin-top: 0.5rem;
+  }
+
+  .category-dropdown-nav .dropdown-menu {
+    box-shadow: none;
+  }
+}
+
+.navbar .btn {
+  border-radius: var(--gls-radius-pill);
+  font-size: 0.9rem;
+  padding: 0.35rem 0.9rem;
+}

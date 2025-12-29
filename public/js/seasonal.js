@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /**
  * 뷰포트 폭에 따라 눈송이 개수를 조절하며 배경 DOM을 생성
- * - animation 정의는 /public/css/themes/winter-theme.css 안의 @keyframes snowFall / snowFallAlt 참조
+ * - animation 정의는 /public/css/gls/themes/winter-theme.css 안의 @keyframes snowFall / snowFallAlt 참조
  */
 function setupSnowBackground() {
   // 이미 생성된 눈 레이어가 있으면 중복 생성 방지
