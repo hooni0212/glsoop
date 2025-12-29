@@ -1,0 +1,515 @@
+/* =========================
+   What: Spacing & typography shims
+   Scope: .mt-4, .mt-5, .my-2, .my-3, .p-3, .py-3, .py-4, .py-5, .ms-1, .ms-2, .ms-auto, .me-auto, .me-lg-3, .fw-bold
+   Where: Legacy bootstrap utility compatibility used across GLS pages
+========================= */
+.mt-4 { margin-top: 1.5rem; }
+.mt-5 { margin-top: 3rem; }
+
+.my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+.my-3 { margin-top: 1rem; margin-bottom: 1rem; }
+
+.p-3 { padding: 1rem; }
+.py-3 { padding-top: 1rem; padding-bottom: 1rem; }
+.py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.py-5 { padding-top: 3rem; padding-bottom: 3rem; }
+
+.ms-1 { margin-left: 0.25rem; }
+.ms-2 { margin-left: 0.5rem; }
+.ms-auto { margin-left: auto; }
+.me-auto { margin-right: auto; }
+
+@media (min-width: 992px) {
+  .me-lg-3 { margin-right: 1rem; }
+}
+
+.fw-bold { font-weight: 700; }
+
+
+/* =========================
+   What: Button base & variants
+   Scope: .btn, .btn-sm, .btn-link, .btn-primary, .btn-success, .btn:focus-visible
+   Where: Bootstrap markup used for GLS buttons and calls-to-action
+========================= */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font: inherit;
+  line-height: 1.15;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--gls-chip-radius, 14px);
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.65rem;
+  border-radius: calc(var(--gls-chip-radius, 14px) - 4px);
+  font-size: 0.9rem;
+}
+
+.btn-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+}
+
+.btn-primary,
+.btn-success {
+  border-radius: var(--gls-btn-radius);
+  padding: 0.55rem 1.4rem;
+  font-weight: var(--gls-btn-font-weight);
+  border: none;
+}
+
+.btn-success {
+  background-color: #2e8b57;
+}
+
+.btn-success:hover {
+  background-color: #267349;
+}
+
+.btn:focus-visible {
+  outline: 2px solid rgba(46, 139, 87, 0.35);
+  outline-offset: 2px;
+}
+
+
+/* =========================
+   What: Navbar link & toggler overrides
+   Scope: .navbar-nav .nav-link, .navbar-toggler, .navbar-toggler-icon
+   Where: Header navigation shared across GLS pages
+========================= */
+.navbar-nav .nav-link {
+  font-weight: 500;
+  opacity: 0.92;
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.navbar-nav .nav-link:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.navbar-toggler {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.08);
+  color: #fff;
+  border-radius: 12px;
+  padding: 0.5rem 0.65rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.navbar-toggler:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 2px;
+}
+
+.navbar-toggler-icon {
+  width: 22px;
+  height: 14px;
+  display: inline-block;
+  background: linear-gradient(currentColor, currentColor) 0 0 / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) 0 50% / 100% 2px no-repeat,
+    linear-gradient(currentColor, currentColor) 0 100% / 100% 2px no-repeat;
+  opacity: 0.95;
+}
+
+@media (min-width: 992px) {
+  .navbar-toggler {
+    display: none;
+  }
+}
+
+
+/* =========================
+   What: Navbar collapse & dropdown layout
+   Scope: #navbarNav, .dropdown-menu, .navbar .dropdown, .navbar .btn
+   Where: Responsive header menus and category dropdowns
+========================= */
+@media (max-width: 991.98px) {
+  #navbarNav {
+    display: none;
+    width: 100%;
+    margin-top: 0.75rem;
+  }
+
+  #navbarNav.is-open,
+  #navbarNav.show {
+    display: block;
+  }
+
+  #navbarNav .navbar-nav {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  #navbarNav .nav-link {
+    padding: 0.55rem 0.75rem;
+  }
+}
+
+@media (min-width: 992px) {
+  #navbarNav {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+  }
+}
+
+.dropdown-menu {
+  display: none;
+}
+
+.dropdown.is-open > .dropdown-menu {
+  display: block;
+}
+
+@media (min-width: 992px) {
+  .navbar .dropdown {
+    position: relative;
+  }
+
+  .navbar .dropdown-menu {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 0.35rem);
+    z-index: 1000;
+    min-width: 12rem;
+  }
+}
+
+.category-dropdown-nav .dropdown-menu {
+  border-radius: 12px;
+  padding: 0.5rem 0;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+  min-width: 12rem;
+}
+
+.category-dropdown-nav .dropdown-item {
+  font-weight: 500;
+  padding: 0.55rem 1rem;
+}
+
+.category-dropdown-nav .dropdown-item:active,
+.category-dropdown-nav .dropdown-item:focus,
+.category-dropdown-nav .dropdown-item:hover {
+  background-color: rgba(46, 139, 87, 0.12);
+}
+
+@media (max-width: 991px) {
+  .category-dropdown-nav {
+    margin-top: 0.5rem;
+  }
+
+  .category-dropdown-nav .dropdown-menu {
+    box-shadow: none;
+  }
+}
+
+.navbar .btn {
+  border-radius: var(--gls-radius-pill);
+  font-size: 0.9rem;
+  padding: 0.35rem 0.9rem;
+}
+
+
+/* =========================
+   What: Nav link compact states
+   Scope: .navbar-nav .nav-link.nav-link-compact
+   Where: User/account menus rendered inside bootstrap navs
+========================= */
+.navbar-nav .nav-link.nav-link-compact:hover,
+.navbar-nav .nav-link.nav-link-compact:focus-visible {
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle, rgba(255, 255, 255, 0.18)) 80%, transparent);
+  color: var(--gls-color-text, #1f2a2b);
+}
+
+.navbar-nav .nav-link.nav-link-compact.active {
+  background: color-mix(in srgb, var(--gls-glass-bg, rgba(255, 255, 255, 0.28)) 70%, transparent);
+  color: var(--gls-color-text, #1f2a2b);
+  font-weight: 700;
+}
+
+@media (max-width: 991.98px) {
+  .navbar-nav .nav-link.nav-link-compact,
+  .navbar-nav .nav-link.nav-link-compact:hover,
+  .navbar-nav .nav-link.nav-link-compact:focus-visible {
+    color: #fff;
+  }
+
+  .navbar-nav .nav-link.nav-link-compact {
+    background: transparent;
+  }
+
+  .navbar-nav .nav-link.nav-link-compact:hover,
+  .navbar-nav .nav-link.nav-link-compact:focus-visible {
+    background: color-mix(in srgb, rgba(255, 255, 255, 0.18) 80%, transparent);
+  }
+}
+
+/* =========================
+   What: Navbar scoped buttons & branding
+   Scope: .navbar .gls-btn, .custom-navbar .navbar-brand
+   Where: Themed header actions and logo styling
+========================= */
+body[class*='-theme'] .custom-navbar .gls-btn,
+body[class*='-theme'] .navbar .gls-btn {
+  color: var(--gls-action-accent, #2e8b57);
+  border-color: var(--gls-action-border, rgba(30, 42, 51, 0.16));
+  background: var(--gls-action-surface, rgba(255, 255, 255, 0.82));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+  transition: transform 0.15s ease, box-shadow 0.15s ease,
+    background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+body[class*='-theme'] .custom-navbar .gls-btn:hover,
+body[class*='-theme'] .custom-navbar .gls-btn:focus-visible,
+body[class*='-theme'] .navbar .gls-btn:hover,
+body[class*='-theme'] .navbar .gls-btn:focus-visible {
+  color: #0f172a;
+  background: var(--gls-action-surface-hover, rgba(255, 255, 255, 0.9));
+  border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+  transform: translateY(-1px);
+}
+
+.custom-navbar .navbar-brand {
+  font-family: 'Nanum Pen Script', cursive;
+  font-size: 2.1rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+
+  /* 🟢 기본 로고 그라디언트 (테마에서 변수로 덮어쓰기 가능) */
+  background: var(--gls-navbar-brand-gradient, linear-gradient(120deg, #f8fff9, #ecfff4));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+
+  text-decoration: none;
+  display: inline-block;
+}
+
+@media (max-width: 576px) {
+  .custom-navbar .navbar-brand {
+    font-size: 1.8rem;
+  }
+}
+
+
+/* =========================
+   What: Card & surface overrides
+   Scope: .card, .card-title, .card-body, .border utility inside posts
+   Where: Legacy bootstrap card markup within GLS post cards
+========================= */
+.card {
+  border-radius: var(--gls-radius-card, 16px);
+}
+
+.card-title {
+  font-size: var(--gls-fs-lg, 1.125rem);
+  line-height: var(--gls-lh-tight, 1.25);
+  font-weight: 600;
+}
+
+.post-content .border {
+  border-radius: 0.8rem !important;
+  background: var(--gls-ghost-bg);
+}
+
+.card-body small.gls-text-muted {
+  font-size: var(--gls-fs-xs, 0.8125rem);
+  line-height: var(--gls-lh-normal, 1.55);
+}
+
+.gls-post-card .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-card-gap, var(--gls-space-5, 20px));
+  padding: clamp(22px, 2.1vw, var(--gls-card-padding, 28px));
+}
+
+@media (max-width: 420px) {
+  .gls-post-card .card-body {
+    padding: var(--gls-space-5, 20px);
+  }
+}
+
+.gls-post-card .card-body > :where(.gls-spread, .d-flex.align-items-center.justify-content-between) {
+  width: 100%;
+  gap: var(--gls-space-3, 12px);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 768px) {
+  .gls-post-card .card-body > :where(.gls-spread, .d-flex.align-items-center.justify-content-between) {
+    align-items: center;
+  }
+}
+
+.related-card.gls-post-card .card-body {
+  padding: var(--gls-space-5, 20px);
+  gap: var(--gls-space-3, 12px);
+}
+
+.related-card.gls-post-card .card-title {
+  font-size: clamp(1.02rem, 1.4vw, 1.12rem);
+  margin-bottom: var(--gls-space-1, 4px);
+}
+
+.gls-post-card .card-title {
+  font-size: clamp(1.18rem, 2vw, 1.28rem);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--gls-space-2, 8px);
+  font-weight: 750;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: calc(1.3em * 2);
+}
+
+.gls-post-card .card-title + .post-content {
+  margin-top: 2px;
+}
+
+:where(.card, .gls-post-card)::after,
+:where(.card, .gls-post-card) {
+  background: var(--gls-surface-glass-bg, var(--gls-glass-bg-subtle));
+  border: 1px solid var(--gls-surface-glass-border, var(--gls-ghost-border));
+  box-shadow: var(--gls-surface-glass-shadow, var(--gls-glass-shadow));
+  backdrop-filter: blur(var(--gls-surface-glass-blur, var(--gls-glass-blur)));
+  -webkit-backdrop-filter: blur(var(--gls-surface-glass-blur, var(--gls-glass-blur)));
+  position: relative;
+}
+
+:where(.card, .gls-post-card)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-surface-glass-inset, var(--gls-glass-inset));
+  pointer-events: none;
+}
+
+
+/* =========================
+   What: Modal structure overrides
+   Scope: .modal, .modal-dialog, .modal-content, .modal-header, .modal-body, .modal-footer, .modal-title
+   Where: Bootstrap modal markup backed by GLS modal behavior
+========================= */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.modal.is-open {
+  display: flex;
+}
+
+.modal[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+.modal-dialog {
+  width: 100%;
+  max-width: min(560px, calc(100vw - 32px));
+  margin: 0;
+}
+
+.modal-dialog.modal-lg {
+  max-width: min(800px, calc(100vw - 32px));
+}
+
+.modal-dialog.modal-dialog-centered {
+  display: block;
+}
+
+.modal-dialog.modal-dialog-scrollable .modal-body {
+  max-height: min(60vh, 520px);
+  overflow: auto;
+}
+
+.modal-content {
+  background: var(--gls-glass-bg, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--gls-glass-border, rgba(255, 255, 255, 0.14));
+  border-radius: var(--gls-radius-lg, 18px);
+  box-shadow: var(--gls-shadow-lg, 0 24px 64px rgba(0, 0, 0, 0.24));
+  backdrop-filter: blur(var(--gls-glass-blur, 12px));
+}
+
+.modal-header,
+.modal-footer {
+  border-color: var(--gls-border-soft, rgba(255, 255, 255, 0.10));
+}
+
+.modal-header {
+  padding: 14px 16px;
+}
+
+.modal-body {
+  padding: 14px 16px;
+}
+
+.modal-footer {
+  padding: 12px 16px;
+  gap: 8px;
+}
+
+.modal-title {
+  font-weight: 700;
+}
+
+
+/* =========================
+   What: Admin tab link overrides
+   Scope: .admin-sidebar .admin-tabs .nav-link
+   Where: Admin sidebar navigation built with bootstrap nav markup
+========================= */
+.admin-sidebar .admin-tabs .nav-link {
+  cursor: pointer;
+  border-radius: 0.8rem;
+  text-align: left;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  transition: background-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.admin-sidebar .admin-tabs .nav-link:hover {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.admin-sidebar .admin-tabs .nav-link.active {
+  background: linear-gradient(120deg, #e7f0ff, #f3f8ff);
+  color: #0a3d62;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+  border-color: rgba(10, 61, 98, 0.28);
+}
+
+.admin-theme-card .gls-segmented .btn-check:checked + .gls-btn {
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+}

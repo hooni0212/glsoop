@@ -207,65 +207,17 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 .mt-1 { margin-top: 0.25rem; }
 .mt-2 { margin-top: 0.5rem; }
 .mt-3 { margin-top: 1rem; }
-.mt-4 { margin-top: 1.5rem; }
-.mt-5 { margin-top: 3rem; }
 
-.my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
-.my-3 { margin-top: 1rem; margin-bottom: 1rem; }
-
-/* paddings (minimal) */
-.p-3 { padding: 1rem; }
-.py-3 { padding-top: 1rem; padding-bottom: 1rem; }
-.py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
-.py-5 { padding-top: 3rem; padding-bottom: 3rem; }
-
-/* logical margins */
-/* NOTE: Prefer .gls-ms-auto/.gls-me-lg-3 in new markup; bootstrap shims will be removed later. */
-.ms-1 { margin-left: 0.25rem; }
-.ms-2 { margin-left: 0.5rem; }
-.ms-auto { margin-left: auto; }
+/* logical margins (GLS utilities) */
 .gls-ms-auto { margin-left: auto; }
 .me-auto { margin-right: auto; }
 
 @media (min-width: 992px) {
-  .me-lg-3 { margin-right: 1rem; }
   .gls-me-lg-3 { margin-right: 1rem; }
 }
 
 /* font weight */
-.fw-bold { font-weight: 700; }
 .gls-fw-bold { font-weight: 700; }
-
-/* basic button shims (for residual .btn usage) */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  font: inherit;
-  line-height: 1.15;
-  padding: 0.55rem 0.9rem;
-  border-radius: var(--gls-chip-radius, 14px);
-  border: 1px solid transparent;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.btn-sm {
-  padding: 0.4rem 0.65rem;
-  border-radius: calc(var(--gls-chip-radius, 14px) - 4px);
-  font-size: 0.9rem;
-}
-
-.btn-link {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  text-decoration: underline;
-}
-
 /* =========================
    17. 모바일 터치에서 hover "고정" 방지
 ========================= */

@@ -10,36 +10,11 @@
   gap: 0.5rem;
 }
 
-.admin-sidebar .admin-tabs .nav-link {
-  cursor: pointer;
-  border-radius: 0.8rem;
-  text-align: left;
-  color: #0f172a;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  transition: background-color 0.15s ease, color 0.15s ease,
-    box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.admin-sidebar .admin-tabs .nav-link:hover {
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-  transform: translateY(-1px);
-}
-
-.admin-sidebar .admin-tabs .nav-link.active {
-  background: linear-gradient(120deg, #e7f0ff, #f3f8ff);
-  color: #0a3d62;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
-  border-color: rgba(10, 61, 98, 0.28);
-}
-
 .admin-theme-card .gls-btn {
   min-width: 72px;
   font-weight: 600;
 }
 
-.admin-theme-card .gls-segmented .btn-check:checked + .gls-btn,
 .admin-theme-card .gls-btn:hover,
 .admin-theme-card .gls-btn:focus-visible {
   box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
