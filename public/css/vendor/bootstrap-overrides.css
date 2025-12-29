@@ -137,7 +137,7 @@
 
 /* =========================
    What: Navbar collapse & dropdown layout
-   Scope: #navbarNav, .dropdown-menu, .navbar .dropdown, .navbar .btn
+   Scope: #navbarNav, .dropdown-menu, .navbar .dropdown, .navbar .btn, .navbar-nav.category-dropdown-nav
    Where: Responsive header menus and category dropdowns
 ========================= */
 @media (max-width: 991.98px) {
@@ -192,30 +192,30 @@
   }
 }
 
-.category-dropdown-nav .dropdown-menu {
+.navbar-nav.category-dropdown-nav .dropdown-menu {
   border-radius: 12px;
   padding: 0.5rem 0;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
   min-width: 12rem;
 }
 
-.category-dropdown-nav .dropdown-item {
+.navbar-nav.category-dropdown-nav .dropdown-item {
   font-weight: 500;
   padding: 0.55rem 1rem;
 }
 
-.category-dropdown-nav .dropdown-item:active,
-.category-dropdown-nav .dropdown-item:focus,
-.category-dropdown-nav .dropdown-item:hover {
+.navbar-nav.category-dropdown-nav .dropdown-item:active,
+.navbar-nav.category-dropdown-nav .dropdown-item:focus,
+.navbar-nav.category-dropdown-nav .dropdown-item:hover {
   background-color: rgba(46, 139, 87, 0.12);
 }
 
 @media (max-width: 991px) {
-  .category-dropdown-nav {
+  .navbar-nav.category-dropdown-nav {
     margin-top: 0.5rem;
   }
 
-  .category-dropdown-nav .dropdown-menu {
+  .navbar-nav.category-dropdown-nav .dropdown-menu {
     box-shadow: none;
   }
 }
