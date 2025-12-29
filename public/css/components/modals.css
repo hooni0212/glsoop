@@ -8,7 +8,7 @@
 .modal {
   position: fixed;
   inset: 0;
-  z-index: 1050;
+  z-index: 1060;
   display: none;
   align-items: center;
   justify-content: center;
@@ -45,7 +45,7 @@
 .gls-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1040;
+  z-index: 1030;
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(2px);
 }
