@@ -9,6 +9,9 @@
 /* 2) base */
 @import url("/css/base.css");
 
+/* 2.5) vendor overrides (Bootstrap shims) */
+@import url("/css/vendor/bootstrap-overrides.css");
+
 /* 3) shells */
 @import url("/css/shells/all.css");
 

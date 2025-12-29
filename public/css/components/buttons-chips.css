@@ -180,28 +180,3 @@
   background: color-mix(in srgb, var(--gls-ghost-bg) 75%, rgba(255, 255, 255, 0.35));
   border-color: color-mix(in srgb, var(--gls-ghost-border) 85%, rgba(0, 0, 0, 0.06));
 }
-
-/* =========================
-   5. 공통 버튼 스타일
-========================= */
-
-.btn-primary,
-.btn-success {
-  border-radius: var(--gls-btn-radius);
-  padding: 0.55rem 1.4rem;
-  font-weight: var(--gls-btn-font-weight);
-  border: none;
-}
-
-.btn-success {
-  background-color: #2e8b57;
-}
-.btn-success:hover {
-  background-color: #267349;
-}
-
-/* 공통 버튼: 키보드 포커스 링 (접근성) */
-.btn:focus-visible {
-  outline: 2px solid rgba(46, 139, 87, 0.35);
-  outline-offset: 2px;
-}
