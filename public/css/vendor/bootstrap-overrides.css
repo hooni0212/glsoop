@@ -1,8 +1,46 @@
 /* =========================
-   What: Spacing & typography shims
-   Scope: .mt-4, .mt-5, .my-2, .my-3, .p-3, .py-3, .py-4, .py-5, .ms-1, .ms-2, .ms-auto, .me-auto, .me-lg-3, .fw-bold
+   What: Layout, spacing & typography shims
+   Scope: .d-flex, .flex-column, .flex-row, .flex-wrap, .align-items-start, .align-items-center, .align-items-end, .justify-content-between, .justify-content-end,
+          .w-100, .min-vh-100, .text-center, .text-start, .text-end,
+          .gap-2, .gap-3, .gap-4,
+          .mb-0, .mb-1, .mb-2, .mb-3, .mb-4,
+          .mt-1, .mt-2, .mt-3, .mt-4, .mt-5,
+          .my-2, .my-3, .p-3, .py-3, .py-4, .py-5,
+          .ms-1, .ms-2, .ms-auto, .me-auto, .me-lg-3, .fw-bold
    Where: Legacy bootstrap utility compatibility used across GLS pages
 ========================= */
+.d-flex { display: flex; }
+.flex-column { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+
+.align-items-start { align-items: flex-start; }
+.align-items-center { align-items: center; }
+.align-items-end { align-items: flex-end; }
+
+.justify-content-between { justify-content: space-between; }
+.justify-content-end { justify-content: flex-end; }
+
+.w-100 { width: 100%; }
+.min-vh-100 { min-height: 100vh; }
+
+.text-center { text-align: center; }
+.text-start { text-align: left; }
+.text-end { text-align: right; }
+
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 1rem; }
+.gap-4 { gap: 1.5rem; }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 1rem; }
+.mb-4 { margin-bottom: 1.5rem; }
+
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 1rem; }
 .mt-4 { margin-top: 1.5rem; }
 .mt-5 { margin-top: 3rem; }
 
