@@ -118,5 +118,11 @@
   - `maskEmail(email)`: 이메일을 마스킹해 UI에 표시합니다.
   - `escapeHtml(str)`: XSS 방지용 HTML 이스케이프.
   - `formatKoreanDateTime(value)`: 날짜를 한국어 형태로 포맷팅합니다.
-  - `extractFontFromContent(html)`: 본문 내 폰트 태그를 파싱해 대표 폰트를 추출합니다.
-  - `buildHashtagHtml(source)`: 서버/클라이언트 해시태그 배열에서 태그 HTML을 생성합니다.
+- `extractFontFromContent(html)`: 본문 내 폰트 태그를 파싱해 대표 폰트를 추출합니다.
+- `buildHashtagHtml(source)`: 서버/클라이언트 해시태그 배열에서 태그 HTML을 생성합니다.
+
+## 모달 시스템 (GLS vs Bootstrap)
+- **동작 책임(필수 확인):** 자바스크립트 동작은 모두 GLS(`public/js/header.js`의 `glsModal`)가 담당하며, **Bootstrap의 `data-bs-*` 속성이나 JS 초기화는 사용하지 않습니다.**
+- **열기/닫기 방법:** 트리거는 `data-gls-toggle="modal"` + `data-gls-target="#modalId"`를 사용하고, 닫기는 `data-gls-dismiss="modal"` 또는 `.gls-modal-close` 클래스를 사용합니다. ESC, 백드롭 클릭, 포커스 관리, 스크롤 잠금/패딩 보정은 GLS가 처리합니다.
+- **레이아웃/스타일 역할:** `.modal`, `.modal-dialog`, `.modal-content` 등 기본 골격은 Bootstrap CSS를 이용하되, 시각 언어(유리/블러/그림자/간격)는 `public/css/vendor/bootstrap-overrides.css`와 `public/css/components/modals.css`에서 GLS 토큰에 맞춰 커스텀합니다.
+- **새 모달 작성 시 가이드:** 위 규약을 지키면 정적·동적 모달 모두 동일한 방식으로 동작합니다. Bootstrap의 `data-bs-toggle/target`을 혼용하지 말고, 닫기 버튼에 GLS 전용 속성을 반드시 포함하세요.

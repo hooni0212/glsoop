@@ -577,5 +577,15 @@ async function handleLogout() {
     }
   });
 
+  // Fallback: delegate close for any GLS modal dismiss trigger (covers dynamically injected modals)
+  document.addEventListener('click', (e) => {
+    const dismissBtn = e.target.closest('[data-gls-dismiss="modal"], .gls-modal-close');
+    if (!dismissBtn) return;
+    const modalEl = dismissBtn.closest('.modal');
+    if (!modalEl) return;
+    e.preventDefault();
+    close(modalEl);
+  });
+
   window.glsModal = { open, close };
 })();
