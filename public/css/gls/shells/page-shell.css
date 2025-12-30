@@ -383,28 +383,6 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
 }
 
 /* Bootstrap dropdown 제거 대비: .dropdown.is-open 으로 메뉴 제어 */
-.dropdown-menu {
-  display: none;
-}
-
-.dropdown.is-open > .dropdown-menu {
-  display: block;
-}
-
-@media (min-width: 992px) {
-  .navbar .dropdown {
-    position: relative;
-  }
-
-  .navbar .dropdown-menu {
-    position: absolute;
-    left: 0;
-    top: calc(100% + 0.35rem);
-    z-index: 1000;
-    min-width: 12rem;
-  }
-}
-
 /* 계정 Pill + 팝오버 메뉴 */
 .nav-account-pill {
   margin-left: 0.75rem;

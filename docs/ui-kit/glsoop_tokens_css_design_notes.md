@@ -17,8 +17,8 @@
 
 ## 2) 현 상태(업로드본) 요약
 
-- `public/css/base.css` 안에 `:root { ... }` 변수가 약 **113개** 존재
-- `themes/winter-theme.css`의 `body.winter-theme { ... }`에는 변수 25개가 덮어쓰기 형태로 존재하지만,
+- `public/css/gls/base.css` 안에 `:root { ... }` 변수가 약 **113개** 존재
+- `gls/themes/winter-theme.css`의 `body.winter-theme { ... }`에는 변수 25개가 덮어쓰기 형태로 존재하지만,
   파일 전체는 약 700줄대로 커져 있음(구조/컴포넌트 규칙이 섞인 상태)
 
 ---
@@ -29,7 +29,7 @@
   추가로 **font/motion/z-index** 토큰을 더해 정리한 버전이다.
 - 변수명은 기존 것을 최대한 유지해서 “첫 분리” 단계에서 충돌을 최소화한다.
 
-📄 파일: `public/css/tokens.css` (v1)  
+📄 파일: `public/css/gls/tokens.css` (v1)  
 (첨부 파일: `glsoop_tokens_design_v1.css`)
 
 ---
@@ -37,8 +37,8 @@
 ## 4) 적용(리팩토링 시작) 가이드
 
 ### 4-1) 파일 추가/이동
-1. `public/css/tokens.css` 생성 (첨부 v1 내용으로 시작)
-2. `public/css/base.css`에서 `:root { ... }` 블록 제거  
+1. `public/css/gls/tokens.css` 생성 (첨부 v1 내용으로 시작)
+2. `public/css/gls/base.css`에서 `:root { ... }` 블록 제거  
    - 또는 임시로 남겨두되, 최종적으로는 tokens.css로만 유지
 
 ### 4-2) 로드 순서(중요)
@@ -47,17 +47,19 @@ HTML에서 CSS 로드 순서를 통일한다.
 권장:
 1) tokens.css  
 2) base.css  
-3) components.css  
-4) pages/*.css  
-5) themes/*.css (선택적으로 마지막)
+3) vendor/bootstrap-overrides.css (존재할 경우)  
+4) components.css  
+5) pages/*.css  
+6) themes/*.css (선택적으로 마지막)
 
 예시:
 ```html
-<link rel="stylesheet" href="/css/tokens.css">
-<link rel="stylesheet" href="/css/base.css">
-<link rel="stylesheet" href="/css/components.css">
-<link rel="stylesheet" href="/css/main.css"> <!-- 또는 pages/index.css -->
-<link rel="stylesheet" href="/css/themes/winter-theme.css">
+<link rel="stylesheet" href="/css/gls/tokens.css">
+<link rel="stylesheet" href="/css/gls/base.css">
+<link rel="stylesheet" href="/css/vendor/bootstrap-overrides.css">
+<link rel="stylesheet" href="/css/gls/components.css">
+<link rel="stylesheet" href="/css/gls/pages/index.css">
+<link rel="stylesheet" href="/css/gls/themes/winter-theme.css">
 ```
 
 ---
@@ -86,4 +88,3 @@ HTML에서 CSS 로드 순서를 통일한다.
 ## 7) 첨부
 
 - `glsoop_tokens_design_v1.css` : tokens.css 초안 (기존 변수 + font/motion/z-index 포함)
-
