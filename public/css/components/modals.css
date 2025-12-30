@@ -8,7 +8,7 @@
 .gls-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1030;
+  z-index: var(--gls-z-backdrop, calc(var(--gls-z-modal, 1100) - 10));
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(2px);
 }

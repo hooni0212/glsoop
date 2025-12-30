@@ -484,9 +484,10 @@ async function handleLogout() {
 
     const backdrop = ensureBackdrop();
     if (!document.body.contains(backdrop)) document.body.appendChild(backdrop);
+    backdrop.classList.add('show');
 
     document.body.classList.add('gls-modal-open');
-    modalEl.classList.add('is-open');
+    modalEl.classList.add('is-open', 'show');
     setAria(modalEl, true);
 
     // focus management
@@ -495,10 +496,13 @@ async function handleLogout() {
 
   function close(modalEl) {
     if (!modalEl) return;
-    modalEl.classList.remove('is-open');
+    modalEl.classList.remove('is-open', 'show');
     setAria(modalEl, false);
 
-    if (backdropEl && backdropEl.parentNode) backdropEl.parentNode.removeChild(backdropEl);
+    if (backdropEl) {
+      backdropEl.classList.remove('show');
+      if (backdropEl.parentNode) backdropEl.parentNode.removeChild(backdropEl);
+    }
     document.body.classList.remove('gls-modal-open');
 
     const toFocus = activeTrigger;
