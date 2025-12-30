@@ -26,12 +26,6 @@ body.page-post {
   --gls-post-content-bg: rgba(255, 255, 255, 0.00);
 }
 
-body.mode-dark.page-post {
-  --gls-post-panel-bg: rgba(15, 22, 19, 0.32);
-  --gls-post-content-bg: rgba(15, 22, 19, 0.46);
-}
-
-
 /* =========================
    0) 2컬럼 레이아웃(데스크탑)
 ========================= */
@@ -97,10 +91,6 @@ body.page-post .post-panel.gls-surface-panel {
 /* post-panel의 "veil" 하이라이트도 줄여서 하얗게 뜨는 느낌을 방지 */
 body.page-post .post-panel.gls-surface-veil::before {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03));
-}
-
-body.mode-dark.page-post .post-panel.gls-surface-veil::before {
-  background: linear-gradient(180deg, rgba(15, 22, 19, 0.24), rgba(15, 22, 19, 0.12));
 }
 
 @media (max-width: 576px) {
