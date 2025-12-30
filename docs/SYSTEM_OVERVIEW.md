@@ -30,6 +30,7 @@
 ## 유틸리티와 보안
 - **보안 미들웨어:** `middleware/security.js`가 helmet 기반 CSP, 허용 오리진 검증, CORS 설정을 적용합니다.
 - **JWT 검증:** `middleware/auth.js`의 `authRequired`가 JWT 쿠키를 검증해 `req.user`에 디코딩 정보를 저장하며, `adminRequired`는 관리자 권한을 확인합니다.
+- **요청 사용자 파싱:** `utils/requestUser.js`가 JWT 쿠키에서 로그인 사용자의 페이로드/ID를 추출합니다. 로그인 여부가 선택적인 피드·프로필 API에서 중복 코드를 줄이는 데 사용됩니다.
 - **해시태그 처리:** `utils/hashtags.js`는 해시태그 정규화 및 게시글-해시태그 매핑 저장/갱신을 담당합니다.
 
 ## 데이터베이스 스키마 요약
@@ -45,6 +46,9 @@
 - `middleware/auth.js`
   - `authRequired(req, res, next)`: JWT 쿠키를 검증해 `req.user`에 사용자 정보를 적재합니다. 모든 인증된 API 라우트(피드, 글쓰기, 프로필 수정 등) 앞단에서 사용됩니다. 사용 페이지: 로그인 후 접근하는 모든 보호된 화면.
   - `adminRequired(req, res, next)`: `req.user.isAdmin` 여부를 확인해 관리자 전용 API 접근을 제한합니다. 사용 페이지: `/html/admin.html`.
+- `utils/requestUser.js`
+  - `getViewerFromRequest(req)`: JWT 쿠키를 해석해 로그인 사용자의 전체 페이로드를 반환합니다(실패 시 `null`).
+  - `getViewerId(req)`: 쿠키에서 사용자 ID만 꺼내야 할 때 사용합니다. 팔로우·피드 API에서 선택적 로그인 처리를 단순화합니다.
 - `utils/hashtags.js`
   - `normalizeHashtagName(raw)`: 입력된 문자열에서 `#` 제거, 공백/길이 정리, 소문자화하여 저장 가능한 해시태그로 변환합니다. 사용 페이지: 글 작성/수정 화면(`/html/editor.html`).
   - `saveHashtagsForPostFromInput(postId, hashtagsInput, callback)`: 게시글과 연관된 해시태그를 재저장합니다. 기존 매핑 삭제 → 새 태그 생성 → 매핑 저장 순으로 처리하며, 글 작성·수정 API가 호출합니다.

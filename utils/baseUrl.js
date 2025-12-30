@@ -18,18 +18,18 @@ function isLoopbackHost(host) {
 }
 
 /**
- * Return the base URL for external links (emails, etc.).
+ * 이메일 링크 등 외부에 노출되는 URL의 기준값을 반환합니다.
  *
- * Priority:
- *  1) env BASE_URL / PUBLIC_BASE_URL (recommended for production)
- *  2) forwarded headers (x-forwarded-host / x-forwarded-proto)
- *  3) request host/protocol
- *  4) localhost fallback
+ * 우선순위:
+ *  1) 환경변수 BASE_URL / PUBLIC_BASE_URL (운영 환경 권장)
+ *  2) 프록시 전달 헤더 (x-forwarded-host / x-forwarded-proto)
+ *  3) 요청의 host/protocol
+ *  4) localhost 기본값
  *
- * Note:
- *  - When running behind Nginx, the request host can be "127.0.0.1:3000".
- *    In that case, if ALLOW_LOOPBACK_BASE_URL is not set to "1", we fall back
- *    to the public production base to avoid sending localhost links in emails.
+ * 참고:
+ *  - Nginx 뒤에서 동작할 때 `Host`가 `127.0.0.1:3000`으로 들어올 수 있습니다.
+ *    ALLOW_LOOPBACK_BASE_URL을 "1"로 두지 않았다면, 메일 링크가 로컬로 찍히는
+ *    문제를 막기 위해 공개용 기본 URL로 강제 변경합니다.
  */
 function getBaseUrl(req) {
   const envBase = normalizeBaseUrl(process.env.BASE_URL || process.env.PUBLIC_BASE_URL);
@@ -48,8 +48,8 @@ function getBaseUrl(req) {
   if (!allowLoopback && isLoopbackHost(host)) {
     if (!baseUrlWarned) {
       console.warn(
-        '[warn] Detected loopback host for external link generation. Set BASE_URL (recommended) ' +
-          'or set ALLOW_LOOPBACK_BASE_URL=1 for local development.'
+        '[warn] 외부 링크 생성 시 루프백 호스트가 감지되었습니다. 운영 환경에서는 BASE_URL을 설정하거나, ' +
+          '로컬 개발 시에만 ALLOW_LOOPBACK_BASE_URL=1을 허용하세요.'
       );
       baseUrlWarned = true;
     }

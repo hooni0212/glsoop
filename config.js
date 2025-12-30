@@ -10,19 +10,19 @@ const rawJwtSecret = process.env.JWT_SECRET ? process.env.JWT_SECRET.trim() : ''
 
 if (isProduction) {
   if (!rawJwtSecret) {
-    throw new Error('[FATAL] Missing JWT_SECRET in production. Set JWT_SECRET in env.');
+    throw new Error('[FATAL] 운영 환경에 JWT_SECRET이 없습니다. 환경변수에 안전한 값을 설정하세요.');
   }
   if (rawJwtSecret.length < 32) {
-    throw new Error('[FATAL] JWT_SECRET is too short (<32). Use a strong random secret.');
+    throw new Error('[FATAL] JWT_SECRET 길이가 32자 미만입니다. 충분히 긴 랜덤 문자열을 사용하세요.');
   }
 } else if (!rawJwtSecret) {
   console.warn(
-    '[warn] JWT_SECRET not set. Using DEV fallback secret (development only).'
+    '[warn] JWT_SECRET이 비어 있습니다. 개발 환경에서만 임시 비밀키를 사용합니다.'
   );
 }
 
 if (isProduction && !baseUrl) {
-  console.warn('[warn] BASE_URL is not set in production. Set BASE_URL to the public site URL.');
+  console.warn('[warn] 운영 환경에 BASE_URL이 설정되지 않았습니다. 서비스 공개 URL을 입력하세요.');
 }
 
 const gmailUser = process.env.GMAIL_USER ? process.env.GMAIL_USER.trim() : '';
@@ -30,17 +30,17 @@ const gmailPass = process.env.GMAIL_PASS ? process.env.GMAIL_PASS.trim() : '';
 
 // 현재 설정이 잘 전달되었는지 확인용 로깅(비밀번호 원문은 노출하지 않음)
 if (!isProduction) {
-  console.log('GMAIL_USER =', gmailUser);
-  console.log('GMAIL_PASS length =', gmailPass ? gmailPass.length : 0);
+  console.log('[dev] GMAIL_USER =', gmailUser);
+  console.log('[dev] GMAIL_PASS length =', gmailPass ? gmailPass.length : 0);
 }
 
 if (isProduction && (!gmailUser || !gmailPass)) {
   throw new Error(
-    '[FATAL] Missing GMAIL_USER or GMAIL_PASS in production. Set email credentials.'
+    '[FATAL] 운영 환경에 GMAIL_USER 또는 GMAIL_PASS가 없습니다. 메일 계정 정보를 설정하세요.'
   );
 } else if (!isProduction && (!gmailUser || !gmailPass)) {
   console.warn(
-    '[warn] GMAIL_USER or GMAIL_PASS not set. Mail transporter may not function (development only).'
+    '[warn] GMAIL_USER 또는 GMAIL_PASS가 없습니다. 개발 환경에서는 메일 전송이 동작하지 않을 수 있습니다.'
   );
 }
 

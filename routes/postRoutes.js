@@ -21,14 +21,13 @@
 // POST /api/posts/:id/toggle-like
 
 const express = require('express');
-const jwt = require('jsonwebtoken');
 
 const db = require('../db');
-const { JWT_SECRET } = require('../config');
 const { authRequired } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 const { handlePostCreated, handleLikeAdded } = require('../utils/growth');
 const { sanitizeForStorage } = require('../utils/sanitize');
+const { getViewerId } = require('../utils/requestUser');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
 const CATEGORY_SQL =
@@ -55,6 +54,42 @@ function requireValidCategory(input, res) {
     return null;
   }
   return parsed;
+}
+
+function parsePagination(query = {}) {
+  let limit = parseInt(query.limit, 10);
+  let offset = parseInt(query.offset, 10);
+
+  if (Number.isNaN(limit) || limit <= 0 || limit > 50) {
+    limit = 20;
+  }
+  if (Number.isNaN(offset) || offset < 0) {
+    offset = 0;
+  }
+
+  return { limit, offset };
+}
+
+function extractTagsFromQuery(query = {}) {
+  if (query.tags) {
+    const tags = String(query.tags)
+      .split(',')
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+    return { tags, tagCount: tags.length };
+  }
+
+  if (query.tag) {
+    const tag = String(query.tag).trim().toLowerCase();
+    return tag ? { tags: [tag], tagCount: 1 } : { tags: [], tagCount: 0 };
+  }
+
+  return { tags: [], tagCount: 0 };
+}
+
+function getOptionalUserId(req) {
+  if (req.user && req.user.id) return req.user.id;
+  return getViewerId(req);
 }
 
 const router = express.Router();
@@ -289,28 +324,8 @@ router.get('/posts/liked', authRequired, (req, res) => {
 });
 
 function handleFeedRequest(req, res) {
-  let userId = null;
-
-  const token = req.cookies.token;
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      userId = decoded.id;
-    } catch (e) {
-      userId = null;
-    }
-  }
-
-  // 페이지네이션 기본값
-  let limit = parseInt(req.query.limit, 10);
-  let offset = parseInt(req.query.offset, 10);
-
-  if (isNaN(limit) || limit <= 0 || limit > 50) {
-    limit = 20;
-  }
-  if (isNaN(offset) || offset < 0) {
-    offset = 0;
-  }
+  const userId = getOptionalUserId(req);
+  const { limit, offset } = parsePagination(req.query);
 
   const sortParam = String(req.query.sort || 'latest');
   const sort = sortParam === 'popular' ? 'popular' : 'latest';
@@ -321,18 +336,7 @@ function handleFeedRequest(req, res) {
   const categoryParam = String(req.query.category || '').trim();
   const category = parseCategory(categoryParam);
 
-  // 쿼리 파라미터로 전달된 태그 목록 정리
-  let tags = [];
-  if (req.query.tags) {
-    tags = String(req.query.tags)
-      .split(',')
-      .map((t) => t.trim().toLowerCase())
-      .filter((t) => t.length > 0);
-  } else if (req.query.tag) {
-    const t = String(req.query.tag).trim().toLowerCase();
-    if (t) tags = [t];
-  }
-  const tagCount = tags.length;
+  const { tags, tagCount } = extractTagsFromQuery(req.query);
 
   if (feedType === 'following' && !userId) {
     return res.status(401).json({
@@ -494,20 +498,10 @@ router.get('/posts/:id/related', (req, res) => {
   const limit = parseInt(req.query.limit, 10) || 6;
 
   // 🔹 0) 현재 로그인한 사용자 ID 추출 (없으면 null)
-  let userId = null;
-  if (req.user && req.user.id) {
-    userId = req.user.id;
-  } else if (req.cookies && req.cookies.token) {
-    try {
-      const decoded = jwt.verify(req.cookies.token, JWT_SECRET);
-      userId = decoded.id;
-    } catch (e) {
-      userId = null;
-    }
-  }
+  const userId = getOptionalUserId(req);
 
-    // 기준 글의 작성자/태그 정보를 가져와 관련 글 매칭에 사용
-    db.get(
+  // 기준 글의 작성자/태그 정보를 가져와 관련 글 매칭에 사용
+  db.get(
     `
     SELECT
       p.id,
@@ -603,8 +597,8 @@ router.get('/posts/:id/related', (req, res) => {
           const now = Date.now();
           const ONE_DAY = 1000 * 60 * 60 * 24;
 
-            // 해시태그 겹침 + 같은 작가 + 최신순을 가중치로 점수 계산
-            const scored = rows.map((p) => {
+          // 해시태그 겹침 + 같은 작가 + 최신순을 가중치로 점수 계산
+          const scored = rows.map((p) => {
             const postTags = (p.hashtags || '')
               .split(',')
               .map((t) => t.trim().toLowerCase())
@@ -872,16 +866,7 @@ function handlePublicPostDetail(req, res) {
   }
 
   // 로그인 유저(있으면 user_liked 계산)
-  let userId = null;
-  const token = req.cookies.token;
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      userId = decoded.id;
-    } catch (e) {
-      userId = null;
-    }
-  }
+  const userId = getOptionalUserId(req);
 
   const baseSelect = `
     SELECT
