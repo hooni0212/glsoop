@@ -487,6 +487,9 @@ async function handleLogout() {
     backdrop.classList.add('show');
 
     document.body.classList.add('gls-modal-open');
+    modalEl.style.display = 'flex';
+    modalEl.style.visibility = 'visible';
+    modalEl.style.opacity = '1';
     modalEl.classList.add('is-open', 'show');
     setAria(modalEl, true);
 
@@ -497,6 +500,9 @@ async function handleLogout() {
   function close(modalEl) {
     if (!modalEl) return;
     modalEl.classList.remove('is-open', 'show');
+    modalEl.style.display = '';
+    modalEl.style.visibility = '';
+    modalEl.style.opacity = '';
     setAria(modalEl, false);
 
     if (backdropEl) {
