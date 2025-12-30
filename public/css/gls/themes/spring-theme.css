@@ -224,22 +224,19 @@ body.spring-theme .hero-card .hero-cta-btn:focus-visible {
 }
 
 /* 공통 버튼 (success / outline-success) 봄톤 */
-body.spring-theme .btn-success {
-  color: #71ad6d;
-  background-color: transparent;
-  border: 1px solid rgba(127, 191, 120, 0.68);
-  box-shadow: 0 10px 24px rgba(127, 191, 120, 0.24);
+body.spring-theme .hero-cta-btn {
+  background-color: #7fbf78;
+  box-shadow: 0 10px 24px rgba(127, 191, 120, 0.32);
+  color: #ffffff;
+  text-decoration: none;
 }
 
-body.spring-theme .btn-success:hover,
-body.spring-theme .btn-success:focus-visible,
-body.spring-theme .btn-success.active,
-body.spring-theme .btn-success:active {
+body.spring-theme .hero-cta-btn:hover,
+body.spring-theme .hero-cta-btn:focus-visible {
+  background-color: #71ad6d;
+  box-shadow: 0 18px 42px rgba(127, 191, 120, 0.42);
   color: #ffffff;
-  background-color: #7fbf78;
-  border-color: #7fbf78;
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(127, 191, 120, 0.3);
+  text-decoration: none;
 }
 
 body.spring-theme .gls-btn-secondary {

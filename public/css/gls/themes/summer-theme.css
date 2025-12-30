@@ -88,8 +88,7 @@ body.summer-theme .hero-subtitle {
    3. 버튼
 ========================= */
 
-body.summer-theme .hero-cta-btn,
-body.summer-theme .btn-success {
+body.summer-theme .hero-cta-btn {
   color: #2f9185;
   background-color: transparent;
   border: 1px solid rgba(47, 145, 133, 0.78);
@@ -98,11 +97,7 @@ body.summer-theme .btn-success {
 
 body.summer-theme .hero-cta-btn:hover,
 body.summer-theme .hero-cta-btn:focus-visible,
-body.summer-theme .hero-cta-btn:active,
-body.summer-theme .btn-success:hover,
-body.summer-theme .btn-success:focus-visible,
-body.summer-theme .btn-success.active,
-body.summer-theme .btn-success:active {
+body.summer-theme .hero-cta-btn:active {
   color: #ffffff;
   background-color: #3aa995;
   border-color: #3aa995;

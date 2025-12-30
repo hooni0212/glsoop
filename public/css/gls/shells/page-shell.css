@@ -652,12 +652,6 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
   }
 }
 
-.navbar .btn {
-  border-radius: var(--gls-radius-pill);
-  font-size: 0.9rem;
-  padding: 0.35rem 0.9rem;
-}
-
 /* =========================
    14. 공통 푸터
 ========================= */

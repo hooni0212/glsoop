@@ -83,8 +83,7 @@ body.autumn-theme .hero-subtitle {
    3. 버튼
 ========================= */
 
-body.autumn-theme .hero-cta-btn,
-body.autumn-theme .btn-success {
+body.autumn-theme .hero-cta-btn {
   color: #a86d42;
   background-color: transparent;
   border: 1px solid rgba(183, 122, 79, 0.8);
@@ -93,11 +92,7 @@ body.autumn-theme .btn-success {
 
 body.autumn-theme .hero-cta-btn:hover,
 body.autumn-theme .hero-cta-btn:focus-visible,
-body.autumn-theme .hero-cta-btn:active,
-body.autumn-theme .btn-success:hover,
-body.autumn-theme .btn-success:focus-visible,
-body.autumn-theme .btn-success.active,
-body.autumn-theme .btn-success:active {
+body.autumn-theme .hero-cta-btn:active {
   color: #ffffff;
   background-color: #c08354;
   border-color: #c08354;
@@ -230,4 +225,3 @@ body.autumn-theme .gls-save-btn:focus-visible {
   color: #7c4f32;
   border-color: #b77a4f;
 }
-
