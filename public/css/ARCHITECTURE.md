@@ -1,7 +1,7 @@
 # GLS CSS Architecture (Single Source of Truth)
 
 ## Layer Order (1st Law)
-tokens → base → shells → components(all) → pages → themes
+tokens → base → vendor → shells → components(all) → pages → themes
 
 ## Ownership (Authoritative Files)
 
@@ -13,6 +13,11 @@ tokens → base → shells → components(all) → pages → themes
 - public/css/base.css
   - reset, body, typography defaults, global layout primitives
   - ❌ no buttons, cards, chips, tabs here
+
+### Vendor / Bootstrap
+- public/css/vendor/bootstrap-overrides.css
+  - Bootstrap 클래스(.btn, .modal 등) 보정
+  - ❌ 컴포넌트/페이지/테마 스타일은 이 파일에 추가하지 말 것
 
 ### Shells
 - public/css/shells/page-shell.css
