@@ -18,7 +18,10 @@ async function mockLoggedIn(page) {
 }
 
 function skipUnlessProject(name) {
-  return ({}, testInfo) => testInfo.project.name !== name;
+  return ({ viewport }) => {
+    const isDesktop = (viewport?.width || 0) >= 768;
+    return name === 'desktop-chrome' ? !isDesktop : isDesktop;
+  };
 }
 
 async function waitForNavCollapse(page) {
