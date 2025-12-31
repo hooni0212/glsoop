@@ -291,6 +291,8 @@ async function fetchGrowthSummary(userId) {
     level: levelInfo.level,
     currentXp: levelInfo.currentXp,
     nextLevelXp: levelInfo.nextLevelXp,
+    xpIntoLevel: levelInfo.xpIntoLevel,
+    xpForNextLevel: levelInfo.xpForNextLevel,
     todayXp,
     weeklyPosts: weeklyPostsRow?.cnt || 0,
     streakDays,

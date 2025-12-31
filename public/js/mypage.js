@@ -194,11 +194,11 @@ async function loadGrowthMiniWidget() {
    level = 0,
    todayXp = 0,
    streakDays = 0,
-   currentXp = 0,
-   nextLevelXp = 0,
+   xpIntoLevel = 0,
+   xpForNextLevel = 0,
    title = '성장',
   } = data.summary;
-  summaryText.textContent = `Lv.${level} ${title} · ${currentXp} / ${nextLevelXp} XP · 오늘 +${todayXp} XP · 연속 ${streakDays}일 글쓰기`;
+  summaryText.textContent = `Lv.${level} ${title} · ${xpIntoLevel} / ${xpForNextLevel} XP · 오늘 +${todayXp} XP · 연속 ${streakDays}일 글쓰기`;
   widget.classList.remove('gls-hidden');
  } catch (error) {
   console.error(error);

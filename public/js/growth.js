@@ -130,10 +130,12 @@ function renderGrowthSummary(summary) {
 
   const levelText = `Lv.${summary.level}`;
   const levelEmoji = getLevelEmoji(summary.level);
-  const percent = summary.nextLevelXp > 0 ? Math.min(1, summary.currentXp / summary.nextLevelXp) : 0;
+  const xpIntoLevel = Number(summary.xpIntoLevel ?? summary.currentXp) || 0;
+  const xpForNextLevel = Number(summary.xpForNextLevel ?? summary.nextLevelXp) || 0;
+  const percent = xpForNextLevel > 0 ? Math.min(1, xpIntoLevel / xpForNextLevel) : 0;
   const degree = `${Math.round(percent * 360)}deg`;
-  const percentLabel = `${summary.currentXp} / ${summary.nextLevelXp} XP`;
-  const remainingXp = Math.max(0, summary.nextLevelXp - summary.currentXp);
+  const percentLabel = `${xpIntoLevel} / ${xpForNextLevel} XP`;
+  const remainingXp = Math.max(0, xpForNextLevel - xpIntoLevel);
   const streakPercent = summary.maxStreakDays > 0 ? Math.min(1, (summary.streakDays || 0) / summary.maxStreakDays) : 0;
 
   if (levelLabel) levelLabel.textContent = levelText;
