@@ -415,7 +415,7 @@ async function handleLogout() {
 // - ESC / backdrop 클릭 / focus return 지원
 // =========================
 (function () {
-  if (window.glsModal) return;
+  if (window.glsModal && !window.glsModal.__glsBootstrapShim) return;
 
   let activeModal = null;
   let activeTrigger = null;
@@ -509,7 +509,6 @@ async function handleLogout() {
     }
 
     document.body.classList.add('gls-modal-open');
-    modalEl.scrollTop = 0;
     modalEl.style.display = 'flex';
     modalEl.style.visibility = 'visible';
     modalEl.style.opacity = '1';
