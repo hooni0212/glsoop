@@ -362,5 +362,5 @@ function sanitizePostHtml(html) {
     document.body.classList.remove('modal-open');
   };
 
-  window.glsModal = { open, close };
+  window.glsModal = { open, close, __glsBootstrapShim: true };
 })();

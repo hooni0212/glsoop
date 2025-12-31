@@ -415,7 +415,7 @@ async function handleLogout() {
 // - ESC / backdrop 클릭 / focus return 지원
 // =========================
 (function () {
-  if (window.glsModal) return;
+  if (window.glsModal && !window.glsModal.__glsBootstrapShim) return;
 
   let activeModal = null;
   let activeTrigger = null;

@@ -77,7 +77,7 @@
 
 .modal.show,
 .modal.is-open {
-  display: flex;
+  display: flex !important;
 }
 
 .modal[aria-hidden="true"] {
