@@ -1,3 +1,4 @@
+/* TODO(css): winter overrides were previously in components/theme-winter-compat.css; migrate selectors here and remove compat. */
 /* =========================
    Winter Theme (글숲 겨울 스킨)
    - body에 .winter-theme 클래스가 붙었을 때만 적용
@@ -116,6 +117,7 @@ body.winter-theme::after {
   opacity: 0.55;
 }
 
+/* =========================
    7. 눈 효과 (홈 / 글 / 작가)
    - winter-theme + 눈 적용 페이지(page-index / page-post / page-author)
 ========================= */
@@ -220,4 +222,3 @@ body.winter-theme::after {
     height: 2px;
   }
 }
-

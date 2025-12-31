@@ -121,6 +121,24 @@ async function loadMyPage() {
    </div>
   `;
 
+  const editBtn = userInfoBox.querySelector('[data-gls-target="#userEditModal"]');
+  if (editBtn && !editBtn.dataset.glsModalBound) {
+   editBtn.dataset.glsModalBound = '1';
+   editBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const modalEl = document.getElementById('userEditModal');
+    if (!modalEl) return;
+    if (window.glsModal) {
+     window.glsModal.open(modalEl, editBtn);
+    } else {
+     modalEl.classList.add('is-open', 'show');
+     modalEl.style.display = 'flex';
+     modalEl.style.visibility = 'visible';
+     modalEl.style.opacity = '1';
+    }
+   });
+  }
+
   // 2-1. 모달 내 닉네임 / 프로필 기본 값 채우기
   const nicknameInput = document.getElementById('nicknameInput');
   const bioInput = document.getElementById('bioInput');

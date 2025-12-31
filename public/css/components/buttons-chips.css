@@ -180,3 +180,5 @@
   background: color-mix(in srgb, var(--gls-ghost-bg) 75%, rgba(255, 255, 255, 0.35));
   border-color: color-mix(in srgb, var(--gls-ghost-border) 85%, rgba(0, 0, 0, 0.06));
 }
+
+/* Bootstrap .btn-* 보정은 /css/vendor/bootstrap-overrides.css에서 관리 */

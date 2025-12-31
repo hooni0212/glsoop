@@ -236,32 +236,16 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 .fw-bold { font-weight: 700; }
 .gls-fw-bold { font-weight: 700; }
 
-/* basic button shims (for residual .btn usage) */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  font: inherit;
-  line-height: 1.15;
-  padding: 0.55rem 0.9rem;
-  border-radius: var(--gls-chip-radius, 14px);
-  border: 1px solid transparent;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  text-decoration: none;
-}
+/* Bootstrap .btn-* shim/overrides → /css/vendor/bootstrap-overrides.css */
 
-.btn-sm {
-  padding: 0.4rem 0.65rem;
-  border-radius: calc(var(--gls-chip-radius, 14px) - 4px);
-  font-size: 0.9rem;
-}
-
-.btn-link {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  text-decoration: underline;
+/* =========================
+   17. 모바일 터치에서 hover "고정" 방지
+========================= */
+@media (hover: none) and (pointer: coarse) {
+  /* 터치 환경에서 hover가 남아 어색해지는 경우가 있어 transform 기반 hover는 꺼둠 */
+  .gls-btn:hover,
+  .gls-post-card:hover,
+  .hero-card .hero-cta-btn:hover {
+    transform: none !important;
+  }
 }
