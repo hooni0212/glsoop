@@ -11,68 +11,6 @@
    - 폭/라운딩/그림자 등 반복되는 값은 변수로 통일
 ========================= */
 
-/* NOTE: body.mode-* overrides tokens.css for alternate modes (dark/mono/text). */
-
-
-body.mode-dark {
-  /* Ghost buttons (dark) */
-  --gls-ghost-bg: rgba(15, 22, 19, 0.30);
-  --gls-ghost-bg-hover: rgba(15, 22, 19, 0.38);
-  --gls-ghost-bg-active: rgba(15, 22, 19, 0.46);
-  --gls-ghost-border: rgba(255, 255, 255, 0.18);
-  --gls-ghost-border-hover: rgba(108, 214, 155, 0.32);
-  --gls-ghost-text: rgba(255, 255, 255, 0.88);
-
-  /* Glass (dark) */
-  --gls-glass-bg-subtle: rgba(15, 22, 19, 0.36);
-  --gls-glass-bg: rgba(15, 22, 19, 0.50);
-  --gls-glass-bg-strong: rgba(15, 22, 19, 0.64);
-  --gls-glass-border: rgba(232, 239, 232, 0.14);
-  --gls-glass-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-  --gls-glass-shadow-hover: 0 18px 42px rgba(0, 0, 0, 0.55);
-  --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
-  --gls-color-bg: #0f1613;
-  --gls-color-surface: #18211c;
-  --gls-color-surface-subtle: #111813;
-  --gls-color-surface-strong: #1f2b24;
-  --gls-color-text: #e8efe8;
-  --gls-color-muted: #9db0a2;
-  --gls-color-border: #233228;
-  --gls-color-primary: #7ad7a1;
-  --gls-color-primary-strong: #9ff0bf;
-  --gls-color-primary-fade: rgba(122, 215, 161, 0.14);
-  --gls-color-highlight: #1f2d26;
-  --gls-color-overlay: rgba(15, 22, 19, 0.78);
-  --gls-color-overlay-strong: rgba(15, 22, 19, 0.9);
-  color-scheme: dark;
-}
-
-body.mode-mono {
-  --gls-color-bg: #f1f1f1;
-  --gls-color-surface: #ffffff;
-  --gls-color-surface-subtle: #f7f7f7;
-  --gls-color-surface-strong: #ededed;
-  --gls-color-text: #111;
-  --gls-color-muted: #4a4a4a;
-  --gls-color-border: #d6d6d6;
-  --gls-color-primary: #222;
-  --gls-color-primary-strong: #000;
-  --gls-color-primary-fade: rgba(0, 0, 0, 0.05);
-  --gls-color-highlight: #e8e8e8;
-  --gls-color-overlay: rgba(255, 255, 255, 0.75);
-  --gls-color-overlay-strong: rgba(255, 255, 255, 0.9);
-  filter: grayscale(0.1);
-}
-
-body.mode-text {
-  --gls-shadow-card: none;
-  --gls-shadow-card-hover: none;
-  --gls-color-surface-subtle: #fbfbf8;
-  --gls-color-surface-strong: #f4f4ee;
-  --gls-color-overlay: rgba(255, 255, 255, 0.86);
-  background-image: none;
-}
-
 /* =========================
    0. 전체 레이아웃 기본
 ========================= */
@@ -169,5 +107,4 @@ select:focus-visible {
     scroll-behavior: auto !important;
   }
 }
-
 

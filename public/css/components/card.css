@@ -152,17 +152,7 @@ margin-top: 0.25rem;
   color: var(--gls-color-muted, #5c655e) !important;
 }
 
-
-body.mode-text .gls-post-card,
-body.mode-mono .gls-post-card,
-body.mode-dark .gls-post-card {
-  box-shadow: var(--gls-glass-shadow);
-  border-color: var(--gls-glass-border);
-  background: var(--gls-glass-bg-subtle);
-}
-
 .gls-post-card .card-title + .post-content {
   margin-top: 2px;
 }
-
 

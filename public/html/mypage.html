@@ -221,85 +221,91 @@
           </div>
 
           <div class="modal-body">
-            <!-- 닉네임 -->
-            <div class="gls-mb-3">
-              <label for="nicknameInput" class="gls-label">닉네임</label>
-              <input
-                type="text"
-                class="gls-input"
-                id="nicknameInput"
-                placeholder="표시할 닉네임"
-              />
-              <div class="gls-form-help">
-                사이트에서 이름 대신 보여줄 닉네임입니다. 비워두면 이름이 표시됩니다.
+            <div class="gls-modal-section">
+              <p class="gls-text-muted gls-text-small gls-mb-2">프로필 정보</p>
+              <!-- 닉네임 -->
+              <div class="gls-mb-3">
+                <label for="nicknameInput" class="gls-label">닉네임</label>
+                <input
+                  type="text"
+                  class="gls-input"
+                  id="nicknameInput"
+                  placeholder="표시할 닉네임"
+                  data-gls-autofocus
+                />
+                <div class="gls-form-help">
+                  사이트에서 이름 대신 보여줄 닉네임입니다. 비워두면 이름이 표시됩니다.
+                </div>
+              </div>
+
+              <!-- 한 줄 소개 -->
+              <div class="gls-mb-3">
+                <label for="bioInput" class="gls-label">한 줄 소개</label>
+                <input
+                  type="text"
+                  class="gls-input"
+                  id="bioInput"
+                  maxlength="100"
+                  placeholder="예) 조용히 마음을 적어두는 사람입니다."
+                />
+                <div class="gls-form-help">
+                  작가 카드에 짧게 보여줄 소개 문장입니다.
+                </div>
+              </div>
+
+              <!-- 자기소개 / 작가 소개 (여러 줄) -->
+              <div class="gls-mb-0">
+                <label for="aboutInput" class="gls-label">자기소개 / 작가 소개</label>
+                <textarea
+                  class="gls-input"
+                  id="aboutInput"
+                  rows="4"
+                  placeholder="글을 쓰게 된 계기나 좋아하는 주제 등을 적어보세요."
+                ></textarea>
+                <div class="gls-form-help">
+                  조금 길게 적어도 괜찮아요. 줄바꿈도 그대로 보여줍니다.
+                </div>
               </div>
             </div>
 
-            <!-- 한 줄 소개 -->
-            <div class="gls-mb-3">
-              <label for="bioInput" class="gls-label">한 줄 소개</label>
-              <input
-                type="text"
-                class="gls-input"
-                id="bioInput"
-                maxlength="100"
-                placeholder="예) 조용히 마음을 적어두는 사람입니다."
-              />
-              <div class="gls-form-help">
-                작가 카드에 짧게 보여줄 소개 문장입니다.
+            <div class="gls-modal-section gls-modal-section--muted gls-mt-3">
+              <div class="gls-flex gls-items-center gls-justify-between gls-mb-2">
+                <p class="gls-text-muted gls-text-small gls-mb-0">보안 · 비밀번호 변경</p>
+                <span class="pill gls-text-xxs">선택</span>
               </div>
-            </div>
 
-            <!-- 자기소개 / 작가 소개 (여러 줄) -->
-            <div class="gls-mb-3">
-              <label for="aboutInput" class="gls-label">자기소개 / 작가 소개</label>
-              <textarea
-                class="gls-input"
-                id="aboutInput"
-                rows="4"
-                placeholder="글을 쓰게 된 계기나 좋아하는 주제 등을 적어보세요."
-              ></textarea>
-              <div class="gls-form-help">
-                조금 길게 적어도 괜찮아요. 줄바꿈도 그대로 보여줍니다.
+              <!-- 현재 비밀번호 -->
+              <div class="gls-mb-3">
+                <label for="currentPwInput" class="gls-label">현재 비밀번호</label>
+                <input
+                  type="password"
+                  class="gls-input"
+                  id="currentPwInput"
+                  autocomplete="current-password"
+                />
               </div>
-            </div>
 
-            <hr class="gls-my-3" />
+              <!-- 새 비밀번호 -->
+              <div class="gls-mb-3">
+                <label for="newPwInput" class="gls-label">새 비밀번호</label>
+                <input
+                  type="password"
+                  class="gls-input"
+                  id="newPwInput"
+                  autocomplete="new-password"
+                />
+              </div>
 
-            <!-- 비밀번호 변경 영역 -->
-            <h6 class="gls-mb-3">비밀번호 변경</h6>
-
-            <!-- 현재 비밀번호 -->
-            <div class="gls-mb-3">
-              <label for="currentPwInput" class="gls-label">현재 비밀번호</label>
-              <input
-                type="password"
-                class="gls-input"
-                id="currentPwInput"
-                autocomplete="current-password"
-              />
-            </div>
-
-            <!-- 새 비밀번호 -->
-            <div class="gls-mb-3">
-              <label for="newPwInput" class="gls-label">새 비밀번호</label>
-              <input
-                type="password"
-                class="gls-input"
-                id="newPwInput"
-                autocomplete="new-password"
-              />
-            </div>
-
-            <!-- 새 비밀번호 확인 -->
-            <div class="gls-mb-3">
-              <label for="newPwConfirmInput" class="gls-label">새 비밀번호 확인</label>
-              <input
-                type="password"
-                class="gls-input"
-                id="newPwConfirmInput"
-                autocomplete="new-password"
-              />
+              <!-- 새 비밀번호 확인 -->
+              <div class="gls-mb-0">
+                <label for="newPwConfirmInput" class="gls-label">새 비밀번호 확인</label>
+                <input
+                  type="password"
+                  class="gls-input"
+                  id="newPwConfirmInput"
+                  autocomplete="new-password"
+                />
+              </div>
             </div>
           </div>
 

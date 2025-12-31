@@ -185,8 +185,9 @@
   /* Z-index */
   --gls-z-header: 100;
   --gls-z-dropdown: 300;
-  --gls-z-modal: 600;
-  --gls-z-toast: 800;
+  --gls-z-modal: 1100;
+  --gls-z-backdrop: calc(var(--gls-z-modal, 1100) - 10);
+  --gls-z-toast: 1200;
 
     /* Shell sub-surface presets */
   --gls-sub-surface: var(--gls-glass-bg-subtle);

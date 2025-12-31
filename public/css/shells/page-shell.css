@@ -621,6 +621,34 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
   font-weight: 700;
 }
 
+@media (min-width: 992px) {
+  .custom-navbar :where(.gls-container, .container) {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .custom-navbar .navbar-collapse {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: 1rem;
+  }
+
+  .custom-navbar .navbar-nav {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    width: auto;
+  }
+
+  .category-dropdown-nav {
+    margin-top: 0;
+  }
+}
+
 @media (max-width: 991.98px) {
   .navbar-nav .nav-link.nav-link-compact,
   .navbar-nav .nav-link.nav-link-compact:hover,

@@ -420,6 +420,8 @@ async function handleLogout() {
   let activeModal = null;
   let activeTrigger = null;
   let backdropEl = null;
+  let bodyOverflowBackup = null;
+  let bodyPaddingBackup = null;
 
   function ensureBackdrop() {
     if (backdropEl) return backdropEl;
@@ -443,11 +445,19 @@ async function handleLogout() {
   }
 
   function focusFirst(modalEl) {
-    const focusable = modalEl.querySelector(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    );
-    if (focusable) focusable.focus();
-    else modalEl.focus?.();
+    const preferred =
+      modalEl.querySelector('[data-gls-autofocus]') ||
+      modalEl.querySelector('[autofocus]');
+    const focusable =
+      preferred ||
+      modalEl.querySelector(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+    if (focusable) {
+      focusable.focus();
+    } else {
+      modalEl.focus?.();
+    }
   }
 
   function bindDismiss(modalEl) {
@@ -484,9 +494,26 @@ async function handleLogout() {
 
     const backdrop = ensureBackdrop();
     if (!document.body.contains(backdrop)) document.body.appendChild(backdrop);
+    backdrop.classList.add('show');
+
+    // scroll lock + layout shift 방지 (스크롤바 폭 보정)
+    if (bodyOverflowBackup === null) {
+      const { overflow, paddingRight } = document.body.style;
+      bodyOverflowBackup = overflow || '';
+      bodyPaddingBackup = paddingRight || '';
+      const scrollGap = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      if (scrollGap > 0) {
+        document.body.style.paddingRight = `${scrollGap}px`;
+      }
+    }
 
     document.body.classList.add('gls-modal-open');
-    modalEl.classList.add('is-open');
+    modalEl.scrollTop = 0;
+    modalEl.style.display = 'flex';
+    modalEl.style.visibility = 'visible';
+    modalEl.style.opacity = '1';
+    modalEl.classList.add('is-open', 'show');
     setAria(modalEl, true);
 
     // focus management
@@ -495,11 +522,27 @@ async function handleLogout() {
 
   function close(modalEl) {
     if (!modalEl) return;
-    modalEl.classList.remove('is-open');
+    modalEl.classList.remove('is-open', 'show');
+    modalEl.style.display = '';
+    modalEl.style.visibility = '';
+    modalEl.style.opacity = '';
     setAria(modalEl, false);
 
-    if (backdropEl && backdropEl.parentNode) backdropEl.parentNode.removeChild(backdropEl);
+    if (backdropEl) {
+      backdropEl.classList.remove('show');
+      if (backdropEl.parentNode) backdropEl.parentNode.removeChild(backdropEl);
+    }
     document.body.classList.remove('gls-modal-open');
+
+    // restore body scroll/padding
+    if (bodyOverflowBackup !== null) {
+      document.body.style.overflow = bodyOverflowBackup;
+      bodyOverflowBackup = null;
+    }
+    if (bodyPaddingBackup !== null) {
+      document.body.style.paddingRight = bodyPaddingBackup;
+      bodyPaddingBackup = null;
+    }
 
     const toFocus = activeTrigger;
     activeModal = null;
@@ -532,6 +575,16 @@ async function handleLogout() {
       e.preventDefault();
       close(activeModal);
     }
+  });
+
+  // Fallback: delegate close for any GLS modal dismiss trigger (covers dynamically injected modals)
+  document.addEventListener('click', (e) => {
+    const dismissBtn = e.target.closest('[data-gls-dismiss="modal"], .gls-modal-close');
+    if (!dismissBtn) return;
+    const modalEl = dismissBtn.closest('.modal');
+    if (!modalEl) return;
+    e.preventDefault();
+    close(modalEl);
   });
 
   window.glsModal = { open, close };

@@ -8,9 +8,11 @@
 .gls-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1030;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(2px);
+  z-index: var(--gls-z-backdrop, calc(var(--gls-z-modal, 1100) - 10));
+  background:
+    radial-gradient(120% 120% at 50% 10%, rgba(19, 34, 60, 0.22), transparent),
+    rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
 }
 
 body.gls-modal-open {
@@ -55,6 +57,23 @@ body.gls-modal-open {
 /* Footer message helper */
 .gls-modal-msg {
   margin-right: auto;
+}
+
+.gls-modal-section {
+  padding: 12px;
+  border-radius: var(--gls-radius-md, 14px);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gls-modal-section + .gls-modal-section {
+  margin-top: 12px;
+}
+
+.gls-modal-section--muted {
+  background: rgba(255, 255, 255, 0.02);
+  border-style: dashed;
+  opacity: 0.95;
 }
 
 
