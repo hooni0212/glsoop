@@ -509,7 +509,6 @@ async function handleLogout() {
     }
 
     document.body.classList.add('gls-modal-open');
-    modalEl.scrollTop = 0;
     modalEl.style.display = 'flex';
     modalEl.style.visibility = 'visible';
     modalEl.style.opacity = '1';
