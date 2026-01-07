@@ -1,9 +1,9 @@
 // routes/userRoutes.js
-// - 사용자 프로필, 팔로우 토글, 관리자용 사용자 관리 API
+// - 사용자 프로필, 팔로우 토글
 const express = require('express');
 
 const db = require('../db');
-const { authRequired, adminRequired } = require('../middleware/auth');
+const { authRequired } = require('../middleware/auth');
 const { getViewerId } = require('../utils/requestUser');
 
 const router = express.Router();
@@ -376,77 +376,6 @@ router.get('/users/:id/posts', async (req, res) => {
     return res.status(500).json({
       ok: false,
       message: '작가 글 목록 조회 중 DB 오류가 발생했습니다.',
-    });
-  }
-});
-
-// 10-1) 관리자: 전체 회원 목록
-router.get('/admin/users', authRequired, adminRequired, async (req, res) => {
-  try {
-    const users = await dbAll(
-      `
-      SELECT
-        id,
-        name,
-        email,
-        nickname,
-        is_admin,
-        COALESCE(is_verified, 0) AS is_verified
-      FROM users
-      ORDER BY id ASC
-      `
-    );
-
-    return res.json({
-      ok: true,
-      users,
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      ok: false,
-      message: '유저 목록 조회 중 DB 오류가 발생했습니다.',
-    });
-  }
-});
-
-// 10-2) 관리자: 특정 회원 및 관련 데이터 삭제
-router.delete('/admin/users/:id', authRequired, adminRequired, async (req, res) => {
-  const targetUserId = parseId(req.params.id);
-  if (!targetUserId) {
-    return res.status(400).json({
-      ok: false,
-      message: '잘못된 회원 ID입니다.',
-    });
-  }
-
-  try {
-    await dbRun('DELETE FROM likes WHERE user_id = ?', [targetUserId]);
-    await dbRun(
-      'DELETE FROM likes WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?)',
-      [targetUserId]
-    );
-    await dbRun('DELETE FROM posts WHERE user_id = ?', [targetUserId]);
-    const deleteUser = await dbRun('DELETE FROM users WHERE id = ?', [
-      targetUserId,
-    ]);
-
-    if (deleteUser.changes === 0) {
-      return res.status(404).json({
-        ok: false,
-        message: '해당 회원을 찾을 수 없습니다.',
-      });
-    }
-
-    return res.json({
-      ok: true,
-      message: '회원 및 관련 데이터가 모두 삭제되었습니다.',
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      ok: false,
-      message: '회원 삭제 중 DB 오류가 발생했습니다.',
     });
   }
 });

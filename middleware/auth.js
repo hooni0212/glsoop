@@ -6,7 +6,17 @@ const db = require('../db');
 // 로그인 필수 라우트용 미들웨어
 // - 쿠키에 담긴 JWT를 검증해 req.user에 디코딩 정보 세팅
 function authRequired(req, res, next) {
-  const token = req.cookies?.token;
+  // 1) Bearer 토큰 (모바일/앱 권장)
+  const authHeader = req.headers?.authorization;
+  const bearerToken =
+    typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7).trim()
+      : null;
+
+  // 2) 쿠키 토큰 (웹)
+  const cookieToken = req.cookies?.token;
+
+  const token = bearerToken || cookieToken;
   if (!token) {
     return res.status(401).json({ ok: false, message: '로그인이 필요합니다.' });
   }
