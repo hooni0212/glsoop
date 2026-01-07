@@ -485,6 +485,8 @@ router.post('/login', loginLimiter, (req, res) => {
         message: `환영합니다, ${user.name}님!`,
         name: user.name,
         nickname: user.nickname || null,
+        // ✅ 모바일(Expo/RN)에서 쿠키보다 안정적인 Bearer 인증을 위해 토큰도 함께 반환
+        token,
       });
     }
   );

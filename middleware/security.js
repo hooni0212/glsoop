@@ -8,6 +8,15 @@ const helmet = require('helmet');
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+
+  // ✅ Expo Web(dev server)
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
+
+  // (선택) Expo 웹이 다른 포트로 뜰 때 대비
+  'http://localhost:19006',
+  'http://127.0.0.1:19006',
+
   'https://www.glsoop.com',
   'https://glsoop.com',
 ];
