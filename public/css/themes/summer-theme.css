@@ -189,14 +189,11 @@ body.summer-theme .like-btn.liked .like-heart {
    7. 푸터
 ========================= */
 
-body.summer-theme .custom-footer {
-  background: linear-gradient(90deg, #6bc2e0, #62c6b0);
-  color: #F9FFFF;
-  border-top: 1px solid rgba(255, 255, 255, 0.25);
-}
-
-body.summer-theme .footer-links a {
-  color: #F9FFFF;
+body.summer-theme {
+  --gls-footer-bg: linear-gradient(90deg, #6bc2e0, #62c6b0);
+  --gls-footer-text: #F9FFFF;
+  --gls-footer-border: rgba(255, 255, 255, 0.25);
+  --gls-footer-link: #F9FFFF;
 }
 
 /* 피드 탭 & 저장 버튼 테마 매핑 */

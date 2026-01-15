@@ -62,6 +62,11 @@
   --gls-color-search-input: #ffffff;
   --gls-color-search-placeholder: #bbbbbb;
   --gls-color-search-accent: #00d1b2;
+  --gls-footer-bg: linear-gradient(90deg, #2e8b57, #3ca66c);
+  --gls-footer-text: #fdfdfd;
+  --gls-footer-border: rgba(255, 255, 255, 0.12);
+  --gls-footer-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+  --gls-footer-link: #fdfdfd;
   /* Shadows */
   --gls-shadow-accent: 0 12px 30px rgba(46, 139, 87, 0.2);
   --gls-shadow-card: var(--gls-shadow-sm);
