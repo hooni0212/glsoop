@@ -11,6 +11,7 @@
 
 /* 3) vendor (Bootstrap overrides) */
 @import url("/css/vendor/bootstrap-overrides.css");
+@import url("/css/vendor/bootstrap-utilities.css");
 
 /* 4) shells */
 @import url("/css/shells/all.css");

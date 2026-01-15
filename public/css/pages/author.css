@@ -5,7 +5,11 @@
    - 테마 변수: 작가 카드 배경·음영, 포인트 색상을 일괄 제어
    ============================================================= */
 
-:root {
+/* =========================
+  1. 작가 페이지 공통 영역
+========================= */
+
+body.page-author {
   --author-surface: var(--gls-color-bg);
   --author-card-bg: var(--gls-post-panel-bg);
   --author-card-shadow: var(--gls-glass-shadow);
@@ -15,13 +19,6 @@
   --author-accent: var(--gls-color-primary);
   --author-page-max: clamp(1200px, 92vw, 1320px);
   --author-page-padding: clamp(16px, 2.6vw, 32px);
-}
-
-/* =========================
-  1. 작가 페이지 공통 영역
-========================= */
-
-body.page-author {
   color: var(--gls-text);
   background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 35%),
     radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.4), transparent 28%),
@@ -118,7 +115,8 @@ body.page-author {
   padding: calc(var(--gls-card-padding) + 6px);
 }
 
-#authorPostsList {
+#authorPostsList,
+.author-posts-list {
   display: grid;
   gap: var(--gls-card-gap);
 }

@@ -6,6 +6,8 @@
 @import url("./buttons-chips.css");
 @import url("./forms.css");
 @import url("./badges.css");
+@import url("./feed-tabs.css");
+@import url("./hero.css");
 
 /* Content / Cards */
 @import url("./card.css");
@@ -24,4 +26,3 @@
 @import url("./editor-align.css");
 @import url("./mypage-tabs.css");
 @import url("./admin-tabs.css");
-@import url("./post-meta.css");
