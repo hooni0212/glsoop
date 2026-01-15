@@ -166,22 +166,6 @@ body.page-bookmarks .bookmark-panel div {
 }
 
 /* =========================
-   5-2) Growth(성장) 그리드 보정 (Phase B)
-========================= */
-
-body.page-growth .growth-quests-grid {
-  display: grid;
-  gap: var(--gls-space-4, 16px);
-}
-
-@media (min-width: 992px) {
-  body.page-growth .growth-quests-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-    align-items: stretch;
-  }
-}
-
-/* =========================
    6) 마이페이지 보정
 ========================= */
 
