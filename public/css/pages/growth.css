@@ -1,0 +1,333 @@
+/* =========================
+   성장 페이지 전용 스타일
+========================= */
+
+body.page-growth {
+  color: var(--gls-text);
+}
+
+.growth-shell {
+  max-width: 1100px;
+}
+
+.growth-header {
+  background: var(--gls-glass-bg-subtle);
+  border: 1px solid var(--gls-glass-border);
+  border-radius: var(--gls-radius-lg);
+  padding: var(--gls-space-5);
+  box-shadow: var(--gls-glass-shadow);
+  backdrop-filter: blur(var(--gls-glass-blur));
+  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+}
+
+.growth-header h2 {
+  font-size: clamp(1.4rem, 2.2vw, 2rem);
+}
+
+.growth-section {
+  margin-top: var(--gls-space-5);
+}
+
+.growth-hero-grid {
+  display: grid;
+  gap: var(--gls-space-4);
+}
+
+@media (min-width: 992px) {
+  .growth-hero-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.growth-level-card {
+  overflow: hidden;
+}
+
+.growth-level-ring {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--gls-action-accent) 0deg,
+    rgba(255, 255, 255, 0.24) 0deg 360deg
+  );
+  padding: 10px;
+  position: relative;
+  box-shadow: var(--gls-shadow-sm);
+}
+
+.growth-level-ring-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(
+    var(--gls-action-accent) 0deg,
+    rgba(255, 255, 255, 0.2) 0deg 360deg
+  );
+  opacity: 0.65;
+  filter: blur(0.4px);
+}
+
+.growth-level-core {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.78);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  box-shadow: var(--gls-glass-inset);
+}
+
+.growth-level-number {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.growth-level-leaf {
+  font-size: 1.3rem;
+}
+
+.growth-level-progress {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.growth-level-progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gls-action-accent), var(--gls-color-primary-strong));
+  border-radius: inherit;
+  transition: width 0.4s ease;
+}
+
+.growth-today-pill {
+  min-width: 180px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  padding: 12px 14px;
+  text-align: center;
+  box-shadow: var(--gls-shadow-sm);
+}
+
+.growth-today-pill .label {
+  font-size: 0.8rem;
+  color: var(--gls-muted);
+}
+
+.growth-today-pill .value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.growth-today-pill .sub {
+  font-size: 0.8rem;
+  color: var(--gls-muted);
+}
+
+.growth-stat-grid {
+  display: grid;
+  gap: var(--gls-space-4);
+}
+
+@media (min-width: 768px) {
+  .growth-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.growth-today-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.growth-stat-rows {
+  display: grid;
+  gap: var(--gls-space-3);
+}
+
+.growth-stat-row {
+  display: grid;
+  gap: 6px;
+}
+
+.growth-stat-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.growth-stat-progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gls-action-accent), var(--gls-color-primary-strong));
+  border-radius: inherit;
+  transition: width 0.4s ease;
+}
+
+.growth-stat-label {
+  font-size: 0.85rem;
+  color: var(--gls-muted);
+}
+
+.growth-quest-board {
+  padding: var(--gls-space-4);
+}
+
+.growth-quests-grid {
+  display: grid;
+  gap: var(--gls-space-4);
+}
+
+@media (min-width: 992px) {
+  .growth-quests-grid {
+    grid-template-columns: minmax(240px, 0.6fr) minmax(0, 1fr);
+  }
+}
+
+.campaign-stack {
+  display: grid;
+  gap: var(--gls-space-3);
+}
+
+.quest-columns {
+  display: grid;
+  gap: var(--gls-space-4);
+}
+
+@media (min-width: 992px) {
+  .quest-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.quest-column-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--gls-space-2);
+}
+
+.quest-column-title {
+  font-weight: 700;
+}
+
+.quest-column-sub {
+  font-size: 0.8rem;
+  color: var(--gls-muted);
+}
+
+.quest-card-list {
+  min-height: 120px;
+  display: grid;
+  gap: var(--gls-space-3);
+}
+
+.forest-map {
+  position: relative;
+  overflow: hidden;
+}
+
+.forest-map-path {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.5), transparent 50%);
+  opacity: 0.4;
+}
+
+.forest-map-ground {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(46, 139, 87, 0) 0%, rgba(46, 139, 87, 0.18) 100%);
+  opacity: 0.5;
+}
+
+.forest-map-layout {
+  position: relative;
+  display: grid;
+  gap: var(--gls-space-4);
+}
+
+@media (min-width: 992px) {
+  .forest-map-layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.forest-map-achievements {
+  min-height: 240px;
+  display: grid;
+  gap: var(--gls-space-3);
+}
+
+.forest-map-detail-panel {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: var(--gls-radius-md);
+  padding: var(--gls-space-4);
+  box-shadow: var(--gls-shadow-sm);
+}
+
+.forest-map-detail-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gls-muted);
+  margin-bottom: var(--gls-space-2);
+}
+
+.growth-achievement-list {
+  padding: var(--gls-space-4);
+}
+
+.achievement-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.achievement-filter-btn {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--gls-text);
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  transition: var(--gls-transition-surface-ui);
+}
+
+.achievement-filter-btn.is-active,
+.achievement-filter-btn:hover,
+.achievement-filter-btn:focus-visible {
+  background: rgba(46, 139, 87, 0.12);
+  border-color: rgba(46, 139, 87, 0.32);
+  color: var(--gls-color-primary-strong);
+}
+
+.achievement-grid {
+  display: grid;
+  gap: var(--gls-space-3);
+}
+
+@media (min-width: 768px) {
+  .achievement-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .achievement-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
