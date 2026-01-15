@@ -166,22 +166,6 @@ body.page-bookmarks .bookmark-panel div {
 }
 
 /* =========================
-   5-2) Growth(성장) 그리드 보정 (Phase B)
-========================= */
-
-body.page-growth .growth-quests-grid {
-  display: grid;
-  gap: var(--gls-space-4, 16px);
-}
-
-@media (min-width: 992px) {
-  body.page-growth .growth-quests-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-    align-items: stretch;
-  }
-}
-
-/* =========================
    6) 마이페이지 보정
 ========================= */
 
@@ -713,11 +697,11 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
 ========================= */
 
 .custom-footer {
-  background: linear-gradient(90deg, #2e8b57, #3ca66c);
-  color: #fdfdfd;
+  background: var(--gls-footer-bg, linear-gradient(90deg, #2e8b57, #3ca66c));
+  color: var(--gls-footer-text, #fdfdfd);
   margin-top: auto;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: var(--gls-footer-shadow, 0 -4px 12px rgba(0, 0, 0, 0.06));
+  border-top: 1px solid var(--gls-footer-border, rgba(255, 255, 255, 0.12));
   padding: 0.65rem 0;
 }
 
@@ -756,6 +740,10 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
 
 .footer-meta p {
   margin-bottom: 0;
+}
+
+.custom-footer .footer-links a {
+  color: var(--gls-footer-link, currentColor);
 }
 
 @media (max-width: 576px) {

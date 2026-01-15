@@ -17,30 +17,6 @@
     }
 }
 
-body.page-index .feed-post-content {
-    --gls-feed-preview-lines: 7;
-    min-height: calc(
-        (var(--gls-feed-preview-lines) * 1em * var(--gls-lh-relaxed, 1.7))
-        + 1.6rem
-    );
-}
-
-@media (min-width: 768px) {
-    body.page-index .feed-post-content {
-        --gls-feed-preview-lines: 6;
-    }
-}
-
-body.page-index .gls-post-card .feed-post-content .quote-card {
-    padding: var(--gls-space-5, 20px) var(--gls-space-6, 24px);
-}
-
-@media (max-width: 576px) {
-    body.page-index .gls-post-card .feed-post-content .quote-card {
-        padding: var(--gls-space-4, 16px) var(--gls-space-5, 20px);
-    }
-}
-
 /* 피드 내용 펼쳐진 상태 */
 .feed-post-content.expanded {
     max-height: none;

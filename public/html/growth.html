@@ -80,8 +80,8 @@
   </nav>
 
   <main class="gls-py-5 gls-mt-5">
-    <div class="gls-container" style="max-width: 1100px;">
-      <header class="gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-3 gls-mb-4">
+    <div class="gls-container growth-shell">
+      <header class="growth-header gls-surface-panel gls-surface-veil gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-3 gls-mb-4">
         <div>
           <p class="gls-text-muted gls-mb-1 gls-text-small">나의 성장 여정</p>
           <h2 class="gls-mb-0">레벨 · 업적 · 숲 지도</h2>
@@ -91,7 +91,7 @@
 
       <section class="growth-section growth-hero">
         <div class="growth-hero-grid">
-          <div class="growth-level-card card glass-card">
+          <div class="growth-level-card card glass-card gls-surface-veil">
             <div class="card-body gls-flex gls-flex-wrap gls-items-center gls-gap-4">
               <div class="growth-level-ring" aria-label="레벨 진행도">
                 <div class="growth-level-ring-fill"></div>
@@ -120,7 +120,7 @@
           </div>
 
           <div class="growth-stat-grid">
-            <div class="growth-stat-card card glass-card">
+            <div class="growth-stat-card card glass-card gls-surface-veil">
               <div class="card-body">
                 <div class="gls-flex gls-justify-between gls-items-start gls-mb-2">
                   <h4 class="gls-mb-0">오늘의 기록</h4>
@@ -134,7 +134,7 @@
               </div>
             </div>
 
-            <div class="growth-stat-card card glass-card">
+            <div class="growth-stat-card card glass-card gls-surface-veil">
               <div class="card-body">
                 <div class="gls-flex gls-justify-between gls-items-start gls-mb-2">
                   <h4 class="gls-mb-0">누적 통계</h4>
@@ -163,7 +163,7 @@
       </section>
 
       <section class="growth-section growth-quests-deck gls-mt-4">
-        <div class="growth-quest-board card glass-card">
+        <div class="growth-quest-board card glass-card gls-surface-veil">
           <div class="card-body">
             <div class="gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-2 gls-mb-3">
               <h3 class="growth-section-title gls-mb-0">진행 중인 퀘스트</h3>
@@ -203,7 +203,7 @@
           <h3 class="growth-section-title gls-mb-0">숲 지도 · 업적</h3>
           <p class="gls-text-muted gls-mb-0 gls-text-small">업적을 클릭하면 오른쪽 패널에서 자세히 볼 수 있어요.</p>
         </div>
-        <div class="forest-map card glass-card">
+        <div class="forest-map card glass-card gls-surface-veil">
           <div class="card-body">
             <div class="forest-map-path"></div>
             <div class="forest-map-ground"></div>
@@ -219,7 +219,7 @@
       </section>
 
       <section class="growth-section growth-quests-and-list gls-mt-4">
-        <div class="growth-achievement-list card glass-card gls-h-100">
+        <div class="growth-achievement-list card glass-card gls-surface-veil gls-h-100">
           <div class="card-body">
             <div class="achievement-list-header gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-2 gls-mb-3">
               <h3 class="growth-section-title gls-mb-0">업적 목록</h3>
@@ -237,8 +237,19 @@
     </div>
   </main>
 
-  <footer class="gls-py-4 gls-text-center gls-text-muted gls-text-small">
-    글숲 · 성장 지도
+  <footer class="custom-footer">
+    <div class="gls-container">
+      <div class="gls-flex gls-flex-col gls-gap-2 gls-items-center gls-text-center gls-md-flex-row gls-justify-between">
+        <div class="footer-left gls-text-md-start">
+          <div class="footer-brand">글숲</div>
+          <p class="footer-subtitle gls-mb-0">마음을 나누는 작은 숲</p>
+        </div>
+        <div class="footer-right gls-text-md-end footer-meta">
+          <p class="footer-copy gls-mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
+          <p class="footer-small gls-mb-0">&copy; 2025 글숲</p>
+        </div>
+      </div>
+    </div>
   </footer>
   <script src="/js/theme.js" defer></script>
   <script src="/js/header.js"></script>

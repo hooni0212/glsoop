@@ -1,0 +1,342 @@
+/* =========================
+   성장 페이지 전용 스타일
+========================= */
+
+body.page-growth {
+  color: var(--gls-text);
+  --growth-ring-track: rgba(255, 255, 255, 0.24);
+  --growth-ring-track-soft: rgba(255, 255, 255, 0.2);
+  --growth-core-bg: rgba(255, 255, 255, 0.78);
+  --growth-progress-track: rgba(255, 255, 255, 0.2);
+  --growth-progress-track-strong: rgba(255, 255, 255, 0.22);
+  --growth-pill-bg: rgba(255, 255, 255, 0.7);
+  --growth-pill-border: rgba(255, 255, 255, 0.4);
+  --growth-achievement-path: rgba(255, 255, 255, 0.5);
+  --growth-forest-ground: rgba(46, 139, 87, 0.18);
+  --growth-detail-bg: rgba(255, 255, 255, 0.75);
+  --growth-detail-border: rgba(255, 255, 255, 0.55);
+  --growth-filter-border: rgba(255, 255, 255, 0.3);
+  --growth-filter-bg: rgba(255, 255, 255, 0.16);
+  --growth-filter-active-bg: rgba(46, 139, 87, 0.12);
+  --growth-filter-active-border: rgba(46, 139, 87, 0.32);
+}
+
+body.page-growth .growth-shell {
+  max-width: 1100px;
+}
+
+body.page-growth .growth-header {
+  padding: var(--gls-space-5);
+}
+
+body.page-growth .growth-header h2 {
+  font-size: clamp(1.4rem, 2.2vw, 2rem);
+}
+
+body.page-growth .growth-section {
+  margin-top: var(--gls-space-5);
+}
+
+body.page-growth .growth-hero-grid {
+  display: grid;
+  gap: var(--gls-space-4);
+}
+
+@media (min-width: 992px) {
+  body.page-growth .growth-hero-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+body.page-growth .growth-level-card {
+  overflow: hidden;
+}
+
+body.page-growth .growth-level-ring {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--gls-action-accent) 0deg,
+    var(--growth-ring-track) 0deg 360deg
+  );
+  padding: 10px;
+  position: relative;
+  box-shadow: var(--gls-shadow-sm);
+}
+
+body.page-growth .growth-level-ring-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(
+    var(--gls-action-accent) 0deg,
+    var(--growth-ring-track-soft) 0deg 360deg
+  );
+  opacity: 0.65;
+  filter: blur(0.4px);
+}
+
+body.page-growth .growth-level-core {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--growth-core-bg);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  box-shadow: var(--gls-glass-inset);
+}
+
+body.page-growth .growth-level-number {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+body.page-growth .growth-level-leaf {
+  font-size: 1.3rem;
+}
+
+body.page-growth .growth-level-progress {
+  height: 6px;
+  background: var(--growth-progress-track);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+body.page-growth .growth-level-progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gls-action-accent), var(--gls-color-primary-strong));
+  border-radius: inherit;
+  transition: width 0.4s ease;
+}
+
+body.page-growth .growth-today-pill {
+  min-width: 180px;
+  background: var(--growth-pill-bg);
+  border: 1px solid var(--growth-pill-border);
+  border-radius: 16px;
+  padding: 12px 14px;
+  text-align: center;
+  box-shadow: var(--gls-shadow-sm);
+}
+
+body.page-growth .growth-today-pill .label {
+  font-size: 0.8rem;
+  color: var(--gls-muted);
+}
+
+body.page-growth .growth-today-pill .value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+body.page-growth .growth-today-pill .sub {
+  font-size: 0.8rem;
+  color: var(--gls-muted);
+}
+
+body.page-growth .growth-stat-grid {
+  display: grid;
+  gap: var(--gls-space-4);
+}
+
+@media (min-width: 768px) {
+  body.page-growth .growth-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+body.page-growth .growth-today-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+body.page-growth .growth-stat-rows {
+  display: grid;
+  gap: var(--gls-space-3);
+}
+
+body.page-growth .growth-stat-row {
+  display: grid;
+  gap: 6px;
+}
+
+body.page-growth .growth-stat-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--growth-progress-track-strong);
+  overflow: hidden;
+}
+
+body.page-growth .growth-stat-progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--gls-action-accent), var(--gls-color-primary-strong));
+  border-radius: inherit;
+  transition: width 0.4s ease;
+}
+
+body.page-growth .growth-stat-label {
+  font-size: 0.85rem;
+  color: var(--gls-muted);
+}
+
+body.page-growth .growth-quest-board {
+  padding: var(--gls-space-4);
+}
+
+body.page-growth .growth-quests-grid {
+  display: grid;
+  gap: var(--gls-space-4);
+}
+
+@media (min-width: 992px) {
+  body.page-growth .growth-quests-grid {
+    grid-template-columns: minmax(240px, 0.6fr) minmax(0, 1fr);
+  }
+}
+
+body.page-growth .campaign-stack {
+  display: grid;
+  gap: var(--gls-space-3);
+}
+
+body.page-growth .quest-columns {
+  display: grid;
+  gap: var(--gls-space-4);
+}
+
+@media (min-width: 992px) {
+  body.page-growth .quest-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+body.page-growth .quest-column-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--gls-space-2);
+}
+
+body.page-growth .quest-column-title {
+  font-weight: 700;
+}
+
+body.page-growth .quest-column-sub {
+  font-size: 0.8rem;
+  color: var(--gls-muted);
+}
+
+body.page-growth .quest-card-list {
+  min-height: 120px;
+  display: grid;
+  gap: var(--gls-space-3);
+}
+
+body.page-growth .forest-map {
+  position: relative;
+  overflow: hidden;
+}
+
+body.page-growth .forest-map-path {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, var(--growth-achievement-path), transparent 50%);
+  opacity: 0.4;
+}
+
+body.page-growth .forest-map-ground {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(46, 139, 87, 0) 0%, var(--growth-forest-ground) 100%);
+  opacity: 0.5;
+}
+
+body.page-growth .forest-map-layout {
+  position: relative;
+  display: grid;
+  gap: var(--gls-space-4);
+}
+
+@media (min-width: 992px) {
+  body.page-growth .forest-map-layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+body.page-growth .forest-map-achievements {
+  min-height: 240px;
+  display: grid;
+  gap: var(--gls-space-3);
+}
+
+body.page-growth .forest-map-detail-panel {
+  background: var(--growth-detail-bg);
+  border: 1px solid var(--growth-detail-border);
+  border-radius: var(--gls-radius-md);
+  padding: var(--gls-space-4);
+  box-shadow: var(--gls-shadow-sm);
+}
+
+body.page-growth .forest-map-detail-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gls-muted);
+  margin-bottom: var(--gls-space-2);
+}
+
+body.page-growth .growth-achievement-list {
+  padding: var(--gls-space-4);
+}
+
+body.page-growth .achievement-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body.page-growth .achievement-filter-btn {
+  border-radius: 999px;
+  border: 1px solid var(--growth-filter-border);
+  background: var(--growth-filter-bg);
+  color: var(--gls-text);
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  transition: var(--gls-transition-surface-ui);
+}
+
+body.page-growth .achievement-filter-btn.is-active,
+body.page-growth .achievement-filter-btn:hover,
+body.page-growth .achievement-filter-btn:focus-visible {
+  background: var(--growth-filter-active-bg);
+  border-color: var(--growth-filter-active-border);
+  color: var(--gls-color-primary-strong);
+}
+
+body.page-growth .achievement-grid {
+  display: grid;
+  gap: var(--gls-space-3);
+}
+
+@media (min-width: 768px) {
+  body.page-growth .achievement-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  body.page-growth .achievement-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

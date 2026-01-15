@@ -183,14 +183,11 @@ body.autumn-theme .like-btn.liked .like-heart {
    7. 푸터
 ========================= */
 
-body.autumn-theme .custom-footer {
-  background: linear-gradient(90deg, #d6a575, #a87052);
-  color: #FFF9F0;
-  border-top: 1px solid rgba(255, 255, 255, 0.25);
-}
-
-body.autumn-theme .footer-links a {
-  color: #FFF9F0;
+body.autumn-theme {
+  --gls-footer-bg: linear-gradient(90deg, #d6a575, #a87052);
+  --gls-footer-text: #FFF9F0;
+  --gls-footer-border: rgba(255, 255, 255, 0.25);
+  --gls-footer-link: #FFF9F0;
 }
 
 /* 피드 탭 & 저장 버튼 테마 매핑 */
@@ -230,4 +227,3 @@ body.autumn-theme .gls-save-btn:focus-visible {
   color: #7c4f32;
   border-color: #b77a4f;
 }
-

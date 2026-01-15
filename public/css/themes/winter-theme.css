@@ -13,6 +13,11 @@ body.winter-theme {
   --gls-header-gradient: linear-gradient(90deg, #2C4C72, #3F668F);
   --gls-navbar-brand-gradient: linear-gradient(120deg, #F8FDFF, #EAF5FF);
   --gls-header-strong: #345b83;
+  --gls-footer-bg: linear-gradient(90deg, #2C4C72, #3F668F);
+  --gls-footer-text: #F4FBFF;
+  --gls-footer-border: rgba(255, 255, 255, 0.22);
+  --gls-footer-shadow: 0 6px 18px rgba(45, 83, 132, 0.26);
+  --gls-footer-link: #F4FBFF;
 
   /* 글/카드 톤 변수들 그대로 유지 */
   --author-surface: rgba(227, 240, 255, 0.65);

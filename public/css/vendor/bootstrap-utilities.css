@@ -1,0 +1,38 @@
+/* ============================================================
+   Bootstrap utility shims (temporary)
+   - 목적: Bootstrap CSS를 제거해도 화면이 무너지지 않게,
+           현재 마크업에 남아있는 Bootstrap 유틸 클래스들을
+           glsoop 유틸 스케일로 최소한만 재구현한다.
+
+   - 주의: 이 섹션은 "최종"이 아니라 "이행(Transition)"용.
+           HTML에서 .gls-* 유틸로 치환이 끝나면, 사용처 0 확인 후
+           이 섹션부터 삭제하면 된다.
+   ============================================================ */
+
+/* display / flex */
+.d-flex { display: flex; }
+.flex-column { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+
+/* flex alignment */
+.align-items-start { align-items: flex-start; }
+.align-items-center { align-items: center; }
+.align-items-end { align-items: flex-end; }
+
+.justify-content-between { justify-content: space-between; }
+.justify-content-end { justify-content: flex-end; }
+
+/* sizing */
+.w-100 { width: 100%; }
+.min-vh-100 { min-height: 100vh; }
+
+/* text alignment */
+.text-center { text-align: center; }
+.text-start { text-align: left; }
+.text-end { text-align: right; }
+
+/* gaps (minimal) */
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 1rem; }
+.gap-4 { gap: 1.5rem; }

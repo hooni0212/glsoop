@@ -109,8 +109,7 @@ body.spring-theme::after {
    1. 네비게이션 바 & 푸터
 ========================= */
 
-body.spring-theme .custom-navbar,
-body.spring-theme .custom-footer {
+body.spring-theme .custom-navbar {
   /* 벚꽃 분홍 + 연두 그라디언트 (차분톤) */
   background: linear-gradient(90deg, #f6cadd, #a5d7a3);
   box-shadow: 0 6px 18px rgba(184, 107, 133, 0.28);
@@ -124,13 +123,13 @@ body.spring-theme .custom-navbar .navbar-brand {
   color: transparent;
 }
 
-/* 푸터 텍스트/링크 */
-body.spring-theme .custom-footer {
-  color: #FFFDFE;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-body.spring-theme .footer-links a {
-  color: #FFFDFE;
+/* 푸터 토큰 */
+body.spring-theme {
+  --gls-footer-bg: linear-gradient(90deg, #f6cadd, #a5d7a3);
+  --gls-footer-text: #FFFDFE;
+  --gls-footer-border: rgba(255, 255, 255, 0.2);
+  --gls-footer-shadow: 0 6px 18px rgba(184, 107, 133, 0.28);
+  --gls-footer-link: #FFFDFE;
 }
 
 /* 피드 탭 & 저장 버튼 테마 매핑 */
