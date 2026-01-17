@@ -30,7 +30,11 @@ router.get('/bookmarks/lists', authRequired, (req, res) => {
           .status(500)
           .json({ ok: false, message: '북마크 폴더 조회 중 오류가 발생했습니다.' });
       }
-      return res.json({ ok: true, lists: rows || [] });
+      return res.json({
+        ok: true,
+        message: '북마크 폴더를 불러왔습니다.',
+        lists: rows || [],
+      });
     }
   );
 });
@@ -64,6 +68,7 @@ router.post('/bookmarks/lists', authRequired, (req, res) => {
 
       return res.json({
         ok: true,
+        message: '북마크 폴더가 생성되었습니다.',
         list: {
           id: this.lastID,
           user_id: userId,
@@ -139,6 +144,7 @@ router.patch('/bookmarks/lists/:listId', authRequired, (req, res) => {
 
           return res.json({
             ok: true,
+            message: '북마크 폴더가 수정되었습니다.',
             list: { ...list, name: nextName, description: nextDesc || null },
           });
         }
@@ -261,7 +267,7 @@ router.post('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
               );
             }
 
-            return res.json({ ok: true });
+            return res.json({ ok: true, message: '북마크가 추가되었습니다.' });
           }
         );
       });
@@ -314,7 +320,7 @@ router.delete(
                 message: '북마크 삭제 중 오류가 발생했습니다.',
               });
             }
-            return res.json({ ok: true });
+            return res.json({ ok: true, message: '북마크가 삭제되었습니다.' });
           }
         );
       }
@@ -400,8 +406,9 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
 
         return res.json({
           ok: true,
+          message: '북마크 글 목록을 불러왔습니다.',
           posts: rows || [],
-          hasMore: (rows || []).length === limit,
+          has_more: (rows || []).length === limit,
         });
       });
     }
@@ -435,7 +442,11 @@ router.get('/posts/:postId/bookmarks', authRequired, (req, res) => {
           .json({ ok: false, message: '북마크 정보를 불러오지 못했습니다.' });
       }
 
-      return res.json({ ok: true, lists: rows || [] });
+      return res.json({
+        ok: true,
+        message: '북마크 정보를 불러왔습니다.',
+        lists: rows || [],
+      });
     }
   );
 });

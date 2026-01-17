@@ -235,7 +235,7 @@
       });
 
       offset += posts.length;
-      hasMore = data.hasMore;
+      hasMore = data.has_more;
       const hasCards = Boolean(postsEl.querySelector('.gls-post-card'));
       loadMoreWrap.style.display = hasCards && hasMore ? 'block' : 'none';
     } catch (e) {

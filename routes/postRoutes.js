@@ -17,7 +17,6 @@
 // ================== 4. 글 상세 & 좋아요 ==================
 // GET  /api/posts/:id           (공개 상세)
 // GET  /api/posts/:id/edit      (편집용 조회 - 작성자 전용)
-// GET  /api/posts/:id/detail    (레거시 alias, 공개 상세와 동일)
 // POST /api/posts/:id/toggle-like
 
 const express = require('express');
@@ -137,14 +136,14 @@ router.post('/posts', authRequired, (req, res) => {
               ok: true,
               message:
                 '글은 저장되었지만, 해시태그 저장 중 오류가 발생했습니다.',
-              postId: newPostId,
+              post_id: newPostId,
             });
           }
 
           return res.json({
             ok: true,
             message: '글이 저장되었습니다.',
-            postId: newPostId,
+            post_id: newPostId,
           });
         };
 
@@ -270,6 +269,7 @@ router.get('/posts/my', authRequired, (req, res) => {
 
       return res.json({
         ok: true,
+        message: '내 글 목록을 불러왔습니다.',
         posts: rows,
       });
     }
@@ -317,6 +317,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
 
       return res.json({
         ok: true,
+        message: '공감한 글 목록을 불러왔습니다.',
         posts: rows,
       });
     }
@@ -343,11 +344,11 @@ function handleFeedRequest(req, res) {
       ok: false,
       message: '로그인이 필요한 요청입니다.',
       posts: [],
-      hasMore: false,
+      has_more: false,
       context: {
-        feedType,
+        feed_type: feedType,
         sort,
-        followingCount: 0,
+        following_count: 0,
         tags,
         category: category || null,
       },
@@ -448,12 +449,13 @@ function handleFeedRequest(req, res) {
 
       return res.json({
         ok: true,
+        message: '피드를 불러왔습니다.',
         posts: rows,
-        hasMore: rows.length === limit,
+        has_more: rows.length === limit,
         context: {
-          feedType,
+          feed_type: feedType,
           sort,
-          followingCount,
+          following_count: followingCount,
           tags,
           category: category || null,
         },
@@ -591,7 +593,11 @@ router.get('/posts/:id/related', (req, res) => {
           }
 
           if (!rows || rows.length === 0) {
-            return res.json({ ok: true, posts: [] });
+            return res.json({
+              ok: true,
+              message: '관련 글이 없습니다.',
+              posts: [],
+            });
           }
 
           const now = Date.now();
@@ -636,7 +642,11 @@ router.get('/posts/:id/related', (req, res) => {
             return copy;
           });
 
-          return res.json({ ok: true, posts: finalPosts });
+          return res.json({
+            ok: true,
+            message: '관련 글을 불러왔습니다.',
+            posts: finalPosts,
+          });
         }
       );
     }
@@ -685,6 +695,7 @@ router.get('/posts/:id/edit', authRequired, (req, res) => {
 
       return res.json({
         ok: true,
+        message: '편집용 글 정보를 불러왔습니다.',
         post: {
           id: row.id,
           title: row.title,
@@ -801,8 +812,9 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
 
                   return res.json({
                     ok: true,
+                    message: '좋아요 상태가 업데이트되었습니다.',
                     liked: false,
-                    likeCount: row2.cnt || 0,
+                    like_count: row2.cnt || 0,
                   });
                 }
               );
@@ -841,8 +853,9 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
 
                   return res.json({
                     ok: true,
+                    message: '좋아요 상태가 업데이트되었습니다.',
                     liked: true,
-                    likeCount: row2.cnt || 0,
+                    like_count: row2.cnt || 0,
                   });
                 }
               );
@@ -856,7 +869,6 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
 
 // 9-10) 공개 글 상세 조회 (좋아요 개수 + 내가 눌렀는지 여부까지)
 // - ✅ 표준:  GET /api/posts/:id
-// - ✅ 레거시: GET /api/posts/:id/detail  (같은 로직 재사용)
 function handlePublicPostDetail(req, res) {
   const postId = parseInt(req.params.id, 10);
   if (!postId) {
@@ -942,6 +954,7 @@ function handlePublicPostDetail(req, res) {
 
     return res.json({
       ok: true,
+      message: '글 상세 정보를 불러왔습니다.',
       post: {
         id: row.id,
         title: row.title,
@@ -963,9 +976,5 @@ function handlePublicPostDetail(req, res) {
 
 // ✅ 표준 공개 상세
 router.get('/posts/:id', handlePublicPostDetail);
-
-// ✅ 레거시 호환(기존 프론트/문서가 /detail 쓰는 동안 유지)
-
-router.get('/posts/:id/detail', handlePublicPostDetail);
 
 module.exports = router;

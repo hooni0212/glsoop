@@ -134,15 +134,15 @@ async function loadAuthorProfile(authorId) {
     const followerCountEl = document.getElementById('authorFollowerCount');
     const followingCountEl = document.getElementById('authorFollowingCount');
 
-    if (postCountEl) postCountEl.textContent = user.postCount || 0;
-    if (likeCountEl) likeCountEl.textContent = user.totalLikes || 0;
-    if (followerCountEl) followerCountEl.textContent = user.followerCount || 0;
-    if (followingCountEl) followingCountEl.textContent = user.followingCount || 0;
+    if (postCountEl) postCountEl.textContent = user.post_count || 0;
+    if (likeCountEl) likeCountEl.textContent = user.total_likes || 0;
+    if (followerCountEl) followerCountEl.textContent = user.follower_count || 0;
+    if (followingCountEl) followingCountEl.textContent = user.following_count || 0;
 
     authorFollowState = {
-      isLoggedIn: !!data.viewer?.isLoggedIn,
-      isOwnProfile: !!data.viewer?.isOwnProfile,
-      isFollowing: !!data.viewer?.isFollowing,
+      isLoggedIn: !!data.viewer?.is_logged_in,
+      isOwnProfile: !!data.viewer?.is_own_profile,
+      isFollowing: !!data.viewer?.is_following,
     };
     updateAuthorFollowUI();
   } catch (e) {
@@ -246,9 +246,8 @@ async function handleAuthorFollowToggle() {
   }
 
   try {
-    const method = authorFollowState.isFollowing ? 'DELETE' : 'POST';
-    const res = await fetch(`/api/follow/${currentAuthorId}`, {
-      method,
+    const res = await fetch(`/api/users/${currentAuthorId}/follow`, {
+      method: 'POST',
     });
     const data = await res.json();
 
@@ -257,7 +256,7 @@ async function handleAuthorFollowToggle() {
     }
 
     authorFollowState.isFollowing = !!data.following;
-    if (followerCountEl) followerCountEl.textContent = data.followerCount ?? 0;
+    if (followerCountEl) followerCountEl.textContent = data.follower_count ?? 0;
     updateAuthorFollowUI();
   } catch (error) {
     console.error(error);
@@ -492,7 +491,7 @@ function setupAuthorPostInteractions(card) {
 
         const liked = !!data.liked;
         const likeCount =
-          typeof data.likeCount === 'number' ? data.likeCount : 0;
+          typeof data.like_count === 'number' ? data.like_count : 0;
 
         // data-liked 속성 업데이트
         likeBtn.setAttribute('data-liked', liked ? '1' : '0');

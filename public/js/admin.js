@@ -205,7 +205,7 @@ Glsoop.AdminPage = (function () {
         window.location.href = '/html/login.html?next=/admin';
         return null;
       }
-      if (!meData.isAdmin) {
+      if (!meData.is_admin) {
         alert('관리자만 접근할 수 있는 페이지입니다.');
         window.location.href = '/index.html';
         return null;
@@ -437,7 +437,11 @@ Glsoop.AdminPage = (function () {
       }
 
       if (pagination) {
-        pagination.innerHTML = buildPagination(data.page, data.limit || data.pageSize, data.total);
+        pagination.innerHTML = buildPagination(
+          data.page,
+          data.limit || data.page_size,
+          data.total
+        );
         pagination.onclick = handlePaginationClick;
       }
 
@@ -851,7 +855,7 @@ Glsoop.AdminPage = (function () {
         return;
       }
       questState.campaigns = data.items || data.campaigns || [];
-      questState.campaignItems = data.campaignItems || [];
+      questState.campaignItems = data.campaign_items || [];
       box.innerHTML = buildCampaignEditor();
       bindCampaignEvents();
       } catch (err) {

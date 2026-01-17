@@ -289,7 +289,7 @@ Glsoop.FeedPage = (function () {
 
       const posts = data.posts || [];
       const context = data.context || {};
-      const followingCount = context.followingCount;
+      const followingCount = context.following_count;
 
       // 첫 로드인데 글이 아예 없는 경우
       if (requestOffset === 0 && posts.length === 0) {
@@ -327,8 +327,8 @@ Glsoop.FeedPage = (function () {
       feedOffset += posts.length;
 
       const hasMore =
-        typeof data.hasMore === 'boolean'
-          ? data.hasMore
+        typeof data.has_more === 'boolean'
+          ? data.has_more
           : posts.length === FEED_LIMIT;
 
       if (!hasMore) {
@@ -546,7 +546,7 @@ function setupCardInteractions(card, post) {
       // 서버에서 돌려준 liked 상태, 총 likeCount
       const liked = !!data.liked;
       const likeCount =
-        typeof data.likeCount === 'number' ? data.likeCount : 0;
+        typeof data.like_count === 'number' ? data.like_count : 0;
 
       // data-liked 속성 업데이트
       likeBtn.setAttribute('data-liked', liked ? '1' : '0');

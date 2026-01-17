@@ -273,7 +273,7 @@ async function toggleLike(postId, likeBtn) {
 
     const liked = !!data.liked;
     const likeCount =
-      typeof data.likeCount === 'number' ? data.likeCount : 0;
+      typeof data.like_count === 'number' ? data.like_count : 0;
 
     // 버튼 상태 갱신
     likeBtn.setAttribute('data-liked', liked ? '1' : '0');

@@ -10,6 +10,11 @@
 > - **public**: 로그인 없이 호출 가능
 > - **auth**: 로그인 필요 (`authRequired`)
 > - **admin**: 관리자 권한 필요 (`authRequired` + `adminRequired`)
+>
+> 응답 규칙
+>
+> - 성공/실패 모두 `ok`, `message` 필드를 포함합니다.
+> - 복합 단어 키는 `snake_case`로 통일합니다.
 
 ---
 
@@ -41,8 +46,6 @@
 
 팔로우
 - `POST /api/users/:id/follow` (**auth**) — 팔로우/언팔로우 토글
-- `POST /api/follow/:userId` (**auth**) — 팔로우
-- `DELETE /api/follow/:userId` (**auth**) — 언팔로우
 
 ---
 
@@ -63,7 +66,6 @@
 
 상세/편집/관련
 - `GET /api/posts/:id` (**public**) — 글 상세
-- `GET /api/posts/:id/detail` (**public**) — 글 상세(확장 응답, 내부적으로 동일 핸들러)
 - `GET /api/posts/:id/edit` (**auth**) — 편집 화면용 데이터
 - `GET /api/posts/:id/related` (**public**) — 관련 글
 
