@@ -437,11 +437,7 @@ Glsoop.AdminPage = (function () {
       }
 
       if (pagination) {
-        pagination.innerHTML = buildPagination(
-          data.page,
-          data.limit || data.page_size,
-          data.total
-        );
+        pagination.innerHTML = buildPagination(data.page, data.page_size, data.total);
         pagination.onclick = handlePaginationClick;
       }
 

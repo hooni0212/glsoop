@@ -137,7 +137,7 @@ router.get('/posts', async (req, res) => {
       items: rows,
       total: totalRow?.cnt || 0,
       page: Number(page),
-      limit: pageSize,
+      page_size: pageSize,
     });
   } catch (err) {
     console.error(err);
