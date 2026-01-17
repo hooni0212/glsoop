@@ -64,7 +64,7 @@ async function applyFollowState(targetUserId, viewerId, shouldFollow) {
     );
     return {
       following: shouldFollow,
-      followerCount: countRow?.follower_count || 0,
+      follower_count: countRow?.follower_count || 0,
     };
   };
 
@@ -132,10 +132,10 @@ async function buildAuthorProfile(authorId) {
 
   return {
     user,
-    postCount: stats?.post_count || 0,
-    totalLikes: stats?.total_likes || 0,
-    followerCount: followStats?.follower_count || 0,
-    followingCount: followStats?.following_count || 0,
+    post_count: stats?.post_count || 0,
+    total_likes: stats?.total_likes || 0,
+    follower_count: followStats?.follower_count || 0,
+    following_count: followStats?.following_count || 0,
   };
 }
 
@@ -190,6 +190,7 @@ router.get('/users/:id/profile', async (req, res) => {
 
     return res.json({
       ok: true,
+      message: '작가 프로필을 불러왔습니다.',
       user: {
         id: profile.user.id,
         name: profile.user.name,
@@ -198,16 +199,16 @@ router.get('/users/:id/profile', async (req, res) => {
         bio: profile.user.bio || null,
         about: profile.user.about || null,
         level: profile.user.level || 1,
-        postCount: profile.postCount,
-        totalLikes: profile.totalLikes,
-        followerCount: profile.followerCount,
-        followingCount: profile.followingCount,
+        post_count: profile.post_count,
+        total_likes: profile.total_likes,
+        follower_count: profile.follower_count,
+        following_count: profile.following_count,
       },
       viewer: {
         id: viewerId,
-        isLoggedIn: !!viewerId,
-        isOwnProfile: !!viewerId && viewerId === profile.user.id,
-        isFollowing,
+        is_logged_in: !!viewerId,
+        is_own_profile: !!viewerId && viewerId === profile.user.id,
+        is_following: isFollowing,
       },
     });
   } catch (error) {
@@ -237,56 +238,15 @@ router.post('/users/:id/follow', authRequired, async (req, res) => {
     const result = await applyFollowState(targetUserId, viewerId, !exists);
     return res.json({
       ok: true,
+      message: '팔로우 상태가 업데이트되었습니다.',
       following: result.following,
-      followerCount: result.followerCount,
+      follower_count: result.follower_count,
     });
   } catch (error) {
     console.error(error);
     return res.status(500).json({
       ok: false,
       message: '팔로우 처리 중 오류가 발생했습니다.',
-    });
-  }
-});
-
-router.post('/follow/:userId', authRequired, async (req, res) => {
-  const targetUserId = parseId(req.params.userId);
-  const viewerId = req.user.id;
-
-  if (!validateFollowTarget(targetUserId, viewerId, res)) return;
-
-  try {
-    const foundUser = await ensureUserExists(targetUserId, res);
-    if (!foundUser) return;
-
-    const result = await applyFollowState(targetUserId, viewerId, true);
-    return res.json({ ok: true, ...result });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      ok: false,
-      message: '팔로우 처리 중 오류가 발생했습니다.',
-    });
-  }
-});
-
-router.delete('/follow/:userId', authRequired, async (req, res) => {
-  const targetUserId = parseId(req.params.userId);
-  const viewerId = req.user.id;
-
-  if (!validateFollowTarget(targetUserId, viewerId, res)) return;
-
-  try {
-    const foundUser = await ensureUserExists(targetUserId, res);
-    if (!foundUser) return;
-
-    const result = await applyFollowState(targetUserId, viewerId, false);
-    return res.json({ ok: true, ...result });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      ok: false,
-      message: '언팔로우 처리 중 오류가 발생했습니다.',
     });
   }
 });
@@ -368,8 +328,9 @@ router.get('/users/:id/posts', async (req, res) => {
     const rows = await dbAll(sql, params);
     return res.json({
       ok: true,
+      message: '작가 글 목록을 불러왔습니다.',
       posts: rows,
-      hasMore: rows.length === limit,
+      has_more: rows.length === limit,
     });
   } catch (error) {
     console.error(error);

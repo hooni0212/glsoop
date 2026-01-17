@@ -77,8 +77,8 @@ async function loadMyPage() {
     ? meData.nickname
     : meData.name;
 
-  const followerCount = Number(meData.followerCount) || 0;
-  const followingCount = Number(meData.followingCount) || 0;
+  const followerCount = Number(meData.follower_count) || 0;
+  const followingCount = Number(meData.following_count) || 0;
 
   // 한 줄 소개(bio)가 있는 경우에만 줄 추가
   const bioHtml = meData.bio
@@ -192,13 +192,13 @@ async function loadGrowthMiniWidget() {
 
   const {
    level = 0,
-   todayXp = 0,
-   streakDays = 0,
-   currentXp = 0,
-   nextLevelXp = 0,
+   today_xp = 0,
+   streak_days = 0,
+   current_xp = 0,
+   next_level_xp = 0,
    title = '성장',
   } = data.summary;
-  summaryText.textContent = `Lv.${level} ${title} · ${currentXp} / ${nextLevelXp} XP · 오늘 +${todayXp} XP · 연속 ${streakDays}일 글쓰기`;
+  summaryText.textContent = `Lv.${level} ${title} · ${current_xp} / ${next_level_xp} XP · 오늘 +${today_xp} XP · 연속 ${streak_days}일 글쓰기`;
   widget.classList.remove('gls-hidden');
  } catch (error) {
   console.error(error);
@@ -373,7 +373,7 @@ function renderFollowingCard(user) {
       ${emailHtml}
       ${bioHtml}
       ${aboutHtml}
-      <p class="gls-mb-0 gls-text-muted gls-text-small">팔로워 ${user.followerCount || 0}</p>
+      <p class="gls-mb-0 gls-text-muted gls-text-small">팔로워 ${user.follower_count || 0}</p>
      </div>
      <div class="gls-flex gls-flex-col gls-gap-2 gls-items-end">
       <a
@@ -651,7 +651,7 @@ function setupFollowingListEvents() {
   target.textContent = '처리 중...';
 
   try {
-   const res = await fetch(`/api/follow/${userId}`, { method: 'DELETE' });
+   const res = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
    const data = await res.json().catch(() => ({}));
 
    if (!res.ok || !data.ok) {

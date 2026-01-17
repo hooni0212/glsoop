@@ -66,9 +66,9 @@ function formatCampaignMeta(campaigns = []) {
 
   return campaigns.map((c) => ({
     ...c,
-    campaignType: (c.campaignType || '').toLowerCase(),
-    campaignTypeLabel: typeLabel(c.campaignType || c.campaign_type),
-    dateLabel: formatKstRange(c.startAt || c.start_at_kst || c.start_at, c.endAt || c.end_at_kst || c.end_at),
+    campaignType: (c.campaign_type || c.campaignType || '').toLowerCase(),
+    campaignTypeLabel: typeLabel(c.campaign_type || c.campaignType),
+    dateLabel: formatKstRange(c.start_at || c.start_at_kst, c.end_at || c.end_at_kst),
   }));
 }
 
@@ -130,11 +130,15 @@ function renderGrowthSummary(summary) {
 
   const levelText = `Lv.${summary.level}`;
   const levelEmoji = getLevelEmoji(summary.level);
-  const percent = summary.nextLevelXp > 0 ? Math.min(1, summary.currentXp / summary.nextLevelXp) : 0;
+  const percent = summary.next_level_xp > 0
+    ? Math.min(1, summary.current_xp / summary.next_level_xp)
+    : 0;
   const degree = `${Math.round(percent * 360)}deg`;
-  const percentLabel = `${summary.currentXp} / ${summary.nextLevelXp} XP`;
-  const remainingXp = Math.max(0, summary.nextLevelXp - summary.currentXp);
-  const streakPercent = summary.maxStreakDays > 0 ? Math.min(1, (summary.streakDays || 0) / summary.maxStreakDays) : 0;
+  const percentLabel = `${summary.current_xp} / ${summary.next_level_xp} XP`;
+  const remainingXp = Math.max(0, summary.next_level_xp - summary.current_xp);
+  const streakPercent = summary.max_streak_days > 0
+    ? Math.min(1, (summary.streak_days || 0) / summary.max_streak_days)
+    : 0;
 
   if (levelLabel) levelLabel.textContent = levelText;
   if (levelNumber) levelNumber.textContent = levelText;
@@ -146,16 +150,16 @@ function renderGrowthSummary(summary) {
   if (levelXp) levelXp.textContent = percentLabel;
   if (ring) ring.style.setProperty('--xp-progress', degree);
   if (progressBar) animateProgressWidth(progressBar, Math.round(percent * 100));
-  if (todayXp) todayXp.textContent = `+${summary.todayXp || 0}`;
-  if (todayXpDetail) todayXpDetail.textContent = `+${summary.todayXp || 0}`;
-  if (streakLabel) streakLabel.textContent = `연속 ${summary.streakDays || 0}일째`;
-  if (streakDetail) streakDetail.textContent = `${summary.streakDays || 0}일째`;
-  if (weeklyPosts) weeklyPosts.textContent = `이번 주 ${summary.weeklyPosts || 0}개`;
-  if (maxStreak) maxStreak.textContent = `${summary.maxStreakDays || 0}일`;
+  if (todayXp) todayXp.textContent = `+${summary.today_xp || 0}`;
+  if (todayXpDetail) todayXpDetail.textContent = `+${summary.today_xp || 0}`;
+  if (streakLabel) streakLabel.textContent = `연속 ${summary.streak_days || 0}일째`;
+  if (streakDetail) streakDetail.textContent = `${summary.streak_days || 0}일째`;
+  if (weeklyPosts) weeklyPosts.textContent = `이번 주 ${summary.weekly_posts || 0}개`;
+  if (maxStreak) maxStreak.textContent = `${summary.max_streak_days || 0}일`;
   if (nextLevelBar) animateProgressWidth(nextLevelBar, Math.round(percent * 100));
   if (nextLevelLabel) nextLevelLabel.textContent = `${remainingXp} XP 남음`;
   if (streakBar) animateProgressWidth(streakBar, Math.round(streakPercent * 100));
-  if (streakMaxLabel) streakMaxLabel.textContent = `최장 ${summary.maxStreakDays || 0}일`;
+  if (streakMaxLabel) streakMaxLabel.textContent = `최장 ${summary.max_streak_days || 0}일`;
 }
 
 function renderGrowthSummaryFallback() {
@@ -194,7 +198,7 @@ function renderForestMapNodes(list = []) {
   const container = document.getElementById('forestMapAchievements');
   if (!container) return;
   container.innerHTML = '';
-  const sorted = [...list].sort((a, b) => (a.positionIndex || 0) - (b.positionIndex || 0));
+  const sorted = [...list].sort((a, b) => (a.position_index || 0) - (b.position_index || 0));
   sorted.forEach((achievement) => {
     const node = document.createElement('button');
     node.type = 'button';
@@ -353,7 +357,9 @@ function renderQuestGroups(campaigns = []) {
     card.className = `quest-card ${quest.status === 'completed' ? 'is-completed' : ''}`;
     const progressPercent = quest.target ? Math.min(100, Math.round((quest.progress / quest.target) * 100)) : 0;
     const conditionLabel =
-      quest.conditionTypeLabel || conditionLabelFromType(quest.conditionType, quest.category) || '';
+      quest.condition_type_label ||
+      conditionLabelFromType(quest.condition_type, quest.category) ||
+      '';
     card.innerHTML = `
       <div class="quest-card-header">
         <span class="quest-card-title">${quest.name}</span>
@@ -365,7 +371,7 @@ function renderQuestGroups(campaigns = []) {
       </div>
       <div class="quest-card-meta quest-card-meta-secondary">
         <span>${conditionLabel}</span>
-        ${quest.rewardXp ? `<span>보상 ${quest.rewardXp} XP</span>` : ''}
+        ${quest.reward_xp ? `<span>보상 ${quest.reward_xp} XP</span>` : ''}
         ${quest.description ? `<span class="gls-text-muted">${quest.description}</span>` : ''}
       </div>
       <div class="quest-card-progress"><div class="quest-card-progress-bar" style="width: ${progressPercent}%"></div></div>

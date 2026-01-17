@@ -46,7 +46,14 @@ router.get('/users', async (req, res) => {
        LIMIT ${pageSize} OFFSET ${offset}`,
       params
     );
-    return res.json({ ok: true, users: rows, total: totalRow?.cnt || 0, page: Number(page), pageSize });
+    return res.json({
+      ok: true,
+      message: '회원 목록을 불러왔습니다.',
+      users: rows,
+      total: totalRow?.cnt || 0,
+      page: Number(page),
+      page_size: pageSize,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ ok: false, message: '회원 목록 조회 중 오류가 발생했습니다.' });
@@ -126,10 +133,11 @@ router.get('/posts', async (req, res) => {
     );
     return res.json({
       ok: true,
+      message: '글 목록을 불러왔습니다.',
       items: rows,
       total: totalRow?.cnt || 0,
       page: Number(page),
-      limit: pageSize,
+      page_size: pageSize,
     });
   } catch (err) {
     console.error(err);
@@ -152,7 +160,7 @@ router.get('/posts/:id', async (req, res) => {
 
     if (!row) return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
 
-    return res.json({ ok: true, post: row });
+    return res.json({ ok: true, message: '글 정보를 불러왔습니다.', post: row });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ ok: false, message: '글 조회 중 오류가 발생했습니다.' });
@@ -179,7 +187,7 @@ router.delete('/posts/:id', (req, res) => {
 router.get('/quest-templates', async (req, res) => {
   try {
     const rows = await allAsync('SELECT * FROM quest_templates ORDER BY id DESC');
-    res.json({ ok: true, items: rows });
+    res.json({ ok: true, message: '템플릿 목록을 불러왔습니다.', items: rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 조회 중 오류가 발생했습니다.' });
@@ -197,7 +205,7 @@ router.post('/quest-templates', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [name, description || '', condition_type, category || null, Number(target_value), Number(reward_xp) || 0, is_active ? 1 : 0]
     );
-    res.json({ ok: true });
+    res.json({ ok: true, message: '템플릿이 생성되었습니다.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 생성 중 오류가 발생했습니다.' });
@@ -212,7 +220,7 @@ router.put('/quest-templates/:id', async (req, res) => {
       `UPDATE quest_templates SET name=?, description=?, condition_type=?, category=?, target_value=?, reward_xp=?, is_active=? WHERE id=?`,
       [name, description || '', condition_type, category || null, Number(target_value), Number(reward_xp) || 0, is_active ? 1 : 0, templateId]
     );
-    res.json({ ok: true });
+    res.json({ ok: true, message: '템플릿이 수정되었습니다.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 수정 중 오류가 발생했습니다.' });
@@ -222,7 +230,7 @@ router.put('/quest-templates/:id', async (req, res) => {
 router.delete('/quest-templates/:id', async (req, res) => {
   try {
     await runAsync('DELETE FROM quest_templates WHERE id = ?', [req.params.id]);
-    res.json({ ok: true });
+    res.json({ ok: true, message: '템플릿이 삭제되었습니다.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 삭제 중 오류가 발생했습니다.' });
@@ -237,7 +245,12 @@ router.get('/quest-campaigns', async (req, res) => {
       `SELECT qci.*, qt.name AS template_name FROM quest_campaign_items qci
        JOIN quest_templates qt ON qt.id = qci.template_id`
     );
-    res.json({ ok: true, items: campaigns, campaignItems: items });
+    res.json({
+      ok: true,
+      message: '캠페인 목록을 불러왔습니다.',
+      items: campaigns,
+      campaign_items: items,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '캠페인 조회 중 오류가 발생했습니다.' });
@@ -253,7 +266,7 @@ router.post('/quest-campaigns', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [name, description || '', campaign_type, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1]
     );
-    res.json({ ok: true });
+    res.json({ ok: true, message: '캠페인이 생성되었습니다.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '캠페인 생성 중 오류가 발생했습니다.' });
@@ -268,7 +281,7 @@ router.put('/quest-campaigns/:id', async (req, res) => {
       `UPDATE quest_campaigns SET name=?, description=?, campaign_type=?, start_at=?, end_at=?, is_active=?, priority=? WHERE id=?`,
       [name, description || '', campaign_type, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1, campaignId]
     );
-    res.json({ ok: true });
+    res.json({ ok: true, message: '캠페인이 수정되었습니다.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '캠페인 수정 중 오류가 발생했습니다.' });
@@ -278,7 +291,7 @@ router.put('/quest-campaigns/:id', async (req, res) => {
 router.delete('/quest-campaigns/:id', async (req, res) => {
   try {
     await runAsync('DELETE FROM quest_campaigns WHERE id = ?', [req.params.id]);
-    res.json({ ok: true });
+    res.json({ ok: true, message: '캠페인이 삭제되었습니다.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '캠페인 삭제 중 오류가 발생했습니다.' });
@@ -297,7 +310,7 @@ router.put('/quest-campaigns/:id/items', async (req, res) => {
         [campaignId, item.template_id, item.sort_order || 0]
       );
     }
-    res.json({ ok: true });
+    res.json({ ok: true, message: '캠페인 템플릿이 저장되었습니다.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '캠페인 템플릿 저장 중 오류가 발생했습니다.' });

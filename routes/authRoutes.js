@@ -544,20 +544,21 @@ router.get('/me', authRequired, (req, res) => {
       // 기본 프로필 + 팔로워/팔로잉 집계 응답
       res.json({
         ok: true,
+        message: '내 정보를 불러왔습니다.',
         id: row.id,
         name: row.name,
         nickname: row.nickname,
         bio: row.bio || null,
         about: row.about || null,
         email: row.email,
-        isAdmin: !!row.is_admin,
-        isVerified: !!row.is_verified,
+        is_admin: !!row.is_admin,
+        is_verified: !!row.is_verified,
         level: row.level || 1,
         xp: row.xp || 0,
         streak_days: row.streak_days || 0,
         max_streak_days: row.max_streak_days || 0,
-        followerCount: row.follower_count || 0,
-        followingCount: row.following_count || 0,
+        follower_count: row.follower_count || 0,
+        following_count: row.following_count || 0,
       });
     }
   );
@@ -598,11 +599,12 @@ router.get('/me/followings', authRequired, (req, res) => {
         bio: row.bio || null,
         about: row.about || null,
         email: row.email,
-        followerCount: row.follower_count || 0,
+        follower_count: row.follower_count || 0,
       }));
 
       return res.json({
         ok: true,
+        message: '팔로잉 목록을 불러왔습니다.',
         followings,
       });
     }
