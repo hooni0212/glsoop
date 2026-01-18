@@ -9,11 +9,10 @@ const db = require('../db');
 const { transporter, JWT_SECRET } = require('../config');
 const { authRequired } = require('../middleware/auth');
 const { loginLimiter, signupLimiter, passwordLimiter } = require('../middleware/rateLimiters');
-const { getBaseUrl } = require('../utils/baseUrl');
 
 const router = express.Router();
 
-// 6-1) 회원가입 + 이메일 인증 메일 발송
+// 6-1) 회원가입 + 이메일 OTP 발송
 router.post('/signup', signupLimiter, async (req, res) => {
   const { name, nickname, email, pw } = req.body;
 
@@ -29,9 +28,10 @@ router.post('/signup', signupLimiter, async (req, res) => {
     const hashed = await bcrypt.hash(pw, 10);
     const normalizedEmail = email.trim().toLowerCase();
 
-    // 2) 이메일 인증 토큰 생성 (1시간 유효)
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString();
+    // 2) 이메일 OTP 생성 (10분 유효)
+    const otpCode = String(crypto.randomInt(100000, 1000000));
+    const otpHash = await bcrypt.hash(otpCode, 10);
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString();
 
     // 3) 신규 사용자 저장
     db.run(
@@ -46,9 +46,9 @@ router.post('/signup', signupLimiter, async (req, res) => {
         verification_token,
         verification_expires
       )
-      VALUES (?, ?, ?, ?, 0, 0, ?, ?)
+      VALUES (?, ?, ?, ?, 0, 0, NULL, NULL)
       `,
-      [name, nickname, normalizedEmail, hashed, token, expiresAt],
+      [name, nickname, normalizedEmail, hashed],
       function (err) {
         if (err) {
           if (err.message && err.message.includes('UNIQUE')) {
@@ -62,40 +62,52 @@ router.post('/signup', signupLimiter, async (req, res) => {
             .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
         }
 
-        const verifyUrl = `${getBaseUrl(req)}/api/verify-email?token=${token}`;
+        const otpExpiresMinutes = 10;
 
-        res.json({
-          ok: true,
-          message:
-            '입력하신 이메일로 인증 링크를 보냈어요. 메일에서 인증을 완료한 뒤 로그인해 주세요.',
-        });
-
-        transporter.sendMail(
-          {
-            from: `"글숲" <${process.env.GMAIL_USER}>`,
-            to: normalizedEmail,
-            subject: '[글숲] 이메일 인증을 완료해주세요',
-            html: `
-              <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-                <p><strong>${nickname || name}님, 안녕하세요.</strong></p>
-                <p>글숲에 가입해 주셔서 감사합니다. 아래 버튼을 눌러 이메일 인증을 완료해주세요.</p>
-                <p style="margin: 24px 0;">
-                  <a href="${verifyUrl}"
-                     style="display:inline-block;padding:10px 18px;background:#2e8b57;color:#fff;
-                            text-decoration:none;border-radius:6px;">
-                    이메일 인증하기
-                  </a>
-                </p>
-                <p>만약 위 버튼이 동작하지 않는다면, 아래 링크를 브라우저 주소창에 복사해서 접속해 주세요.</p>
-                <p style="font-size: 0.9rem; word-break: break-all;">${verifyUrl}</p>
-                <p style="font-size: 0.9rem;color:#888;">이 링크는 1시간 동안만 유효합니다.</p>
-              </div>
-            `,
-          },
-          (mailErr) => {
-            if (mailErr) {
-              console.error('인증 메일 발송 오류:', mailErr);
+        db.run(
+          `
+          INSERT INTO otp_verifications (user_id, code_hash, expires_at, attempts)
+          VALUES (?, ?, ?, 0)
+          `,
+          [this.lastID, otpHash, expiresAt],
+          (otpErr) => {
+            if (otpErr) {
+              console.error('OTP 저장 오류:', otpErr);
+              return res
+                .status(500)
+                .json({ ok: false, message: 'OTP 저장 중 오류가 발생했습니다.' });
             }
+
+            res.json({
+              ok: true,
+              message: '인증 번호를 이메일로 발송했습니다.',
+              user_id: this.lastID,
+            });
+
+            transporter.sendMail(
+              {
+                from: `"글숲" <${process.env.GMAIL_USER}>`,
+                to: normalizedEmail,
+                subject: '[글숲] 이메일 인증 번호를 확인해주세요',
+                html: `
+                  <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
+                    <p><strong>${nickname || name}님, 안녕하세요.</strong></p>
+                    <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
+                    <p style="margin: 20px 0; font-size: 1.4rem; font-weight: 700;">
+                      ${otpCode}
+                    </p>
+                    <p style="font-size: 0.9rem; color:#888;">
+                      인증 번호는 ${otpExpiresMinutes}분 동안만 유효합니다.
+                    </p>
+                  </div>
+                `,
+              },
+              (mailErr) => {
+                if (mailErr) {
+                  console.error('인증 메일 발송 오류:', mailErr);
+                }
+              }
+            );
           }
         );
       }
@@ -108,124 +120,132 @@ router.post('/signup', signupLimiter, async (req, res) => {
   }
 });
 
-// 6-2) 이메일 인증 처리
-router.get('/verify-email', (req, res) => {
-  const token = req.query.token;
+// 6-2) 이메일 OTP 인증 처리
+router.post('/verify-email', async (req, res) => {
+  const { user_id: userId, verification_code: verificationCode } = req.body || {};
 
-  if (!token) {
-    return res.status(400).send(`
-      <html>
-        <head><meta charset="UTF-8"><title>이메일 인증 오류</title></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;">
-          <h2>이메일 인증에 실패했습니다.</h2>
-          <p>유효하지 않은 인증 링크입니다.</p>
-          <p><a href="/index.html">메인으로 돌아가기</a></p>
-        </body>
-      </html>
-    `);
+  if (!userId || !verificationCode) {
+    return res.status(400).json({
+      ok: false,
+      message: '인증에 필요한 정보가 누락되었습니다.',
+    });
   }
 
-  // 1) 토큰으로 사용자 조회 + 만료 시간 확인
   db.get(
     `
-    SELECT id, verification_expires, is_verified
+    SELECT id, is_verified
     FROM users
-    WHERE verification_token = ?
+    WHERE id = ?
     `,
-    [token],
-    (err, user) => {
-      if (err) {
-        console.error('이메일 인증 조회 중 DB 오류:', err);
-        return res.status(500).send(`
-          <html>
-            <head><meta charset="UTF-8"><title>이메일 인증 오류</title></head>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;">
-              <h2>이메일 인증에 실패했습니다.</h2>
-              <p>서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</p>
-              <p><a href="/index.html">메인으로 돌아가기</a></p>
-            </body>
-          </html>
-        `);
+    [userId],
+    (userErr, user) => {
+      if (userErr) {
+        console.error('사용자 조회 오류:', userErr);
+        return res.status(500).json({ ok: false, message: '서버 오류가 발생했습니다.' });
       }
 
-      if (!user || !user.verification_expires) {
-        return res.status(400).send(`
-          <html>
-            <head><meta charset="UTF-8"><title>이메일 인증 오류</title></head>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;">
-              <h2>이메일 인증에 실패했습니다.</h2>
-              <p>유효하지 않은 또는 이미 사용된 인증 링크입니다.</p>
-              <p><a href="/html/login.html">로그인 페이지로 가기</a></p>
-            </body>
-          </html>
-        `);
+      if (!user) {
+        return res.status(404).json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
       }
 
       if (user.is_verified) {
-        return res.send(`
-          <html>
-            <head><meta charset="UTF-8"><title>이미 이메일 인증 완료</title></head>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif; text-align:center; padding-top:60px;">
-              <h2>이미 이메일 인증이 완료된 계정입니다.</h2>
-              <p>바로 로그인을 진행하실 수 있습니다.</p>
-              <p><a href="/html/login.html">로그인하러 가기</a></p>
-            </body>
-          </html>
-        `);
+        return res.json({ ok: true, message: '이미 이메일 인증이 완료된 계정입니다.' });
       }
 
-      const now = Date.now();
-      const expiresTime = new Date(user.verification_expires).getTime();
-
-      if (isNaN(expiresTime) || expiresTime < now) {
-        return res.status(400).send(`
-          <html>
-            <head><meta charset="UTF-8"><title>이메일 인증 만료</title></head>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;">
-              <h2>이메일 인증 링크가 만료되었습니다.</h2>
-              <p>회원가입을 다시 진행해 주세요.</p>
-              <p><a href="/html/signup.html">회원가입 페이지로 가기</a></p>
-            </body>
-          </html>
-        `);
-      }
-
-      // 2) 검증 완료로 상태 업데이트
-      db.run(
+      db.get(
         `
-        UPDATE users
-        SET
-          is_verified = 1,
-          verification_token = NULL,
-          verification_expires = NULL
-        WHERE id = ?
+        SELECT id, code_hash, expires_at, attempts
+        FROM otp_verifications
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
         `,
-        [user.id],
-        function (updateErr) {
-          if (updateErr) {
-            console.error('이메일 인증 업데이트 오류:', updateErr);
-            return res.status(500).send(`
-              <html>
-                <head><meta charset="UTF-8"><title>이메일 인증 오류</title></head>
-                <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif;">
-                  <h2>이메일 인증에 실패했습니다.</h2>
-                  <p>서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</p>
-                  <p><a href="/index.html">메인으로 돌아가기</a></p>
-                </body>
-              </html>
-            `);
+        [userId],
+        async (otpErr, otpRow) => {
+          if (otpErr) {
+            console.error('OTP 조회 오류:', otpErr);
+            return res.status(500).json({ ok: false, message: '서버 오류가 발생했습니다.' });
           }
 
-          return res.send(`
-            <html>
-              <head><meta charset="UTF-8"><title>이메일 인증 완료</title></head>
-              <body style="font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans KR', sans-serif; text-align:center; padding-top:60px;">
-                <h2>이메일 인증이 완료되었습니다.</h2>
-                <p>이제 로그인하실 수 있습니다.</p>
-                <p><a href="/html/login.html">로그인하러 가기</a></p>
-              </body>
-            </html>
-          `);
+          if (!otpRow) {
+            return res.status(400).json({
+              ok: false,
+              message: '인증 번호가 존재하지 않습니다. 회원가입을 다시 진행해 주세요.',
+            });
+          }
+
+          const now = Date.now();
+          const expiresTime = new Date(otpRow.expires_at).getTime();
+          const maxAttempts = 5;
+
+          if (isNaN(expiresTime) || expiresTime < now) {
+            return res.status(400).json({
+              ok: false,
+              message: '인증 번호가 만료되었습니다. 회원가입을 다시 진행해 주세요.',
+            });
+          }
+
+          if (otpRow.attempts >= maxAttempts) {
+            return res.status(400).json({
+              ok: false,
+              message: '인증 시도 횟수를 초과했습니다. 회원가입을 다시 진행해 주세요.',
+            });
+          }
+
+          const matches = await bcrypt.compare(String(verificationCode), otpRow.code_hash);
+
+          if (!matches) {
+            db.run(
+              `
+              UPDATE otp_verifications
+              SET attempts = attempts + 1
+              WHERE id = ?
+              `,
+              [otpRow.id],
+              (attemptErr) => {
+                if (attemptErr) {
+                  console.error('OTP 시도 횟수 업데이트 오류:', attemptErr);
+                }
+                return res.status(400).json({
+                  ok: false,
+                  message: '인증 번호가 올바르지 않습니다.',
+                });
+              }
+            );
+            return;
+          }
+
+          db.run(
+            `
+            UPDATE users
+            SET is_verified = 1
+            WHERE id = ?
+            `,
+            [userId],
+            (updateErr) => {
+              if (updateErr) {
+                console.error('이메일 인증 업데이트 오류:', updateErr);
+                return res.status(500).json({
+                  ok: false,
+                  message: '이메일 인증에 실패했습니다.',
+                });
+              }
+
+              db.run(
+                `
+                DELETE FROM otp_verifications
+                WHERE user_id = ?
+                `,
+                [userId],
+                (deleteErr) => {
+                  if (deleteErr) {
+                    console.error('OTP 삭제 오류:', deleteErr);
+                  }
+                  return res.json({ ok: true, message: '이메일 인증이 완료되었습니다.' });
+                }
+              );
+            }
+          );
         }
       );
     }

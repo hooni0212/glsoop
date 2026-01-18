@@ -132,13 +132,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // --- 7) 성공 처리 ---
       // 백엔드에서 message를 내려주면 그걸 우선 사용
-      alert(
-        data.message ||
-          '입력하신 이메일로 인증 링크를 보냈어요. 메일에서 인증을 완료한 뒤 로그인해 주세요.'
-      );
+      alert(data.message || '인증 번호를 이메일로 발송했습니다.');
 
-      // 가입 성공 후 로그인 페이지로 이동
-      window.location.href = '/html/login.html';
+      const targetUserId = data.user_id ? String(data.user_id) : '';
+      const query = new URLSearchParams();
+      if (targetUserId) {
+        query.set('user_id', targetUserId);
+      }
+      if (email) {
+        query.set('email', email);
+      }
+
+      const queryString = query.toString();
+
+      // 가입 성공 후 인증 번호 입력 페이지로 이동
+      window.location.href = queryString
+        ? `/html/verify-email.html?${queryString}`
+        : '/html/verify-email.html';
     } catch (err) {
       // --- 8) 네트워크 오류 등 예외 상황 ---
       console.error(err);

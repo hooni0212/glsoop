@@ -32,7 +32,18 @@
 
 ---
 
-## 2) posts
+## 2) otp_verifications
+
+- `id` INTEGER PRIMARY KEY AUTOINCREMENT
+- `user_id` INTEGER NOT NULL (FK → users.id, ON DELETE CASCADE)
+- `code_hash` TEXT NOT NULL
+- `expires_at` DATETIME NOT NULL
+- `attempts` INTEGER DEFAULT 0
+- `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+
+---
+
+## 3) posts
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `user_id` INTEGER NOT NULL (FK → users.id)
@@ -43,7 +54,7 @@
 
 ---
 
-## 3) likes
+## 4) likes
 
 - `user_id` INTEGER NOT NULL (FK → users.id)
 - `post_id` INTEGER NOT NULL (FK → posts.id)
@@ -52,7 +63,7 @@
 
 ---
 
-## 4) follows
+## 5) follows
 
 - `follower_id` INTEGER NOT NULL (FK → users.id)
 - `followee_id` INTEGER NOT NULL (FK → users.id)
@@ -61,14 +72,14 @@
 
 ---
 
-## 5) hashtags
+## 6) hashtags
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `name` TEXT NOT NULL UNIQUE
 
 ---
 
-## 6) post_hashtags
+## 7) post_hashtags
 
 - `post_id` INTEGER NOT NULL (FK → posts.id, ON DELETE CASCADE)
 - `hashtag_id` INTEGER NOT NULL (FK → hashtags.id, ON DELETE CASCADE)
@@ -76,7 +87,7 @@
 
 ---
 
-## 7) bookmark_lists
+## 8) bookmark_lists
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `user_id` INTEGER NOT NULL (FK → users.id)
@@ -87,7 +98,7 @@
 
 ---
 
-## 8) bookmark_items
+## 9) bookmark_items
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `list_id` INTEGER NOT NULL (FK → bookmark_lists.id, ON DELETE CASCADE)
@@ -97,7 +108,7 @@
 
 ---
 
-## 9) xp_log
+## 10) xp_log
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `user_id` INTEGER NOT NULL (FK → users.id)
@@ -108,7 +119,7 @@
 
 ---
 
-## 10) achievements
+## 11) achievements
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `code` TEXT UNIQUE NOT NULL
@@ -121,7 +132,7 @@
 
 ---
 
-## 11) user_achievements
+## 12) user_achievements
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `user_id` INTEGER NOT NULL (FK → users.id)
@@ -132,7 +143,7 @@
 
 ---
 
-## 12) quest_templates
+## 13) quest_templates
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `name` TEXT NOT NULL
@@ -146,7 +157,7 @@
 
 ---
 
-## 13) quest_campaigns
+## 14) quest_campaigns
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `name` TEXT NOT NULL
