@@ -14,7 +14,6 @@ const {
   passwordLimiter,
   otpResendLimiter,
 } = require('../middleware/rateLimiters');
-const { getBaseUrl } = require('../utils/baseUrl');
 
 const router = express.Router();
 
