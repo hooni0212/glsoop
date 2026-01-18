@@ -29,6 +29,7 @@
 
 - `POST /api/signup` (**public**) — 회원가입 + 이메일 인증 메일 발송
 - `POST /api/verify-email` (**public**) — 이메일 인증 번호(OTP) 검증
+- `POST /api/verify-email/resend` (**public**) — 이메일 인증 번호(OTP) 재발송
 - `POST /api/password-reset-request` (**public**) — 비밀번호 재설정 메일 요청
 - `POST /api/password-reset` (**public**) — 비밀번호 재설정 처리
 - `POST /api/login` (**public**) — 로그인

@@ -12,7 +12,7 @@
 - **DB 초기화:** `db.js`에서 SQLite를 사용해 사용자, 게시글, 좋아요, 팔로우, 해시태그 및 게시글-해시태그 매핑 테이블을 생성합니다.
 
 ## 인증 및 계정 흐름 (`routes/authRoutes.js`)
-- **회원가입 & 이메일 인증:** `/api/signup`은 사용자 정보를 저장하면서 이메일 인증 번호(OTP)를 생성해 발송합니다. `/api/verify-email`은 인증 번호 유효성을 검사해 인증 상태를 갱신합니다.
+- **회원가입 & 이메일 인증:** `/api/signup`은 사용자 정보를 저장하면서 이메일 인증 번호(OTP)를 생성해 발송합니다. `/api/verify-email`은 인증 번호 유효성을 검사해 인증 상태를 갱신하며, `/api/verify-email/resend`는 인증 번호를 재발송합니다.
 - **비밀번호 재설정:** `/api/password-reset-request`가 재설정 링크를 이메일로 보내고, `/api/password-reset`이 토큰 검증 후 새 비밀번호를 저장합니다.
 - **로그인/로그아웃:** `/api/login`은 비활성 사용자 검증 후 JWT를 httpOnly 쿠키로 발급하고, `/api/logout`은 쿠키를 삭제합니다. 로그인 검증은 `middleware/auth.js`의 `authRequired`가 처리합니다.
 - **내 정보 관리:** `/api/me`는 프로필 및 팔로워/팔로잉 수를 반환하고, `/api/me/followings`는 팔로우 목록을, `/api/me` `PUT`은 프로필/소개 갱신을 제공합니다.

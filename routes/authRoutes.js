@@ -8,7 +8,13 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { transporter, JWT_SECRET } = require('../config');
 const { authRequired } = require('../middleware/auth');
-const { loginLimiter, signupLimiter, passwordLimiter } = require('../middleware/rateLimiters');
+const {
+  loginLimiter,
+  signupLimiter,
+  passwordLimiter,
+  otpResendLimiter,
+} = require('../middleware/rateLimiters');
+const { getBaseUrl } = require('../utils/baseUrl');
 
 const router = express.Router();
 
@@ -93,7 +99,7 @@ router.post('/signup', signupLimiter, async (req, res) => {
                   <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
                     <p><strong>${nickname || name}님, 안녕하세요.</strong></p>
                     <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
-                    <p style="margin: 20px 0; font-size: 1.4rem; font-weight: 700;">
+                    <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
                       ${otpCode}
                     </p>
                     <p style="font-size: 0.9rem; color:#888;">
@@ -250,6 +256,137 @@ router.post('/verify-email', async (req, res) => {
       );
     }
   );
+});
+
+// 6-2-1) 이메일 OTP 재발송
+router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
+  const { user_id: userId, email } = req.body || {};
+
+  if (!userId && !email) {
+    return res.status(400).json({
+      ok: false,
+      message: '재발송에 필요한 정보가 누락되었습니다.',
+    });
+  }
+
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+  const cooldownMs = 1000 * 60;
+  const otpExpiresMinutes = 10;
+
+  const query = normalizedEmail
+    ? 'SELECT id, name, nickname, email, is_verified FROM users WHERE email = ?'
+    : 'SELECT id, name, nickname, email, is_verified FROM users WHERE id = ?';
+  const params = normalizedEmail ? [normalizedEmail] : [userId];
+
+  db.get(query, params, (userErr, user) => {
+    if (userErr) {
+      console.error('사용자 조회 오류:', userErr);
+      return res.status(500).json({ ok: false, message: '서버 오류가 발생했습니다.' });
+    }
+
+    if (!user) {
+      return res.status(404).json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    if (user.is_verified) {
+      return res.json({ ok: true, message: '이미 이메일 인증이 완료된 계정입니다.' });
+    }
+
+    db.get(
+      `
+      SELECT id, created_at
+      FROM otp_verifications
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+      `,
+      [user.id],
+      async (otpErr, otpRow) => {
+        if (otpErr) {
+          console.error('OTP 조회 오류:', otpErr);
+          return res.status(500).json({ ok: false, message: '서버 오류가 발생했습니다.' });
+        }
+
+        if (otpRow && otpRow.created_at) {
+          const createdAt = new Date(otpRow.created_at).getTime();
+          const elapsedMs = Date.now() - createdAt;
+          if (!Number.isNaN(createdAt) && elapsedMs < cooldownMs) {
+            const retryAfter = Math.ceil((cooldownMs - elapsedMs) / 1000);
+            return res.status(429).json({
+              ok: false,
+              message: `재발송은 ${retryAfter}초 후에 가능합니다.`,
+              retry_after: retryAfter,
+            });
+          }
+        }
+
+        const otpCode = String(crypto.randomInt(100000, 1000000));
+        const otpHash = await bcrypt.hash(otpCode, 10);
+        const expiresAt = new Date(Date.now() + 1000 * 60 * otpExpiresMinutes).toISOString();
+
+        db.run(
+          `
+          DELETE FROM otp_verifications
+          WHERE user_id = ?
+          `,
+          [user.id],
+          (deleteErr) => {
+            if (deleteErr) {
+              console.error('OTP 정리 오류:', deleteErr);
+            }
+
+            db.run(
+              `
+              INSERT INTO otp_verifications (user_id, code_hash, expires_at, attempts)
+              VALUES (?, ?, ?, 0)
+              `,
+              [user.id, otpHash, expiresAt],
+              (insertErr) => {
+                if (insertErr) {
+                  console.error('OTP 저장 오류:', insertErr);
+                  return res.status(500).json({
+                    ok: false,
+                    message: 'OTP 저장 중 오류가 발생했습니다.',
+                  });
+                }
+
+                res.json({
+                  ok: true,
+                  message: '인증 번호를 다시 발송했습니다.',
+                  retry_after: Math.ceil(cooldownMs / 1000),
+                });
+
+                transporter.sendMail(
+                  {
+                    from: `"글숲" <${process.env.GMAIL_USER}>`,
+                    to: user.email,
+                    subject: '[글숲] 이메일 인증 번호를 다시 확인해주세요',
+                    html: `
+                      <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
+                        <p><strong>${user.nickname || user.name}님, 안녕하세요.</strong></p>
+                        <p>요청하신 인증 번호를 다시 보내드립니다. 아래 번호를 입력해 이메일 인증을 완료해주세요.</p>
+                        <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
+                          ${otpCode}
+                        </p>
+                        <p style="font-size: 0.9rem; color:#888;">
+                          인증 번호는 ${otpExpiresMinutes}분 동안만 유효합니다.
+                        </p>
+                      </div>
+                    `,
+                  },
+                  (mailErr) => {
+                    if (mailErr) {
+                      console.error('인증 메일 재발송 오류:', mailErr);
+                    }
+                  }
+                );
+              }
+            );
+          }
+        );
+      }
+    );
+  });
 });
 
 // 6-3) 비밀번호 재설정 메일 요청
