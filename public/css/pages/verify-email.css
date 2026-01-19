@@ -1,5 +1,5 @@
 .page-verify {
-  min-height: 100dvh;
+  min-height: calc(100dvh - var(--gls-nav-height));
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
