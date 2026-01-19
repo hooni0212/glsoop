@@ -3,8 +3,6 @@
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .page-verify .auth-hero {
@@ -12,6 +10,10 @@
   padding: 5rem 0 4rem;
   color: var(--gls-color-text, #1f2a2b);
   flex: 1;
+}
+
+.page-verify .custom-footer {
+  margin-top: auto;
 }
 
 .page-verify .verify-shell {

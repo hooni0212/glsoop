@@ -17,9 +17,21 @@ document.addEventListener('DOMContentLoaded', () => {
   let cooldownRemaining = cooldownSeconds;
   let cooldownTimer = null;
 
+  const formatEmailForDisplay = (address) => {
+    if (!address || typeof address !== 'string') return '';
+    const trimmed = address.trim();
+    const atIndex = trimmed.indexOf('@');
+    if (atIndex === -1) return trimmed;
+    const local = trimmed.slice(0, atIndex);
+    const domain = trimmed.slice(atIndex + 1);
+    const visibleLocal = local.length <= 3 ? local : local.slice(0, 3);
+    const maskedLocal = local.length > 3 ? `${visibleLocal}****` : visibleLocal;
+    return `${maskedLocal}@${domain}`;
+  };
+
   if (helpEl && email) {
-    const masked = typeof maskEmail === 'function' ? maskEmail(email) : email;
-    helpEl.innerHTML = `<strong>${masked}</strong> 주소로 인증 번호를 보냈습니다. 메일에 있는 6자리 인증 번호를 입력해 주세요.`;
+    const displayEmail = formatEmailForDisplay(email) || email;
+    helpEl.innerHTML = `<strong>${displayEmail}</strong> 주소로 인증 번호를 보냈습니다. 메일에 있는 6자리 인증 번호를 입력해 주세요.`;
   }
 
   if (codeInput) {
