@@ -18,9 +18,11 @@ function createLimiter({ windowMs, max }) {
 const loginLimiter = createLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
 const signupLimiter = createLimiter({ windowMs: 60 * 60 * 1000, max: 20 });
 const passwordLimiter = createLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
+const otpResendLimiter = createLimiter({ windowMs: 15 * 60 * 1000, max: 5 });
 
 module.exports = {
   loginLimiter,
   signupLimiter,
   passwordLimiter,
+  otpResendLimiter,
 };

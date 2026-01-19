@@ -35,12 +35,8 @@
   padding-inline: var(--gls-page-margin);
 }
 
-html,
-body {
-  height: 100%;
-}
-
 html {
+  height: 100%;
   overflow-y: scroll;  /* 항상 세로 스크롤바 공간을 확보해서 레이아웃이 안 튀게 */
 }
 
@@ -58,6 +54,8 @@ body {
     sans-serif;
   background-color: var(--gls-color-bg);
   color: var(--gls-color-text);
+  min-height: 100dvh;
+  height: auto;
   padding-top: var(--gls-nav-height); /* fixed navbar와 겹치지 않도록 위에 여백 */
   line-height: var(--gls-lh-normal);
   position: relative;
@@ -107,4 +105,3 @@ select:focus-visible {
     scroll-behavior: auto !important;
   }
 }
-

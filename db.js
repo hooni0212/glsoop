@@ -35,6 +35,18 @@ db.serialize(() => {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS otp_verifications (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL,
+      code_hash  TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      attempts   INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
   // users 확장 컬럼이 없다면 추가 (레벨/XP/스트릭)
   db.all('PRAGMA table_info(users)', (err, columns) => {
     if (err) {
