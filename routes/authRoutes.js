@@ -8,6 +8,8 @@ const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { transporter, JWT_SECRET } = require('../config');
 const { authRequired } = require('../middleware/auth');
+const { getBaseUrl } = require('../utils/baseUrl');
+const { cleanupExpiredPending } = require('../utils/pendingSignup');
 const {
   loginLimiter,
   signupLimiter,
@@ -16,6 +18,97 @@ const {
 } = require('../middleware/rateLimiters');
 
 const router = express.Router();
+
+const OTP_TTL_MINUTES = 10;
+const OTP_COOLDOWN_MS = 1000 * 60;
+const PENDING_TTL_HOURS = 24;
+const MAX_OTP_ATTEMPTS = 5;
+
+const dbGet = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
+
+const dbRun = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) return reject(err);
+      resolve(this);
+    });
+  });
+
+function maskEmail(address) {
+  if (!address || typeof address !== 'string') return '';
+  const trimmed = address.trim();
+  const atIndex = trimmed.indexOf('@');
+  if (atIndex === -1) return trimmed;
+  const local = trimmed.slice(0, atIndex);
+  const domain = trimmed.slice(atIndex + 1);
+  const visibleLocal = local.length <= 3 ? local : local.slice(0, 3);
+  const maskedLocal = local.length > 3 ? `${visibleLocal}****` : visibleLocal;
+  return `${maskedLocal}@${domain}`;
+}
+
+function calculateRetryAfterSeconds(createdAt) {
+  if (!createdAt) return 0;
+  const createdAtMs = new Date(createdAt).getTime();
+  if (Number.isNaN(createdAtMs)) return 0;
+  const elapsedMs = Date.now() - createdAtMs;
+  if (elapsedMs >= OTP_COOLDOWN_MS) return 0;
+  return Math.ceil((OTP_COOLDOWN_MS - elapsedMs) / 1000);
+}
+
+async function commitPendingSignup(pending) {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run('BEGIN IMMEDIATE', (beginErr) => {
+        if (beginErr) return reject(beginErr);
+
+        db.run(
+          `
+          INSERT INTO users (
+            name,
+            nickname,
+            email,
+            pw,
+            is_admin,
+            is_verified,
+            verification_token,
+            verification_expires
+          )
+          VALUES (?, ?, ?, ?, 0, 1, NULL, NULL)
+          `,
+          [pending.name, pending.nickname, pending.email, pending.pw_hash],
+          function (insertErr) {
+            if (insertErr) {
+              return db.run('ROLLBACK', () => reject(insertErr));
+            }
+
+            const newUserId = this.lastID;
+
+            db.run(
+              'DELETE FROM pending_signups WHERE id = ?',
+              [pending.id],
+              (deleteErr) => {
+                if (deleteErr) {
+                  return db.run('ROLLBACK', () => reject(deleteErr));
+                }
+
+                db.run('COMMIT', (commitErr) => {
+                  if (commitErr) return reject(commitErr);
+                  resolve(newUserId);
+                });
+              }
+            );
+          }
+        );
+      });
+    });
+  });
+}
 
 // 6-1) 회원가입 + 이메일 OTP 발송
 router.post('/signup', signupLimiter, async (req, res) => {
@@ -29,95 +122,116 @@ router.post('/signup', signupLimiter, async (req, res) => {
   }
 
   try {
+    await cleanupExpiredPending();
+
     // 1) 비밀번호 해시 + 이메일 소문자 정규화
     const hashed = await bcrypt.hash(pw, 10);
     const normalizedEmail = email.trim().toLowerCase();
 
+    const existingUser = await dbGet('SELECT id FROM users WHERE email = ?', [
+      normalizedEmail,
+    ]);
+    if (existingUser) {
+      return res.status(409).json({
+        ok: false,
+        message: '이미 가입된 이메일입니다.',
+      });
+    }
+
+    const pendingExisting = await dbGet(
+      'SELECT id, email FROM pending_signups WHERE email = ?',
+      [normalizedEmail]
+    );
+
+    if (pendingExisting) {
+      const lastOtp = await dbGet(
+        `
+        SELECT created_at
+        FROM pending_otp_verifications
+        WHERE pending_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
+        [pendingExisting.id]
+      );
+      const retryAfter = calculateRetryAfterSeconds(lastOtp?.created_at);
+      return res.json({
+        ok: true,
+        message: '이미 가입 진행 중입니다. 이메일 인증을 완료해주세요.',
+        pending_id: pendingExisting.id,
+        email_masked: maskEmail(pendingExisting.email),
+        otp_ttl: OTP_TTL_MINUTES * 60,
+        resend_after: retryAfter,
+      });
+    }
+
     // 2) 이메일 OTP 생성 (10분 유효)
     const otpCode = String(crypto.randomInt(100000, 1000000));
     const otpHash = await bcrypt.hash(otpCode, 10);
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString();
+    const otpExpiresAt = new Date(
+      Date.now() + 1000 * 60 * OTP_TTL_MINUTES
+    ).toISOString();
+    const pendingExpiresAt = new Date(
+      Date.now() + 1000 * 60 * 60 * PENDING_TTL_HOURS
+    ).toISOString();
 
-    // 3) 신규 사용자 저장
-    db.run(
+    const pendingResult = await dbRun(
       `
-      INSERT INTO users (
-        name,
-        nickname,
-        email,
-        pw,
-        is_admin,
-        is_verified,
-        verification_token,
-        verification_expires
-      )
-      VALUES (?, ?, ?, ?, 0, 0, NULL, NULL)
+      INSERT INTO pending_signups (name, nickname, email, pw_hash, expires_at)
+      VALUES (?, ?, ?, ?, ?)
       `,
-      [name, nickname, normalizedEmail, hashed],
-      function (err) {
-        if (err) {
-          if (err.message && err.message.includes('UNIQUE')) {
-            return res
-              .status(400)
-              .json({ ok: false, message: '이미 사용 중인 이메일입니다.' });
-          }
-          console.error(err);
-          return res
-            .status(500)
-            .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
+      [name, nickname, normalizedEmail, hashed, pendingExpiresAt]
+    );
+
+    const pendingId = pendingResult.lastID;
+
+    await dbRun(
+      `
+      INSERT INTO pending_otp_verifications (pending_id, code_hash, expires_at, attempts)
+      VALUES (?, ?, ?, 0)
+      `,
+      [pendingId, otpHash, otpExpiresAt]
+    );
+
+    res.json({
+      ok: true,
+      message: '인증 번호를 이메일로 발송했습니다.',
+      pending_id: pendingId,
+      email_masked: maskEmail(normalizedEmail),
+      otp_ttl: OTP_TTL_MINUTES * 60,
+      resend_after: Math.ceil(OTP_COOLDOWN_MS / 1000),
+    });
+
+    transporter.sendMail(
+      {
+        from: `"글숲" <${process.env.GMAIL_USER}>`,
+        to: normalizedEmail,
+        subject: '[글숲] 이메일 인증 번호를 확인해주세요',
+        html: `
+          <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
+            <p><strong>${nickname || name}님, 안녕하세요.</strong></p>
+            <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
+            <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
+              ${otpCode}
+            </p>
+            <p style="font-size: 0.9rem; color:#888;">
+              인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
+            </p>
+          </div>
+        `,
+      },
+      (mailErr) => {
+        if (mailErr) {
+          console.error('인증 메일 발송 오류:', mailErr);
         }
-
-        const otpExpiresMinutes = 10;
-
-        db.run(
-          `
-          INSERT INTO otp_verifications (user_id, code_hash, expires_at, attempts)
-          VALUES (?, ?, ?, 0)
-          `,
-          [this.lastID, otpHash, expiresAt],
-          (otpErr) => {
-            if (otpErr) {
-              console.error('OTP 저장 오류:', otpErr);
-              return res
-                .status(500)
-                .json({ ok: false, message: 'OTP 저장 중 오류가 발생했습니다.' });
-            }
-
-            res.json({
-              ok: true,
-              message: '인증 번호를 이메일로 발송했습니다.',
-              user_id: this.lastID,
-            });
-
-            transporter.sendMail(
-              {
-                from: `"글숲" <${process.env.GMAIL_USER}>`,
-                to: normalizedEmail,
-                subject: '[글숲] 이메일 인증 번호를 확인해주세요',
-                html: `
-                  <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-                    <p><strong>${nickname || name}님, 안녕하세요.</strong></p>
-                    <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
-                    <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
-                      ${otpCode}
-                    </p>
-                    <p style="font-size: 0.9rem; color:#888;">
-                      인증 번호는 ${otpExpiresMinutes}분 동안만 유효합니다.
-                    </p>
-                  </div>
-                `,
-              },
-              (mailErr) => {
-                if (mailErr) {
-                  console.error('인증 메일 발송 오류:', mailErr);
-                }
-              }
-            );
-          }
-        );
       }
     );
   } catch (e) {
+    if (e && e.code === 'SQLITE_CONSTRAINT') {
+      return res
+        .status(409)
+        .json({ ok: false, message: '이미 가입 진행 중인 이메일입니다.' });
+    }
     console.error(e);
     return res
       .status(500)
@@ -127,141 +241,128 @@ router.post('/signup', signupLimiter, async (req, res) => {
 
 // 6-2) 이메일 OTP 인증 처리
 router.post('/verify-email', async (req, res) => {
-  const { user_id: userId, verification_code: verificationCode } = req.body || {};
+  const { pending_id: pendingId, verification_code: verificationCode } =
+    req.body || {};
 
-  if (!userId || !verificationCode) {
+  if (!pendingId || !verificationCode) {
     return res.status(400).json({
       ok: false,
       message: '인증에 필요한 정보가 누락되었습니다.',
     });
   }
 
-  db.get(
-    `
-    SELECT id, is_verified
-    FROM users
-    WHERE id = ?
-    `,
-    [userId],
-    (userErr, user) => {
-      if (userErr) {
-        console.error('사용자 조회 오류:', userErr);
-        return res.status(500).json({ ok: false, message: '서버 오류가 발생했습니다.' });
-      }
+  try {
+    await cleanupExpiredPending();
 
-      if (!user) {
-        return res.status(404).json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
-      }
+    const pending = await dbGet(
+      `
+      SELECT id, name, nickname, email, pw_hash
+      FROM pending_signups
+      WHERE id = ?
+      `,
+      [pendingId]
+    );
 
-      if (user.is_verified) {
-        return res.json({ ok: true, message: '이미 이메일 인증이 완료된 계정입니다.' });
-      }
-
-      db.get(
-        `
-        SELECT id, code_hash, expires_at, attempts
-        FROM otp_verifications
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-        LIMIT 1
-        `,
-        [userId],
-        async (otpErr, otpRow) => {
-          if (otpErr) {
-            console.error('OTP 조회 오류:', otpErr);
-            return res.status(500).json({ ok: false, message: '서버 오류가 발생했습니다.' });
-          }
-
-          if (!otpRow) {
-            return res.status(400).json({
-              ok: false,
-              message: '인증 번호가 존재하지 않습니다. 회원가입을 다시 진행해 주세요.',
-            });
-          }
-
-          const now = Date.now();
-          const expiresTime = new Date(otpRow.expires_at).getTime();
-          const maxAttempts = 5;
-
-          if (isNaN(expiresTime) || expiresTime < now) {
-            return res.status(400).json({
-              ok: false,
-              message: '인증 번호가 만료되었습니다. 회원가입을 다시 진행해 주세요.',
-            });
-          }
-
-          if (otpRow.attempts >= maxAttempts) {
-            return res.status(400).json({
-              ok: false,
-              message: '인증 시도 횟수를 초과했습니다. 회원가입을 다시 진행해 주세요.',
-            });
-          }
-
-          const matches = await bcrypt.compare(String(verificationCode), otpRow.code_hash);
-
-          if (!matches) {
-            db.run(
-              `
-              UPDATE otp_verifications
-              SET attempts = attempts + 1
-              WHERE id = ?
-              `,
-              [otpRow.id],
-              (attemptErr) => {
-                if (attemptErr) {
-                  console.error('OTP 시도 횟수 업데이트 오류:', attemptErr);
-                }
-                return res.status(400).json({
-                  ok: false,
-                  message: '인증 번호가 올바르지 않습니다.',
-                });
-              }
-            );
-            return;
-          }
-
-          db.run(
-            `
-            UPDATE users
-            SET is_verified = 1
-            WHERE id = ?
-            `,
-            [userId],
-            (updateErr) => {
-              if (updateErr) {
-                console.error('이메일 인증 업데이트 오류:', updateErr);
-                return res.status(500).json({
-                  ok: false,
-                  message: '이메일 인증에 실패했습니다.',
-                });
-              }
-
-              db.run(
-                `
-                DELETE FROM otp_verifications
-                WHERE user_id = ?
-                `,
-                [userId],
-                (deleteErr) => {
-                  if (deleteErr) {
-                    console.error('OTP 삭제 오류:', deleteErr);
-                  }
-                  return res.json({ ok: true, message: '이메일 인증이 완료되었습니다.' });
-                }
-              );
-            }
-          );
-        }
-      );
+    if (!pending) {
+      return res.status(404).json({
+        ok: false,
+        message: '가입 정보를 찾을 수 없습니다. 회원가입을 다시 진행해 주세요.',
+      });
     }
-  );
+
+    const otpRow = await dbGet(
+      `
+      SELECT id, code_hash, expires_at, attempts
+      FROM pending_otp_verifications
+      WHERE pending_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+      `,
+      [pendingId]
+    );
+
+    if (!otpRow) {
+      return res.status(400).json({
+        ok: false,
+        message: '인증 번호가 존재하지 않습니다. 회원가입을 다시 진행해 주세요.',
+      });
+    }
+
+    const now = Date.now();
+    const expiresTime = new Date(otpRow.expires_at).getTime();
+
+    if (Number.isNaN(expiresTime) || expiresTime < now) {
+      return res.status(400).json({
+        ok: false,
+        message: '인증 번호가 만료되었습니다. 회원가입을 다시 진행해 주세요.',
+      });
+    }
+
+    if (otpRow.attempts >= MAX_OTP_ATTEMPTS) {
+      await dbRun('DELETE FROM pending_signups WHERE id = ?', [pendingId]);
+      return res.status(400).json({
+        ok: false,
+        message: '인증 시도 횟수를 초과했습니다. 회원가입을 다시 진행해 주세요.',
+      });
+    }
+
+    const matches = await bcrypt.compare(
+      String(verificationCode),
+      otpRow.code_hash
+    );
+
+    if (!matches) {
+      const nextAttempts = otpRow.attempts + 1;
+      await dbRun(
+        `
+        UPDATE pending_otp_verifications
+        SET attempts = ?
+        WHERE id = ?
+        `,
+        [nextAttempts, otpRow.id]
+      );
+
+      if (nextAttempts >= MAX_OTP_ATTEMPTS) {
+        await dbRun('DELETE FROM pending_signups WHERE id = ?', [pendingId]);
+        return res.status(400).json({
+          ok: false,
+          message: '인증 시도 횟수를 초과했습니다. 회원가입을 다시 진행해 주세요.',
+        });
+      }
+
+      return res.status(400).json({
+        ok: false,
+        message: '인증 번호가 올바르지 않습니다.',
+      });
+    }
+
+    const userId = await commitPendingSignup(pending);
+
+    return res.json({
+      ok: true,
+      message: '이메일 인증이 완료되었습니다.',
+      user_id: userId,
+      redirect_url: `${getBaseUrl(req)}/html/login.html`,
+    });
+  } catch (error) {
+    if (error && error.code === 'SQLITE_CONSTRAINT') {
+      return res.status(409).json({
+        ok: false,
+        message: '이미 가입된 이메일입니다. 로그인 페이지로 이동해 주세요.',
+      });
+    }
+    console.error('OTP 처리 오류:', error);
+    return res
+      .status(500)
+      .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+  }
 });
 
 // 6-2-1) 이메일 OTP 재발송
 router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
-  const { user_id: userId, email } = req.body || {};
+  const { pending_id: pendingId, email } = req.body || {};
 
-  if (!userId && !email) {
+  if (!pendingId && !email) {
     return res.status(400).json({
       ok: false,
       message: '재발송에 필요한 정보가 누락되었습니다.',
@@ -269,123 +370,105 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
   }
 
   const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
-  const cooldownMs = 1000 * 60;
-  const otpExpiresMinutes = 10;
 
-  const query = normalizedEmail
-    ? 'SELECT id, name, nickname, email, is_verified FROM users WHERE email = ?'
-    : 'SELECT id, name, nickname, email, is_verified FROM users WHERE id = ?';
-  const params = normalizedEmail ? [normalizedEmail] : [userId];
+  try {
+    await cleanupExpiredPending();
 
-  db.get(query, params, (userErr, user) => {
-    if (userErr) {
-      console.error('사용자 조회 오류:', userErr);
-      return res.status(500).json({ ok: false, message: '서버 오류가 발생했습니다.' });
+    const pending = normalizedEmail
+      ? await dbGet(
+          'SELECT id, name, nickname, email FROM pending_signups WHERE email = ?',
+          [normalizedEmail]
+        )
+      : await dbGet(
+          'SELECT id, name, nickname, email FROM pending_signups WHERE id = ?',
+          [pendingId]
+        );
+
+    if (!pending) {
+      return res
+        .status(404)
+        .json({ ok: false, message: '가입 진행 정보를 찾을 수 없습니다.' });
     }
 
-    if (!user) {
-      return res.status(404).json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
-    }
-
-    if (user.is_verified) {
-      return res.json({ ok: true, message: '이미 이메일 인증이 완료된 계정입니다.' });
-    }
-
-    db.get(
+    const otpRow = await dbGet(
       `
       SELECT id, created_at
-      FROM otp_verifications
-      WHERE user_id = ?
+      FROM pending_otp_verifications
+      WHERE pending_id = ?
       ORDER BY created_at DESC
       LIMIT 1
       `,
-      [user.id],
-      async (otpErr, otpRow) => {
-        if (otpErr) {
-          console.error('OTP 조회 오류:', otpErr);
-          return res.status(500).json({ ok: false, message: '서버 오류가 발생했습니다.' });
+      [pending.id]
+    );
+
+    const retryAfter = calculateRetryAfterSeconds(otpRow?.created_at);
+    if (retryAfter > 0) {
+      return res.status(429).json({
+        ok: false,
+        message: `재발송은 ${retryAfter}초 후에 가능합니다.`,
+        retry_after: retryAfter,
+      });
+    }
+
+    const otpCode = String(crypto.randomInt(100000, 1000000));
+    const otpHash = await bcrypt.hash(otpCode, 10);
+    const expiresAt = new Date(
+      Date.now() + 1000 * 60 * OTP_TTL_MINUTES
+    ).toISOString();
+
+    await dbRun(
+      `
+      DELETE FROM pending_otp_verifications
+      WHERE pending_id = ?
+      `,
+      [pending.id]
+    );
+
+    await dbRun(
+      `
+      INSERT INTO pending_otp_verifications (pending_id, code_hash, expires_at, attempts)
+      VALUES (?, ?, ?, 0)
+      `,
+      [pending.id, otpHash, expiresAt]
+    );
+
+    res.json({
+      ok: true,
+      message: '인증 번호를 다시 발송했습니다.',
+      retry_after: Math.ceil(OTP_COOLDOWN_MS / 1000),
+    });
+
+    transporter.sendMail(
+      {
+        from: `"글숲" <${process.env.GMAIL_USER}>`,
+        to: pending.email,
+        subject: '[글숲] 이메일 인증 번호를 다시 확인해주세요',
+        html: `
+          <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
+            <p><strong>${pending.nickname || pending.name}님, 안녕하세요.</strong></p>
+            <p>요청하신 인증 번호를 다시 보내드립니다. 아래 번호를 입력해 이메일 인증을 완료해주세요.</p>
+            <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
+              ${otpCode}
+            </p>
+            <p style="font-size: 0.9rem; color:#888;">
+              인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
+            </p>
+          </div>
+        `,
+      },
+      (mailErr) => {
+        if (mailErr) {
+          console.error('인증 메일 재발송 오류:', mailErr);
         }
-
-        if (otpRow && otpRow.created_at) {
-          const createdAt = new Date(otpRow.created_at).getTime();
-          const elapsedMs = Date.now() - createdAt;
-          if (!Number.isNaN(createdAt) && elapsedMs < cooldownMs) {
-            const retryAfter = Math.ceil((cooldownMs - elapsedMs) / 1000);
-            return res.status(429).json({
-              ok: false,
-              message: `재발송은 ${retryAfter}초 후에 가능합니다.`,
-              retry_after: retryAfter,
-            });
-          }
-        }
-
-        const otpCode = String(crypto.randomInt(100000, 1000000));
-        const otpHash = await bcrypt.hash(otpCode, 10);
-        const expiresAt = new Date(Date.now() + 1000 * 60 * otpExpiresMinutes).toISOString();
-
-        db.run(
-          `
-          DELETE FROM otp_verifications
-          WHERE user_id = ?
-          `,
-          [user.id],
-          (deleteErr) => {
-            if (deleteErr) {
-              console.error('OTP 정리 오류:', deleteErr);
-            }
-
-            db.run(
-              `
-              INSERT INTO otp_verifications (user_id, code_hash, expires_at, attempts)
-              VALUES (?, ?, ?, 0)
-              `,
-              [user.id, otpHash, expiresAt],
-              (insertErr) => {
-                if (insertErr) {
-                  console.error('OTP 저장 오류:', insertErr);
-                  return res.status(500).json({
-                    ok: false,
-                    message: 'OTP 저장 중 오류가 발생했습니다.',
-                  });
-                }
-
-                res.json({
-                  ok: true,
-                  message: '인증 번호를 다시 발송했습니다.',
-                  retry_after: Math.ceil(cooldownMs / 1000),
-                });
-
-                transporter.sendMail(
-                  {
-                    from: `"글숲" <${process.env.GMAIL_USER}>`,
-                    to: user.email,
-                    subject: '[글숲] 이메일 인증 번호를 다시 확인해주세요',
-                    html: `
-                      <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-                        <p><strong>${user.nickname || user.name}님, 안녕하세요.</strong></p>
-                        <p>요청하신 인증 번호를 다시 보내드립니다. 아래 번호를 입력해 이메일 인증을 완료해주세요.</p>
-                        <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
-                          ${otpCode}
-                        </p>
-                        <p style="font-size: 0.9rem; color:#888;">
-                          인증 번호는 ${otpExpiresMinutes}분 동안만 유효합니다.
-                        </p>
-                      </div>
-                    `,
-                  },
-                  (mailErr) => {
-                    if (mailErr) {
-                      console.error('인증 메일 재발송 오류:', mailErr);
-                    }
-                  }
-                );
-              }
-            );
-          }
-        );
       }
     );
-  });
+  } catch (error) {
+    console.error('OTP 재발송 오류:', error);
+    return res.status(500).json({
+      ok: false,
+      message: 'OTP 재발송 중 오류가 발생했습니다.',
+    });
+  }
 });
 
 // 6-3) 비밀번호 재설정 메일 요청
@@ -603,14 +686,6 @@ router.post('/login', loginLimiter, (req, res) => {
         return res
           .status(400)
           .json({ ok: false, message: '비밀번호가 틀렸습니다.' });
-      }
-
-      if (!user.is_verified) {
-        return res.status(403).json({
-          ok: false,
-          message:
-            '이메일 인증이 완료되지 않았습니다. 메일함에서 인증 링크를 확인해주세요.',
-        });
       }
 
       const token = jwt.sign(

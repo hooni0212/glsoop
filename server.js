@@ -12,6 +12,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const { applySecurity } = require('./middleware/security');
+const { cleanupExpiredPending } = require('./utils/pendingSignup');
 
 // 환경 변수 및 메일/JWT 설정, DB는 각각 모듈에서 처리
 // (실제 DB 연결 로직은 db.js, 이메일/JWT 키는 config.js에서 초기화됨)
@@ -32,6 +33,7 @@ const app = express();
 // 로컬 개발은 3000, 배포 환경에서는 포트 환경 변수 사용
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+const PENDING_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
 
 // 프록시/로드밸런서 뒤에서도 올바른 프로토콜 정보를 사용하기 위함
 app.set('trust proxy', 1);
@@ -87,3 +89,13 @@ app.get('/', (req, res) => {
 app.listen(PORT, HOST, () => {
   console.log(`Server running on http://${HOST}:${PORT}`);
 });
+
+cleanupExpiredPending().catch((error) => {
+  console.error('pending signup cleanup failed:', error);
+});
+
+setInterval(() => {
+  cleanupExpiredPending().catch((error) => {
+    console.error('pending signup cleanup failed:', error);
+  });
+}, PENDING_CLEANUP_INTERVAL_MS);

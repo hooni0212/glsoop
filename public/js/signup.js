@@ -134,10 +134,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // 백엔드에서 message를 내려주면 그걸 우선 사용
       alert(data.message || '인증 번호를 이메일로 발송했습니다.');
 
-      const targetUserId = data.user_id ? String(data.user_id) : '';
+      const pendingId = data.pending_id ? String(data.pending_id) : '';
       const query = new URLSearchParams();
-      if (targetUserId) {
-        query.set('user_id', targetUserId);
+      if (pendingId) {
+        query.set('pending_id', pendingId);
       }
       if (email) {
         query.set('email', email);
