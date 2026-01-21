@@ -246,8 +246,10 @@ const HomeCuration = (() => {
     }
 
     const transitionDuration = 700;
-    const autoplayInterval = 5500;
+    const autoplayInterval = 6500;
     const initialDelay = 2000;
+    const staggerDelay =
+      container.id === 'curationStayList' ? 1200 : 0;
 
     let currentIndex = 0;
     let nextIndex = 1;
@@ -331,7 +333,7 @@ const HomeCuration = (() => {
       renderCurationList(container, limited.slice(0, SECTION_LIMIT));
       return;
     }
-    scheduleNext(autoplayInterval + initialDelay);
+    scheduleNext(autoplayInterval + initialDelay + staggerDelay);
 
     viewport.addEventListener('mouseenter', stopTimer);
     viewport.addEventListener('mouseleave', () => {
