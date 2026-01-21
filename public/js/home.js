@@ -38,6 +38,11 @@ const HomeCuration = (() => {
       fetchPosts({ sort: 'latest', limit: FEATURED_LIMIT }),
     ]);
 
+    console.log('[home] curation counts', {
+      popular: popular.length,
+      latest: latest.length,
+    });
+
     state.popular = popular;
     state.latest = latest;
     state.randomPool = uniquePosts([...popular, ...latest]);
@@ -207,7 +212,7 @@ const HomeCuration = (() => {
     const slides = chunkPosts(limited, SECTION_LIMIT);
 
     if (slides.length <= 1) {
-      renderCurationList(container, limited);
+      renderCurationList(container, limited.slice(0, SECTION_LIMIT));
       return;
     }
 
@@ -235,6 +240,11 @@ const HomeCuration = (() => {
     const reduceMotion = window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    if (reduceMotion) {
+      renderCurationList(container, limited.slice(0, SECTION_LIMIT));
+      return;
+    }
+
     let currentIndex = 0;
     let nextIndex = 1;
     let isAnimating = false;
@@ -245,12 +255,11 @@ const HomeCuration = (() => {
       if (height) {
         viewport.style.minHeight = `${height}px`;
       }
+      return height;
     };
 
     const goNext = () => {
       if (isAnimating) return;
-      if (reduceMotion) return;
-
       isAnimating = true;
       nextSlide.setAttribute('aria-hidden', 'false');
       currentSlide.setAttribute('aria-hidden', 'true');
@@ -265,7 +274,7 @@ const HomeCuration = (() => {
     };
 
     const startTimer = () => {
-      if (timerId || reduceMotion) return;
+      if (timerId) return;
       timerId = window.setInterval(goNext, 3500);
     };
 
@@ -295,7 +304,11 @@ const HomeCuration = (() => {
     nextSlide.addEventListener('transitionend', handleTransitionEnd);
     currentSlide.setAttribute('aria-hidden', 'false');
     nextSlide.setAttribute('aria-hidden', 'true');
-    updateViewportHeight();
+    const initialHeight = updateViewportHeight();
+    if (!initialHeight) {
+      renderCurationList(container, limited.slice(0, SECTION_LIMIT));
+      return;
+    }
     startTimer();
 
     viewport.addEventListener('mouseenter', stopTimer);
@@ -310,9 +323,6 @@ const HomeCuration = (() => {
     });
 
     window.addEventListener('resize', updateViewportHeight);
-    if (reduceMotion) {
-      stopTimer();
-    }
   }
 
   function chunkPosts(posts, size) {
