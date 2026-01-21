@@ -24,11 +24,7 @@ const HomeCuration = (() => {
         '머무는 글을 불러오지 못했습니다.'
       );
       renderEmptyState(
-        document.getElementById('curationAuthorPosts'),
-        '작가 글을 불러오지 못했습니다.'
-      );
-      renderEmptyState(
-        document.getElementById('curationEditorPick'),
+        document.getElementById('todayPickExcerpt'),
         '추천 글을 불러오지 못했습니다.'
       );
     });
@@ -103,57 +99,48 @@ const HomeCuration = (() => {
     const nameEl = document.getElementById('curationAuthorName');
     const copyEl = document.getElementById('curationAuthorCopy');
     const linkEl = document.getElementById('curationAuthorLink');
-    const postsEl = document.getElementById('curationAuthorPosts');
-
-    if (!postsEl) return;
 
     const author = pickTopAuthor(state.popular);
     if (!author) {
-      renderEmptyState(postsEl, '추천할 작가를 찾지 못했어요.');
+      if (nameEl) nameEl.textContent = '추천 작가를 찾지 못했어요';
+      if (copyEl) copyEl.textContent = '조금 뒤에 다시 확인해주세요.';
       return;
     }
 
     const authorName = buildAuthorName(author);
 
-    if (nameEl) nameEl.textContent = `${authorName} 님`;
+    if (nameEl) nameEl.textContent = `${authorName}`;
     if (copyEl) {
-      copyEl.textContent = '공감이 이어진 글을 남긴 작가의 숲으로 초대합니다.';
+      copyEl.textContent = '이번 달 공감이 모인 작가를 소개합니다.';
     }
     if (linkEl) {
       linkEl.href = `/html/author.html?userId=${encodeURIComponent(author.author_id)}`;
     }
-
-    try {
-      const res = await fetch(
-        `/api/users/${encodeURIComponent(author.author_id)}/posts?limit=3&offset=0`
-      );
-      const data = await res.json();
-      const posts = Array.isArray(data.posts) ? data.posts : [];
-      renderCurationList(postsEl, posts.slice(0, 3));
-    } catch (error) {
-      console.error('작가 글 로드 실패:', error);
-      renderEmptyState(postsEl, '작가의 글을 불러오지 못했습니다.');
-    }
   }
 
   function renderEditorPick() {
-    const featuredEl = document.getElementById('curationEditorPick');
-    if (!featuredEl) return;
+    const titleEl = document.getElementById('todayPickTitle');
+    const excerptEl = document.getElementById('todayPickExcerpt');
+    const linkEl = document.getElementById('todayPickLink');
+    if (!titleEl || !excerptEl || !linkEl) return;
 
     const pool = state.latest.length ? state.latest : state.popular;
     if (!pool.length) {
-      renderEmptyState(featuredEl, '추천 글을 찾지 못했어요.');
+      titleEl.textContent = '추천 글을 찾지 못했어요';
+      excerptEl.textContent = '조금 뒤에 다시 확인해주세요.';
+      linkEl.href = '/explore';
       return;
     }
 
     const pick = pool[Math.floor(Math.random() * pool.length)];
-    featuredEl.innerHTML = buildFeaturedCard(pick);
+    titleEl.textContent = pick.title || '제목 없는 글';
+    excerptEl.textContent = buildExcerpt(pick.content || '', 90);
+    linkEl.href = `/html/post.html?postId=${encodeURIComponent(pick.id)}`;
   }
 
   function setupRandomButtons() {
     const buttons = [
       document.getElementById('randomPostBtn'),
-      document.getElementById('randomPostBtnBottom'),
     ].filter(Boolean);
 
     buttons.forEach((button) => {
@@ -172,7 +159,6 @@ const HomeCuration = (() => {
     const disabled = state.randomPool.length === 0;
     const buttons = [
       document.getElementById('randomPostBtn'),
-      document.getElementById('randomPostBtnBottom'),
     ].filter(Boolean);
 
     buttons.forEach((button) => {
@@ -212,6 +198,11 @@ const HomeCuration = (() => {
 
   function renderEmptyState(container, message) {
     if (!container) return;
+    if (!(container instanceof HTMLElement)) return;
+    if (container.tagName === 'P') {
+      container.textContent = message;
+      return;
+    }
     container.innerHTML = `<p class="gls-text-muted">${escapeHtml(message)}</p>`;
   }
 
@@ -234,23 +225,6 @@ const HomeCuration = (() => {
     `;
   }
 
-  function buildFeaturedCard(post) {
-    const title = escapeHtml(post.title || '제목 없는 글');
-    const excerpt = escapeHtml(buildExcerpt(post.content || '', 140));
-    const author = escapeHtml(buildAuthorName(post));
-    const href = `/html/post.html?postId=${encodeURIComponent(post.id)}`;
-
-    return `
-      <a class="curation-featured-card" href="${href}">
-        <div class="curation-featured-body">
-          <p class="curation-featured-label">오늘의 글</p>
-          <h4>${title}</h4>
-          <p class="curation-featured-excerpt">${excerpt}</p>
-          <span class="curation-author">${author}</span>
-        </div>
-      </a>
-    `;
-  }
 
   function buildExcerpt(html, maxLength = 90) {
     const plain = stripHtml(html).trim();

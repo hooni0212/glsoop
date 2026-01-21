@@ -158,103 +158,77 @@
   </nav>
 
   <main class="home-hub">
-    <section class="home-intro">
-      <div class="container gls-container">
-        <div class="home-intro-card">
-          <p class="home-intro-title">오늘 마음이 기대어 쉴 자리</p>
-          <p class="home-intro-copy">
-            긴 이야기를 펼치기 전, 한 줄 위로와 조용한 시선이 머무는 글들을 모았습니다.
-          </p>
-        </div>
-        <div class="home-intro-actions">
-          <a class="gls-btn gls-btn-primary" href="/explore">탐색하기</a>
-          <button class="gls-btn gls-btn-secondary" id="randomPostBtn" type="button">
-            랜덤으로 한 편
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section class="home-section">
-      <div class="container gls-container">
-        <div class="home-section-header">
-          <div>
-            <h3 id="curationMonthTitle">이번 달 가장 많은 위로를 받은 글들</h3>
-            <p class="home-section-subtitle" id="curationMonthCopy">
-              최근 30일 동안 공감이 이어진 글을 골랐어요.
-            </p>
+    <div class="container gls-container">
+      <div class="home-layout">
+        <section class="home-main">
+          <div class="home-hero">
+            <h1 class="home-hero-title">글숲</h1>
+            <p class="home-hero-copy">오늘 읽을 이야기의 방향을 고르고 시작하세요.</p>
+            <div class="home-hero-actions">
+              <a class="gls-btn gls-btn-primary" href="/explore">읽기 시작</a>
+              <a class="gls-btn gls-btn-secondary" href="/explore">전체 글</a>
+            </div>
           </div>
-          <a class="home-section-link" href="/explore">모든 글 보기</a>
-        </div>
-        <div class="curation-grid" id="curationMonthList">
-          <p class="gls-text-muted">추천 글을 불러오는 중입니다...</p>
-        </div>
-      </div>
-    </section>
 
-    <section class="home-section">
-      <div class="container gls-container">
-        <div class="home-section-header">
-          <div>
-            <h3>요즘 사람들이 오래 머무는 글들</h3>
-            <p class="home-section-subtitle">최근 반응과 최신 글을 함께 살펴봤어요.</p>
-          </div>
-        </div>
-        <div class="curation-grid" id="curationStayList">
-          <p class="gls-text-muted">머무는 글을 모으는 중입니다...</p>
-        </div>
-      </div>
-    </section>
+          <section class="home-section">
+            <div class="home-section-header">
+              <div>
+                <h3 id="curationMonthTitle">이번 달 많이 위로받은 글</h3>
+                <p class="home-section-subtitle" id="curationMonthCopy">
+                  최근 30일 동안 공감이 이어진 글을 모았습니다.
+                </p>
+              </div>
+              <a class="home-section-link" href="/explore">더보기</a>
+            </div>
+            <div class="curation-grid" id="curationMonthList">
+              <p class="gls-text-muted">추천 글을 불러오는 중입니다...</p>
+            </div>
+          </section>
 
-    <section class="home-section">
-      <div class="container gls-container">
-        <div class="home-section-header">
-          <div>
-            <p class="home-eyebrow">이달의 작가</p>
-            <h3 id="curationAuthorName">추천 작가를 찾는 중이에요</h3>
-            <p class="home-section-subtitle" id="curationAuthorCopy">
-              공감이 모인 글을 남긴 작가를 소개합니다.
-            </p>
-          </div>
-          <a class="gls-btn gls-btn-secondary" id="curationAuthorLink" href="/explore">
-            이 작가 글로 들어가기
-          </a>
-        </div>
-        <div class="curation-grid" id="curationAuthorPosts">
-          <p class="gls-text-muted">작가의 글을 불러오는 중입니다...</p>
-        </div>
-      </div>
-    </section>
+          <section class="home-section">
+            <div class="home-section-header">
+              <div>
+                <h3>요즘 많이 읽히는 글</h3>
+                <p class="home-section-subtitle">최근 반응과 최신 글을 함께 살펴봤어요.</p>
+              </div>
+              <a class="home-section-link" href="/explore">더보기</a>
+            </div>
+            <div class="curation-grid" id="curationStayList">
+              <p class="gls-text-muted">머무는 글을 모으는 중입니다...</p>
+            </div>
+          </section>
+        </section>
 
-    <section class="home-section">
-      <div class="container gls-container">
-        <div class="home-section-header">
-          <div>
-            <h3>오늘의 추천 숲</h3>
-            <p class="home-section-subtitle">오늘은 이런 글이 어울려요.</p>
-          </div>
-        </div>
-        <div class="curation-featured" id="curationEditorPick">
-          <p class="gls-text-muted">추천 글을 고르는 중입니다...</p>
-        </div>
-      </div>
-    </section>
+        <aside class="home-side">
+          <section class="home-side-block home-side-pick">
+            <h4>오늘의 추천</h4>
+            <p class="home-side-title" id="todayPickTitle">추천 글을 고르는 중입니다</p>
+            <p class="home-side-copy" id="todayPickExcerpt">잠시만 기다려주세요.</p>
+            <a class="gls-btn gls-btn-secondary" id="todayPickLink" href="/explore">읽기</a>
+          </section>
 
-    <section class="home-cta">
-      <div class="container gls-container">
-        <div class="home-cta-card">
-          <h3>이 숲에서 천천히 머물러 볼까요?</h3>
-          <p class="home-cta-copy">짧게 둘러보거나, 마음에 드는 길을 골라 들어가세요.</p>
-          <div class="home-cta-actions">
-            <a class="gls-btn gls-btn-primary" href="/explore">이 숲으로 들어가기</a>
-            <button class="gls-btn gls-btn-secondary" id="randomPostBtnBottom" type="button">
-              랜덤으로 한 편
-            </button>
-          </div>
-          <a class="home-section-link" href="/explore">탐색하기 / 모든 글 보기</a>
-        </div>
+          <section class="home-side-block">
+            <h4>이달의 작가</h4>
+            <p class="home-side-title" id="curationAuthorName">추천 작가를 찾는 중이에요</p>
+            <p class="home-side-copy" id="curationAuthorCopy">공감이 모인 작가를 소개합니다.</p>
+            <a class="gls-btn gls-btn-secondary" id="curationAuthorLink" href="/explore">
+              이 작가 글 보기
+            </a>
+          </section>
+
+          <section class="home-side-block">
+            <h4>Quick Actions</h4>
+            <div class="home-side-actions">
+              <a class="gls-btn gls-btn-secondary" href="/explore">읽기 시작</a>
+              <button class="gls-btn gls-btn-secondary" id="randomPostBtn" type="button">
+                랜덤
+              </button>
+              <a class="gls-btn gls-btn-secondary" href="/explore">전체 글</a>
+            </div>
+          </section>
+        </aside>
       </div>
-    </section>
+    </div>
   </main>
 
   <!-- =========================
