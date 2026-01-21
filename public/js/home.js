@@ -76,7 +76,7 @@ const HomeCuration = (() => {
       if (copy) copy.textContent = '최근 공감이 모인 글을 모았습니다.';
     }
 
-    renderCurationList(monthList, list.slice(0, SECTION_LIMIT));
+    renderCurationCarousel(monthList, list);
   }
 
   function renderStayCuration() {
@@ -92,7 +92,7 @@ const HomeCuration = (() => {
       .sort((a, b) => b.score - a.score)
       .map((entry) => entry.post);
 
-    renderCurationList(stayList, scored.slice(0, SECTION_LIMIT));
+    renderCurationCarousel(stayList, scored);
   }
 
   async function renderAuthorSpotlight() {
@@ -194,6 +194,122 @@ const HomeCuration = (() => {
     container.innerHTML = posts
       .map((post) => buildCurationCard(post))
       .join('');
+  }
+
+  function renderCurationCarousel(container, posts) {
+    if (!container) return;
+    if (!posts || posts.length === 0) {
+      renderEmptyState(container, '아직 추천할 글이 없어요.');
+      return;
+    }
+
+    const limited = posts.slice(0, SECTION_LIMIT * 5);
+    const slides = chunkPosts(limited, SECTION_LIMIT);
+
+    if (slides.length <= 1) {
+      renderCurationList(container, limited);
+      return;
+    }
+
+    container.innerHTML = '';
+
+    const viewport = document.createElement('div');
+    viewport.className = 'curation-carousel';
+
+    const track = document.createElement('div');
+    track.className = 'curation-track';
+
+    const currentSlide = document.createElement('div');
+    currentSlide.className = 'curation-slide is-current';
+    currentSlide.appendChild(buildSlideGrid(slides[0]));
+
+    const nextSlide = document.createElement('div');
+    nextSlide.className = 'curation-slide is-next';
+    nextSlide.appendChild(buildSlideGrid(slides[1]));
+
+    track.appendChild(currentSlide);
+    track.appendChild(nextSlide);
+    viewport.appendChild(track);
+    container.appendChild(viewport);
+
+    const reduceMotion = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let currentIndex = 0;
+    let nextIndex = 1;
+    let isAnimating = false;
+    let timerId = null;
+
+    const updateTrackHeight = () => {
+      track.style.minHeight = `${currentSlide.offsetHeight}px`;
+    };
+
+    const goNext = () => {
+      if (isAnimating) return;
+      if (reduceMotion) {
+        currentIndex = nextIndex;
+        nextIndex = (nextIndex + 1) % slides.length;
+        currentSlide.replaceChildren(buildSlideGrid(slides[currentIndex]));
+        nextSlide.replaceChildren(buildSlideGrid(slides[nextIndex]));
+        updateTrackHeight();
+        return;
+      }
+
+      isAnimating = true;
+      currentSlide.classList.add('slide-out');
+      nextSlide.classList.add('slide-in');
+
+      window.setTimeout(() => {
+        currentIndex = nextIndex;
+        nextIndex = (nextIndex + 1) % slides.length;
+        currentSlide.replaceChildren(buildSlideGrid(slides[currentIndex]));
+        nextSlide.replaceChildren(buildSlideGrid(slides[nextIndex]));
+        currentSlide.classList.remove('slide-out');
+        nextSlide.classList.remove('slide-in');
+        updateTrackHeight();
+        isAnimating = false;
+      }, 720);
+    };
+
+    const startTimer = () => {
+      if (timerId) return;
+      timerId = window.setInterval(goNext, 3500);
+    };
+
+    const stopTimer = () => {
+      if (!timerId) return;
+      window.clearInterval(timerId);
+      timerId = null;
+    };
+
+    updateTrackHeight();
+    startTimer();
+
+    viewport.addEventListener('mouseenter', stopTimer);
+    viewport.addEventListener('mouseleave', startTimer);
+    viewport.addEventListener('focusin', stopTimer);
+    viewport.addEventListener('focusout', () => {
+      window.setTimeout(() => {
+        if (!viewport.contains(document.activeElement)) {
+          startTimer();
+        }
+      }, 0);
+    });
+  }
+
+  function chunkPosts(posts, size) {
+    const chunks = [];
+    for (let i = 0; i < posts.length; i += size) {
+      chunks.push(posts.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  function buildSlideGrid(posts) {
+    const grid = document.createElement('div');
+    grid.className = 'curation-grid';
+    grid.innerHTML = posts.map((post) => buildCurationCard(post)).join('');
+    return grid;
   }
 
   function renderEmptyState(container, message) {
