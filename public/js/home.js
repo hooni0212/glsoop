@@ -245,10 +245,21 @@ const HomeCuration = (() => {
       return;
     }
 
+    const transitionDuration = 700;
+    const autoplayInterval = 5500;
+    const initialDelay = 2000;
+
     let currentIndex = 0;
     let nextIndex = 1;
     let isAnimating = false;
     let timerId = null;
+    let transitionLogged = false;
+
+    console.log('[home] carousel timing', {
+      autoplayInterval,
+      transitionDuration,
+      initialDelay,
+    });
 
     const updateViewportHeight = () => {
       const height = currentSlide.offsetHeight;
@@ -273,20 +284,28 @@ const HomeCuration = (() => {
       });
     };
 
-    const startTimer = () => {
-      if (timerId) return;
-      timerId = window.setInterval(goNext, 3500);
+    const scheduleNext = (delayMs) => {
+      if (timerId) {
+        window.clearTimeout(timerId);
+        timerId = null;
+      }
+      timerId = window.setTimeout(goNext, delayMs);
     };
 
     const stopTimer = () => {
       if (!timerId) return;
-      window.clearInterval(timerId);
+      window.clearTimeout(timerId);
       timerId = null;
     };
 
     const handleTransitionEnd = (event) => {
       if (event.propertyName !== 'transform') return;
       if (!isAnimating) return;
+
+      if (!transitionLogged) {
+        console.log('[home] carousel transitionend', true);
+        transitionLogged = true;
+      }
 
       currentIndex = nextIndex;
       nextIndex = (nextIndex + 1) % slides.length;
@@ -299,6 +318,9 @@ const HomeCuration = (() => {
       nextSlide.setAttribute('aria-hidden', 'true');
       updateViewportHeight();
       isAnimating = false;
+
+      console.log('[home] carousel index', currentIndex);
+      scheduleNext(autoplayInterval);
     };
 
     nextSlide.addEventListener('transitionend', handleTransitionEnd);
@@ -309,15 +331,21 @@ const HomeCuration = (() => {
       renderCurationList(container, limited.slice(0, SECTION_LIMIT));
       return;
     }
-    startTimer();
+    scheduleNext(autoplayInterval + initialDelay);
 
     viewport.addEventListener('mouseenter', stopTimer);
-    viewport.addEventListener('mouseleave', startTimer);
+    viewport.addEventListener('mouseleave', () => {
+      if (!isAnimating) {
+        scheduleNext(autoplayInterval);
+      }
+    });
     viewport.addEventListener('focusin', stopTimer);
     viewport.addEventListener('focusout', () => {
       window.setTimeout(() => {
         if (!viewport.contains(document.activeElement)) {
-          startTimer();
+          if (!isAnimating) {
+            scheduleNext(autoplayInterval);
+          }
         }
       }, 0);
     });
