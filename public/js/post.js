@@ -412,7 +412,7 @@ function setupHashtagSearch(scopeEl) {
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.location.href = `/index.html?tag=${encodeURIComponent(tag)}`;
+      window.location.href = `/explore?tag=${encodeURIComponent(tag)}`;
     });
   });
 }

@@ -2,6 +2,7 @@
    - page-level overrides only
 */
 @import url("./index.css");
+@import url("./home.css");
 @import url("./post.css");
 @import url("./author.css");
 @import url("./mypage.css");

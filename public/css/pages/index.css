@@ -35,7 +35,8 @@
    4. 피드 프리뷰 (인덱스 오버라이드)
 ========================= */
 
-body.page-index .feed-post-content {
+body.page-index .feed-post-content,
+body.page-explore .feed-post-content {
   --gls-feed-preview-lines: 7;
   min-height: calc(
     (var(--gls-feed-preview-lines) * 1em * var(--gls-lh-relaxed, 1.7))
@@ -44,17 +45,20 @@ body.page-index .feed-post-content {
 }
 
 @media (min-width: 768px) {
-  body.page-index .feed-post-content {
+  body.page-index .feed-post-content,
+  body.page-explore .feed-post-content {
     --gls-feed-preview-lines: 6;
   }
 }
 
-body.page-index .gls-post-card .feed-post-content .quote-card {
+body.page-index .gls-post-card .feed-post-content .quote-card,
+body.page-explore .gls-post-card .feed-post-content .quote-card {
   padding: var(--gls-space-5, 20px) var(--gls-space-6, 24px);
 }
 
 @media (max-width: 576px) {
-  body.page-index .gls-post-card .feed-post-content .quote-card {
+  body.page-index .gls-post-card .feed-post-content .quote-card,
+  body.page-explore .gls-post-card .feed-post-content .quote-card {
     padding: var(--gls-space-4, 16px) var(--gls-space-5, 20px);
   }
 }

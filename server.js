@@ -81,6 +81,10 @@ app.use('/api', growthRoutes);
 app.use('/api/admin', adminRoutes);
 
 // 4. 루트 페이지
+app.get(['/explore', '/explore/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'explore.html'));
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
