@@ -93,40 +93,48 @@ body.page-home {
 .curation-carousel {
   position: relative;
   overflow: hidden;
+  min-height: 0;
 }
 
 .curation-track {
   position: relative;
-  min-height: 0;
 }
 
 .curation-slide {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transform: translateX(40px);
+  transform: translateX(32px);
   transition: transform 0.7s ease-in-out, opacity 0.7s ease-in-out;
   will-change: transform, opacity;
+  pointer-events: none;
 }
 
 .curation-slide.is-current {
   opacity: 1;
   transform: translateX(0);
   position: relative;
+  pointer-events: auto;
 }
 
 .curation-slide.is-next {
   opacity: 0;
 }
 
+.curation-slide.is-ready {
+  opacity: 0;
+  transform: translateX(32px);
+}
+
 .curation-slide.slide-out {
   opacity: 0;
-  transform: translateX(-40px);
+  transform: translateX(-32px);
 }
 
 .curation-slide.slide-in {
   opacity: 1;
   transform: translateX(0);
+  pointer-events: auto;
 }
 
 .curation-card {

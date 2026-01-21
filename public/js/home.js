@@ -240,39 +240,32 @@ const HomeCuration = (() => {
     let isAnimating = false;
     let timerId = null;
 
-    const updateTrackHeight = () => {
-      track.style.minHeight = `${currentSlide.offsetHeight}px`;
+    const updateViewportHeight = () => {
+      const height = currentSlide.offsetHeight;
+      if (height) {
+        viewport.style.minHeight = `${height}px`;
+      }
     };
 
     const goNext = () => {
       if (isAnimating) return;
-      if (reduceMotion) {
-        currentIndex = nextIndex;
-        nextIndex = (nextIndex + 1) % slides.length;
-        currentSlide.replaceChildren(buildSlideGrid(slides[currentIndex]));
-        nextSlide.replaceChildren(buildSlideGrid(slides[nextIndex]));
-        updateTrackHeight();
-        return;
-      }
+      if (reduceMotion) return;
 
       isAnimating = true;
-      currentSlide.classList.add('slide-out');
-      nextSlide.classList.add('slide-in');
+      nextSlide.setAttribute('aria-hidden', 'false');
+      currentSlide.setAttribute('aria-hidden', 'true');
+      nextSlide.classList.add('is-ready');
 
-      window.setTimeout(() => {
-        currentIndex = nextIndex;
-        nextIndex = (nextIndex + 1) % slides.length;
-        currentSlide.replaceChildren(buildSlideGrid(slides[currentIndex]));
-        nextSlide.replaceChildren(buildSlideGrid(slides[nextIndex]));
-        currentSlide.classList.remove('slide-out');
-        nextSlide.classList.remove('slide-in');
-        updateTrackHeight();
-        isAnimating = false;
-      }, 720);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          currentSlide.classList.add('slide-out');
+          nextSlide.classList.add('slide-in');
+        });
+      });
     };
 
     const startTimer = () => {
-      if (timerId) return;
+      if (timerId || reduceMotion) return;
       timerId = window.setInterval(goNext, 3500);
     };
 
@@ -282,7 +275,27 @@ const HomeCuration = (() => {
       timerId = null;
     };
 
-    updateTrackHeight();
+    const handleTransitionEnd = (event) => {
+      if (event.propertyName !== 'transform') return;
+      if (!isAnimating) return;
+
+      currentIndex = nextIndex;
+      nextIndex = (nextIndex + 1) % slides.length;
+      currentSlide.replaceChildren(buildSlideGrid(slides[currentIndex]));
+      nextSlide.replaceChildren(buildSlideGrid(slides[nextIndex]));
+      currentSlide.classList.remove('slide-out');
+      nextSlide.classList.remove('slide-in');
+      nextSlide.classList.remove('is-ready');
+      currentSlide.setAttribute('aria-hidden', 'false');
+      nextSlide.setAttribute('aria-hidden', 'true');
+      updateViewportHeight();
+      isAnimating = false;
+    };
+
+    nextSlide.addEventListener('transitionend', handleTransitionEnd);
+    currentSlide.setAttribute('aria-hidden', 'false');
+    nextSlide.setAttribute('aria-hidden', 'true');
+    updateViewportHeight();
     startTimer();
 
     viewport.addEventListener('mouseenter', stopTimer);
@@ -295,6 +308,11 @@ const HomeCuration = (() => {
         }
       }, 0);
     });
+
+    window.addEventListener('resize', updateViewportHeight);
+    if (reduceMotion) {
+      stopTimer();
+    }
   }
 
   function chunkPosts(posts, size) {
