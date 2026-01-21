@@ -47,6 +47,30 @@ db.serialize(() => {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS pending_signups (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT NOT NULL,
+      nickname   TEXT,
+      email      TEXT NOT NULL UNIQUE,
+      pw_hash    TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME NOT NULL
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS pending_otp_verifications (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      pending_id INTEGER NOT NULL,
+      code_hash  TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      attempts   INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (pending_id) REFERENCES pending_signups(id) ON DELETE CASCADE
+    )
+  `);
+
   // users 확장 컬럼이 없다면 추가 (레벨/XP/스트릭)
   db.all('PRAGMA table_info(users)', (err, columns) => {
     if (err) {
@@ -201,6 +225,12 @@ db.serialize(() => {
   );
   db.run(
     'CREATE INDEX IF NOT EXISTS idx_bookmark_items_post ON bookmark_items(post_id)'
+  );
+  db.run(
+    'CREATE INDEX IF NOT EXISTS idx_pending_signups_expires ON pending_signups(expires_at)'
+  );
+  db.run(
+    'CREATE INDEX IF NOT EXISTS idx_pending_otp_pending ON pending_otp_verifications(pending_id)'
   );
 
   // XP 로그: 경험치 변화를 기록

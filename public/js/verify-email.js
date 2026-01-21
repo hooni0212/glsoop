@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!form) return;
 
   const params = new URLSearchParams(window.location.search);
-  const userId = params.get('user_id');
+  const pendingId = params.get('pending_id');
   const email = params.get('email');
   const helpEl = document.getElementById('verifyEmailHelp');
   const errorEl = document.getElementById('verifyError');
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
 
-    if (!userId) {
+    if (!pendingId) {
       const message = '인증에 필요한 정보가 없습니다. 회원가입을 다시 진행해 주세요.';
       if (errorEl) {
         errorEl.textContent = message;
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_id: Number(userId),
+          pending_id: Number(pendingId),
           verification_code: verificationCode,
         }),
       });
@@ -126,7 +126,9 @@ document.addEventListener('DOMContentLoaded', () => {
         errorEl.textContent = '';
       }
       alert(data.message || '이메일 인증이 완료되었습니다.');
-      window.location.href = '/html/login.html';
+      const redirectUrl =
+        data.redirect_url || data.redirectUrl || '/html/login.html';
+      window.location.href = redirectUrl;
     } catch (err) {
       console.error(err);
       const message = '인증 중 오류가 발생했습니다.';
@@ -139,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (resendBtn) {
     resendBtn.addEventListener('click', async () => {
-      if (!userId && !email) {
+      if (!pendingId && !email) {
         const message = '재발송에 필요한 정보가 없습니다. 회원가입을 다시 진행해 주세요.';
         if (errorEl) {
           errorEl.textContent = message;
@@ -158,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            user_id: userId ? Number(userId) : null,
+            pending_id: pendingId ? Number(pendingId) : null,
             email,
           }),
         });
