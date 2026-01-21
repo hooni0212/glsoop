@@ -98,11 +98,13 @@ body.page-home {
 
 .curation-track {
   position: relative;
+  width: 100%;
 }
 
 .curation-slide {
   position: absolute;
   inset: 0;
+  width: 100%;
   opacity: 0;
   transform: translateX(32px);
   transition: transform 0.7s ease-in-out, opacity 0.7s ease-in-out;
@@ -113,7 +115,6 @@ body.page-home {
 .curation-slide.is-current {
   opacity: 1;
   transform: translateX(0);
-  position: relative;
   pointer-events: auto;
 }
 
