@@ -246,8 +246,8 @@ const HomeCuration = (() => {
     }
 
     const transitionDuration = 700;
-    const autoplayInterval = 6500;
-    const initialDelay = 2000;
+    const autoplayInterval = 9000;
+    const initialDelay = 3000;
     const staggerDelay =
       container.id === 'curationStayList' ? 1200 : 0;
 
