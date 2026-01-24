@@ -253,7 +253,7 @@ const HomeCuration = (() => {
       return;
     }
 
-    const transitionDuration = 700;
+    const transitionDuration = 900;
     const autoplayInterval = 9000;
     const initialDelay = 3000;
     const staggerDelay =
