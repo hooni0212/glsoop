@@ -211,6 +211,14 @@ const HomeCuration = (() => {
     const limited = posts.slice(0, SECTION_LIMIT * 5);
     const slides = chunkPosts(limited, SECTION_LIMIT);
 
+    if (slides.length > 1) {
+      const last = slides[slides.length - 1];
+      if (last.length < SECTION_LIMIT) {
+        const deficit = SECTION_LIMIT - last.length;
+        slides[slides.length - 1] = last.concat(limited.slice(0, deficit));
+      }
+    }
+
     if (slides.length <= 1) {
       renderCurationList(container, limited.slice(0, SECTION_LIMIT));
       return;
@@ -224,11 +232,11 @@ const HomeCuration = (() => {
     const track = document.createElement('div');
     track.className = 'curation-track';
 
-    const currentSlide = document.createElement('div');
+    let currentSlide = document.createElement('div');
     currentSlide.className = 'curation-slide is-current';
     currentSlide.appendChild(buildSlideGrid(slides[0]));
 
-    const nextSlide = document.createElement('div');
+    let nextSlide = document.createElement('div');
     nextSlide.className = 'curation-slide is-next';
     nextSlide.appendChild(buildSlideGrid(slides[1]));
 
@@ -275,7 +283,6 @@ const HomeCuration = (() => {
       if (isAnimating) return;
       isAnimating = true;
       nextSlide.setAttribute('aria-hidden', 'false');
-      currentSlide.setAttribute('aria-hidden', 'true');
       nextSlide.classList.add('is-ready');
 
       requestAnimationFrame(() => {
@@ -303,6 +310,7 @@ const HomeCuration = (() => {
     const handleTransitionEnd = (event) => {
       if (event.propertyName !== 'transform') return;
       if (!isAnimating) return;
+      if (event.target !== nextSlide) return;
 
       if (!transitionLogged) {
         console.log('[home] carousel transitionend', true);
@@ -311,11 +319,17 @@ const HomeCuration = (() => {
 
       currentIndex = nextIndex;
       nextIndex = (nextIndex + 1) % slides.length;
-      currentSlide.replaceChildren(buildSlideGrid(slides[currentIndex]));
+
+      currentSlide.classList.remove('slide-out', 'is-current');
+      currentSlide.classList.add('is-next');
+      nextSlide.classList.remove('slide-in', 'is-next', 'is-ready');
+      nextSlide.classList.add('is-current');
+
+      const previousSlide = currentSlide;
+      currentSlide = nextSlide;
+      nextSlide = previousSlide;
+
       nextSlide.replaceChildren(buildSlideGrid(slides[nextIndex]));
-      currentSlide.classList.remove('slide-out');
-      nextSlide.classList.remove('slide-in');
-      nextSlide.classList.remove('is-ready');
       currentSlide.setAttribute('aria-hidden', 'false');
       nextSlide.setAttribute('aria-hidden', 'true');
       updateViewportHeight();
@@ -325,6 +339,7 @@ const HomeCuration = (() => {
       scheduleNext(autoplayInterval);
     };
 
+    currentSlide.addEventListener('transitionend', handleTransitionEnd);
     nextSlide.addEventListener('transitionend', handleTransitionEnd);
     currentSlide.setAttribute('aria-hidden', 'false');
     nextSlide.setAttribute('aria-hidden', 'true');
