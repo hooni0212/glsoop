@@ -272,16 +272,17 @@ const HomeCuration = (() => {
     });
 
     const updateViewportHeight = () => {
-      const height = currentSlide.offsetHeight;
-      if (height) {
-        viewport.style.minHeight = `${height}px`;
-      }
-      return height;
+      const currentHeight = currentSlide?.offsetHeight || 0;
+      const nextHeight = nextSlide?.offsetHeight || 0;
+      const target = Math.max(320, currentHeight, nextHeight);
+      viewport.style.minHeight = `${target}px`;
+      return target;
     };
 
     const goNext = () => {
       if (isAnimating) return;
       isAnimating = true;
+      updateViewportHeight();
       nextSlide.setAttribute('aria-hidden', 'false');
       nextSlide.classList.add('is-ready');
 

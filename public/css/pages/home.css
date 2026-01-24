@@ -179,6 +179,15 @@ body.page-home {
 .curation-meta {
   font-size: 0.85rem;
   color: var(--gls-color-text-muted, #6c6c6c);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.curation-author {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .home-side {
