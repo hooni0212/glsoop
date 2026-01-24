@@ -288,7 +288,6 @@ const HomeCuration = (() => {
 
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          currentSlide.classList.add('slide-out');
           nextSlide.classList.add('slide-in');
         });
       });
@@ -321,14 +320,20 @@ const HomeCuration = (() => {
       currentIndex = nextIndex;
       nextIndex = (nextIndex + 1) % slides.length;
 
-      currentSlide.classList.remove('slide-out', 'is-current');
-      currentSlide.classList.add('is-next');
-      nextSlide.classList.remove('slide-in', 'is-next', 'is-ready');
-      nextSlide.classList.add('is-current');
+      const incomingSlide = nextSlide;
+      const outgoingSlide = currentSlide;
 
-      const previousSlide = currentSlide;
-      currentSlide = nextSlide;
-      nextSlide = previousSlide;
+      incomingSlide.classList.remove('slide-in', 'is-next', 'is-ready');
+      incomingSlide.classList.add('is-current');
+
+      outgoingSlide.classList.add('is-reset');
+      outgoingSlide.classList.remove('is-current');
+      outgoingSlide.classList.add('is-next');
+      outgoingSlide.offsetHeight;
+      outgoingSlide.classList.remove('is-reset');
+
+      currentSlide = incomingSlide;
+      nextSlide = outgoingSlide;
 
       nextSlide.replaceChildren(buildSlideGrid(slides[nextIndex]));
       currentSlide.setAttribute('aria-hidden', 'false');
