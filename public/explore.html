@@ -2,10 +2,10 @@
 <html lang="ko">
 <head>
   <!--
-    홈(index.html)
+    탐색/모든 글 보기(explore.html)
     - 연동 CSS: base.css, components.css, main.css, 계절 테마(spring/summer/autumn/winter)
-    - 연동 JS: header.js(네비), home.js(큐레이션 허브), utils.js
-    - 주요 영역: 큐레이션 섹션 + CTA
+    - 연동 JS: header.js(네비), index.js(피드/필터/CTA), postCard.js(카드 공통), utils.js
+    - 주요 영역: #heroSection(히어로), #feedPosts(피드 카드 컨테이너), #tagFilterBar(필터)
   -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,7 +32,7 @@
     content="오늘의 생각과 감정을 글숲에서 기록하고 공유하세요."
   >
   <meta name="twitter:image" content="/img/snowingtree.jpg">
-  <title>글숲 홈</title>
+  <title>글숲 탐색</title>
 
   <!-- Google Fonts: 손글씨체 / 본문용 고딕 / 감성 명조체 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,7 +55,7 @@
   <link rel="stylesheet" id="seasonTheme" href="/css/themes/winter-theme.css">
 
 </head>
-<body class="page-index page-home winter-theme">
+<body class="page-explore page-index winter-theme">
   <!-- =========================
        상단 네비게이션 / 헤더 영역
        ========================= -->
@@ -157,79 +157,74 @@
     </div>
   </nav>
 
-  <main class="home-hub">
+  <!-- =========================
+       메인 히어로 섹션 (브랜드 소개)
+       ========================= -->
+  <section class="hero-section">
     <div class="container gls-container">
-      <div class="home-layout">
-        <section class="home-main">
-          <div class="home-hero">
-            <h1 class="home-hero-title">글숲</h1>
-            <p class="home-hero-copy">오늘 읽을 이야기의 방향을 고르고 시작하세요.</p>
-            <div class="home-hero-actions">
-              <a class="gls-btn gls-btn-primary" href="/explore">읽기 시작</a>
-              <a class="gls-btn gls-btn-secondary" href="/explore">전체 글</a>
-            </div>
-          </div>
+      <!-- 중앙 카드형 히어로 (main.css의 .hero-card 스타일 사용) -->
+      <div class="hero-card">
+        <h1 class="hero-title">글숲</h1>
+        <p class="hero-subtitle">
+          글을 쓰는 사람, 읽는 사람이 함께 머무는 작은 숲.<br />
+          오늘의 생각, 감정을 천천히 적어 내려가 보세요.
+        </p>
 
-          <section class="home-section">
-            <div class="home-section-header">
-              <div>
-                <h3 id="curationMonthTitle">이번 달 많이 위로받은 글</h3>
-                <p class="home-section-subtitle" id="curationMonthCopy">
-                  최근 30일 동안 공감이 이어진 글을 모았습니다.
-                </p>
-              </div>
-              <a class="home-section-link" href="/explore">더보기</a>
-            </div>
-            <div id="curationMonthList">
-              <p class="gls-text-muted">추천 글을 불러오는 중입니다...</p>
-            </div>
-          </section>
-
-          <section class="home-section">
-            <div class="home-section-header">
-              <div>
-                <h3>요즘 많이 읽히는 글</h3>
-                <p class="home-section-subtitle">최근 반응과 최신 글을 함께 살펴봤어요.</p>
-              </div>
-              <a class="home-section-link" href="/explore">더보기</a>
-            </div>
-            <div id="curationStayList">
-              <p class="gls-text-muted">머무는 글을 모으는 중입니다...</p>
-            </div>
-          </section>
-        </section>
-
-        <aside class="home-side">
-          <section class="home-side-block home-side-pick">
-            <h4>오늘의 추천</h4>
-            <p class="home-side-title" id="todayPickTitle">추천 글을 고르는 중입니다</p>
-            <p class="home-side-copy" id="todayPickExcerpt">잠시만 기다려주세요.</p>
-            <a class="gls-btn gls-btn-secondary" id="todayPickLink" href="/explore">읽기</a>
-          </section>
-
-          <section class="home-side-block">
-            <h4>이달의 작가</h4>
-            <p class="home-side-title" id="curationAuthorName">추천 작가를 찾는 중이에요</p>
-            <p class="home-side-copy" id="curationAuthorCopy">공감이 모인 작가를 소개합니다.</p>
-            <a class="gls-btn gls-btn-secondary" id="curationAuthorLink" href="/explore">
-              이 작가 글 보기
-            </a>
-          </section>
-
-          <section class="home-side-block">
-            <h4>Quick Actions</h4>
-            <div class="home-side-actions">
-              <a class="gls-btn gls-btn-secondary" href="/explore">읽기 시작</a>
-              <button class="gls-btn gls-btn-secondary" id="randomPostBtn" type="button">
-                랜덤
-              </button>
-              <a class="gls-btn gls-btn-secondary" href="/explore">전체 글</a>
-            </div>
-          </section>
-        </aside>
+        <a href="/html/editor.html" class="gls-btn gls-btn-primary hero-cta-btn">
+          <span class="hero-cta-text">바로 글 쓰러 가기</span>
+        </a>
       </div>
     </div>
-  </main>
+  </section>
+
+  <!-- =========================
+       피드 섹션: 모든 사용자의 글 목록
+       ========================= -->
+    <section class="page-section">
+      <div class="container gls-container">
+      <div class="gls-flex gls-flex-col gls-md-flex-row gls-gap-3 gls-md-items-center gls-mb-3">
+        <h3 class="gls-mb-0">피드</h3>
+        <div class="feed-tabs nav nav-pills" role="tablist">
+          <button
+            type="button"
+            class="nav-link feed-tab feed-tab-active"
+            data-feed-tab="latest"
+            data-sort="latest"
+            data-type="all"
+            aria-current="true"
+          >
+            최신
+          </button>
+          <button
+            type="button"
+            class="nav-link feed-tab"
+            data-feed-tab="popular"
+            data-sort="popular"
+            data-type="all"
+          >
+            인기
+          </button>
+          <button
+            type="button"
+            class="nav-link feed-tab"
+            data-feed-tab="following"
+            data-sort="latest"
+            data-type="following"
+          >
+            팔로잉
+          </button>
+        </div>
+      </div>
+
+      <!-- 홈 피드 카드들이 들어갈 영역
+           - 기본 상태: "피드를 불러오는 중입니다..." 안내 문구
+           - index.js(Glsoop.FeedPage)가 /api/posts/feed를 호출하여
+             카드들을 무한 스크롤 방식으로 추가 렌더링 -->
+      <div id="feedPosts">
+        <p class="gls-text-muted">피드를 불러오는 중입니다...</p>
+      </div>
+    </div>
+  </section>
 
   <!-- =========================
        하단 푸터 영역
@@ -252,6 +247,8 @@
   <!-- =========================
        JS 스크립트 로드
        ========================= -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+
   <!-- 공통 유틸 (escapeHtml, maskEmail, autoAdjustQuoteFont 등) -->
   <script src="/js/utils.js"></script>
 
@@ -262,8 +259,12 @@
   <script src="/js/theme.js" defer></script>
   <script src="./js/header.js"></script>
 
-  <!-- 홈 큐레이션 허브 로직 -->
-  <script src="/js/home.js"></script>
+  <script src="/js/postCard.js"></script>
+  <script src="/js/bookmarkModal.js"></script>
+  <!-- 메인 피드 로직
+       - Glsoop.FeedPage 모듈
+       - 무한 스크롤, 좋아요 토글, 태그 필터, 잎사귀 애니메이션 등 -->
+  <script src="./js/index.js"></script>
 
   <script src="/js/seasonal.js" defer></script>
 </body>

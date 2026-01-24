@@ -14,9 +14,11 @@ async function initPostDetailPage() {
 
   if (!postId) {
     container.innerHTML =
-      '<p class="text-danger">글 정보를 찾을 수 없습니다. 메인 피드에서 다시 시도해주세요.</p>';
+      '<p class="text-danger">글 정보를 찾을 수 없습니다. 다시 시도해주세요.</p>';
     return;
   }
+
+  container.innerHTML = '<p class="gls-text-muted">글을 불러오는 중입니다...</p>';
 
   let postData = null;
   try {
@@ -31,32 +33,13 @@ async function initPostDetailPage() {
     console.error('Failed to parse glsoop_lastPost', e);
   }
 
-  if (!postData) {
-    container.innerHTML =
-      '<p class="text-danger">이 페이지는 메인 피드에서 카드를 클릭해서 들어와야 합니다.<br/>메인으로 돌아가 다시 시도해주세요.</p>';
-    return;
-  }
-
   try {
     const res = await fetch(`/api/posts/${encodeURIComponent(postId)}`);
     if (res.ok) {
       const data = await res.json();
       if (data.ok && data.post) {
         const fresh = data.post;
-
-        postData.title = fresh.title ?? postData.title;
-        postData.content = fresh.content ?? postData.content;
-        postData.created_at = fresh.created_at ?? postData.created_at;
-
-        postData.author_id = fresh.author_id ?? postData.author_id;
-        postData.author_name = fresh.author_name ?? postData.author_name;
-        postData.author_nickname = fresh.author_nickname ?? postData.author_nickname;
-        postData.author_email = fresh.author_email ?? postData.author_email;
-
-        if (typeof fresh.like_count === 'number') postData.like_count = fresh.like_count;
-        if (fresh.user_liked !== undefined) postData.user_liked = fresh.user_liked ? 1 : 0;
-
-        if (fresh.hashtags) postData.hashtags = fresh.hashtags;
+        postData = postData ? { ...postData, ...fresh } : fresh;
 
         try {
           localStorage.setItem('glsoop_lastPost', JSON.stringify(postData));
@@ -69,6 +52,12 @@ async function initPostDetailPage() {
     }
   } catch (e) {
     console.warn('detail API 호출 실패(무시 가능)', e);
+  }
+
+  if (!postData) {
+    container.innerHTML =
+      '<p class="text-danger">글을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</p>';
+    return;
   }
 
   renderPostDetail(container, postData);
@@ -412,7 +401,7 @@ function setupHashtagSearch(scopeEl) {
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.location.href = `/index.html?tag=${encodeURIComponent(tag)}`;
+      window.location.href = `/explore?tag=${encodeURIComponent(tag)}`;
     });
   });
 }

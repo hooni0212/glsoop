@@ -535,7 +535,7 @@ function setupAuthorPostInteractions(card) {
       const tag = btn.getAttribute('data-tag');
       if (!tag) return;
       // index.html?tag=태그 형식으로 이동
-      window.location.href = `/index.html?tag=${encodeURIComponent(tag)}`;
+      window.location.href = `/explore?tag=${encodeURIComponent(tag)}`;
     });
   });
 }
