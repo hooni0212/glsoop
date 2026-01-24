@@ -105,8 +105,10 @@ body.page-home {
   position: absolute;
   inset: 0;
   width: 100%;
+  opacity: 1;
+  filter: none;
   transform: translateX(100%);
-  transition: transform 0.7s ease-in-out;
+  transition: transform 0.7s ease-in-out, opacity 0.22s ease, filter 0.22s ease;
   will-change: transform;
   pointer-events: none;
 }
@@ -138,6 +140,11 @@ body.page-home {
 
 .curation-slide.is-reset {
   transition: none !important;
+}
+
+.curation-slide.is-dimming {
+  opacity: 0.68;
+  filter: blur(0.8px) saturate(0.95) brightness(0.9);
 }
 
 .curation-card {

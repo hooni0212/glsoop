@@ -282,6 +282,7 @@ const HomeCuration = (() => {
     const goNext = () => {
       if (isAnimating) return;
       isAnimating = true;
+      currentSlide.classList.add('is-dimming');
       updateViewportHeight();
       nextSlide.setAttribute('aria-hidden', 'false');
       nextSlide.classList.add('is-ready');
@@ -325,8 +326,10 @@ const HomeCuration = (() => {
 
       incomingSlide.classList.remove('slide-in', 'is-next', 'is-ready');
       incomingSlide.classList.add('is-current');
+      incomingSlide.classList.remove('is-dimming');
 
       outgoingSlide.classList.add('is-reset');
+      outgoingSlide.classList.remove('is-dimming');
       outgoingSlide.classList.remove('is-current');
       outgoingSlide.classList.add('is-next');
       outgoingSlide.offsetHeight;
