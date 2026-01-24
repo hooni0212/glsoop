@@ -254,10 +254,10 @@ const HomeCuration = (() => {
     }
 
     const transitionDuration = 1050;
-    const autoplayInterval = 9000;
-    const initialDelay = 3000;
-    const staggerDelay =
-      container.id === 'curationStayList' ? 1200 : 0;
+    const autoplayInterval =
+      container.id === 'curationStayList' ? 3800 : 3500;
+    const initialDelay = 300;
+    const staggerDelay = 0;
     const slideInDelay = 160;
 
     let currentIndex = 0;
