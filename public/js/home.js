@@ -253,16 +253,18 @@ const HomeCuration = (() => {
       return;
     }
 
-    const transitionDuration = 900;
+    const transitionDuration = 1050;
     const autoplayInterval = 9000;
     const initialDelay = 3000;
     const staggerDelay =
       container.id === 'curationStayList' ? 1200 : 0;
+    const slideInDelay = 160;
 
     let currentIndex = 0;
     let nextIndex = 1;
     let isAnimating = false;
     let timerId = null;
+    let safetyId = null;
     let transitionLogged = false;
 
     console.log('[home] carousel timing', {
@@ -286,12 +288,25 @@ const HomeCuration = (() => {
       updateViewportHeight();
       nextSlide.setAttribute('aria-hidden', 'false');
       nextSlide.classList.add('is-ready');
+      nextSlide.offsetHeight;
 
-      requestAnimationFrame(() => {
+      if (safetyId) {
+        window.clearTimeout(safetyId);
+        safetyId = null;
+      }
+      safetyId = window.setTimeout(() => {
+        if (!isAnimating) return;
+        isAnimating = false;
+        scheduleNext(autoplayInterval);
+      }, transitionDuration + 500);
+
+      window.setTimeout(() => {
         requestAnimationFrame(() => {
-          nextSlide.classList.add('slide-in');
+          requestAnimationFrame(() => {
+            nextSlide.classList.add('slide-in');
+          });
         });
-      });
+      }, slideInDelay);
     };
 
     const scheduleNext = (delayMs) => {
@@ -312,6 +327,11 @@ const HomeCuration = (() => {
       if (event.propertyName !== 'transform') return;
       if (!isAnimating) return;
       if (event.target !== nextSlide) return;
+
+      if (safetyId) {
+        window.clearTimeout(safetyId);
+        safetyId = null;
+      }
 
       if (!transitionLogged) {
         console.log('[home] carousel transitionend', true);
