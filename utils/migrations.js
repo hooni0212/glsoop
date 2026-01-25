@@ -4,14 +4,9 @@ const path = require('path');
 const db = require('../db');
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'migrations');
-const SCHEMA_MIGRATIONS_SQL = `
-  CREATE TABLE IF NOT EXISTS schema_migrations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    filename TEXT NOT NULL UNIQUE,
-    checksum TEXT NOT NULL,
-    applied_at DATETIME NOT NULL DEFAULT (datetime('now'))
-  );
-`;
+const SCHEMA_MIGRATIONS_FILE = '0001_create_schema_migrations.sql';
+const BASELINE_FILENAME = 'baseline_legacy';
+const BASELINE_CHECKSUM = 'legacy';
 
 const run = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -63,14 +58,56 @@ const listMigrationFiles = async () => {
   }
 };
 
-const ensureSchemaMigrations = async () => {
-  await exec(SCHEMA_MIGRATIONS_SQL);
+const ensureSchemaMigrations = async (files) => {
+  if (!files.includes(SCHEMA_MIGRATIONS_FILE)) {
+    throw new Error(
+      `[migrations] missing ${SCHEMA_MIGRATIONS_FILE}; cannot initialize schema_migrations.`
+    );
+  }
+
+  const schemaPath = path.join(MIGRATIONS_DIR, SCHEMA_MIGRATIONS_FILE);
+  const schemaSql = await fs.promises.readFile(schemaPath, 'utf8');
+  await exec(schemaSql);
+};
+
+const isLegacySchema = async () => {
+  const row = await get(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT IN ('schema_migrations', 'sqlite_sequence') LIMIT 1;"
+  );
+  return Boolean(row?.name);
+};
+
+const ensureBaselineLegacy = async () => {
+  const existingBaseline = await get(
+    'SELECT 1 as present FROM schema_migrations WHERE filename = ? LIMIT 1;',
+    [BASELINE_FILENAME]
+  );
+  if (existingBaseline?.present) {
+    return true;
+  }
+
+  const countRow = await get('SELECT COUNT(*) as count FROM schema_migrations;');
+  if (countRow?.count > 0) {
+    return false;
+  }
+
+  const legacy = await isLegacySchema();
+  if (!legacy) {
+    return false;
+  }
+
+  await run(
+    'INSERT OR IGNORE INTO schema_migrations (filename, checksum) VALUES (?, ?)',
+    [BASELINE_FILENAME, BASELINE_CHECKSUM]
+  );
+  console.log('[migrations] legacy schema detected; baseline applied.');
+  return true;
 };
 
 const runMigrations = async () => {
-  await ensureSchemaMigrations();
-
   const files = await listMigrationFiles();
+  await ensureSchemaMigrations(files);
+  const baselineLegacy = await ensureBaselineLegacy();
   if (files.length === 0) {
     console.log('[migrations] no migrations found.');
     return;
@@ -79,6 +116,11 @@ const runMigrations = async () => {
   let appliedCount = 0;
 
   for (const filename of files) {
+    if (baselineLegacy && filename === '0002_initial_schema.sql') {
+      console.log(`[migrations] skip ${filename} (legacy baseline)`);
+      continue;
+    }
+
     const fullPath = path.join(MIGRATIONS_DIR, filename);
     const contents = await fs.promises.readFile(fullPath, 'utf8');
     const checksum = checksumFor(contents);

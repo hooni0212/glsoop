@@ -3,6 +3,7 @@
 const sqlite3 = require('sqlite3').verbose();
 
 const db = new sqlite3.Database('data/live/users.db');
+// Schema changes should be handled by SQL migrations; DB_AUTOINIT is only for legacy bootstrap.
 const shouldAutoInit = process.env.DB_AUTOINIT === 'true';
 
 db.serialize(() => {
