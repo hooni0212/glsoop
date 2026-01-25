@@ -3,6 +3,7 @@
 const sqlite3 = require('sqlite3').verbose();
 
 const db = new sqlite3.Database('data/live/users.db');
+const shouldAutoInit = process.env.DB_AUTOINIT === 'true';
 
 db.serialize(() => {
   db.run('PRAGMA foreign_keys = ON');
@@ -15,7 +16,12 @@ db.serialize(() => {
   });
   db.get('PRAGMA foreign_keys;', (err, row) => {
     console.log('foreign_keys =', row?.foreign_keys);
-  });  
+  });
+
+  if (!shouldAutoInit) {
+    console.log('[db] DB_AUTOINIT is disabled; skipping schema creation/seed.');
+    return;
+  }
 
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
@@ -95,7 +101,7 @@ db.serialize(() => {
     ensureColumn('xp', 'xp INTEGER DEFAULT 0');
     ensureColumn('streak_days', 'streak_days INTEGER DEFAULT 0');
     ensureColumn('max_streak_days', 'max_streak_days INTEGER DEFAULT 0');
-    ensureColumn('last_post_date', "last_post_date TEXT");
+    ensureColumn('last_post_date', 'last_post_date TEXT');
   });
 
   // 4-2) 글(포스트) 테이블
@@ -438,7 +444,6 @@ db.serialize(() => {
       FOREIGN KEY (template_id) REFERENCES quest_templates(id)
     )
   `);
-});
 
   // ✅ posts (피드/작성자별 목록)
   db.run('CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at)');
@@ -460,6 +465,7 @@ db.serialize(() => {
   // ✅ user_achievements / quest (마이페이지 위젯이 자주 치면 필요)
   db.run('CREATE INDEX IF NOT EXISTS idx_user_ach_user ON user_achievements(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_user_quest_user_campaign ON user_quest_state(user_id, campaign_id, reset_key)');
+});
 
 
 module.exports = db;
