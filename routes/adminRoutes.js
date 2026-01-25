@@ -195,15 +195,37 @@ router.get('/quest-templates', async (req, res) => {
 });
 
 router.post('/quest-templates', async (req, res) => {
-  const { name, description, condition_type, category, target_value, reward_xp, is_active = 1 } = req.body;
+  const {
+    name,
+    description,
+    condition_type,
+    category,
+    target_value,
+    reward_xp,
+    is_active = 1,
+    template_kind = 'quest',
+    code = null,
+    ui_json = null,
+  } = req.body;
   if (!name || !condition_type || !target_value) {
     return res.status(400).json({ ok: false, message: '필수 입력이 누락되었습니다.' });
   }
   try {
     await runAsync(
-      `INSERT INTO quest_templates (name, description, condition_type, category, target_value, reward_xp, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, description || '', condition_type, category || null, Number(target_value), Number(reward_xp) || 0, is_active ? 1 : 0]
+      `INSERT INTO quest_templates (name, description, condition_type, category, target_value, reward_xp, is_active, template_kind, code, ui_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name,
+        description || '',
+        condition_type,
+        category || null,
+        Number(target_value),
+        Number(reward_xp) || 0,
+        is_active ? 1 : 0,
+        template_kind || 'quest',
+        code,
+        ui_json,
+      ]
     );
     res.json({ ok: true, message: '템플릿이 생성되었습니다.' });
   } catch (err) {
@@ -213,12 +235,37 @@ router.post('/quest-templates', async (req, res) => {
 });
 
 router.put('/quest-templates/:id', async (req, res) => {
-  const { name, description, condition_type, category, target_value, reward_xp, is_active = 1 } = req.body;
+  const {
+    name,
+    description,
+    condition_type,
+    category,
+    target_value,
+    reward_xp,
+    is_active = 1,
+    template_kind = 'quest',
+    code = null,
+    ui_json = null,
+  } = req.body;
   const templateId = req.params.id;
   try {
     await runAsync(
-      `UPDATE quest_templates SET name=?, description=?, condition_type=?, category=?, target_value=?, reward_xp=?, is_active=? WHERE id=?`,
-      [name, description || '', condition_type, category || null, Number(target_value), Number(reward_xp) || 0, is_active ? 1 : 0, templateId]
+      `UPDATE quest_templates
+       SET name=?, description=?, condition_type=?, category=?, target_value=?, reward_xp=?, is_active=?, template_kind=?, code=?, ui_json=?
+       WHERE id=?`,
+      [
+        name,
+        description || '',
+        condition_type,
+        category || null,
+        Number(target_value),
+        Number(reward_xp) || 0,
+        is_active ? 1 : 0,
+        template_kind || 'quest',
+        code,
+        ui_json,
+        templateId,
+      ]
     );
     res.json({ ok: true, message: '템플릿이 수정되었습니다.' });
   } catch (err) {
@@ -260,11 +307,16 @@ router.get('/quest-campaigns', async (req, res) => {
 router.post('/quest-campaigns', async (req, res) => {
   const { name, description, campaign_type = 'event', start_at, end_at, is_active = 0, priority = 1 } = req.body;
   if (!name) return res.status(400).json({ ok: false, message: '캠페인 이름이 필요합니다.' });
+  const normalizedCampaignType = String(campaign_type || 'event').toLowerCase();
+  const allowedCampaignTypes = new Set(['permanent', 'daily', 'weekly', 'season', 'event']);
+  if (!allowedCampaignTypes.has(normalizedCampaignType)) {
+    return res.status(400).json({ ok: false, message: '허용되지 않는 campaign_type입니다.' });
+  }
   try {
     await runAsync(
       `INSERT INTO quest_campaigns (name, description, campaign_type, start_at, end_at, is_active, priority)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, description || '', campaign_type, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1]
+      [name, description || '', normalizedCampaignType, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1]
     );
     res.json({ ok: true, message: '캠페인이 생성되었습니다.' });
   } catch (err) {
@@ -276,10 +328,15 @@ router.post('/quest-campaigns', async (req, res) => {
 router.put('/quest-campaigns/:id', async (req, res) => {
   const { name, description, campaign_type = 'event', start_at, end_at, is_active = 0, priority = 1 } = req.body;
   const campaignId = req.params.id;
+  const normalizedCampaignType = String(campaign_type || 'event').toLowerCase();
+  const allowedCampaignTypes = new Set(['permanent', 'daily', 'weekly', 'season', 'event']);
+  if (!allowedCampaignTypes.has(normalizedCampaignType)) {
+    return res.status(400).json({ ok: false, message: '허용되지 않는 campaign_type입니다.' });
+  }
   try {
     await runAsync(
       `UPDATE quest_campaigns SET name=?, description=?, campaign_type=?, start_at=?, end_at=?, is_active=?, priority=? WHERE id=?`,
-      [name, description || '', campaign_type, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1, campaignId]
+      [name, description || '', normalizedCampaignType, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1, campaignId]
     );
     res.json({ ok: true, message: '캠페인이 수정되었습니다.' });
   } catch (err) {

@@ -62,6 +62,13 @@ function buildResetKey(campaignType) {
   if (campaignType === 'weekly') {
     return getKstWeekKey(now);
   }
+  if (campaignType === 'permanent') {
+    return 'permanent';
+  }
+  if (campaignType === 'season') {
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `season:${now.getFullYear()}-${month}`;
+  }
   return 'event';
 }
 
