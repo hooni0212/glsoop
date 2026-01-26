@@ -174,12 +174,14 @@ async function syncUserQuestState(userId, campaign, template, progress, resetKey
     [userId, campaign.id, template.id, resetKey]
   );
   const completed = progress >= (template.target_value || 0);
+  let stateId = existing?.id || null;
   if (!existing) {
-    await runAsync(
+    const result = await runAsync(
       `INSERT INTO user_quest_state (user_id, campaign_id, template_id, progress, reset_key, completed_at)
        VALUES (?, ?, ?, ?, ?, ?)` ,
       [userId, campaign.id, template.id, progress, resetKey, completed ? getNowKstDate().toISOString() : null]
     );
+    stateId = result?.lastID || null;
   } else {
     await runAsync(
       `UPDATE user_quest_state
@@ -188,7 +190,13 @@ async function syncUserQuestState(userId, campaign, template, progress, resetKey
       [progress, completed ? getNowKstDate().toISOString() : null, existing.id]
     );
   }
-  return completed;
+  const state = stateId
+    ? await getAsync(
+        'SELECT id, completed_at, reward_claimed_at FROM user_quest_state WHERE id = ?',
+        [stateId]
+      )
+    : null;
+  return { completed, state };
 }
 
 async function getActiveQuestsForUser(userId) {
@@ -203,9 +211,12 @@ async function getActiveQuestsForUser(userId) {
     const quests = [];
     for (const template of templates) {
       const progress = calculateProgress(template, metrics);
-      const completed = await syncUserQuestState(userId, campaign, template, progress, resetKey);
+      const stateResult = await syncUserQuestState(userId, campaign, template, progress, resetKey);
+      const completed = stateResult?.completed;
+      const state = stateResult?.state || {};
       quests.push({
         id: template.id,
+        stateId: state?.id || null,
         name: template.name,
         description: template.description,
         conditionType: template.condition_type,
@@ -217,6 +228,11 @@ async function getActiveQuestsForUser(userId) {
         positionIndex: template.position_index || template.sort_order || 0,
         campaignId: campaign.id,
         campaignType,
+        templateKind: template.template_kind,
+        code: template.code,
+        uiJson: template.ui_json,
+        completedAt: state?.completed_at || null,
+        rewardClaimedAt: state?.reward_claimed_at || null,
       });
     }
     results.push({

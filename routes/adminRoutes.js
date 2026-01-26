@@ -5,6 +5,37 @@ const { allAsync, getAsync, runAsync } = require('../utils/questService');
 
 const router = express.Router();
 
+async function ensureAchievementCampaign() {
+  const existing = await getAsync(
+    "SELECT id FROM quest_campaigns WHERE LOWER(campaign_type) = 'permanent' AND name = '업적' LIMIT 1"
+  );
+  if (existing) return existing.id;
+  const result = await runAsync(
+    `INSERT INTO quest_campaigns (name, description, campaign_type, is_active, priority)
+     VALUES (?, ?, ?, ?, ?)`,
+    ['업적', '업적 캠페인', 'permanent', 1, 1]
+  );
+  return result?.lastID || null;
+}
+
+async function ensureCampaignItem(campaignId, templateId) {
+  if (!campaignId || !templateId) return;
+  const existing = await getAsync(
+    'SELECT id FROM quest_campaign_items WHERE campaign_id = ? AND template_id = ? LIMIT 1',
+    [campaignId, templateId]
+  );
+  if (existing) return;
+  const orderRow = await getAsync(
+    'SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM quest_campaign_items WHERE campaign_id = ?',
+    [campaignId]
+  );
+  const nextOrder = (orderRow?.max_sort || 0) + 1;
+  await runAsync(
+    'INSERT INTO quest_campaign_items (campaign_id, template_id, sort_order) VALUES (?, ?, ?)',
+    [campaignId, templateId, nextOrder]
+  );
+}
+
 // 모든 관리자 라우트에 인증/관리자 검증을 공통 적용
 router.use(authRequired, adminRequired);
 
@@ -210,8 +241,9 @@ router.post('/quest-templates', async (req, res) => {
   if (!name || !condition_type || !target_value) {
     return res.status(400).json({ ok: false, message: '필수 입력이 누락되었습니다.' });
   }
+  const normalizedTemplateKind = String(template_kind || 'quest').toLowerCase();
   try {
-    await runAsync(
+    const result = await runAsync(
       `INSERT INTO quest_templates (name, description, condition_type, category, target_value, reward_xp, is_active, template_kind, code, ui_json)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
@@ -222,12 +254,22 @@ router.post('/quest-templates', async (req, res) => {
         Number(target_value),
         Number(reward_xp) || 0,
         is_active ? 1 : 0,
-        template_kind || 'quest',
+        normalizedTemplateKind || 'quest',
         code,
         ui_json,
       ]
     );
-    res.json({ ok: true, message: '템플릿이 생성되었습니다.' });
+    let campaignId = null;
+    if (normalizedTemplateKind === 'achievement') {
+      campaignId = await ensureAchievementCampaign();
+      await ensureCampaignItem(campaignId, result?.lastID);
+    }
+    res.json({
+      ok: true,
+      message: '템플릿이 생성되었습니다.',
+      template_id: result?.lastID,
+      campaign_id: campaignId,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 생성 중 오류가 발생했습니다.' });
@@ -248,6 +290,7 @@ router.put('/quest-templates/:id', async (req, res) => {
     ui_json = null,
   } = req.body;
   const templateId = req.params.id;
+  const normalizedTemplateKind = String(template_kind || 'quest').toLowerCase();
   try {
     await runAsync(
       `UPDATE quest_templates
@@ -261,12 +304,16 @@ router.put('/quest-templates/:id', async (req, res) => {
         Number(target_value),
         Number(reward_xp) || 0,
         is_active ? 1 : 0,
-        template_kind || 'quest',
+        normalizedTemplateKind || 'quest',
         code,
         ui_json,
         templateId,
       ]
     );
+    if (normalizedTemplateKind === 'achievement') {
+      const campaignId = await ensureAchievementCampaign();
+      await ensureCampaignItem(campaignId, templateId);
+    }
     res.json({ ok: true, message: '템플릿이 수정되었습니다.' });
   } catch (err) {
     console.error(err);
@@ -276,6 +323,7 @@ router.put('/quest-templates/:id', async (req, res) => {
 
 router.delete('/quest-templates/:id', async (req, res) => {
   try {
+    await runAsync('DELETE FROM quest_campaign_items WHERE template_id = ?', [req.params.id]);
     await runAsync('DELETE FROM quest_templates WHERE id = ?', [req.params.id]);
     res.json({ ok: true, message: '템플릿이 삭제되었습니다.' });
   } catch (err) {

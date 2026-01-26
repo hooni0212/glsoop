@@ -37,6 +37,8 @@ Glsoop.AdminPage = (function () {
   };
 
   const CAMPAIGN_TYPE_LABELS = {
+    permanent: '상시',
+    daily: '일일',
     weekly: '주간',
     season: '시즌',
     event: '이벤트',
@@ -659,6 +661,8 @@ Glsoop.AdminPage = (function () {
           }</td>
           <td>${t.target_value}</td>
           <td>${t.reward_xp || 0} XP</td>
+          <td>${escapeHtml(t.template_kind || 'quest')}</td>
+          <td>${escapeHtml(t.code || '-')}</td>
           <td>${t.is_active ? '활성' : '비활성'}</td>
           <td class="gls-text-end">
             <button class="gls-btn gls-btn-secondary gls-btn-xs quest-template-edit" type="button">수정</button>
@@ -703,6 +707,13 @@ Glsoop.AdminPage = (function () {
             }" required />
           </div>
           <div class="gls-col-span-12 gls-md-col-span-3">
+            <label class="gls-label gls-text-small gls-mb-1">템플릿 종류</label>
+            <select class="gls-select gls-select-sm" name="template_kind">
+              <option value="quest" ${values.template_kind !== 'achievement' ? 'selected' : ''}>퀘스트</option>
+              <option value="achievement" ${values.template_kind === 'achievement' ? 'selected' : ''}>업적</option>
+            </select>
+          </div>
+          <div class="gls-col-span-12 gls-md-col-span-3">
             <label class="gls-label gls-text-small gls-mb-1">보상 XP</label>
             <input type="number" min="0" class="gls-input gls-input-sm" name="reward_xp" value="${
               values.reward_xp || 0
@@ -713,6 +724,16 @@ Glsoop.AdminPage = (function () {
             <input class="gls-input gls-input-sm" name="description" value="${escapeHtml(
               values.description || ''
             )}" />
+          </div>
+          <div class="gls-col-span-12 gls-md-col-span-3">
+            <label class="gls-label gls-text-small gls-mb-1">코드(선택)</label>
+            <input class="gls-input gls-input-sm" name="code" value="${escapeHtml(values.code || '')}" />
+          </div>
+          <div class="gls-col-span-12">
+            <label class="gls-label gls-text-small gls-mb-1">UI 메타(JSON)</label>
+            <textarea class="gls-input gls-input-sm" name="ui_json" rows="2" placeholder='{"icon":"🌟","label":"업적"}'>${escapeHtml(
+              values.ui_json || ''
+            )}</textarea>
           </div>
           <div class="gls-col-span-12 gls-md-col-span-3 gls-flex gls-items-end">
             <div class="gls-check">
@@ -730,7 +751,7 @@ Glsoop.AdminPage = (function () {
       </form>
       <div class="table-responsive">
         <table class="table align-middle table-sm">
-          <thead><tr><th>제목</th><th>조건</th><th>목표</th><th>보상</th><th>상태</th><th class="gls-text-end">관리</th></tr></thead>
+          <thead><tr><th>제목</th><th>조건</th><th>목표</th><th>보상</th><th>종류</th><th>코드</th><th>상태</th><th class="gls-text-end">관리</th></tr></thead>
           <tbody>${listHtml}</tbody>
         </table>
       </div>
@@ -863,7 +884,7 @@ Glsoop.AdminPage = (function () {
   function buildCampaignEditor(editingId = '') {
     const target = questState.campaigns.find((c) => String(c.id) === String(editingId));
     const values = target || {};
-    const typeOptions = ['weekly', 'season', 'event'];
+    const typeOptions = ['permanent', 'daily', 'weekly', 'season', 'event'];
     const itemsByCampaign = questState.campaignItems.reduce((acc, cur) => {
       acc[cur.campaign_id] = acc[cur.campaign_id] || [];
       acc[cur.campaign_id].push(cur);
