@@ -2,7 +2,8 @@
 // - SQLite3 연결 및 주요 테이블 생성
 const sqlite3 = require('sqlite3').verbose();
 
-const db = new sqlite3.Database('data/live/users.db');
+const dbPath = process.env.DB_PATH || 'data/live/users.db';
+const db = new sqlite3.Database(dbPath);
 // Schema changes should be handled by SQL migrations; DB_AUTOINIT is only for legacy bootstrap.
 const shouldAutoInit = process.env.DB_AUTOINIT === 'true';
 

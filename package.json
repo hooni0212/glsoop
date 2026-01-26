@@ -5,7 +5,8 @@
   "scripts": {
     "test": "playwright test",
     "test:e2e": "playwright test",
-    "start": "node server.js"
+    "start": "node server.js",
+    "verify:phase2": "node scripts/verify-phase2.mjs"
   },
   "keywords": [],
   "author": "",

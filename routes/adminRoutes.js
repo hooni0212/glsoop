@@ -18,6 +18,13 @@ async function ensureAchievementCampaign() {
   return result?.lastID || null;
 }
 
+async function getAchievementCampaignId() {
+  const existing = await getAsync(
+    "SELECT id FROM quest_campaigns WHERE LOWER(campaign_type) = 'permanent' AND name = '업적' LIMIT 1"
+  );
+  return existing?.id || null;
+}
+
 async function ensureCampaignItem(campaignId, templateId) {
   if (!campaignId || !templateId) return;
   const existing = await getAsync(
@@ -33,6 +40,14 @@ async function ensureCampaignItem(campaignId, templateId) {
   await runAsync(
     'INSERT INTO quest_campaign_items (campaign_id, template_id, sort_order) VALUES (?, ?, ?)',
     [campaignId, templateId, nextOrder]
+  );
+}
+
+async function removeCampaignItem(campaignId, templateId) {
+  if (!campaignId || !templateId) return;
+  await runAsync(
+    'DELETE FROM quest_campaign_items WHERE campaign_id = ? AND template_id = ?',
+    [campaignId, templateId]
   );
 }
 
@@ -292,6 +307,11 @@ router.put('/quest-templates/:id', async (req, res) => {
   const templateId = req.params.id;
   const normalizedTemplateKind = String(template_kind || 'quest').toLowerCase();
   try {
+    const previous = await getAsync(
+      'SELECT template_kind FROM quest_templates WHERE id = ?',
+      [templateId]
+    );
+    const previousKind = String(previous?.template_kind || 'quest').toLowerCase();
     await runAsync(
       `UPDATE quest_templates
        SET name=?, description=?, condition_type=?, category=?, target_value=?, reward_xp=?, is_active=?, template_kind=?, code=?, ui_json=?
@@ -313,6 +333,9 @@ router.put('/quest-templates/:id', async (req, res) => {
     if (normalizedTemplateKind === 'achievement') {
       const campaignId = await ensureAchievementCampaign();
       await ensureCampaignItem(campaignId, templateId);
+    } else if (previousKind === 'achievement') {
+      const campaignId = await getAchievementCampaignId();
+      await removeCampaignItem(campaignId, templateId);
     }
     res.json({ ok: true, message: '템플릿이 수정되었습니다.' });
   } catch (err) {
