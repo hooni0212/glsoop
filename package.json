@@ -6,7 +6,9 @@
     "test": "playwright test",
     "test:e2e": "playwright test",
     "start": "node server.js",
-    "verify:phase2": "node scripts/verify-phase2.mjs"
+    "verify:phase2": "node scripts/verify-phase2.mjs",
+    "phase3:seed-legacy-achievements": "node scripts/phase3-seed-legacy-achievements.mjs",
+    "phase3:migrate-legacy-achievements": "node scripts/phase3-migrate-legacy-achievements.mjs"
   },
   "keywords": [],
   "author": "",

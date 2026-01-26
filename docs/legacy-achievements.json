@@ -1,0 +1,157 @@
+[
+  {
+    "legacy_key": "first_post",
+    "title": "첫 걸음",
+    "description": "첫 글을 작성했습니다.",
+    "reward_xp": 0,
+    "icon": "🌱",
+    "category": "habit",
+    "condition_type": "POST_COUNT_TOTAL",
+    "target_value": 1,
+    "display_order": 1,
+    "ui_json": {
+      "icon": "🌱",
+      "label": "업적",
+      "position_index": 1
+    },
+    "is_active": true
+  },
+  {
+    "legacy_key": "posts_10",
+    "title": "조심스러운 시작",
+    "description": "글 10개를 작성했습니다.",
+    "reward_xp": 0,
+    "icon": "🌿",
+    "category": "count_posts",
+    "condition_type": "POST_COUNT_TOTAL",
+    "target_value": 10,
+    "display_order": 2,
+    "ui_json": {
+      "icon": "🌿",
+      "label": "업적",
+      "position_index": 2
+    },
+    "is_active": true
+  },
+  {
+    "legacy_key": "posts_50",
+    "title": "단단한 나무",
+    "description": "글 50개를 작성했습니다.",
+    "reward_xp": 0,
+    "icon": "🌳",
+    "category": "count_posts",
+    "condition_type": "POST_COUNT_TOTAL",
+    "target_value": 50,
+    "display_order": 3,
+    "ui_json": {
+      "icon": "🌳",
+      "label": "업적",
+      "position_index": 3
+    },
+    "is_active": true
+  },
+  {
+    "legacy_key": "first_like",
+    "title": "따뜻한 첫 공감",
+    "description": "처음으로 공감을 받았습니다.",
+    "reward_xp": 0,
+    "icon": "✨",
+    "category": "likes",
+    "condition_type": "LIKE_RECEIVED",
+    "target_value": 1,
+    "display_order": 4,
+    "ui_json": {
+      "icon": "✨",
+      "label": "업적",
+      "position_index": 4,
+      "legacy_condition": "LIKE_RECEIVED_TOTAL"
+    },
+    "is_active": true
+  },
+  {
+    "legacy_key": "likes_10_single",
+    "title": "공감이 쌓이는 글",
+    "description": "한 글에 공감을 10개 받았습니다.",
+    "reward_xp": 0,
+    "icon": "💙",
+    "category": "likes",
+    "condition_type": "LIKE_RECEIVED",
+    "target_value": 10,
+    "display_order": 5,
+    "ui_json": {
+      "icon": "💙",
+      "label": "업적",
+      "position_index": 5,
+      "legacy_condition": "LIKE_RECEIVED_SINGLE_POST"
+    },
+    "is_active": true
+  },
+  {
+    "legacy_key": "streak_3",
+    "title": "리듬 찾기",
+    "description": "3일 연속 글을 작성했습니다.",
+    "reward_xp": 0,
+    "icon": "🔥",
+    "category": "streak",
+    "condition_type": "STREAK_DAYS",
+    "target_value": 3,
+    "display_order": 6,
+    "ui_json": {
+      "icon": "🔥",
+      "label": "업적",
+      "position_index": 6
+    },
+    "is_active": true
+  },
+  {
+    "legacy_key": "streak_7",
+    "title": "꾸준한 발걸음",
+    "description": "7일 연속 글을 작성했습니다.",
+    "reward_xp": 0,
+    "icon": "🌠",
+    "category": "streak",
+    "condition_type": "STREAK_DAYS",
+    "target_value": 7,
+    "display_order": 7,
+    "ui_json": {
+      "icon": "🌠",
+      "label": "업적",
+      "position_index": 7
+    },
+    "is_active": true
+  },
+  {
+    "legacy_key": "streak_30",
+    "title": "숲의 주인",
+    "description": "30일 연속 글을 작성했습니다.",
+    "reward_xp": 0,
+    "icon": "🏆",
+    "category": "streak",
+    "condition_type": "STREAK_DAYS",
+    "target_value": 30,
+    "display_order": 8,
+    "ui_json": {
+      "icon": "🏆",
+      "label": "업적",
+      "position_index": 8
+    },
+    "is_active": true
+  },
+  {
+    "legacy_key": "first_bookmark",
+    "title": "첫 보금자리",
+    "description": "내 글이 처음으로 북마크되었습니다.",
+    "reward_xp": 0,
+    "icon": "📌",
+    "category": "bookmark",
+    "condition_type": "BOOKMARK_RECEIVED",
+    "target_value": 1,
+    "display_order": 9,
+    "ui_json": {
+      "icon": "📌",
+      "label": "업적",
+      "position_index": 9
+    },
+    "is_active": true
+  }
+]
