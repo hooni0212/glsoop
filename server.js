@@ -13,6 +13,7 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const { applySecurity } = require('./middleware/security');
 const { cleanupExpiredPending } = require('./utils/pendingSignup');
+const { runMigrations } = require('./utils/migrations');
 
 // 환경 변수 및 메일/JWT 설정, DB는 각각 모듈에서 처리
 // (실제 DB 연결 로직은 db.js, 이메일/JWT 키는 config.js에서 초기화됨)
@@ -90,16 +91,27 @@ app.get('/', (req, res) => {
 });
 
 // 5. 서버 실행
-app.listen(PORT, HOST, () => {
-  console.log(`Server running on http://${HOST}:${PORT}`);
-});
+const startServer = async () => {
+  try {
+    await runMigrations();
+  } catch (error) {
+    console.error('migration failed:', error);
+    process.exit(1);
+  }
 
-cleanupExpiredPending().catch((error) => {
-  console.error('pending signup cleanup failed:', error);
-});
+  app.listen(PORT, HOST, () => {
+    console.log(`Server running on http://${HOST}:${PORT}`);
+  });
 
-setInterval(() => {
   cleanupExpiredPending().catch((error) => {
     console.error('pending signup cleanup failed:', error);
   });
-}, PENDING_CLEANUP_INTERVAL_MS);
+
+  setInterval(() => {
+    cleanupExpiredPending().catch((error) => {
+      console.error('pending signup cleanup failed:', error);
+    });
+  }, PENDING_CLEANUP_INTERVAL_MS);
+};
+
+startServer();
