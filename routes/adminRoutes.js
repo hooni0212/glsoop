@@ -5,6 +5,77 @@ const { allAsync, getAsync, runAsync } = require('../utils/questService');
 
 const router = express.Router();
 
+async function ensureAchievementCampaign() {
+  const existing = await getAsync(
+    "SELECT id FROM quest_campaigns WHERE LOWER(campaign_type) = 'permanent' AND name = '업적' LIMIT 1"
+  );
+  if (existing) return existing.id;
+  const result = await runAsync(
+    `INSERT INTO quest_campaigns (name, description, campaign_type, is_active, priority)
+     VALUES (?, ?, ?, ?, ?)`,
+    ['업적', '업적 캠페인', 'permanent', 1, 1]
+  );
+  return result?.lastID || null;
+}
+
+async function getAchievementCampaignId() {
+  const existing = await getAsync(
+    "SELECT id FROM quest_campaigns WHERE LOWER(campaign_type) = 'permanent' AND name = '업적' LIMIT 1"
+  );
+  return existing?.id || null;
+}
+
+async function ensureCampaignItem(campaignId, templateId) {
+  if (!campaignId || !templateId) return;
+  const existing = await getAsync(
+    'SELECT id FROM quest_campaign_items WHERE campaign_id = ? AND template_id = ? LIMIT 1',
+    [campaignId, templateId]
+  );
+  if (existing) return;
+  const orderRow = await getAsync(
+    'SELECT COALESCE(MAX(sort_order), 0) AS max_sort FROM quest_campaign_items WHERE campaign_id = ?',
+    [campaignId]
+  );
+  const nextOrder = (orderRow?.max_sort || 0) + 1;
+  await runAsync(
+    'INSERT INTO quest_campaign_items (campaign_id, template_id, sort_order) VALUES (?, ?, ?)',
+    [campaignId, templateId, nextOrder]
+  );
+}
+
+async function backfillAchievementTemplate(campaignId, templateId) {
+  if (!campaignId || !templateId) return { changes: 0 };
+  return runAsync(
+    `INSERT OR IGNORE INTO user_quest_state
+      (user_id, campaign_id, template_id, progress, reset_key)
+     SELECT u.id, ?, ?, 0, 'permanent'
+     FROM users u`,
+    [campaignId, templateId]
+  );
+}
+
+async function backfillAllAchievements(campaignId) {
+  if (!campaignId) return { changes: 0 };
+  return runAsync(
+    `INSERT OR IGNORE INTO user_quest_state
+      (user_id, campaign_id, template_id, progress, reset_key)
+     SELECT u.id, ?, qci.template_id, 0, 'permanent'
+     FROM users u
+     JOIN quest_campaign_items qci ON qci.campaign_id = ?
+     JOIN quest_templates qt ON qt.id = qci.template_id
+     WHERE qt.template_kind = 'achievement' AND qt.is_active = 1`,
+    [campaignId, campaignId]
+  );
+}
+
+async function removeCampaignItem(campaignId, templateId) {
+  if (!campaignId || !templateId) return;
+  await runAsync(
+    'DELETE FROM quest_campaign_items WHERE campaign_id = ? AND template_id = ?',
+    [campaignId, templateId]
+  );
+}
+
 // 모든 관리자 라우트에 인증/관리자 검증을 공통 적용
 router.use(authRequired, adminRequired);
 
@@ -63,8 +134,14 @@ router.get('/users', async (req, res) => {
 router.delete('/users/:id', (req, res) => {
   const targetUserId = req.params.id;
   db.serialize(() => {
+    db.run('DELETE FROM user_quest_state WHERE user_id = ?', [targetUserId]);
+    db.run('DELETE FROM user_achievements WHERE user_id = ?', [targetUserId]);
+    db.run('DELETE FROM xp_log WHERE user_id = ?', [targetUserId]);
+    db.run('DELETE FROM otp_verifications WHERE user_id = ?', [targetUserId]);
+    db.run('DELETE FROM follows WHERE follower_id = ? OR followee_id = ?', [targetUserId, targetUserId]);
     db.run('DELETE FROM likes WHERE user_id = ?', [targetUserId]);
     db.run('DELETE FROM likes WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?)', [targetUserId]);
+    db.run('DELETE FROM bookmark_lists WHERE user_id = ?', [targetUserId]);
     db.run('DELETE FROM posts WHERE user_id = ?', [targetUserId]);
     db.run('DELETE FROM users WHERE id = ?', [targetUserId], function (err) {
       if (err) {
@@ -195,17 +272,51 @@ router.get('/quest-templates', async (req, res) => {
 });
 
 router.post('/quest-templates', async (req, res) => {
-  const { name, description, condition_type, category, target_value, reward_xp, is_active = 1 } = req.body;
+  const {
+    name,
+    description,
+    condition_type,
+    category,
+    target_value,
+    reward_xp,
+    is_active = 1,
+    template_kind = 'quest',
+    code = null,
+    ui_json = null,
+  } = req.body;
   if (!name || !condition_type || !target_value) {
     return res.status(400).json({ ok: false, message: '필수 입력이 누락되었습니다.' });
   }
+  const normalizedTemplateKind = String(template_kind || 'quest').toLowerCase();
   try {
-    await runAsync(
-      `INSERT INTO quest_templates (name, description, condition_type, category, target_value, reward_xp, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, description || '', condition_type, category || null, Number(target_value), Number(reward_xp) || 0, is_active ? 1 : 0]
+    const result = await runAsync(
+      `INSERT INTO quest_templates (name, description, condition_type, category, target_value, reward_xp, is_active, template_kind, code, ui_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name,
+        description || '',
+        condition_type,
+        category || null,
+        Number(target_value),
+        Number(reward_xp) || 0,
+        is_active ? 1 : 0,
+        normalizedTemplateKind || 'quest',
+        code,
+        ui_json,
+      ]
     );
-    res.json({ ok: true, message: '템플릿이 생성되었습니다.' });
+    let campaignId = null;
+    if (normalizedTemplateKind === 'achievement') {
+      campaignId = await ensureAchievementCampaign();
+      await ensureCampaignItem(campaignId, result?.lastID);
+      await backfillAchievementTemplate(campaignId, result?.lastID);
+    }
+    res.json({
+      ok: true,
+      message: '템플릿이 생성되었습니다.',
+      template_id: result?.lastID,
+      campaign_id: campaignId,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 생성 중 오류가 발생했습니다.' });
@@ -213,13 +324,52 @@ router.post('/quest-templates', async (req, res) => {
 });
 
 router.put('/quest-templates/:id', async (req, res) => {
-  const { name, description, condition_type, category, target_value, reward_xp, is_active = 1 } = req.body;
+  const {
+    name,
+    description,
+    condition_type,
+    category,
+    target_value,
+    reward_xp,
+    is_active = 1,
+    template_kind = 'quest',
+    code = null,
+    ui_json = null,
+  } = req.body;
   const templateId = req.params.id;
+  const normalizedTemplateKind = String(template_kind || 'quest').toLowerCase();
   try {
-    await runAsync(
-      `UPDATE quest_templates SET name=?, description=?, condition_type=?, category=?, target_value=?, reward_xp=?, is_active=? WHERE id=?`,
-      [name, description || '', condition_type, category || null, Number(target_value), Number(reward_xp) || 0, is_active ? 1 : 0, templateId]
+    const previous = await getAsync(
+      'SELECT template_kind FROM quest_templates WHERE id = ?',
+      [templateId]
     );
+    const previousKind = String(previous?.template_kind || 'quest').toLowerCase();
+    await runAsync(
+      `UPDATE quest_templates
+       SET name=?, description=?, condition_type=?, category=?, target_value=?, reward_xp=?, is_active=?, template_kind=?, code=?, ui_json=?
+       WHERE id=?`,
+      [
+        name,
+        description || '',
+        condition_type,
+        category || null,
+        Number(target_value),
+        Number(reward_xp) || 0,
+        is_active ? 1 : 0,
+        normalizedTemplateKind || 'quest',
+        code,
+        ui_json,
+        templateId,
+      ]
+    );
+    if (normalizedTemplateKind === 'achievement') {
+      const campaignId = await ensureAchievementCampaign();
+      await ensureCampaignItem(campaignId, templateId);
+      await backfillAchievementTemplate(campaignId, templateId);
+    } else if (previousKind === 'achievement') {
+      const campaignId = await getAchievementCampaignId();
+      await removeCampaignItem(campaignId, templateId);
+    }
     res.json({ ok: true, message: '템플릿이 수정되었습니다.' });
   } catch (err) {
     console.error(err);
@@ -229,11 +379,23 @@ router.put('/quest-templates/:id', async (req, res) => {
 
 router.delete('/quest-templates/:id', async (req, res) => {
   try {
+    await runAsync('DELETE FROM quest_campaign_items WHERE template_id = ?', [req.params.id]);
     await runAsync('DELETE FROM quest_templates WHERE id = ?', [req.params.id]);
     res.json({ ok: true, message: '템플릿이 삭제되었습니다.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 삭제 중 오류가 발생했습니다.' });
+  }
+});
+
+router.post('/quests/achievements/backfill', async (req, res) => {
+  try {
+    const campaignId = await ensureAchievementCampaign();
+    const result = await backfillAllAchievements(campaignId);
+    res.json({ ok: true, inserted: result?.changes || 0, campaign_id: campaignId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, message: '업적 backfill 중 오류가 발생했습니다.' });
   }
 });
 
@@ -260,11 +422,16 @@ router.get('/quest-campaigns', async (req, res) => {
 router.post('/quest-campaigns', async (req, res) => {
   const { name, description, campaign_type = 'event', start_at, end_at, is_active = 0, priority = 1 } = req.body;
   if (!name) return res.status(400).json({ ok: false, message: '캠페인 이름이 필요합니다.' });
+  const normalizedCampaignType = String(campaign_type || 'event').toLowerCase();
+  const allowedCampaignTypes = new Set(['permanent', 'daily', 'weekly', 'season', 'event']);
+  if (!allowedCampaignTypes.has(normalizedCampaignType)) {
+    return res.status(400).json({ ok: false, message: '허용되지 않는 campaign_type입니다.' });
+  }
   try {
     await runAsync(
       `INSERT INTO quest_campaigns (name, description, campaign_type, start_at, end_at, is_active, priority)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, description || '', campaign_type, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1]
+      [name, description || '', normalizedCampaignType, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1]
     );
     res.json({ ok: true, message: '캠페인이 생성되었습니다.' });
   } catch (err) {
@@ -276,10 +443,15 @@ router.post('/quest-campaigns', async (req, res) => {
 router.put('/quest-campaigns/:id', async (req, res) => {
   const { name, description, campaign_type = 'event', start_at, end_at, is_active = 0, priority = 1 } = req.body;
   const campaignId = req.params.id;
+  const normalizedCampaignType = String(campaign_type || 'event').toLowerCase();
+  const allowedCampaignTypes = new Set(['permanent', 'daily', 'weekly', 'season', 'event']);
+  if (!allowedCampaignTypes.has(normalizedCampaignType)) {
+    return res.status(400).json({ ok: false, message: '허용되지 않는 campaign_type입니다.' });
+  }
   try {
     await runAsync(
       `UPDATE quest_campaigns SET name=?, description=?, campaign_type=?, start_at=?, end_at=?, is_active=?, priority=? WHERE id=?`,
-      [name, description || '', campaign_type, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1, campaignId]
+      [name, description || '', normalizedCampaignType, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1, campaignId]
     );
     res.json({ ok: true, message: '캠페인이 수정되었습니다.' });
   } catch (err) {
@@ -290,6 +462,7 @@ router.put('/quest-campaigns/:id', async (req, res) => {
 
 router.delete('/quest-campaigns/:id', async (req, res) => {
   try {
+    await runAsync('DELETE FROM user_quest_state WHERE campaign_id = ?', [req.params.id]);
     await runAsync('DELETE FROM quest_campaigns WHERE id = ?', [req.params.id]);
     res.json({ ok: true, message: '캠페인이 삭제되었습니다.' });
   } catch (err) {

@@ -172,38 +172,45 @@ async function getPostBookmarkCountForAuthor(userId) {
   return row?.cnt || 0;
 }
 
-async function ensureUserAchievementRow(userId, achievementId, progressValue, unlockedAt) {
+async function ensureAchievementCampaignId() {
   const existing = await dbGet(
-    'SELECT id, progress_value, unlocked_at FROM user_achievements WHERE user_id = ? AND achievement_id = ?',
-    [userId, achievementId]
+    "SELECT id FROM quest_campaigns WHERE LOWER(campaign_type) = 'permanent' AND name = '업적' LIMIT 1"
   );
-
-  const nextProgress = Math.max(progressValue || 0, existing?.progress_value || 0);
-  const shouldUnlock = !existing?.unlocked_at && unlockedAt;
-
-  if (!existing) {
-    await dbRun(
-      'INSERT INTO user_achievements (user_id, achievement_id, progress_value, unlocked_at) VALUES (?, ?, ?, ?)',
-      [userId, achievementId, nextProgress, unlockedAt || null]
-    );
-    return;
-  }
-
-  await dbRun(
-    'UPDATE user_achievements SET progress_value = ?, unlocked_at = COALESCE(unlocked_at, ?) WHERE id = ?',
-    [nextProgress, shouldUnlock ? unlockedAt : null, existing.id]
+  if (existing?.id) return existing.id;
+  const result = await dbRun(
+    `INSERT INTO quest_campaigns (name, description, campaign_type, is_active, priority)
+     VALUES (?, ?, ?, ?, ?)`,
+    ['업적', '업적 캠페인', 'permanent', 1, 1]
   );
+  return result?.lastID || null;
 }
 
 async function updateAchievementProgress(userId, code, progressValue) {
-  const achievement = await dbGet(
-    'SELECT id, target_value FROM achievements WHERE code = ?',
+  const template = await dbGet(
+    "SELECT id, target_value FROM quest_templates WHERE template_kind = 'achievement' AND code = ?",
     [code]
   );
-  if (!achievement) return;
+  if (!template) return;
 
-  const unlockedAt = progressValue >= achievement.target_value ? new Date().toISOString() : null;
-  await ensureUserAchievementRow(userId, achievement.id, progressValue, unlockedAt);
+  const campaignId = await ensureAchievementCampaignId();
+  if (!campaignId) return;
+
+  const unlockedAt = progressValue >= template.target_value ? new Date().toISOString() : null;
+
+  await dbRun(
+    `INSERT OR IGNORE INTO user_quest_state
+      (user_id, campaign_id, template_id, progress, reset_key, completed_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [userId, campaignId, template.id, progressValue || 0, 'permanent', unlockedAt]
+  );
+
+  await dbRun(
+    `UPDATE user_quest_state
+     SET progress = MAX(progress, ?),
+         completed_at = COALESCE(completed_at, ?)
+     WHERE user_id = ? AND campaign_id = ? AND template_id = ? AND reset_key = ?`,
+    [progressValue || 0, unlockedAt, userId, campaignId, template.id, 'permanent']
+  );
 }
 
 async function handlePostCreated(userId, postId) {
@@ -300,22 +307,43 @@ async function fetchGrowthSummary(userId) {
 }
 
 async function fetchUserAchievements(userId) {
+  const campaign = await dbGet(
+    "SELECT id FROM quest_campaigns WHERE LOWER(campaign_type) = 'permanent' AND name = '업적' LIMIT 1"
+  );
+  const campaignId = campaign?.id || null;
+
   const rows = await dbAll(
-    `SELECT a.*, ua.progress_value, ua.unlocked_at
-     FROM achievements a
-     LEFT JOIN user_achievements ua ON ua.achievement_id = a.id AND ua.user_id = ?
-     ORDER BY a.position_index ASC, a.id ASC`,
-    [userId]
+    `
+    SELECT
+      qt.id,
+      qt.code,
+      qt.name,
+      qt.description,
+      qt.category,
+      qt.target_value,
+      qt.ui_json,
+      COALESCE(uqs.progress, 0) AS progress_value,
+      uqs.completed_at
+    FROM quest_templates qt
+    LEFT JOIN user_quest_state uqs
+      ON uqs.template_id = qt.id
+     AND uqs.user_id = ?
+     AND uqs.campaign_id = ?
+     AND uqs.reset_key = 'permanent'
+    WHERE qt.template_kind = 'achievement'
+    ORDER BY qt.id ASC
+    `,
+    [userId, campaignId]
   );
 
-  return rows.map((row) => {
+  const mapped = rows.map((row) => {
     let status = 'locked';
-    if (row.unlocked_at) {
+    if (row.completed_at) {
       status = 'completed';
     } else if (row.progress_value > 0) {
       status = 'in_progress';
     }
-    const extras = row.extra_json ? safeJsonParse(row.extra_json) : {};
+    const extras = row.ui_json ? safeJsonParse(row.ui_json) : {};
     return {
       id: row.id,
       code: row.code,
@@ -325,11 +353,13 @@ async function fetchUserAchievements(userId) {
       status,
       progress: row.progress_value || 0,
       target: row.target_value,
-      unlockedAt: row.unlocked_at || null,
-      positionIndex: row.position_index || 0,
+      unlockedAt: row.completed_at || null,
+      positionIndex: extras.position_index || 0,
       icon: extras.icon || '🌿',
     };
   });
+
+  return mapped.sort((a, b) => (a.positionIndex || 0) - (b.positionIndex || 0));
 }
 
 function safeJsonParse(str) {

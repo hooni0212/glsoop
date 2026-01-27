@@ -119,31 +119,7 @@
 
 ---
 
-## 11) achievements
-
-- `id` INTEGER PRIMARY KEY AUTOINCREMENT
-- `code` TEXT UNIQUE NOT NULL
-- `name` TEXT NOT NULL
-- `description` TEXT
-- `category` TEXT
-- `target_value` INTEGER NOT NULL
-- `position_index` INTEGER
-- `extra_json` TEXT
-
----
-
-## 12) user_achievements
-
-- `id` INTEGER PRIMARY KEY AUTOINCREMENT
-- `user_id` INTEGER NOT NULL (FK → users.id)
-- `achievement_id` INTEGER NOT NULL (FK → achievements.id)
-- `progress_value` INTEGER NOT NULL DEFAULT 0
-- `unlocked_at` DATETIME
-- UNIQUE (`user_id`, `achievement_id`)
-
----
-
-## 13) quest_templates
+## 11) quest_templates
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `name` TEXT NOT NULL
@@ -153,11 +129,14 @@
 - `target_value` INTEGER NOT NULL
 - `reward_xp` INTEGER DEFAULT 0
 - `is_active` INTEGER DEFAULT 1
+- `template_kind` TEXT NOT NULL DEFAULT 'quest'
+- `code` TEXT
+- `ui_json` TEXT
 - `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
 
 ---
 
-## 14) quest_campaigns
+## 12) quest_campaigns
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `name` TEXT NOT NULL
@@ -171,7 +150,7 @@
 
 ---
 
-## 14) quest_campaign_items
+## 13) quest_campaign_items
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `campaign_id` INTEGER NOT NULL (FK → quest_campaigns.id, ON DELETE CASCADE)
@@ -180,7 +159,7 @@
 
 ---
 
-## 15) user_quest_state
+## 14) user_quest_state
 
 - `id` INTEGER PRIMARY KEY AUTOINCREMENT
 - `user_id` INTEGER NOT NULL (FK → users.id)
@@ -189,4 +168,5 @@
 - `progress` INTEGER DEFAULT 0
 - `reset_key` TEXT
 - `completed_at` DATETIME
+- `reward_claimed_at` DATETIME
 - UNIQUE (`user_id`, `campaign_id`, `template_id`, `reset_key`)

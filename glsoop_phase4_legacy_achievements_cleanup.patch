@@ -1,0 +1,126 @@
+diff --git a/db.js b/db.js
+index 2f32400..f41bfec 100644
+--- a/db.js
++++ b/db.js
+@@ -255,34 +255,6 @@ db.serialize(() => {
+   `);
+   db.run('CREATE INDEX IF NOT EXISTS idx_xp_log_user_date ON xp_log(user_id, created_at)');
+ 
+-  // 업적 정의 테이블
+-  db.run(`
+-    CREATE TABLE IF NOT EXISTS achievements (
+-      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+-      code           TEXT UNIQUE NOT NULL,
+-      name           TEXT NOT NULL,
+-      description    TEXT,
+-      category       TEXT,
+-      target_value   INTEGER NOT NULL,
+-      position_index INTEGER,
+-      extra_json     TEXT
+-    )
+-  `);
+-
+-  // 사용자 업적 진행도 테이블
+-  db.run(`
+-    CREATE TABLE IF NOT EXISTS user_achievements (
+-      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+-      user_id         INTEGER NOT NULL,
+-      achievement_id  INTEGER NOT NULL,
+-      progress_value  INTEGER NOT NULL DEFAULT 0,
+-      unlocked_at     DATETIME,
+-      UNIQUE(user_id, achievement_id),
+-      FOREIGN KEY (user_id) REFERENCES users(id),
+-      FOREIGN KEY (achievement_id) REFERENCES achievements(id)
+-    )
+-  `);
+-
+   // 업적 템플릿 시드는 Phase 3 마이그레이션/스크립트에서 관리합니다.
+ 
+   // 퀘스트/캠페인 운영 테이블
+@@ -358,8 +330,7 @@ db.serialize(() => {
+   db.run('CREATE INDEX IF NOT EXISTS idx_post_hashtags_tag ON post_hashtags(hashtag_id)');
+   db.run('CREATE INDEX IF NOT EXISTS idx_post_hashtags_post ON post_hashtags(post_id)');
+ 
+-  // ✅ user_achievements / quest (마이페이지 위젯이 자주 치면 필요)
+-  db.run('CREATE INDEX IF NOT EXISTS idx_user_ach_user ON user_achievements(user_id)');
++  // ✅ user_quest_state (마이페이지 위젯이 자주 치면 필요)
+   db.run('CREATE INDEX IF NOT EXISTS idx_user_quest_user_campaign ON user_quest_state(user_id, campaign_id, reset_key)');
+ });
+ 
+diff --git a/docs/DB_SCHEMA.md b/docs/DB_SCHEMA.md
+index 083b23b..497c979 100644
+--- a/docs/DB_SCHEMA.md
++++ b/docs/DB_SCHEMA.md
+@@ -119,31 +119,7 @@
+ 
+ ---
+ 
+-## 11) achievements
+-
+-- `id` INTEGER PRIMARY KEY AUTOINCREMENT
+-- `code` TEXT UNIQUE NOT NULL
+-- `name` TEXT NOT NULL
+-- `description` TEXT
+-- `category` TEXT
+-- `target_value` INTEGER NOT NULL
+-- `position_index` INTEGER
+-- `extra_json` TEXT
+-
+----
+-
+-## 12) user_achievements
+-
+-- `id` INTEGER PRIMARY KEY AUTOINCREMENT
+-- `user_id` INTEGER NOT NULL (FK → users.id)
+-- `achievement_id` INTEGER NOT NULL (FK → achievements.id)
+-- `progress_value` INTEGER NOT NULL DEFAULT 0
+-- `unlocked_at` DATETIME
+-- UNIQUE (`user_id`, `achievement_id`)
+-
+----
+-
+-## 13) quest_templates
++## 11) quest_templates
+ 
+ - `id` INTEGER PRIMARY KEY AUTOINCREMENT
+ - `name` TEXT NOT NULL
+@@ -153,11 +129,14 @@
+ - `target_value` INTEGER NOT NULL
+ - `reward_xp` INTEGER DEFAULT 0
+ - `is_active` INTEGER DEFAULT 1
++- `template_kind` TEXT NOT NULL DEFAULT 'quest'
++- `code` TEXT
++- `ui_json` TEXT
+ - `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+ 
+ ---
+ 
+-## 14) quest_campaigns
++## 12) quest_campaigns
+ 
+ - `id` INTEGER PRIMARY KEY AUTOINCREMENT
+ - `name` TEXT NOT NULL
+@@ -171,7 +150,7 @@
+ 
+ ---
+ 
+-## 14) quest_campaign_items
++## 13) quest_campaign_items
+ 
+ - `id` INTEGER PRIMARY KEY AUTOINCREMENT
+ - `campaign_id` INTEGER NOT NULL (FK → quest_campaigns.id, ON DELETE CASCADE)
+@@ -180,7 +159,7 @@
+ 
+ ---
+ 
+-## 15) user_quest_state
++## 14) user_quest_state
+ 
+ - `id` INTEGER PRIMARY KEY AUTOINCREMENT
+ - `user_id` INTEGER NOT NULL (FK → users.id)
+@@ -189,4 +168,5 @@
+ - `progress` INTEGER DEFAULT 0
+ - `reset_key` TEXT
+ - `completed_at` DATETIME
++- `reward_claimed_at` DATETIME
+ - UNIQUE (`user_id`, `campaign_id`, `template_id`, `reset_key`)

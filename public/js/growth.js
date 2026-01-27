@@ -48,6 +48,7 @@ async function loadActiveQuests() {
 function formatCampaignMeta(campaigns = []) {
   const typeLabel = (type) => {
     const normalized = (type || '').toLowerCase();
+    if (normalized === 'permanent') return '상시';
     if (normalized === 'weekly') return '주간';
     if (normalized === 'season') return '시즌';
     if (normalized === 'daily') return '일일';
@@ -70,6 +71,15 @@ function formatCampaignMeta(campaigns = []) {
     campaignTypeLabel: typeLabel(c.campaign_type || c.campaignType),
     dateLabel: formatKstRange(c.start_at || c.start_at_kst, c.end_at || c.end_at_kst),
   }));
+}
+
+function parseUiMeta(uiJson) {
+  if (!uiJson) return {};
+  try {
+    return JSON.parse(uiJson);
+  } catch (error) {
+    return {};
+  }
 }
 
 function conditionLabelFromType(condition, category) {
@@ -333,9 +343,11 @@ function renderQuestGroups(campaigns = []) {
   const questToday = document.getElementById('growthQuestListToday');
   const questWeek = document.getElementById('growthQuestListWeek');
   const campaignStack = document.getElementById('campaignStack');
+  const achievementList = document.getElementById('achievementQuestList');
   if (questToday) questToday.innerHTML = '';
   if (questWeek) questWeek.innerHTML = '';
   if (campaignStack) campaignStack.innerHTML = '';
+  if (achievementList) achievementList.innerHTML = '';
 
   const addCampaignCard = (campaign) => {
     if (!campaignStack) return;
@@ -381,14 +393,70 @@ function renderQuestGroups(campaigns = []) {
     animateProgressWidth(bar, progressPercent);
   };
 
+  const addAchievementItem = (quest, campaign) => {
+    if (!achievementList) return;
+    const uiMeta = parseUiMeta(quest.ui_json || quest.uiJson);
+    const icon = uiMeta.icon || '🏆';
+    const label = uiMeta.label || campaign?.name || '업적';
+    const progressPercent = quest.target ? Math.min(100, Math.round((quest.progress / quest.target) * 100)) : 0;
+    const claimed = Boolean(quest.reward_claimed_at || quest.rewardClaimedAt);
+    const canClaim = quest.status === 'completed' && !claimed;
+    const card = document.createElement('div');
+    card.className = `achievement-quest-card ${quest.status === 'completed' ? 'is-completed' : ''}`;
+    card.innerHTML = `
+      <div class="achievement-quest-header">
+        <div class="achievement-quest-icon">${icon}</div>
+        <div class="achievement-quest-titles">
+          <span class="achievement-quest-label">${label}</span>
+          <strong>${quest.name}</strong>
+        </div>
+        <span class="achievement-quest-status">${claimed ? '받음' : renderStatusLabel(quest.status)}</span>
+      </div>
+      <p class="gls-text-muted gls-mb-2">${quest.description || ''}</p>
+      <div class="achievement-quest-progress">
+        <div class="achievement-quest-progress-bar" style="width:${progressPercent}%"></div>
+      </div>
+      <div class="achievement-quest-meta">
+        <span>${quest.progress || 0} / ${quest.target || 0}</span>
+        ${quest.reward_xp ? `<span>보상 ${quest.reward_xp} XP</span>` : ''}
+      </div>
+      <div class="achievement-quest-actions">
+        ${canClaim ? `<button class="gls-btn gls-btn-primary gls-btn-xs" data-claim-id="${quest.state_id || quest.stateId}">보상 받기</button>` : ''}
+        ${claimed ? `<span class="gls-text-muted gls-text-small">보상 지급 완료</span>` : ''}
+      </div>
+    `;
+    const bar = card.querySelector('.achievement-quest-progress-bar');
+    animateProgressWidth(bar, progressPercent);
+    const claimBtn = card.querySelector('[data-claim-id]');
+    if (claimBtn) {
+      claimBtn.addEventListener('click', async () => {
+        const stateId = claimBtn.getAttribute('data-claim-id');
+        if (!stateId) return;
+        await claimQuestReward(stateId);
+      });
+    }
+    achievementList.appendChild(card);
+  };
+
   if (!campaigns.length) {
     if (questToday) questToday.innerHTML = '<div class="quest-card gls-text-muted">현재 진행 중인 퀘스트가 없습니다.</div>';
     if (questWeek) questWeek.innerHTML = '<div class="quest-card gls-text-muted">현재 진행 중인 퀘스트가 없습니다.</div>';
     if (campaignStack) campaignStack.innerHTML = '<div class="gls-text-muted gls-text-small">활성 캠페인이 없습니다.</div>';
+    if (achievementList) achievementList.innerHTML = '<div class="gls-text-muted">표시할 업적이 없습니다.</div>';
     return;
   }
 
   campaigns.forEach((campaign) => {
+    const achievementQuests = (campaign.quests || []).filter(
+      (quest) =>
+        (quest.template_kind || quest.templateKind) === 'achievement' ||
+        (campaign.campaignType === 'permanent' && (quest.template_kind || quest.templateKind))
+    );
+    achievementQuests.forEach((quest) => addAchievementItem(quest, campaign));
+    const normalQuests = (campaign.quests || []).filter(
+      (quest) =>
+        (quest.template_kind || quest.templateKind) !== 'achievement'
+    );
     const bucket =
       campaign.campaignType === 'weekly' || campaign.campaignType === 'season' || campaign.campaignType === 'event'
         ? questWeek
@@ -401,8 +469,24 @@ function renderQuestGroups(campaigns = []) {
       });
     }
     if (!bucket) return;
-    (campaign.quests || []).forEach((quest) => addItem(bucket, quest, campaign.name, campaign.campaignTypeLabel));
+    normalQuests.forEach((quest) => addItem(bucket, quest, campaign.name, campaign.campaignTypeLabel));
   });
+}
+
+async function claimQuestReward(stateId) {
+  try {
+    const res = await fetch(`/api/quests/${stateId}/claim`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert(data.message || '보상 지급에 실패했습니다.');
+      return;
+    }
+    await loadGrowthSummary();
+    await loadActiveQuests();
+  } catch (error) {
+    console.error(error);
+    alert('보상 지급 중 오류가 발생했습니다.');
+  }
 }
 
 function statusClass(status) {

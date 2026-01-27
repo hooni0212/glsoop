@@ -40,6 +40,22 @@ const dbRun = (sql, params = []) =>
     });
   });
 
+async function backfillUserAchievementStates(userId) {
+  const campaign = await dbGet(
+    "SELECT id FROM quest_campaigns WHERE campaign_type = 'permanent' AND name = '업적' LIMIT 1"
+  );
+  if (!campaign?.id) return;
+  await dbRun(
+    `INSERT OR IGNORE INTO user_quest_state
+      (user_id, campaign_id, template_id, progress, reset_key)
+     SELECT ?, qci.campaign_id, qci.template_id, 0, 'permanent'
+     FROM quest_campaign_items qci
+     JOIN quest_templates qt ON qt.id = qci.template_id
+     WHERE qci.campaign_id = ? AND qt.template_kind = 'achievement' AND qt.is_active = 1`,
+    [userId, campaign.id]
+  );
+}
+
 function maskEmail(address) {
   if (!address || typeof address !== 'string') return '';
   const trimmed = address.trim();
@@ -337,6 +353,11 @@ router.post('/verify-email', async (req, res) => {
     }
 
     const userId = await commitPendingSignup(pending);
+    try {
+      await backfillUserAchievementStates(userId);
+    } catch (backfillError) {
+      console.error('신규 유저 업적 backfill 실패:', backfillError);
+    }
 
     return res.json({
       ok: true,
