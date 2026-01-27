@@ -109,8 +109,14 @@ router.get('/users', async (req, res) => {
 router.delete('/users/:id', (req, res) => {
   const targetUserId = req.params.id;
   db.serialize(() => {
+    db.run('DELETE FROM user_quest_state WHERE user_id = ?', [targetUserId]);
+    db.run('DELETE FROM user_achievements WHERE user_id = ?', [targetUserId]);
+    db.run('DELETE FROM xp_log WHERE user_id = ?', [targetUserId]);
+    db.run('DELETE FROM otp_verifications WHERE user_id = ?', [targetUserId]);
+    db.run('DELETE FROM follows WHERE follower_id = ? OR followee_id = ?', [targetUserId, targetUserId]);
     db.run('DELETE FROM likes WHERE user_id = ?', [targetUserId]);
     db.run('DELETE FROM likes WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?)', [targetUserId]);
+    db.run('DELETE FROM bookmark_lists WHERE user_id = ?', [targetUserId]);
     db.run('DELETE FROM posts WHERE user_id = ?', [targetUserId]);
     db.run('DELETE FROM users WHERE id = ?', [targetUserId], function (err) {
       if (err) {
@@ -418,6 +424,7 @@ router.put('/quest-campaigns/:id', async (req, res) => {
 
 router.delete('/quest-campaigns/:id', async (req, res) => {
   try {
+    await runAsync('DELETE FROM user_quest_state WHERE campaign_id = ?', [req.params.id]);
     await runAsync('DELETE FROM quest_campaigns WHERE id = ?', [req.params.id]);
     res.json({ ok: true, message: '캠페인이 삭제되었습니다.' });
   } catch (err) {
