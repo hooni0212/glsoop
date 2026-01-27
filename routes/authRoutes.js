@@ -40,13 +40,6 @@ const dbRun = (sql, params = []) =>
     });
   });
 
-const deletePendingSignupCascade = async (pendingId) => {
-  // Child-first delete so this works even on legacy schemas without ON DELETE CASCADE.
-  await dbRun('DELETE FROM pending_otp_verifications WHERE pending_id = ?', [pendingId]);
-  await dbRun('DELETE FROM pending_signups WHERE id = ?', [pendingId]);
-};
-
-
 function maskEmail(address) {
   if (!address || typeof address !== 'string') return '';
   const trimmed = address.trim();
@@ -96,29 +89,18 @@ async function commitPendingSignup(pending) {
 
             const newUserId = this.lastID;
 
-            // Delete pending signup (child-first for legacy schema safety)
             db.run(
-              'DELETE FROM pending_otp_verifications WHERE pending_id = ?',
+              'DELETE FROM pending_signups WHERE id = ?',
               [pending.id],
-              (otpDeleteErr) => {
-                if (otpDeleteErr) {
-                  return db.run('ROLLBACK', () => reject(otpDeleteErr));
+              (deleteErr) => {
+                if (deleteErr) {
+                  return db.run('ROLLBACK', () => reject(deleteErr));
                 }
 
-                db.run(
-                  'DELETE FROM pending_signups WHERE id = ?',
-                  [pending.id],
-                  (deleteErr) => {
-                    if (deleteErr) {
-                      return db.run('ROLLBACK', () => reject(deleteErr));
-                    }
-
-                    db.run('COMMIT', (commitErr) => {
-                      if (commitErr) return reject(commitErr);
-                      resolve(newUserId);
-                    });
-                  }
-                );
+                db.run('COMMIT', (commitErr) => {
+                  if (commitErr) return reject(commitErr);
+                  resolve(newUserId);
+                });
               }
             );
           }
@@ -317,7 +299,7 @@ router.post('/verify-email', async (req, res) => {
     }
 
     if (otpRow.attempts >= MAX_OTP_ATTEMPTS) {
-      await deletePendingSignupCascade(pendingId);
+      await dbRun('DELETE FROM pending_signups WHERE id = ?', [pendingId]);
       return res.status(400).json({
         ok: false,
         message: '인증 시도 횟수를 초과했습니다. 회원가입을 다시 진행해 주세요.',
@@ -341,11 +323,10 @@ router.post('/verify-email', async (req, res) => {
       );
 
       if (nextAttempts >= MAX_OTP_ATTEMPTS) {
-        await deletePendingSignupCascade(pendingId);
+        await dbRun('DELETE FROM pending_signups WHERE id = ?', [pendingId]);
         return res.status(400).json({
           ok: false,
           message: '인증 시도 횟수를 초과했습니다. 회원가입을 다시 진행해 주세요.',
-        });
         });
       }
 
