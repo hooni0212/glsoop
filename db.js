@@ -255,34 +255,6 @@ db.serialize(() => {
   `);
   db.run('CREATE INDEX IF NOT EXISTS idx_xp_log_user_date ON xp_log(user_id, created_at)');
 
-  // 업적 정의 테이블
-  db.run(`
-    CREATE TABLE IF NOT EXISTS achievements (
-      id             INTEGER PRIMARY KEY AUTOINCREMENT,
-      code           TEXT UNIQUE NOT NULL,
-      name           TEXT NOT NULL,
-      description    TEXT,
-      category       TEXT,
-      target_value   INTEGER NOT NULL,
-      position_index INTEGER,
-      extra_json     TEXT
-    )
-  `);
-
-  // 사용자 업적 진행도 테이블
-  db.run(`
-    CREATE TABLE IF NOT EXISTS user_achievements (
-      id              INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id         INTEGER NOT NULL,
-      achievement_id  INTEGER NOT NULL,
-      progress_value  INTEGER NOT NULL DEFAULT 0,
-      unlocked_at     DATETIME,
-      UNIQUE(user_id, achievement_id),
-      FOREIGN KEY (user_id) REFERENCES users(id),
-      FOREIGN KEY (achievement_id) REFERENCES achievements(id)
-    )
-  `);
-
   // 업적 템플릿 시드는 Phase 3 마이그레이션/스크립트에서 관리합니다.
 
   // 퀘스트/캠페인 운영 테이블
@@ -358,8 +330,7 @@ db.serialize(() => {
   db.run('CREATE INDEX IF NOT EXISTS idx_post_hashtags_tag ON post_hashtags(hashtag_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_post_hashtags_post ON post_hashtags(post_id)');
 
-  // ✅ user_achievements / quest (마이페이지 위젯이 자주 치면 필요)
-  db.run('CREATE INDEX IF NOT EXISTS idx_user_ach_user ON user_achievements(user_id)');
+  // ✅ user_quest_state (마이페이지 위젯이 자주 치면 필요)
   db.run('CREATE INDEX IF NOT EXISTS idx_user_quest_user_campaign ON user_quest_state(user_id, campaign_id, reset_key)');
 });
 
