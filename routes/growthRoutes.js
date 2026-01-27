@@ -5,6 +5,26 @@ const {
   fetchUserAchievements,
 } = require('../utils/growth');
 const { getActiveQuestsForUser } = require('../utils/questService');
+const { computeLevelFromXp } = require('../utils/growth');
+const db = require('../db');
+
+function runAsync(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) return reject(err);
+      resolve(this);
+    });
+  });
+}
+
+function getAsync(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
+}
 
 const router = express.Router();
 
@@ -74,6 +94,7 @@ router.get('/quests/active', authRequired, async (req, res) => {
       end_at: campaign.endAt,
       quests: (campaign.quests || []).map((quest) => ({
         id: quest.id,
+        state_id: quest.stateId,
         name: quest.name,
         description: quest.description,
         condition_type: quest.conditionType,
@@ -85,6 +106,11 @@ router.get('/quests/active', authRequired, async (req, res) => {
         position_index: quest.positionIndex,
         campaign_id: quest.campaignId,
         campaign_type: quest.campaignType,
+        template_kind: quest.templateKind,
+        code: quest.code,
+        ui_json: quest.uiJson,
+        completed_at: quest.completedAt,
+        reward_claimed_at: quest.rewardClaimedAt,
       })),
     }));
     return res.json({
@@ -97,6 +123,92 @@ router.get('/quests/active', authRequired, async (req, res) => {
     return res
       .status(500)
       .json({ ok: false, message: '활성 퀘스트를 불러오지 못했습니다.' });
+  }
+});
+
+router.post('/quests/:stateId/claim', authRequired, async (req, res) => {
+  const stateId = Number(req.params.stateId);
+  if (!Number.isFinite(stateId)) {
+    return res.status(400).json({ ok: false, message: '올바르지 않은 stateId입니다.' });
+  }
+
+  const nowIso = new Date().toISOString();
+  try {
+    await runAsync('BEGIN IMMEDIATE;');
+    const state = await getAsync(
+      `SELECT uqs.id, uqs.user_id, uqs.completed_at, uqs.reward_claimed_at, uqs.template_id, uqs.campaign_id,
+              qt.reward_xp
+       FROM user_quest_state uqs
+       JOIN quest_templates qt ON qt.id = uqs.template_id
+       WHERE uqs.id = ? AND uqs.user_id = ?`,
+      [stateId, req.user.id]
+    );
+
+    if (!state) {
+      await runAsync('ROLLBACK;');
+      return res.status(404).json({ ok: false, message: '퀘스트 상태를 찾을 수 없습니다.' });
+    }
+
+    if (!state.completed_at) {
+      await runAsync('ROLLBACK;');
+      return res.status(400).json({ ok: false, message: '아직 완료되지 않은 퀘스트입니다.' });
+    }
+
+    if (state.reward_claimed_at) {
+      await runAsync('ROLLBACK;');
+      return res.status(409).json({ ok: false, message: '이미 보상을 받았습니다.' });
+    }
+
+    await runAsync(
+      'UPDATE user_quest_state SET reward_claimed_at = ? WHERE id = ?',
+      [nowIso, stateId]
+    );
+
+    const rewardXp = Number(state.reward_xp) || 0;
+    let newXp = null;
+    if (rewardXp > 0) {
+      await runAsync(
+        'INSERT INTO xp_log (user_id, delta, reason, meta, created_at) VALUES (?, ?, ?, ?, ?)',
+        [
+          req.user.id,
+          rewardXp,
+          'QUEST_REWARD',
+          JSON.stringify({
+            stateId,
+            templateId: state.template_id,
+            campaignId: state.campaign_id,
+          }),
+          nowIso,
+        ]
+      );
+      await runAsync('UPDATE users SET xp = COALESCE(xp, 0) + ? WHERE id = ?', [
+        rewardXp,
+        req.user.id,
+      ]);
+      const updated = await getAsync('SELECT xp FROM users WHERE id = ?', [req.user.id]);
+      newXp = updated?.xp || 0;
+      const { level } = computeLevelFromXp(newXp);
+      await runAsync('UPDATE users SET level = ? WHERE id = ?', [level, req.user.id]);
+    } else {
+      const updated = await getAsync('SELECT xp FROM users WHERE id = ?', [req.user.id]);
+      newXp = updated?.xp || 0;
+    }
+
+    await runAsync('COMMIT;');
+    return res.json({
+      ok: true,
+      reward_claimed_at: nowIso,
+      gained_xp: rewardXp,
+      new_xp: newXp,
+    });
+  } catch (error) {
+    try {
+      await runAsync('ROLLBACK;');
+    } catch (rollbackError) {
+      console.error('claim rollback failed:', rollbackError);
+    }
+    console.error('claim reward error:', error);
+    return res.status(500).json({ ok: false, message: '보상 지급 중 오류가 발생했습니다.' });
   }
 });
 
