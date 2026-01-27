@@ -2,7 +2,10 @@
 // - SQLite3 연결 및 주요 테이블 생성
 const sqlite3 = require('sqlite3').verbose();
 
-const db = new sqlite3.Database('data/live/users.db');
+const dbPath = process.env.DB_PATH || 'data/live/users.db';
+const db = new sqlite3.Database(dbPath);
+// Schema changes should be handled by SQL migrations; DB_AUTOINIT is only for legacy bootstrap.
+const shouldAutoInit = process.env.DB_AUTOINIT === 'true';
 
 db.serialize(() => {
   db.run('PRAGMA foreign_keys = ON');
@@ -15,7 +18,12 @@ db.serialize(() => {
   });
   db.get('PRAGMA foreign_keys;', (err, row) => {
     console.log('foreign_keys =', row?.foreign_keys);
-  });  
+  });
+
+  if (!shouldAutoInit) {
+    console.log('[db] DB_AUTOINIT is disabled; skipping schema creation/seed.');
+    return;
+  }
 
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
@@ -95,7 +103,7 @@ db.serialize(() => {
     ensureColumn('xp', 'xp INTEGER DEFAULT 0');
     ensureColumn('streak_days', 'streak_days INTEGER DEFAULT 0');
     ensureColumn('max_streak_days', 'max_streak_days INTEGER DEFAULT 0');
-    ensureColumn('last_post_date', "last_post_date TEXT");
+    ensureColumn('last_post_date', 'last_post_date TEXT');
   });
 
   // 4-2) 글(포스트) 테이블
@@ -275,113 +283,7 @@ db.serialize(() => {
     )
   `);
 
-  // 업적 시드 데이터 삽입
-  const seedAchievements = [
-    {
-      code: 'first_post',
-      name: '첫 걸음',
-      description: '첫 글을 작성했습니다.',
-      category: 'habit',
-      target_value: 1,
-      position_index: 1,
-      extra_json: JSON.stringify({ icon: '🌱' }),
-    },
-    {
-      code: 'posts_10',
-      name: '조심스러운 시작',
-      description: '글 10개를 작성했습니다.',
-      category: 'count_posts',
-      target_value: 10,
-      position_index: 2,
-      extra_json: JSON.stringify({ icon: '🌿' }),
-    },
-    {
-      code: 'posts_50',
-      name: '단단한 나무',
-      description: '글 50개를 작성했습니다.',
-      category: 'count_posts',
-      target_value: 50,
-      position_index: 3,
-      extra_json: JSON.stringify({ icon: '🌳' }),
-    },
-    {
-      code: 'first_like',
-      name: '따뜻한 첫 공감',
-      description: '처음으로 공감을 받았습니다.',
-      category: 'likes',
-      target_value: 1,
-      position_index: 4,
-      extra_json: JSON.stringify({ icon: '✨' }),
-    },
-    {
-      code: 'likes_10_single',
-      name: '공감이 쌓이는 글',
-      description: '한 글에 공감을 10개 받았습니다.',
-      category: 'likes',
-      target_value: 10,
-      position_index: 5,
-      extra_json: JSON.stringify({ icon: '💙' }),
-    },
-    {
-      code: 'streak_3',
-      name: '리듬 찾기',
-      description: '3일 연속 글을 작성했습니다.',
-      category: 'streak',
-      target_value: 3,
-      position_index: 6,
-      extra_json: JSON.stringify({ icon: '🔥' }),
-    },
-    {
-      code: 'streak_7',
-      name: '꾸준한 발걸음',
-      description: '7일 연속 글을 작성했습니다.',
-      category: 'streak',
-      target_value: 7,
-      position_index: 7,
-      extra_json: JSON.stringify({ icon: '🌠' }),
-    },
-    {
-      code: 'streak_30',
-      name: '숲의 주인',
-      description: '30일 연속 글을 작성했습니다.',
-      category: 'streak',
-      target_value: 30,
-      position_index: 8,
-      extra_json: JSON.stringify({ icon: '🏆' }),
-    },
-    {
-      code: 'first_bookmark',
-      name: '첫 보금자리',
-      description: '내 글이 처음으로 북마크되었습니다.',
-      category: 'bookmark',
-      target_value: 1,
-      position_index: 9,
-      extra_json: JSON.stringify({ icon: '📌' }),
-    },
-  ];
-
-  seedAchievements.forEach((ach) => {
-    db.run(
-      `INSERT OR IGNORE INTO achievements
-        (code, name, description, category, target_value, position_index, extra_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        ach.code,
-        ach.name,
-        ach.description,
-        ach.category,
-        ach.target_value,
-        ach.position_index,
-        ach.extra_json || null,
-      ],
-      (seedErr) => {
-        if (seedErr) {
-          console.error(`업적 시드 삽입 실패 (${ach.code}):`, seedErr);
-        }
-      }
-    );
-  });
+  // 업적 템플릿 시드는 Phase 3 마이그레이션/스크립트에서 관리합니다.
 
   // 퀘스트/캠페인 운영 테이블
   db.run(`
@@ -438,7 +340,6 @@ db.serialize(() => {
       FOREIGN KEY (template_id) REFERENCES quest_templates(id)
     )
   `);
-});
 
   // ✅ posts (피드/작성자별 목록)
   db.run('CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at)');
@@ -460,6 +361,7 @@ db.serialize(() => {
   // ✅ user_achievements / quest (마이페이지 위젯이 자주 치면 필요)
   db.run('CREATE INDEX IF NOT EXISTS idx_user_ach_user ON user_achievements(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_user_quest_user_campaign ON user_quest_state(user_id, campaign_id, reset_key)');
+});
 
 
 module.exports = db;
