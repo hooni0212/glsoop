@@ -82,6 +82,7 @@ Glsoop.AdminPage = (function () {
     await loadPosts(postsBox);
     await loadQuestTemplates();
     await loadQuestCampaigns();
+    setupAchievementBackfillButton();
   }
 
   function setupThemeControls() {
@@ -611,7 +612,7 @@ Glsoop.AdminPage = (function () {
     }
   }
 
-    async function loadQuestTemplates() {
+  async function loadQuestTemplates() {
       const box = document.getElementById('questTemplates');
       if (!box) return;
       box.innerHTML = '<p class="gls-text-muted">템플릿을 불러오는 중입니다...</p>';
@@ -644,6 +645,29 @@ Glsoop.AdminPage = (function () {
       console.error(err);
       box.innerHTML = '<p class="text-danger">템플릿 조회 중 오류가 발생했습니다.</p>';
     }
+  }
+
+  function setupAchievementBackfillButton() {
+    const btn = document.getElementById('achievementBackfillBtn');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      if (!confirm('현재 업적 템플릿을 모든 유저에게 부여하시겠습니까?')) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/admin/quests/achievements/backfill', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          alert(data.message || '업적 backfill에 실패했습니다.');
+          return;
+        }
+        alert(`업적 backfill 완료: ${data.inserted || 0}건`);
+      } catch (err) {
+        console.error(err);
+        alert('업적 backfill 중 오류가 발생했습니다.');
+      } finally {
+        btn.disabled = false;
+      }
+    });
   }
 
   function buildTemplateEditor(editingId = '') {

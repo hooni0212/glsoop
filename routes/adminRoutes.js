@@ -43,6 +43,31 @@ async function ensureCampaignItem(campaignId, templateId) {
   );
 }
 
+async function backfillAchievementTemplate(campaignId, templateId) {
+  if (!campaignId || !templateId) return { changes: 0 };
+  return runAsync(
+    `INSERT OR IGNORE INTO user_quest_state
+      (user_id, campaign_id, template_id, progress, reset_key)
+     SELECT u.id, ?, ?, 0, 'permanent'
+     FROM users u`,
+    [campaignId, templateId]
+  );
+}
+
+async function backfillAllAchievements(campaignId) {
+  if (!campaignId) return { changes: 0 };
+  return runAsync(
+    `INSERT OR IGNORE INTO user_quest_state
+      (user_id, campaign_id, template_id, progress, reset_key)
+     SELECT u.id, ?, qci.template_id, 0, 'permanent'
+     FROM users u
+     JOIN quest_campaign_items qci ON qci.campaign_id = ?
+     JOIN quest_templates qt ON qt.id = qci.template_id
+     WHERE qt.template_kind = 'achievement' AND qt.is_active = 1`,
+    [campaignId, campaignId]
+  );
+}
+
 async function removeCampaignItem(campaignId, templateId) {
   if (!campaignId || !templateId) return;
   await runAsync(
@@ -284,6 +309,7 @@ router.post('/quest-templates', async (req, res) => {
     if (normalizedTemplateKind === 'achievement') {
       campaignId = await ensureAchievementCampaign();
       await ensureCampaignItem(campaignId, result?.lastID);
+      await backfillAchievementTemplate(campaignId, result?.lastID);
     }
     res.json({
       ok: true,
@@ -339,6 +365,7 @@ router.put('/quest-templates/:id', async (req, res) => {
     if (normalizedTemplateKind === 'achievement') {
       const campaignId = await ensureAchievementCampaign();
       await ensureCampaignItem(campaignId, templateId);
+      await backfillAchievementTemplate(campaignId, templateId);
     } else if (previousKind === 'achievement') {
       const campaignId = await getAchievementCampaignId();
       await removeCampaignItem(campaignId, templateId);
@@ -358,6 +385,17 @@ router.delete('/quest-templates/:id', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 삭제 중 오류가 발생했습니다.' });
+  }
+});
+
+router.post('/quests/achievements/backfill', async (req, res) => {
+  try {
+    const campaignId = await ensureAchievementCampaign();
+    const result = await backfillAllAchievements(campaignId);
+    res.json({ ok: true, inserted: result?.changes || 0, campaign_id: campaignId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, message: '업적 backfill 중 오류가 발생했습니다.' });
   }
 });
 
