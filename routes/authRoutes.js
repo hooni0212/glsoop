@@ -696,17 +696,19 @@ router.post('/login', loginLimiter, (req, res) => {
           .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
       }
 
+      const invalidCredentialsResponse = () =>
+        res.status(401).json({
+          ok: false,
+          message: '이메일 또는 비밀번호가 올바르지 않습니다.',
+        });
+
       if (!user) {
-        return res
-          .status(400)
-          .json({ ok: false, message: '등록되지 않은 이메일입니다.' });
+        return invalidCredentialsResponse();
       }
 
       const match = await bcrypt.compare(pw, user.pw);
       if (!match) {
-        return res
-          .status(400)
-          .json({ ok: false, message: '비밀번호가 틀렸습니다.' });
+        return invalidCredentialsResponse();
       }
 
       const token = jwt.sign(
