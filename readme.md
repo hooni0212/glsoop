@@ -73,6 +73,7 @@ GMAIL_PASS=your_app_password
 JWT_SECRET=change_me
 JWT_ISSUER=http://localhost:3000
 JWT_AUDIENCE=glsoop-client
+CORS_ALLOWED_HOSTS=www.glsoop.com,m.glsoop.com,localhost,127.0.0.1
 ```
 
 ### 5-3) 실행

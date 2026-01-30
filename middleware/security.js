@@ -3,26 +3,32 @@
 const cors = require('cors');
 const helmet = require('helmet');
 
-// ✅ 허용 origin 목록
-// - 로컬 개발 & 실제 서비스 도메인을 명시
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
+const rawAllowedHosts = process.env.CORS_ALLOWED_HOSTS
+  ? process.env.CORS_ALLOWED_HOSTS.split(',').map((value) => value.trim())
+  : [];
+const filteredHosts = rawAllowedHosts.filter(Boolean);
+const isProduction = process.env.NODE_ENV === 'production';
 
-  // ✅ Expo Web(dev server)
-  'http://localhost:8081',
-  'http://127.0.0.1:8081',
+const defaultHosts = new Set(['www.glsoop.com', 'm.glsoop.com']);
+if (!isProduction) {
+  defaultHosts.add('localhost');
+  defaultHosts.add('127.0.0.1');
+}
 
-  // (선택) Expo 웹이 다른 포트로 뜰 때 대비
-  'http://localhost:19006',
-  'http://127.0.0.1:19006',
+const allowExactHosts =
+  filteredHosts.length > 0 ? new Set(filteredHosts) : defaultHosts;
 
-  'https://www.glsoop.com',
-  'https://glsoop.com',
-];
-
-// Cloudflare Tunnel 도메인 패턴 (예: xxx.trycloudflare.com)
-const allowedOriginSuffixes = ['.trycloudflare.com'];
+function originToHostname(origin) {
+  try {
+    const parsed = new URL(origin);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+    return parsed.hostname;
+  } catch (error) {
+    return null;
+  }
+}
 
 // ✅ CORS 옵션
 const corsOptions = {
@@ -30,15 +36,22 @@ const corsOptions = {
     // origin이 없는 경우(서버 내부 호출, Postman 등)는 허용
     if (!origin) return callback(null, true);
 
-    if (
-      allowedOrigins.includes(origin) ||
-      allowedOriginSuffixes.some((suffix) => origin.endsWith(suffix))
-    ) {
+    const hostname = originToHostname(origin);
+    if (!hostname) {
+      if (!isProduction) {
+        console.warn('[CORS BLOCKED] invalid origin =', origin);
+      }
+      return callback(null, false);
+    }
+
+    if (allowExactHosts.has(hostname)) {
       return callback(null, true);
     }
 
-    console.log('[CORS BLOCKED] origin =', origin);
-    return callback(new Error('Not allowed by CORS'));
+    if (!isProduction) {
+      console.warn('[CORS BLOCKED] origin =', origin, 'hostname =', hostname);
+    }
+    return callback(null, false);
   },
   credentials: true, // 쿠키(JWT) 같이 보내려면 필수
 };
