@@ -71,6 +71,8 @@ npm install
 GMAIL_USER=your@gmail.com
 GMAIL_PASS=your_app_password
 JWT_SECRET=change_me
+JWT_ISSUER=http://localhost:3000
+JWT_AUDIENCE=glsoop-client
 ```
 
 ### 5-3) 실행

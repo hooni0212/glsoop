@@ -6,7 +6,13 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
 const db = require('../db');
-const { transporter, JWT_SECRET } = require('../config');
+const {
+  transporter,
+  JWT_SECRET,
+  JWT_ALGORITHM,
+  JWT_ISSUER,
+  JWT_AUDIENCE,
+} = require('../config');
 const { authRequired } = require('../middleware/auth');
 const { getBaseUrl } = require('../utils/baseUrl');
 const { cleanupExpiredPending } = require('../utils/pendingSignup');
@@ -721,7 +727,12 @@ router.post('/login', loginLimiter, (req, res) => {
           isVerified: !!user.is_verified,
         },
         JWT_SECRET,
-        { expiresIn: '2h' }
+        {
+          expiresIn: '2h',
+          algorithm: JWT_ALGORITHM,
+          issuer: JWT_ISSUER,
+          audience: JWT_AUDIENCE,
+        }
       );
 
       const tokenMaxAgeMs = 2 * 60 * 60 * 1000; // 2h, JWT 만료와 동일하게 유지
