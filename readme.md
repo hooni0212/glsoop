@@ -122,7 +122,7 @@ npm run e2e:ui
 
 - 스냅샷: `test-results/ui-snapshots/runs/<RUN_ID>/<project>/<mode>/*.png`
 - 최신 스냅샷: `test-results/ui-snapshots/latest/<project>/<mode>/*.png`
-- 갤러리: `test-results/ui-snapshots/index.html` (latest로 리다이렉트)
+- 갤러리: `test-results/ui-snapshots/index.html` (항상 latest로 리다이렉트)
 - Playwright 리포트: `playwright-report/index.html`
 
 갤러리만 다시 생성하려면:
@@ -147,7 +147,7 @@ node scripts/build-snapshot-gallery.mjs --run 2026-01-01_120000
 
 run 갤러리 경로:
 
-- `test-results/ui-snapshots/runs/<RUN_ID>/index.html`
+- `test-results/ui-snapshots/runs/<RUN_ID>/index.html` (root index는 변경되지 않음)
 
 ---
 

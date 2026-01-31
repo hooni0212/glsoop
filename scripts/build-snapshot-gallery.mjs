@@ -147,11 +147,9 @@ const html = `<!doctype html>
 fs.mkdirSync(galleryRoot, { recursive: true });
 fs.writeFileSync(indexPath, html, 'utf8');
 
-const redirectTarget = toPosix(path.relative(snapshotRoot, indexPath));
-const redirectNotice = runId
-  ? `<p>Run gallery: <a href="${redirectTarget}">${redirectTarget}</a></p>`
-  : '<p>Latest gallery: <a href="latest/index.html">latest/index.html</a></p>';
-const rootHtml = `<!doctype html>
+if (!runId) {
+  const redirectTarget = 'latest/index.html';
+  const rootHtml = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -165,10 +163,11 @@ const rootHtml = `<!doctype html>
 </head>
 <body>
   <h1>UI Snapshot Gallery</h1>
-  ${redirectNotice}
+  <p>Latest gallery: <a href="${redirectTarget}">${redirectTarget}</a></p>
   <p>If you are not redirected automatically, open <a href="${redirectTarget}">${redirectTarget}</a>.</p>
 </body>
 </html>`;
 
-fs.writeFileSync(rootIndexPath, rootHtml, 'utf8');
+  fs.writeFileSync(rootIndexPath, rootHtml, 'utf8');
+}
 console.log(`Snapshot gallery written to ${indexPath}`);

@@ -203,6 +203,12 @@ const installLoggers = (page, entries, baseURL) => {
       return null;
     }
   })();
+  const isRelevantRequest = (url, resourceType) => {
+    if (!['document', 'xhr', 'fetch'].includes(resourceType)) return false;
+    if (!url) return false;
+    const sameOrigin = baseOrigin ? url.startsWith(baseOrigin) : false;
+    return sameOrigin || url.includes('/api/');
+  };
 
   const onConsole = (msg) => {
     if (msg.type() === 'error') {
@@ -216,21 +222,30 @@ const installLoggers = (page, entries, baseURL) => {
     if (response.status() < 400) return;
     const request = response.request();
     const resourceType = request.resourceType();
-    if (!['document', 'xhr', 'fetch'].includes(resourceType)) return;
     const url = response.url();
-    const sameOrigin = baseOrigin ? url.startsWith(baseOrigin) : false;
-    if (!sameOrigin && !url.includes('/api/')) return;
+    if (!isRelevantRequest(url, resourceType)) return;
     entries.push(`[response ${response.status()}] ${url}`);
+  };
+  const onRequestFailed = (request) => {
+    const url = request.url();
+    const resourceType = request.resourceType();
+    if (!isRelevantRequest(url, resourceType)) return;
+    const failure = request.failure();
+    entries.push(
+      `[requestfailed] ${url} (${resourceType}) ${failure?.errorText || 'unknown error'}`
+    );
   };
 
   page.on('console', onConsole);
   page.on('pageerror', onPageError);
   page.on('response', onResponse);
+  page.on('requestfailed', onRequestFailed);
 
   return () => {
     page.off('console', onConsole);
     page.off('pageerror', onPageError);
     page.off('response', onResponse);
+    page.off('requestfailed', onRequestFailed);
   };
 };
 
@@ -238,14 +253,50 @@ const safeClickIfVisible = async (page, selector) => {
   const locator = page.locator(selector).first();
   if ((await locator.count()) === 0) return false;
   if (!(await locator.isVisible())) return false;
-  await locator.click({ timeout: 2000 });
-  return true;
+  try {
+    await locator.click({ timeout: 2000 });
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 const stabilizePage = async (page) => {
   await page.waitForLoadState('domcontentloaded');
   await page.addStyleTag({ content: BASE_STYLE });
   await page.waitForTimeout(300);
+};
+
+const renderErrorPlaceholder = async (page, { key, url, reason }) => {
+  const escapedReason = reason ? String(reason).replace(/[<>]/g, '') : 'Unknown error';
+  const escapedUrl = url ? String(url).replace(/[<>]/g, '') : 'Unknown URL';
+  await page.setContent(
+    `<!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Navigation failed</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 24px; }
+        .panel { border: 2px dashed #d33; padding: 16px; border-radius: 8px; background: #fff5f5; }
+        h1 { margin-top: 0; color: #b91c1c; }
+        code { display: block; margin-top: 8px; white-space: pre-wrap; }
+      </style>
+    </head>
+    <body>
+      <div class="panel">
+        <h1>Navigation failed</h1>
+        <p><strong>Key:</strong> ${key}</p>
+        <p><strong>URL:</strong> ${escapedUrl}</p>
+        <code>${escapedReason}</code>
+      </div>
+    </body>
+    </html>`,
+    { waitUntil: 'domcontentloaded' }
+  );
+  await page.addStyleTag({ content: BASE_STYLE });
+  await page.waitForTimeout(200);
 };
 
 const captureSnapshot = async ({
@@ -266,10 +317,32 @@ const captureSnapshot = async ({
   const url = toUrl(baseURL, pathName);
 
   let response;
+  let navigationError;
   try {
     response = await page.goto(url, { waitUntil: 'domcontentloaded' });
   } catch (error) {
+    navigationError = error;
     entries.push(`[navigation] ${error.message}`);
+  }
+
+  if (navigationError) {
+    await renderErrorPlaceholder(page, {
+      key,
+      url,
+      reason: navigationError.message,
+    });
+    const filePath = buildSnapshotPath(RUN_ROOT, projectName, mode, `${key}.png`);
+    ensureDir(path.dirname(filePath));
+    await page.screenshot({ path: filePath, fullPage: true });
+    mirrorToLatest(filePath, projectName, mode, `${key}.png`);
+    const relativeFile = path
+      .relative(SNAPSHOT_ROOT, filePath)
+      .split(path.sep)
+      .join('/');
+    manifest.push({ key, url, file: relativeFile });
+    removeLoggers();
+    writeLogEntries(logPath, key, entries, latestLogPath);
+    return { skipped: true };
   }
 
   if (response && response.status() >= 400) {
@@ -279,6 +352,23 @@ const captureSnapshot = async ({
       writeLogEntries(logPath, `${key} (skipped)`, entries, latestLogPath);
       return { skipped: true };
     }
+    await renderErrorPlaceholder(page, {
+      key,
+      url,
+      reason: `HTTP ${response.status()}`,
+    });
+    const filePath = buildSnapshotPath(RUN_ROOT, projectName, mode, `${key}.png`);
+    ensureDir(path.dirname(filePath));
+    await page.screenshot({ path: filePath, fullPage: true });
+    mirrorToLatest(filePath, projectName, mode, `${key}.png`);
+    const relativeFile = path
+      .relative(SNAPSHOT_ROOT, filePath)
+      .split(path.sep)
+      .join('/');
+    manifest.push({ key, url, file: relativeFile });
+    removeLoggers();
+    writeLogEntries(logPath, key, entries, latestLogPath);
+    return { skipped: true };
   }
 
   await stabilizePage(page);
@@ -342,6 +432,7 @@ const applyAuthCookie = async (page, baseURL, payload) => {
 };
 
 test.describe('UI snapshot tour', () => {
+  test.setTimeout(120 * 1000);
   test('visit main pages and capture snapshots', async ({ page }, testInfo) => {
     const projectName = testInfo.project.name;
     const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
