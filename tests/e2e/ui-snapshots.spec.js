@@ -19,12 +19,14 @@ const buildRunId = () => {
 const RUN_ID = process.env.GLSOOP_SNAPSHOT_RUN_ID || buildRunId();
 const RUN_ROOT = path.join(SNAPSHOT_ROOT, 'runs', RUN_ID);
 const LATEST_ROOT = path.join(SNAPSHOT_ROOT, 'latest');
-const DB_PATH = path.join(REPO_ROOT, 'tmp', 'e2e_playwright.sqlite');
+const DB_PATH = process.env.DB_PATH
+  ? path.resolve(REPO_ROOT, process.env.DB_PATH)
+  : path.join(REPO_ROOT, 'tmp', 'e2e_playwright.sqlite');
 const BASE_STYLE = '*{transition:none!important;animation:none!important;caret-color:transparent!important;}';
 
 const guestPages = [
   { key: 'home', path: '/' },
-  { key: 'explore', path: '/explore' },
+  { key: 'explore', path: '/explore', waitFor: '#feedPosts' },
   { key: 'category-poem', path: '/html/category.html?category=poem' },
   { key: 'post-1', path: '/html/post.html?postId=1' },
   { key: 'author-1', path: '/html/author.html?userId=1' },
@@ -39,8 +41,10 @@ const guestPages = [
 const authedPages = [
   { key: 'editor', path: '/html/editor.html' },
   { key: 'mypage', path: '/html/mypage.html' },
-  { key: 'bookmarks', path: '/html/bookmarks.html' },
-  { key: 'growth', path: '/html/growth.html' },
+  { key: 'bookmarks', path: '/html/bookmarks.html', waitFor: '#bookmarkContent' },
+  { key: 'growth', path: '/html/growth.html', waitFor: '#growthLevelLabel' },
+  { key: 'post-1', path: '/html/post.html?postId=1', waitFor: '#postDetail' },
+  { key: 'author-1', path: '/html/author.html?userId=1', waitFor: '#authorPostsList' },
 ];
 
 const adminPages = [{ key: 'admin', path: '/admin' }];
@@ -255,6 +259,7 @@ const captureSnapshot = async ({
   manifest,
   logPath,
   latestLogPath,
+  waitFor,
 }) => {
   const entries = [];
   const removeLoggers = installLoggers(page, entries, baseURL);
@@ -277,6 +282,13 @@ const captureSnapshot = async ({
   }
 
   await stabilizePage(page);
+  if (waitFor) {
+    try {
+      await page.waitForSelector(waitFor, { timeout: 8000 });
+    } catch (error) {
+      entries.push(`[waitFor] ${waitFor} not found`);
+    }
+  }
 
   const filePath = buildSnapshotPath(RUN_ROOT, projectName, mode, `${key}.png`);
   ensureDir(path.dirname(filePath));
@@ -397,6 +409,7 @@ test.describe('UI snapshot tour', () => {
           manifest,
           logPath,
           latestLogPath,
+          waitFor: pageEntry.waitFor,
         });
 
         if (result?.skipped) {
