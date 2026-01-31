@@ -6,15 +6,26 @@ module.exports = defineConfig({
   expect: {
     timeout: 12 * 1000,
   },
-  reporter: 'list',
+  reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   use: {
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL: 'http://127.0.0.1:3100',
     trace: 'retain-on-failure',
+    video: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   webServer: {
     command: 'node server.js',
-    port: 3000,
-    reuseExistingServer: true,
+    port: 3100,
+    reuseExistingServer: false,
+    env: {
+      PORT: '3100',
+      NODE_ENV: 'development',
+      DB_PATH: 'tmp/e2e_playwright.sqlite',
+      DB_AUTOINIT: 'false',
+      JWT_SECRET: 'devsecret',
+      JWT_ISSUER: 'glsoop',
+      JWT_AUDIENCE: 'glsoop-client',
+    },
     timeout: 120 * 1000,
   },
   projects: [

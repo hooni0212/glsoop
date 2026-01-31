@@ -6,6 +6,8 @@
     "test": "playwright test",
     "test:e2e": "playwright test",
     "start": "node server.js",
+    "e2e:ui": "npx playwright test tests/e2e/ui-snapshots.spec.js && node scripts/build-snapshot-gallery.mjs",
+    "e2e:ui:show": "node scripts/build-snapshot-gallery.mjs",
     "verify:phase2": "node scripts/verify-phase2.mjs",
     "verify:phase3": "node scripts/verify-phase3.mjs",
     "backfill:quests": "node scripts/backfill-permanent-quests.mjs",

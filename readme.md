@@ -99,7 +99,21 @@ node scripts/e2e_password_reset_outbox.js
 
 ⚠️ 운영 환경에서는 outbox 전송을 허용하지 않습니다.
 
-### 5-3) 실행
+### 5-3) UI 스냅샷(E2E)
+
+Playwright로 주요 페이지를 게스트/로그인/관리자 모드에서 방문해
+데스크톱/모바일 스냅샷을 남기고 갤러리를 생성합니다.
+
+```bash
+npm run e2e:ui
+```
+
+결과물:
+
+* 스냅샷 갤러리: `test-results/ui-snapshots/index.html`
+* Playwright 리포트: `playwright-report/index.html`
+
+### 5-4) 실행
 
 ```bash
 npm run start

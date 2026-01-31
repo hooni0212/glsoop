@@ -51,6 +51,13 @@ data/**
 *.patch
 
 # =========================
+# E2E artifacts
+# =========================
+tmp/
+test-results/
+playwright-report/
+
+# =========================
 # ui-kit 파일 커밋 방지
 # =========================
 /public/html/ui-kit.html
