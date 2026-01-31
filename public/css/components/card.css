@@ -2,6 +2,39 @@
   border-radius: var(--gls-radius-card, 16px);
 }
 
+/* GLS card base */
+.gls-card {
+  border-radius: var(--gls-radius-lg, 18px);
+  background: var(--gls-surface-glass-bg, var(--gls-glass-bg-subtle));
+  border: 1px solid var(--gls-surface-glass-border, var(--gls-glass-border));
+  box-shadow: var(--gls-surface-glass-shadow, var(--gls-glass-shadow));
+  backdrop-filter: blur(var(--gls-surface-glass-blur, var(--gls-glass-blur)));
+  -webkit-backdrop-filter: blur(var(--gls-surface-glass-blur, var(--gls-glass-blur)));
+  position: relative;
+  overflow: hidden;
+}
+
+.gls-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--gls-surface-glass-inset, var(--gls-glass-inset));
+  pointer-events: none;
+}
+
+.gls-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.gls-card--mini {
+  border-radius: var(--gls-radius-md, 14px);
+  background: color-mix(in srgb, var(--gls-color-surface-subtle, #f7f9f4) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gls-glass-border) 60%, transparent);
+  box-shadow: 0 1px 2px rgba(19, 34, 30, 0.08);
+}
+
 .card-title {
     font-size: var(--gls-fs-lg, 1.125rem);
     line-height: var(--gls-lh-tight, 1.25);

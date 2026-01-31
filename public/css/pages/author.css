@@ -94,10 +94,11 @@ body.page-author {
 }
 
 .author-card-title {
-  font-weight: 700;
-  font-size: 1.02rem;
+  font-weight: 600;
+  font-size: 0.96rem;
   margin-bottom: var(--gls-space-2);
-  color: var(--gls-text);
+  color: var(--author-text-muted);
+  letter-spacing: -0.01em;
 }
 
 /* 오른쪽: 글 목록 카드 안의 개별 글 카드 */
@@ -183,12 +184,11 @@ body.page-author .author-post-preview .quote-card {
 
 .author-profile-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--gls-space-3);
   flex-wrap: wrap;
   padding-bottom: var(--gls-space-3);
-  border-bottom: 1px solid var(--author-divider);
 }
 
 .author-identity-block {
@@ -228,8 +228,8 @@ body.page-author .author-post-preview .quote-card {
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid var(--author-divider);
+  background: color-mix(in srgb, var(--gls-glass-bg) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--author-divider) 70%, transparent);
   border-radius: 999px;
   color: var(--gls-text);
   font-weight: 600;
@@ -271,7 +271,6 @@ body.page-author .author-post-preview .quote-card {
 
 .author-intro-section {
   padding: var(--gls-space-3) 0 var(--gls-space-2);
-  border-bottom: 1px solid var(--author-divider);
   display: flex;
   flex-direction: column;
   gap: var(--gls-space-3);
@@ -300,33 +299,14 @@ body.page-author .author-post-preview .quote-card {
   position: relative;
   overflow: hidden;
   padding: var(--gls-space-2) var(--gls-space-2);
-  border: 1px solid color-mix(in srgb, var(--gls-border) 40%, transparent);
-  border-radius: var(--gls-radius-md);
-
-  /* Route A: inner tile (flat/soft). No backdrop blur here. */
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--gls-surface) 78%, transparent 22%),
-    color-mix(in srgb, var(--gls-surface) 66%, transparent 34%)
-  );
-
-  box-shadow:
-    0 1px 0 color-mix(in srgb, #fff 45%, transparent) inset,
-    0 1px 2px color-mix(in srgb, var(--gls-border) 12%, transparent);
+  transition: var(--gls-transition-lift-ui);
 }
 
-
-.author-stat::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    120% 80% at 22% 0%,
-    rgba(255, 255, 255, 0.55),
-    rgba(255, 255, 255, 0) 60%
-  );
-  pointer-events: none;
-  opacity: 0.95;
+@media (hover: hover) and (pointer: fine) {
+  .author-stat:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--gls-glass-shadow-hover);
+  }
 }
 
 .author-stat .label {
@@ -340,7 +320,7 @@ body.page-author .author-post-preview .quote-card {
 .author-stat .value {
   display: block;
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
 }
 
 .author-follow-block {
