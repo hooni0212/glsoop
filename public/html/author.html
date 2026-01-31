@@ -225,13 +225,13 @@
         <!-- 오른쪽: 작가의 글 목록 카드 -->
         <div class="author-right-col">
           <div class="gls-action-bar author-action-bar gls-mb-2">
-            <div class="author-action-title">
+            <div class="gls-action-bar-left author-action-title">
               <h4 class="gls-mb-0">이 작가의 글</h4>
               <p class="gls-text-muted gls-text-small gls-mb-0">
                 작가의 분위기를 보고 팔로우할지 결정해 보세요.
               </p>
             </div>
-            <div class="gls-action-tools author-action-tools">
+            <div class="gls-action-group author-action-tools">
               <button
                 type="button"
                 class="gls-btn gls-btn-primary author-follow-btn"
@@ -264,7 +264,7 @@
           <div class="author-posts-card gls-surface-glass gls-surface-veil">
             <div class="author-posts-card-body">
               <!-- 실제 글 카드들이 JS로 렌더링 되는 영역 -->
-              <div id="authorPostsList" class="gls-card-list author-posts-list"></div>
+              <div id="authorPostsList" class="gls-card-list gls-card-list-compact author-posts-list"></div>
 
               <!-- 글 로딩 중 메시지 -->
               <div

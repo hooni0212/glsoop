@@ -399,10 +399,6 @@ body.page-author .author-post-preview .quote-card {
   margin-top: 0.4rem;
 }
 
-.author-action-bar {
-  align-items: flex-start;
-}
-
 .author-action-title {
   display: flex;
   flex-direction: column;
