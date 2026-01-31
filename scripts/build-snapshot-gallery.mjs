@@ -24,6 +24,7 @@ const galleryRoot = runId
   : path.join(snapshotRoot, 'latest');
 
 const indexPath = path.join(galleryRoot, 'index.html');
+const rootIndexPath = path.join(snapshotRoot, 'index.html');
 
 const toPosix = (value) => value.split(path.sep).join('/');
 
@@ -145,10 +146,29 @@ const html = `<!doctype html>
 
 fs.mkdirSync(galleryRoot, { recursive: true });
 fs.writeFileSync(indexPath, html, 'utf8');
-if (!runId) {
-  const latestIndexPath = path.join(snapshotRoot, 'index.html');
-  fs.writeFileSync(latestIndexPath, html, 'utf8');
-  console.log(`Snapshot gallery written to ${latestIndexPath}`);
-} else {
-  console.log(`Snapshot gallery written to ${indexPath}`);
-}
+
+const redirectTarget = toPosix(path.relative(snapshotRoot, indexPath));
+const redirectNotice = runId
+  ? `<p>Run gallery: <a href="${redirectTarget}">${redirectTarget}</a></p>`
+  : '<p>Latest gallery: <a href="latest/index.html">latest/index.html</a></p>';
+const rootHtml = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0; url=${redirectTarget}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UI Snapshot Gallery</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; }
+    a { color: #2b6cb0; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>UI Snapshot Gallery</h1>
+  ${redirectNotice}
+  <p>If you are not redirected automatically, open <a href="${redirectTarget}">${redirectTarget}</a>.</p>
+</body>
+</html>`;
+
+fs.writeFileSync(rootIndexPath, rootHtml, 'utf8');
+console.log(`Snapshot gallery written to ${indexPath}`);
