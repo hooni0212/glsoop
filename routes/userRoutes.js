@@ -51,6 +51,12 @@ function parseListPagination(query = {}) {
   return { limit, offset };
 }
 
+function parseAuthorSort(query = {}) {
+  const sort = String(query.sort || 'latest');
+  if (sort === 'popular' || sort === 'oldest') return sort;
+  return 'latest';
+}
+
 async function applyFollowState(targetUserId, viewerId, shouldFollow) {
   const existing = await dbGet(
     'SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?',
@@ -262,6 +268,7 @@ router.get('/users/:id/posts', async (req, res) => {
 
   const userId = getViewerId(req);
   const { limit, offset } = parseListPagination(req.query);
+  const sort = parseAuthorSort(req.query);
 
   const baseSelect = `
     SELECT
@@ -289,9 +296,16 @@ router.get('/users/:id/posts', async (req, res) => {
     WHERE p.user_id = ?
   `;
 
+  const orderBy =
+    sort === 'popular'
+      ? 'ORDER BY like_count DESC, p.created_at DESC'
+      : sort === 'oldest'
+        ? 'ORDER BY p.created_at ASC'
+        : 'ORDER BY p.created_at DESC';
+
   const baseGroupOrder = `
     GROUP BY p.id
-    ORDER BY p.created_at DESC
+    ${orderBy}
     LIMIT ? OFFSET ?
   `;
 

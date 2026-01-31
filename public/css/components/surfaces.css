@@ -23,6 +23,22 @@
   pointer-events: none;
 }
 
+/* Solid surface (readability-first) */
+:where(.gls-surface-solid) {
+  background: var(--gls-color-surface);
+  border: 1px solid color-mix(in srgb, var(--gls-border) 65%, transparent);
+  box-shadow: var(--gls-shadow-surface);
+  position: relative;
+}
+
+/* Muted surface (supporting area) */
+:where(.gls-surface-muted) {
+  background: color-mix(in srgb, var(--gls-color-surface-subtle) 82%, var(--gls-glass-bg) 18%);
+  border: 1px solid color-mix(in srgb, var(--gls-border) 55%, transparent);
+  box-shadow: var(--gls-shadow-surface);
+  position: relative;
+}
+
 /* hover(선택): 표면을 살짝 들어 올리거나 더 또렷하게 */
 @media (hover: hover) and (pointer: fine) {
   :where(.gls-surface-glass.is-hoverable, .gls-post-card):hover {

@@ -32,6 +32,16 @@ select.gls-select {
   box-shadow: var(--gls-control-shadow-focus);
 }
 
+.gls-select-tertiary {
+  background-color: color-mix(in srgb, var(--gls-ghost-bg) 85%, transparent);
+  border-color: var(--gls-ghost-border);
+}
+
+.gls-select-tertiary:focus {
+  border-color: var(--gls-ghost-border-hover);
+  box-shadow: var(--gls-control-shadow-focus);
+}
+
 /* 체크박스/라디오도 포커스 링 통일 */
 .gls-check-input:focus {
   box-shadow: var(--gls-control-shadow-focus);
