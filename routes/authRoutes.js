@@ -509,9 +509,11 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+  const responseMessage =
+    '입력하신 이메일이 등록되어 있다면, 비밀번호 재설정 메일이 발송됩니다.';
 
   db.get(
-    'SELECT id, name, is_verified FROM users WHERE email = ?',
+    'SELECT id, name FROM users WHERE email = ? AND is_verified = 1',
     [normalizedEmail],
     (err, user) => {
       if (err) {
@@ -522,11 +524,11 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
       }
 
       if (!user) {
-        return res.json({
-          ok: true,
-          message:
-            '입력하신 이메일이 등록되어 있다면, 비밀번호 재설정 메일이 발송됩니다.',
-        });
+        // 미검증 계정/미존재 계정 모두 동일 응답(메일 전송 없음)
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[password-reset-request] user not found or unverified');
+        }
+        return res.json({ ok: true, message: responseMessage });
       }
 
       // 유효 시간 1시간짜리 재설정 토큰 생성
@@ -576,19 +578,11 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
             (mailErr, info) => {
               if (mailErr) {
                 console.error('비밀번호 재설정 메일 전송 오류:', mailErr);
-                return res.status(500).json({
-                  ok: false,
-                  message:
-                    '메일 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
-                });
+                return res.json({ ok: true, message: responseMessage });
               }
 
               console.log('reset mail sent:', info.messageId);
-              return res.json({
-                ok: true,
-                message:
-                  '입력하신 이메일이 등록되어 있다면, 비밀번호 재설정 메일이 발송되었습니다.',
-              });
+              return res.json({ ok: true, message: responseMessage });
             }
           );
         }
