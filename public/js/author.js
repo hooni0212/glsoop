@@ -421,7 +421,7 @@ function renderAuthorPosts(posts) {
           : '';
 
       return `
-        <article class="post-panel gls-surface-panel gls-surface-veil author-post-card" data-post-id="${post.id}">
+        <article class="gls-surface-panel gls-surface-veil author-post-card" data-post-id="${post.id}">
           <div class="author-post-inner">
             <h6 class="author-post-title gls-mb-1">${escapeHtml(post.title)}</h6>
 
@@ -448,8 +448,8 @@ function renderAuthorPosts(posts) {
 
             <!-- 글 내용 인스타 감성 카드 -->
             <div class="author-post-content">
-              <div class="feed-post-content author-post-preview">
-                <div class="quote-card ${quoteFontClass}">
+              <div class="author-feed-post-content author-post-preview">
+                <div class="quote-card author-quote-card ${quoteFontClass}">
                   ${safeHtml}
                 </div>
               </div>

@@ -39,12 +39,12 @@
 ========================================================= */
 
 .gls-surface-panel {
-  background: var(--gls-glass-bg-subtle);
-  border: 1px solid var(--gls-glass-border);
-  border-radius: var(--gls-radius-lg, 18px);
-  box-shadow: var(--gls-glass-shadow);
-  backdrop-filter: blur(var(--gls-glass-blur));
-  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
+  background: var(--gls-surface-panel-bg, var(--gls-glass-bg-subtle));
+  border: 1px solid var(--gls-surface-panel-border, var(--gls-glass-border));
+  border-radius: var(--gls-surface-panel-radius, var(--gls-radius-lg, 18px));
+  box-shadow: var(--gls-surface-panel-shadow, var(--gls-glass-shadow));
+  backdrop-filter: blur(var(--gls-surface-panel-blur, var(--gls-glass-blur)));
+  -webkit-backdrop-filter: blur(var(--gls-surface-panel-blur, var(--gls-glass-blur)));
   position: relative;
 }
 
@@ -53,7 +53,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: var(--gls-glass-inset);
+  box-shadow: var(--gls-surface-panel-inset, var(--gls-glass-inset));
   pointer-events: none;
 }
 
