@@ -56,3 +56,10 @@ data/**
 /public/html/ui-kit.html
 /public/css/ui-kit.css
 /public/js/ui-kit.js
+
+# =========================
+# Playwright artifacts
+# =========================
+tmp/
+test-results/
+playwright-report/

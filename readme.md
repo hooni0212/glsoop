@@ -109,6 +109,48 @@ npm run start
 
 ---
 
+## 5-4) UI 스냅샷 E2E (Playwright)
+
+UI 스냅샷 투어를 실행하면 **guest/authed/admin 모드**로 주요 페이지를 순회하며
+desktop/mobile 프로젝트에서 fullPage 스크린샷을 저장하고 갤러리를 생성합니다.
+
+```bash
+npm run e2e:ui
+```
+
+결과:
+
+- 스냅샷: `test-results/ui-snapshots/runs/<RUN_ID>/<project>/<mode>/*.png`
+- 최신 스냅샷: `test-results/ui-snapshots/latest/<project>/<mode>/*.png`
+- 갤러리: `test-results/ui-snapshots/index.html` (항상 latest로 리다이렉트)
+- Playwright 리포트: `playwright-report/index.html`
+
+갤러리만 다시 생성하려면:
+
+```bash
+npm run e2e:ui:show
+```
+
+스냅샷 경로/Run ID를 바꾸려면:
+
+```bash
+GLSOOP_SNAPSHOT_ROOT=/Users/gimtaehun/2026/workspace/archives/glsoop/ui-snapshots \
+GLSOOP_SNAPSHOT_RUN_ID=2026-01-01_120000 \
+npm run e2e:ui
+```
+
+특정 run의 갤러리를 다시 만들려면:
+
+```bash
+node scripts/build-snapshot-gallery.mjs --run 2026-01-01_120000
+```
+
+run 갤러리 경로:
+
+- `test-results/ui-snapshots/runs/<RUN_ID>/index.html` (root index는 변경되지 않음)
+
+---
+
 ## 6) DB / 백업 정책 (WAL 모드)
 
 SQLite WAL 모드에서는 `users.db` 외에 `-wal`, `-shm` 파일에도 변경분이 남을 수 있어
