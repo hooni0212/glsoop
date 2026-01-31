@@ -6,7 +6,14 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
 const db = require('../db');
-const { transporter, JWT_SECRET } = require('../config');
+const {
+  transporter,
+  JWT_SECRET,
+  JWT_ALGORITHM,
+  JWT_ISSUER,
+  JWT_AUDIENCE,
+} = require('../config');
+const { sendPasswordResetEmail } = require('../services/mailer');
 const { authRequired } = require('../middleware/auth');
 const { getBaseUrl } = require('../utils/baseUrl');
 const { cleanupExpiredPending } = require('../utils/pendingSignup');
@@ -503,9 +510,11 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+  const responseMessage =
+    '입력하신 이메일이 등록되어 있다면, 비밀번호 재설정 메일이 발송됩니다.';
 
   db.get(
-    'SELECT id, name, is_verified FROM users WHERE email = ?',
+    'SELECT id, name FROM users WHERE email = ? AND is_verified = 1',
     [normalizedEmail],
     (err, user) => {
       if (err) {
@@ -516,11 +525,11 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
       }
 
       if (!user) {
-        return res.json({
-          ok: true,
-          message:
-            '입력하신 이메일이 등록되어 있다면, 비밀번호 재설정 메일이 발송됩니다.',
-        });
+        // 미검증 계정/미존재 계정 모두 동일 응답(메일 전송 없음)
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[password-reset-request] user not found or unverified');
+        }
+        return res.json({ ok: true, message: responseMessage });
       }
 
       // 유효 시간 1시간짜리 재설정 토큰 생성
@@ -545,46 +554,37 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
           const resetUrl = `${getBaseUrl(req)}/html/reset-password.html?token=${token}`;
 
           // 사용자가 존재할 때만 안내 메일 전송
-          transporter.sendMail(
-            {
-              from: `"글숲" <${process.env.GMAIL_USER}>`,
-              to: normalizedEmail,
-              subject: '[글숲] 비밀번호 재설정 안내',
-              html: `
-                <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-                  <p><strong>${user.name}님, 안녕하세요.</strong></p>
-                  <p>아래 버튼을 눌러 비밀번호를 재설정해주세요.</p>
-                  <p style="margin: 24px 0;">
-                    <a href="${resetUrl}"
-                       style="display:inline-block;padding:10px 18px;background:#2e8b57;color:#fff;
-                              text-decoration:none;border-radius:6px;">
-                      비밀번호 재설정하기
-                    </a>
-                  </p>
-                  <p>만약 위 버튼이 동작하지 않으면 아래 링크를 복사해서 주소창에 붙여넣어 주세요.</p>
-                  <p style="font-size:0.9rem;word-break:break-all;">${resetUrl}</p>
-                  <p style="font-size:0.9rem;color:#888;">이 링크는 1시간 동안만 유효합니다.</p>
-                </div>
-              `,
-            },
-            (mailErr, info) => {
-              if (mailErr) {
-                console.error('비밀번호 재설정 메일 전송 오류:', mailErr);
-                return res.status(500).json({
-                  ok: false,
-                  message:
-                    '메일 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
-                });
+          sendPasswordResetEmail({
+            to: normalizedEmail,
+            name: user.name,
+            resetUrl,
+          })
+            .then((info) => {
+              if (info?.messageId) {
+                console.log('reset mail sent:', info.messageId);
               }
-
-              console.log('reset mail sent:', info.messageId);
-              return res.json({
-                ok: true,
-                message:
-                  '입력하신 이메일이 등록되어 있다면, 비밀번호 재설정 메일이 발송되었습니다.',
-              });
-            }
-          );
+              return res.json({ ok: true, message: responseMessage });
+            })
+            .catch((mailErr) => {
+              console.error('비밀번호 재설정 메일 전송 오류:', mailErr);
+              db.run(
+                `
+                UPDATE users
+                SET reset_token = NULL, reset_expires = NULL
+                WHERE id = ?
+                `,
+                [user.id],
+                (cleanupErr) => {
+                  if (cleanupErr && process.env.NODE_ENV !== 'production') {
+                    console.warn(
+                      '[password-reset-request] failed to clear reset token:',
+                      cleanupErr
+                    );
+                  }
+                }
+              );
+              return res.json({ ok: true, message: responseMessage });
+            });
         }
       );
     }
@@ -696,17 +696,19 @@ router.post('/login', loginLimiter, (req, res) => {
           .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
       }
 
+      const invalidCredentialsResponse = () =>
+        res.status(401).json({
+          ok: false,
+          message: '이메일 또는 비밀번호가 올바르지 않습니다.',
+        });
+
       if (!user) {
-        return res
-          .status(400)
-          .json({ ok: false, message: '등록되지 않은 이메일입니다.' });
+        return invalidCredentialsResponse();
       }
 
       const match = await bcrypt.compare(pw, user.pw);
       if (!match) {
-        return res
-          .status(400)
-          .json({ ok: false, message: '비밀번호가 틀렸습니다.' });
+        return invalidCredentialsResponse();
       }
 
       const token = jwt.sign(
@@ -719,7 +721,12 @@ router.post('/login', loginLimiter, (req, res) => {
           isVerified: !!user.is_verified,
         },
         JWT_SECRET,
-        { expiresIn: '2h' }
+        {
+          expiresIn: '2h',
+          algorithm: JWT_ALGORITHM,
+          issuer: JWT_ISSUER,
+          audience: JWT_AUDIENCE,
+        }
       );
 
       const tokenMaxAgeMs = 2 * 60 * 60 * 1000; // 2h, JWT 만료와 동일하게 유지

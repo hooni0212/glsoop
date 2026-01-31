@@ -71,7 +71,33 @@ npm install
 GMAIL_USER=your@gmail.com
 GMAIL_PASS=your_app_password
 JWT_SECRET=change_me
+JWT_ISSUER=http://localhost:3000
+JWT_AUDIENCE=glsoop-client
+CORS_ALLOWED_HOSTS=www.glsoop.com,m.glsoop.com,localhost,127.0.0.1
+MAIL_TRANSPORT=smtp
+MAIL_OUTBOX_PATH=data/test/outbox.jsonl
+MAIL_FAIL_SEND=0
 ```
+
+### 테스트 환경(outbox 메일)
+
+SMTP 네트워크가 차단된 환경에서는 outbox 전송 모드를 사용해 비밀번호 재설정 E2E를 검증할 수 있습니다.
+
+```bash
+MAIL_TRANSPORT=outbox \
+MAIL_OUTBOX_PATH=data/test/outbox.jsonl \
+BASE_URL=http://localhost:3100 \
+DB_PATH=data/test/users.db \
+node server.js
+```
+
+테스트 스크립트는 아래 명령으로 실행합니다.
+
+```bash
+node scripts/e2e_password_reset_outbox.js
+```
+
+⚠️ 운영 환경에서는 outbox 전송을 허용하지 않습니다.
 
 ### 5-3) 실행
 
