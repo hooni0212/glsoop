@@ -120,14 +120,29 @@ npm run e2e:ui
 
 결과:
 
-- 스냅샷: `test-results/ui-snapshots/<project>/<mode>/*.png`
-- 갤러리: `test-results/ui-snapshots/index.html`
+- 스냅샷: `test-results/ui-snapshots/runs/<RUN_ID>/<project>/<mode>/*.png`
+- 최신 스냅샷: `test-results/ui-snapshots/latest/<project>/<mode>/*.png`
+- 갤러리: `test-results/ui-snapshots/index.html` (latest 기반)
 - Playwright 리포트: `playwright-report/index.html`
 
 갤러리만 다시 생성하려면:
 
 ```bash
 npm run e2e:ui:show
+```
+
+스냅샷 경로/Run ID를 바꾸려면:
+
+```bash
+GLSOOP_SNAPSHOT_ROOT=/Users/gimtaehun/2026/workspace/archives/glsoop/ui-snapshots \
+GLSOOP_SNAPSHOT_RUN_ID=2026-01-01_120000 \
+npm run e2e:ui
+```
+
+특정 run의 갤러리를 다시 만들려면:
+
+```bash
+node scripts/build-snapshot-gallery.mjs --run 2026-01-01_120000
 ```
 
 ---

@@ -5,8 +5,25 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..');
-const snapshotRoot = path.join(repoRoot, 'test-results', 'ui-snapshots');
-const indexPath = path.join(snapshotRoot, 'index.html');
+const snapshotRoot = process.env.GLSOOP_SNAPSHOT_ROOT
+  ? path.resolve(repoRoot, process.env.GLSOOP_SNAPSHOT_ROOT)
+  : path.join(repoRoot, 'test-results', 'ui-snapshots');
+
+const parseRunId = () => {
+  const args = process.argv.slice(2);
+  const runFlagIndex = args.findIndex((arg) => arg === '--run' || arg === '-r');
+  if (runFlagIndex !== -1 && args[runFlagIndex + 1]) {
+    return args[runFlagIndex + 1];
+  }
+  return process.env.GLSOOP_SNAPSHOT_RUN_ID || null;
+};
+
+const runId = parseRunId();
+const galleryRoot = runId
+  ? path.join(snapshotRoot, 'runs', runId)
+  : path.join(snapshotRoot, 'latest');
+
+const indexPath = path.join(galleryRoot, 'index.html');
 
 const toPosix = (value) => value.split(path.sep).join('/');
 
@@ -29,13 +46,13 @@ const listSnapshots = (dirPath) => {
     .sort()
     .map((entry) => ({
       key: entry.replace(/\.png$/, ''),
-      file: toPosix(path.relative(snapshotRoot, path.join(dirPath, entry))),
+      file: toPosix(path.relative(galleryRoot, path.join(dirPath, entry))),
     }));
 };
 
-const projects = fs.existsSync(snapshotRoot)
+const projects = fs.existsSync(galleryRoot)
   ? fs
-      .readdirSync(snapshotRoot, { withFileTypes: true })
+      .readdirSync(galleryRoot, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort()
@@ -44,7 +61,7 @@ const projects = fs.existsSync(snapshotRoot)
 const sections = [];
 
 for (const project of projects) {
-  const projectPath = path.join(snapshotRoot, project);
+  const projectPath = path.join(galleryRoot, project);
   const modes = fs
     .readdirSync(projectPath, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -56,7 +73,14 @@ for (const project of projects) {
   for (const mode of modes) {
     const modePath = path.join(projectPath, mode);
     const manifest = readManifest(path.join(modePath, 'manifest.json'));
-    const entries = manifest?.length ? manifest : listSnapshots(modePath);
+    const entries = manifest?.length
+      ? manifest.map((entry) => ({
+          ...entry,
+          file: entry.file
+            ? toPosix(path.relative(galleryRoot, path.join(snapshotRoot, entry.file)))
+            : entry.file,
+        }))
+      : listSnapshots(modePath);
 
     const cards = entries
       .map((entry) => {
@@ -114,11 +138,17 @@ const html = `<!doctype html>
 </head>
 <body>
   <h1>UI Snapshot Gallery</h1>
-  <p>Generated from Playwright screenshots in <code>test-results/ui-snapshots</code>.</p>
+  <p>Generated from Playwright screenshots in <code>${toPosix(galleryRoot)}</code>.</p>
   ${sections.length ? sections.join('\n') : '<p class="empty">No snapshots found.</p>'}
 </body>
 </html>`;
 
-fs.mkdirSync(snapshotRoot, { recursive: true });
+fs.mkdirSync(galleryRoot, { recursive: true });
 fs.writeFileSync(indexPath, html, 'utf8');
-console.log(`Snapshot gallery written to ${indexPath}`);
+if (!runId) {
+  const latestIndexPath = path.join(snapshotRoot, 'index.html');
+  fs.writeFileSync(latestIndexPath, html, 'utf8');
+  console.log(`Snapshot gallery written to ${latestIndexPath}`);
+} else {
+  console.log(`Snapshot gallery written to ${indexPath}`);
+}

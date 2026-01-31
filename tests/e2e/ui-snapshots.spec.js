@@ -4,8 +4,22 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const jwt = require('jsonwebtoken');
 
-const SNAPSHOT_ROOT = path.join(process.cwd(), 'test-results', 'ui-snapshots');
-const DB_PATH = path.join(process.cwd(), 'tmp', 'e2e_playwright.sqlite');
+const REPO_ROOT = process.cwd();
+const SNAPSHOT_ROOT = process.env.GLSOOP_SNAPSHOT_ROOT
+  ? path.resolve(REPO_ROOT, process.env.GLSOOP_SNAPSHOT_ROOT)
+  : path.join(REPO_ROOT, 'test-results', 'ui-snapshots');
+const buildRunId = () => {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(
+    now.getHours()
+  )}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+};
+
+const RUN_ID = process.env.GLSOOP_SNAPSHOT_RUN_ID || buildRunId();
+const RUN_ROOT = path.join(SNAPSHOT_ROOT, 'runs', RUN_ID);
+const LATEST_ROOT = path.join(SNAPSHOT_ROOT, 'latest');
+const DB_PATH = path.join(REPO_ROOT, 'tmp', 'e2e_playwright.sqlite');
 const BASE_STYLE = '*{transition:none!important;animation:none!important;caret-color:transparent!important;}';
 
 const guestPages = [
@@ -69,18 +83,24 @@ const seedTestData = async () => {
     'pending_otp_verifications',
     'pending_signups',
     'xp_log',
-    'user_achievements',
     'user_quest_state',
-    'quest_campaign_items',
-    'quest_campaigns',
-    'quest_templates',
-    'achievements',
     'post_hashtags',
     'hashtags',
     'users',
   ];
 
+  const existingTables = await new Promise((resolve, reject) => {
+    db.all("SELECT name FROM sqlite_master WHERE type = 'table'", (err, rows) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(new Set(rows.map((row) => row.name)));
+    });
+  });
+
   for (const table of tablesToClear) {
+    if (!existingTables.has(table)) continue;
     await dbRun(db, `DELETE FROM ${table}`);
   }
 
@@ -153,16 +173,33 @@ const ensureDir = (dirPath) => {
 
 const toUrl = (baseURL, targetPath) => new URL(targetPath, baseURL).toString();
 
-const buildSnapshotPath = (projectName, mode, filename) =>
-  path.join(SNAPSHOT_ROOT, projectName, mode, filename);
+const buildSnapshotPath = (root, projectName, mode, filename) =>
+  path.join(root, projectName, mode, filename);
 
-const writeLogEntries = (logPath, title, entries) => {
+const mirrorToLatest = (sourcePath, projectName, mode, filename) => {
+  const destination = buildSnapshotPath(LATEST_ROOT, projectName, mode, filename);
+  ensureDir(path.dirname(destination));
+  fs.copyFileSync(sourcePath, destination);
+};
+
+const writeLogEntries = (logPath, title, entries, mirrorPath) => {
   if (!entries.length) return;
   const lines = [`\n## ${title}`, ...entries.map((entry) => `- ${entry}`), ''];
   fs.appendFileSync(logPath, `${lines.join('\n')}\n`, 'utf8');
+  if (mirrorPath) {
+    fs.appendFileSync(mirrorPath, `${lines.join('\n')}\n`, 'utf8');
+  }
 };
 
-const installLoggers = (page, entries) => {
+const installLoggers = (page, entries, baseURL) => {
+  const baseOrigin = (() => {
+    try {
+      return new URL(baseURL).origin;
+    } catch (error) {
+      return null;
+    }
+  })();
+
   const onConsole = (msg) => {
     if (msg.type() === 'error') {
       entries.push(`[console.error] ${msg.text()}`);
@@ -172,9 +209,14 @@ const installLoggers = (page, entries) => {
     entries.push(`[pageerror] ${error.message}`);
   };
   const onResponse = (response) => {
-    if (response.status() >= 400) {
-      entries.push(`[response ${response.status()}] ${response.url()}`);
-    }
+    if (response.status() < 400) return;
+    const request = response.request();
+    const resourceType = request.resourceType();
+    if (!['document', 'xhr', 'fetch'].includes(resourceType)) return;
+    const url = response.url();
+    const sameOrigin = baseOrigin ? url.startsWith(baseOrigin) : false;
+    if (!sameOrigin && !url.includes('/api/')) return;
+    entries.push(`[response ${response.status()}] ${url}`);
   };
 
   page.on('console', onConsole);
@@ -212,9 +254,10 @@ const captureSnapshot = async ({
   optional,
   manifest,
   logPath,
+  latestLogPath,
 }) => {
   const entries = [];
-  const removeLoggers = installLoggers(page, entries);
+  const removeLoggers = installLoggers(page, entries, baseURL);
   const url = toUrl(baseURL, pathName);
 
   let response;
@@ -228,22 +271,26 @@ const captureSnapshot = async ({
     entries.push(`[navigation ${response.status()}] ${url}`);
     if (optional) {
       removeLoggers();
-      writeLogEntries(logPath, `${key} (skipped)`, entries);
+      writeLogEntries(logPath, `${key} (skipped)`, entries, latestLogPath);
       return { skipped: true };
     }
   }
 
   await stabilizePage(page);
 
-  const filePath = buildSnapshotPath(projectName, mode, `${key}.png`);
+  const filePath = buildSnapshotPath(RUN_ROOT, projectName, mode, `${key}.png`);
   ensureDir(path.dirname(filePath));
   await page.screenshot({ path: filePath, fullPage: true });
+  mirrorToLatest(filePath, projectName, mode, `${key}.png`);
 
-  const relativeFile = path.relative(SNAPSHOT_ROOT, filePath).split(path.sep).join('/');
+  const relativeFile = path
+    .relative(SNAPSHOT_ROOT, filePath)
+    .split(path.sep)
+    .join('/');
   manifest.push({ key, url, file: relativeFile });
 
   removeLoggers();
-  writeLogEntries(logPath, key, entries);
+  writeLogEntries(logPath, key, entries, latestLogPath);
   return { skipped: false };
 };
 
@@ -254,9 +301,10 @@ const captureExtraSnapshot = async ({
   key,
   manifest,
 }) => {
-  const filePath = buildSnapshotPath(projectName, mode, `${key}.png`);
+  const filePath = buildSnapshotPath(RUN_ROOT, projectName, mode, `${key}.png`);
   ensureDir(path.dirname(filePath));
   await page.screenshot({ path: filePath, fullPage: true });
+  mirrorToLatest(filePath, projectName, mode, `${key}.png`);
   const relativeFile = path
     .relative(SNAPSHOT_ROOT, filePath)
     .split(path.sep)
@@ -323,9 +371,17 @@ test.describe('UI snapshot tour', () => {
         await applyAuthCookie(page, baseURL, mode.auth);
       }
 
-      const logPath = buildSnapshotPath(projectName, mode.name, 'console-errors.txt');
+      const logPath = buildSnapshotPath(RUN_ROOT, projectName, mode.name, 'console-errors.txt');
+      const latestLogPath = buildSnapshotPath(
+        LATEST_ROOT,
+        projectName,
+        mode.name,
+        'console-errors.txt'
+      );
       ensureDir(path.dirname(logPath));
       fs.writeFileSync(logPath, `# Console errors (${projectName}/${mode.name})\n`, 'utf8');
+      ensureDir(path.dirname(latestLogPath));
+      fs.writeFileSync(latestLogPath, `# Console errors (${projectName}/${mode.name})\n`, 'utf8');
 
       const manifest = [];
 
@@ -340,6 +396,7 @@ test.describe('UI snapshot tour', () => {
           optional: pageEntry.optional,
           manifest,
           logPath,
+          latestLogPath,
         });
 
         if (result?.skipped) {
@@ -403,8 +460,29 @@ test.describe('UI snapshot tour', () => {
         }
       }
 
-      const manifestPath = buildSnapshotPath(projectName, mode.name, 'manifest.json');
+      const manifestPath = buildSnapshotPath(RUN_ROOT, projectName, mode.name, 'manifest.json');
       fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+      const latestManifestPath = buildSnapshotPath(
+        LATEST_ROOT,
+        projectName,
+        mode.name,
+        'manifest.json'
+      );
+      const latestManifest = manifest.map((entry) => ({
+        ...entry,
+        file: entry.file
+          ? path
+              .relative(
+                SNAPSHOT_ROOT,
+                buildSnapshotPath(LATEST_ROOT, projectName, mode.name, `${entry.key}.png`)
+              )
+              .split(path.sep)
+              .join('/')
+          : entry.file,
+      }));
+      ensureDir(path.dirname(latestManifestPath));
+      fs.writeFileSync(latestManifestPath, JSON.stringify(latestManifest, null, 2));
     }
   });
 });

@@ -17,7 +17,7 @@ module.exports = defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'node server.js',
+    command: 'node scripts/ensure-e2e-dirs.mjs && node server.js',
     port: 3100,
     reuseExistingServer: false,
     timeout: 120 * 1000,
