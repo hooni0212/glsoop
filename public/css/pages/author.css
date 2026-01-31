@@ -145,6 +145,12 @@ body.page-author {
   margin: 0;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+}
+
+.author-post-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--author-accent) 45%, transparent);
+  outline-offset: 3px;
 }
 
 .author-post-inner {

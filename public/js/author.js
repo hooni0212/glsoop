@@ -469,7 +469,7 @@ function renderAuthorPosts(posts) {
       `.author-post-card[data-post-id="${post.id}"]`
     );
     if (!card) return;
-    setupAuthorPostInteractions(card);
+    setupAuthorPostInteractions(card, post);
   });
 }
 
@@ -480,7 +480,30 @@ function renderAuthorPosts(posts) {
  * - 좋아요 토글 처리
  * - 해시태그 버튼 클릭 시 태그로 필터된 홈 피드로 이동
  */
-function setupAuthorPostInteractions(card) {
+function setupAuthorPostInteractions(card, post) {
+  if (!card || !post) return;
+  const postId = post.id;
+
+  if (!card.dataset.linkBound) {
+    card.setAttribute('role', 'link');
+    card.setAttribute('tabindex', '0');
+    card.addEventListener('click', (event) => {
+      if (!postId) return;
+      if (event.target.closest('.like-btn')) return;
+      if (event.target.closest('.hashtag-pill')) return;
+      navigateToPostDetail(post);
+    });
+    card.addEventListener('keydown', (event) => {
+      if (!postId) return;
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      if (event.target.closest('.like-btn')) return;
+      if (event.target.closest('.hashtag-pill')) return;
+      event.preventDefault();
+      navigateToPostDetail(post);
+    });
+    card.dataset.linkBound = 'true';
+  }
+
   // 글귀 폰트 자동 조절 (글 길이에 따라 폰트 크기 조정)
   const quoteCard = card.querySelector('.quote-card');
   if (quoteCard) {
@@ -490,12 +513,13 @@ function setupAuthorPostInteractions(card) {
   // 좋아요 버튼
   const likeBtn = card.querySelector('.like-btn');
   if (likeBtn) {
-    likeBtn.addEventListener('click', async () => {
-      const postId = likeBtn.getAttribute('data-post-id');
-      if (!postId) return;
+    likeBtn.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      const likePostId = likeBtn.getAttribute('data-post-id');
+      if (!likePostId) return;
 
       try {
-        const res = await fetch(`/api/posts/${postId}/toggle-like`, {
+        const res = await fetch(`/api/posts/${likePostId}/toggle-like`, {
           method: 'POST',
         });
 
@@ -554,13 +578,35 @@ function setupAuthorPostInteractions(card) {
   // 해시태그 클릭 시 홈 피드로 이동해서 해당 태그로 필터 적용
   const tagButtons = card.querySelectorAll('.hashtag-pill');
   tagButtons.forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (event) => {
+      event.stopPropagation();
       const tag = btn.getAttribute('data-tag');
       if (!tag) return;
       // index.html?tag=태그 형식으로 이동
       window.location.href = `/explore?tag=${encodeURIComponent(tag)}`;
     });
   });
+}
+
+function navigateToPostDetail(post) {
+  if (!post?.id) return;
+
+  try {
+    const payload = {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      created_at: post.created_at,
+      hashtags: post.hashtags,
+      category: post.category,
+      author_id: post.author_id,
+    };
+    localStorage.setItem('glsoop_lastPost', JSON.stringify(payload));
+  } catch (error) {
+    console.warn('glsoop_lastPost cache failed', error);
+  }
+
+  window.location.href = `/html/post.html?postId=${encodeURIComponent(post.id)}`;
 }
 
 /* ===== 해시태그 → 버튼 HTML =====
