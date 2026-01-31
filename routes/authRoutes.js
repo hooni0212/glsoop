@@ -578,6 +578,22 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
             (mailErr, info) => {
               if (mailErr) {
                 console.error('비밀번호 재설정 메일 전송 오류:', mailErr);
+                db.run(
+                  `
+                  UPDATE users
+                  SET reset_token = NULL, reset_expires = NULL
+                  WHERE id = ?
+                  `,
+                  [user.id],
+                  (cleanupErr) => {
+                    if (cleanupErr && process.env.NODE_ENV !== 'production') {
+                      console.warn(
+                        '[password-reset-request] failed to clear reset token:',
+                        cleanupErr
+                      );
+                    }
+                  }
+                );
                 return res.json({ ok: true, message: responseMessage });
               }
 
