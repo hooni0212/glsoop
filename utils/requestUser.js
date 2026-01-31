@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../config');
+const { JWT_SECRET, JWT_ALGORITHM, JWT_ISSUER, JWT_AUDIENCE } = require('../config');
 
 /**
  * 요청 객체에서 JWT 쿠키를 해석해 사용자 페이로드를 반환합니다.
@@ -10,7 +10,11 @@ function getViewerFromRequest(req) {
   if (!token) return null;
 
   try {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, JWT_SECRET, {
+      algorithms: [JWT_ALGORITHM],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+    });
   } catch (error) {
     return null;
   }

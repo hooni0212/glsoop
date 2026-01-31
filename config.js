@@ -5,6 +5,11 @@ const nodemailer = require('nodemailer');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const baseUrl = process.env.BASE_URL ? process.env.BASE_URL.trim() : '';
+const rawJwtAlgorithm = process.env.JWT_ALGORITHM
+  ? process.env.JWT_ALGORITHM.trim()
+  : '';
+const rawJwtIssuer = process.env.JWT_ISSUER ? process.env.JWT_ISSUER.trim() : '';
+const rawJwtAudience = process.env.JWT_AUDIENCE ? process.env.JWT_AUDIENCE.trim() : '';
 
 const rawJwtSecret = process.env.JWT_SECRET ? process.env.JWT_SECRET.trim() : '';
 
@@ -55,8 +60,48 @@ const transporter = nodemailer.createTransport({
 
 // 서버 전역에서 공유하는 JWT 비밀키
 const JWT_SECRET = rawJwtSecret || 'DEV_ONLY_FALLBACK_SECRET';
+const JWT_ALGORITHM = rawJwtAlgorithm || 'HS256';
+
+const parseJwtAudience = (value) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!trimmed.includes(',')) return trimmed;
+  const list = trimmed
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return list.length > 0 ? list : null;
+};
+
+let JWT_ISSUER = rawJwtIssuer;
+if (!JWT_ISSUER && baseUrl) {
+  try {
+    JWT_ISSUER = new URL(baseUrl).origin;
+  } catch (error) {
+    JWT_ISSUER = '';
+  }
+}
+
+if (!JWT_ISSUER) {
+  JWT_ISSUER = 'glsoop';
+}
+
+const JWT_AUDIENCE = parseJwtAudience(rawJwtAudience) || 'glsoop-client';
+
+if (isProduction) {
+  if (!rawJwtIssuer) {
+    console.warn('[warn] 운영 환경에 JWT_ISSUER가 설정되지 않았습니다. 기본값으로 동작합니다.');
+  }
+  if (!rawJwtAudience) {
+    console.warn('[warn] 운영 환경에 JWT_AUDIENCE가 설정되지 않았습니다. 기본값으로 동작합니다.');
+  }
+}
 
 module.exports = {
   transporter,
   JWT_SECRET,
+  JWT_ALGORITHM,
+  JWT_ISSUER,
+  JWT_AUDIENCE,
 };
