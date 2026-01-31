@@ -13,6 +13,7 @@ const {
   JWT_ISSUER,
   JWT_AUDIENCE,
 } = require('../config');
+const { sendPasswordResetEmail } = require('../services/mailer');
 const { authRequired } = require('../middleware/auth');
 const { getBaseUrl } = require('../utils/baseUrl');
 const { cleanupExpiredPending } = require('../utils/pendingSignup');
@@ -553,54 +554,37 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
           const resetUrl = `${getBaseUrl(req)}/html/reset-password.html?token=${token}`;
 
           // 사용자가 존재할 때만 안내 메일 전송
-          transporter.sendMail(
-            {
-              from: `"글숲" <${process.env.GMAIL_USER}>`,
-              to: normalizedEmail,
-              subject: '[글숲] 비밀번호 재설정 안내',
-              html: `
-                <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-                  <p><strong>${user.name}님, 안녕하세요.</strong></p>
-                  <p>아래 버튼을 눌러 비밀번호를 재설정해주세요.</p>
-                  <p style="margin: 24px 0;">
-                    <a href="${resetUrl}"
-                       style="display:inline-block;padding:10px 18px;background:#2e8b57;color:#fff;
-                              text-decoration:none;border-radius:6px;">
-                      비밀번호 재설정하기
-                    </a>
-                  </p>
-                  <p>만약 위 버튼이 동작하지 않으면 아래 링크를 복사해서 주소창에 붙여넣어 주세요.</p>
-                  <p style="font-size:0.9rem;word-break:break-all;">${resetUrl}</p>
-                  <p style="font-size:0.9rem;color:#888;">이 링크는 1시간 동안만 유효합니다.</p>
-                </div>
-              `,
-            },
-            (mailErr, info) => {
-              if (mailErr) {
-                console.error('비밀번호 재설정 메일 전송 오류:', mailErr);
-                db.run(
-                  `
-                  UPDATE users
-                  SET reset_token = NULL, reset_expires = NULL
-                  WHERE id = ?
-                  `,
-                  [user.id],
-                  (cleanupErr) => {
-                    if (cleanupErr && process.env.NODE_ENV !== 'production') {
-                      console.warn(
-                        '[password-reset-request] failed to clear reset token:',
-                        cleanupErr
-                      );
-                    }
-                  }
-                );
-                return res.json({ ok: true, message: responseMessage });
+          sendPasswordResetEmail({
+            to: normalizedEmail,
+            name: user.name,
+            resetUrl,
+          })
+            .then((info) => {
+              if (info?.messageId) {
+                console.log('reset mail sent:', info.messageId);
               }
-
-              console.log('reset mail sent:', info.messageId);
               return res.json({ ok: true, message: responseMessage });
-            }
-          );
+            })
+            .catch((mailErr) => {
+              console.error('비밀번호 재설정 메일 전송 오류:', mailErr);
+              db.run(
+                `
+                UPDATE users
+                SET reset_token = NULL, reset_expires = NULL
+                WHERE id = ?
+                `,
+                [user.id],
+                (cleanupErr) => {
+                  if (cleanupErr && process.env.NODE_ENV !== 'production') {
+                    console.warn(
+                      '[password-reset-request] failed to clear reset token:',
+                      cleanupErr
+                    );
+                  }
+                }
+              );
+              return res.json({ ok: true, message: responseMessage });
+            });
         }
       );
     }
