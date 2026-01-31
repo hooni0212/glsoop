@@ -12,6 +12,9 @@ let authorFollowState = {
   isFollowing: false,
 };
 let authorFollowProcessing = false;
+let currentSort = 'newest';
+let currentAuthorEmail = '';
+let currentAuthorNickname = '';
 
 // 페이지가 완전히 로드되면 작가 페이지 초기화 + 프로필 카드 스티키 처리 설정
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,6 +49,9 @@ async function initAuthorPage() {
 
   // 3) 스크롤로 추가 로드(무한 스크롤)
   window.addEventListener('scroll', handleAuthorScroll);
+
+  setupAuthorToolbarActions();
+  setupAuthorSortModal();
 }
 
 /**
@@ -67,8 +73,10 @@ async function loadAuthorProfile(authorId) {
 
     // 닉네임이 있으면 사용, 없으면 "익명"
     const nickname = (user.nickname && user.nickname.trim()) || '익명';
+    currentAuthorNickname = nickname;
+    currentAuthorEmail = user.email || '';
     // 이메일은 utils.js의 maskEmail로 일부만 보여주기
-    const emailMasked = maskEmail(user.email || '');
+    const emailMasked = maskEmail(currentAuthorEmail);
     const bio = (user.bio || '').trim();     // 한 줄 소개
     const about = (user.about || '').trim(); // 여러 줄 자기소개
     const level = Number(user.level) || 1;
@@ -94,9 +102,7 @@ async function loadAuthorProfile(authorId) {
     // 이메일 (마스킹된 값)
     const emailEl = document.getElementById('authorEmailDisplay');
     if (emailEl) {
-      emailEl.textContent = emailMasked
-        ? `이메일: ${emailMasked}`
-        : '이메일: -';
+      emailEl.textContent = emailMasked || '-';
     }
 
     // 🔽 프로필 문구: 한 줄 소개
@@ -145,6 +151,8 @@ async function loadAuthorProfile(authorId) {
       isFollowing: !!data.viewer?.is_following,
     };
     updateAuthorFollowUI();
+    updateAuthorContactUI(emailMasked);
+    updateAuthorProfileActionUI();
   } catch (e) {
     console.error(e);
     alert('작가 정보를 불러오는 중 오류가 발생했습니다.');
@@ -225,6 +233,44 @@ function updateAuthorFollowUI() {
     followBtn.classList.add('gls-btn-secondary');
     if (hintEl)
       hintEl.textContent = '팔로우해서 작가의 소식을 받아보세요!';
+  }
+}
+
+function updateAuthorContactUI(emailMasked) {
+  const contactHint = document.getElementById('authorContactHint');
+  const copyBtn = document.getElementById('authorEmailCopyBtn');
+  const contactBtn = document.querySelector('.author-contact-btn');
+
+  if (contactBtn) {
+    contactBtn.disabled = !emailMasked;
+  }
+
+  if (copyBtn) {
+    const canCopy = authorFollowState.isOwnProfile && !!currentAuthorEmail;
+    copyBtn.disabled = !canCopy;
+    copyBtn.classList.toggle('gls-hidden', !canCopy);
+  }
+
+  if (contactHint) {
+    if (!emailMasked) {
+      contactHint.textContent = '등록된 이메일이 없습니다.';
+    } else if (authorFollowState.isOwnProfile) {
+      contactHint.textContent = '이메일을 복사해 다른 곳에 붙여넣을 수 있어요.';
+    } else {
+      contactHint.textContent = '이메일은 개인정보 보호를 위해 일부 마스킹됩니다.';
+    }
+  }
+}
+
+function updateAuthorProfileActionUI() {
+  const profileBtn = document.getElementById('authorProfileActionBtn');
+  if (!profileBtn) return;
+
+  if (authorFollowState.isOwnProfile) {
+    profileBtn.textContent = '내 프로필';
+    profileBtn.classList.remove('gls-hidden');
+  } else {
+    profileBtn.classList.add('gls-hidden');
   }
 }
 
@@ -314,6 +360,7 @@ async function loadMoreAuthorPosts() {
     const params = new URLSearchParams({
       offset: String(authorOffset),
       limit: String(AUTHOR_LIMIT),
+      sort: currentSort,
     });
 
     const res = await fetch(
@@ -564,6 +611,126 @@ function buildHashtagHtml(post) {
     .join('');
 
   return `<div class="gls-card-hashtags gls-mt-1 gls-text-start">${pills}</div>`;
+}
+
+function setupAuthorToolbarActions() {
+  const shareBtn = document.getElementById('authorShareBtn');
+  const copyBtn = document.getElementById('authorEmailCopyBtn');
+
+  if (shareBtn && !shareBtn.dataset.bound) {
+    shareBtn.addEventListener('click', handleAuthorShare);
+    shareBtn.dataset.bound = 'true';
+  }
+
+  if (copyBtn && !copyBtn.dataset.bound) {
+    copyBtn.addEventListener('click', handleAuthorEmailCopy);
+    copyBtn.dataset.bound = 'true';
+  }
+}
+
+async function handleAuthorShare() {
+  const shareData = {
+    title: `${currentAuthorNickname || '작가'}님의 글숲`,
+    url: window.location.href,
+  };
+
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+      showAuthorToast('공유가 완료되었습니다.');
+      return;
+    }
+
+    await navigator.clipboard.writeText(window.location.href);
+    showAuthorToast('링크가 복사되었습니다.');
+  } catch (error) {
+    console.error(error);
+    showAuthorToast('공유에 실패했습니다.');
+  }
+}
+
+async function handleAuthorEmailCopy() {
+  if (!authorFollowState.isOwnProfile || !currentAuthorEmail) return;
+
+  try {
+    await navigator.clipboard.writeText(currentAuthorEmail);
+    showAuthorToast('이메일이 복사되었습니다.');
+  } catch (error) {
+    console.error(error);
+    showAuthorToast('복사에 실패했습니다.');
+  }
+}
+
+function showAuthorToast(message) {
+  const toast = document.getElementById('authorToast');
+  if (!toast) return;
+
+  toast.textContent = message;
+  toast.classList.add('is-visible');
+
+  if (toast.dataset.timerId) {
+    clearTimeout(Number(toast.dataset.timerId));
+  }
+
+  const timerId = setTimeout(() => {
+    toast.classList.remove('is-visible');
+  }, 2000);
+
+  toast.dataset.timerId = String(timerId);
+}
+
+function setupAuthorSortModal() {
+  const sortOptions = document.querySelectorAll(
+    '.author-sort-options input[name="authorSort"]'
+  );
+
+  if (!sortOptions.length) return;
+
+  sortOptions.forEach((input) => {
+    if (input.value === currentSort) {
+      input.checked = true;
+    }
+
+    if (!input.dataset.bound) {
+      input.addEventListener('change', () => {
+        const nextSort = input.value;
+        if (!nextSort || nextSort === currentSort) return;
+        currentSort = nextSort;
+        updateSortButtonLabel(nextSort);
+        resetAuthorPosts();
+        loadMoreAuthorPosts();
+      });
+      input.dataset.bound = 'true';
+    }
+  });
+
+  updateSortButtonLabel(currentSort);
+}
+
+function updateSortButtonLabel(sortKey) {
+  const sortBtn = document.getElementById('authorSortBtn');
+  if (!sortBtn) return;
+
+  const labels = {
+    newest: '최신순',
+    oldest: '오래된순',
+    likes: '공감 많은순',
+  };
+
+  sortBtn.textContent = labels[sortKey] || '정렬';
+}
+
+function resetAuthorPosts() {
+  const listBox = document.getElementById('authorPostsList');
+  const emptyEl = document.getElementById('authorPostsEmpty');
+  const endEl = document.getElementById('authorPostsEnd');
+
+  authorOffset = 0;
+  authorDone = false;
+
+  if (listBox) listBox.innerHTML = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (endEl) endEl.style.display = 'none';
 }
 
 /**
