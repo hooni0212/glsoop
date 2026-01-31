@@ -13,7 +13,6 @@ let authorFollowState = {
 };
 let authorFollowProcessing = false;
 let currentSort = 'newest';
-let currentAuthorEmail = '';
 let currentAuthorNickname = '';
 
 // 페이지가 완전히 로드되면 작가 페이지 초기화 + 프로필 카드 스티키 처리 설정
@@ -74,9 +73,7 @@ async function loadAuthorProfile(authorId) {
     // 닉네임이 있으면 사용, 없으면 "익명"
     const nickname = (user.nickname && user.nickname.trim()) || '익명';
     currentAuthorNickname = nickname;
-    currentAuthorEmail = user.email || '';
-    // 이메일은 utils.js의 maskEmail로 일부만 보여주기
-    const emailMasked = maskEmail(currentAuthorEmail);
+    const emailMasked = maskEmail(user.email || '');
     const bio = (user.bio || '').trim();     // 한 줄 소개
     const about = (user.about || '').trim(); // 여러 줄 자기소개
     const level = Number(user.level) || 1;
@@ -102,7 +99,13 @@ async function loadAuthorProfile(authorId) {
     // 이메일 (마스킹된 값)
     const emailEl = document.getElementById('authorEmailDisplay');
     if (emailEl) {
-      emailEl.textContent = emailMasked || '-';
+      if (emailMasked) {
+        emailEl.textContent = emailMasked;
+        emailEl.hidden = false;
+      } else {
+        emailEl.textContent = '-';
+        emailEl.hidden = true;
+      }
     }
 
     // 🔽 프로필 문구: 한 줄 소개
@@ -151,7 +154,6 @@ async function loadAuthorProfile(authorId) {
       isFollowing: !!data.viewer?.is_following,
     };
     updateAuthorFollowUI();
-    updateAuthorContactUI(emailMasked);
     updateAuthorProfileActionUI();
   } catch (e) {
     console.error(e);
@@ -233,32 +235,6 @@ function updateAuthorFollowUI() {
     followBtn.classList.add('gls-btn-secondary');
     if (hintEl)
       hintEl.textContent = '팔로우해서 작가의 소식을 받아보세요!';
-  }
-}
-
-function updateAuthorContactUI(emailMasked) {
-  const contactHint = document.getElementById('authorContactHint');
-  const copyBtn = document.getElementById('authorEmailCopyBtn');
-  const contactBtn = document.querySelector('.author-contact-btn');
-
-  if (contactBtn) {
-    contactBtn.disabled = !emailMasked;
-  }
-
-  if (copyBtn) {
-    const canCopy = authorFollowState.isOwnProfile && !!currentAuthorEmail;
-    copyBtn.disabled = !canCopy;
-    copyBtn.classList.toggle('gls-hidden', !canCopy);
-  }
-
-  if (contactHint) {
-    if (!emailMasked) {
-      contactHint.textContent = '등록된 이메일이 없습니다.';
-    } else if (authorFollowState.isOwnProfile) {
-      contactHint.textContent = '이메일을 복사해 다른 곳에 붙여넣을 수 있어요.';
-    } else {
-      contactHint.textContent = '이메일은 개인정보 보호를 위해 일부 마스킹됩니다.';
-    }
   }
 }
 
@@ -615,16 +591,10 @@ function buildHashtagHtml(post) {
 
 function setupAuthorToolbarActions() {
   const shareBtn = document.getElementById('authorShareBtn');
-  const copyBtn = document.getElementById('authorEmailCopyBtn');
 
   if (shareBtn && !shareBtn.dataset.bound) {
     shareBtn.addEventListener('click', handleAuthorShare);
     shareBtn.dataset.bound = 'true';
-  }
-
-  if (copyBtn && !copyBtn.dataset.bound) {
-    copyBtn.addEventListener('click', handleAuthorEmailCopy);
-    copyBtn.dataset.bound = 'true';
   }
 }
 
@@ -646,18 +616,6 @@ async function handleAuthorShare() {
   } catch (error) {
     console.error(error);
     showAuthorToast('공유에 실패했습니다.');
-  }
-}
-
-async function handleAuthorEmailCopy() {
-  if (!authorFollowState.isOwnProfile || !currentAuthorEmail) return;
-
-  try {
-    await navigator.clipboard.writeText(currentAuthorEmail);
-    showAuthorToast('이메일이 복사되었습니다.');
-  } catch (error) {
-    console.error(error);
-    showAuthorToast('복사에 실패했습니다.');
   }
 }
 

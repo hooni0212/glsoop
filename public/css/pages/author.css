@@ -475,43 +475,8 @@ body.page-author .author-post-preview .quote-card {
   outline-offset: 2px;
 }
 
-.author-contact-btn {
-  white-space: nowrap;
-}
-
-.author-contact-btn[disabled] {
-  opacity: 0.6;
-  cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
-}
-
 .author-profile-action.gls-hidden {
   display: none;
-}
-
-.author-contact-email {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gls-space-2);
-  padding: 12px 14px;
-  border-radius: var(--gls-radius-md);
-  border: 1px solid color-mix(in srgb, var(--gls-border) 45%, transparent);
-  background: rgba(255, 255, 255, 0.65);
-}
-
-.author-email-value {
-  font-weight: 600;
-  color: var(--gls-text);
-  word-break: break-word;
-}
-
-.author-copy-btn[disabled] {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
 }
 
 .author-sort-options {
@@ -555,6 +520,17 @@ body.page-author .author-post-preview .quote-card {
 .author-toast.is-visible {
   opacity: 1;
   transform: translateX(-50%) translateY(-4px);
+}
+
+body.page-author #authorEmailDisplay,
+body.page-author .author-identifier {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+  margin-top: 4px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* =========================

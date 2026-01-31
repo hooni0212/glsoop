@@ -147,15 +147,6 @@
             <div class="card-body gls-flex gls-flex-col">
               <div class="author-card-header">
                 <span class="author-card-title">작가 정보</span>
-                <button
-                  type="button"
-                  class="author-pill-btn author-contact-btn"
-                  data-gls-toggle="modal"
-                  data-gls-target="#authorContactModal"
-                  aria-label="연락처 보기"
-                >
-                  연락처 보기
-                </button>
               </div>
 
               <div class="author-identity-block">
@@ -164,6 +155,7 @@
                 </div>
                 <div class="author-identity-text">
                   <p class="author-nickname gls-mb-1" id="authorNicknameDisplay">닉네임</p>
+                  <div id="authorEmailDisplay" class="author-identifier" aria-live="polite">-</div>
                   <p class="author-growth gls-text-small gls-mb-1" id="authorGrowthBadge">Lv.1 🌰 씨앗</p>
                 </div>
               </div>
@@ -300,53 +292,6 @@
       </div>
     </div>
   </section>
-
-  <!-- 연락처 모달 -->
-  <div
-    class="modal fade"
-    id="authorContactModal"
-    tabindex="-1"
-    aria-labelledby="authorContactModalLabel"
-    aria-hidden="true"
-  >
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="authorContactModalLabel">연락처</h5>
-          <button
-            type="button"
-            class="gls-modal-close"
-            data-gls-dismiss="modal"
-            aria-label="닫기"
-          ></button>
-        </div>
-        <div class="modal-body">
-          <div class="gls-modal-section">
-            <p class="gls-text-muted gls-text-small gls-mb-2">이메일</p>
-            <div class="author-contact-email">
-              <span id="authorEmailDisplay" class="author-email-value">-</span>
-              <button
-                type="button"
-                class="author-pill-btn author-copy-btn"
-                id="authorEmailCopyBtn"
-                aria-label="이메일 복사"
-              >
-                복사
-              </button>
-            </div>
-            <p class="gls-text-muted gls-text-small gls-mt-2 gls-mb-0" id="authorContactHint">
-              이메일은 개인정보 보호를 위해 일부 마스킹됩니다.
-            </p>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="gls-btn gls-btn-secondary" data-gls-dismiss="modal">
-            닫기
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- 정렬 모달 -->
   <div
