@@ -91,7 +91,6 @@ body.page-author {
   gap: var(--gls-space-2);
   word-break: normal;
   overflow-wrap: normal;
-  overflow-y: auto;
 }
 
 .author-card-title {
@@ -181,13 +180,21 @@ body.page-author .author-post-preview .quote-card {
   letter-spacing: -0.01em;
 }
 
+.author-profile-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gls-space-3);
+  flex-wrap: wrap;
+  padding-bottom: var(--gls-space-3);
+  border-bottom: 1px solid var(--author-divider);
+}
+
 .author-identity-block {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: var(--gls-space-3);
   align-items: center;
-  padding-bottom: var(--gls-space-3);
-  border-bottom: 1px solid var(--author-divider);
 }
 
 .author-avatar {
@@ -249,7 +256,7 @@ body.page-author .author-post-preview .quote-card {
 
 .author-about-text.is-clamped {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: normal;
@@ -261,9 +268,18 @@ body.page-author .author-post-preview .quote-card {
   white-space: pre-line;
 }
 
-.author-bio-block {
+.author-intro-section {
   padding: var(--gls-space-3) 0 var(--gls-space-2);
   border-bottom: 1px solid var(--author-divider);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-3);
+}
+
+.author-intro-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .author-stats-card {
@@ -447,8 +463,6 @@ body.page-author .author-post-preview .quote-card {
 .author-profile-card {
   position: sticky;
   top: var(--gls-sticky-offset, calc(var(--gls-nav-height, 84px) + var(--gls-space-4, 16px)));
-  max-height: calc(100vh - (var(--gls-sticky-offset, calc(var(--gls-nav-height, 84px) + 16px)) + var(--gls-space-4, 16px)));
-  overflow: auto;
 }
 
 @media (max-width: 1024px) {
@@ -484,7 +498,7 @@ body.page-author .author-post-preview .quote-card {
 
 .author-bio-text {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -495,6 +509,7 @@ body.page-author .author-post-preview .quote-card {
 
 .author-email-details {
   margin-top: 2px;
+  align-self: flex-start;
 }
 
 .author-email-summary {
