@@ -1,17 +1,24 @@
 // === 작가 글 목록 무한 스크롤 상태 ===
 // 한 작가(유저)의 글을 모아서 보여주는 페이지에서 사용할 상태값들
+// 계획:
+// 1) 작가 페이지 주요 섹션(좌/우 패널) UI 요소를 정리한다.
+// 2) 팔로우/공유/정렬 액션을 상단 액션바에 모아 빠른 판단을 돕는다.
+// 3) 소개 텍스트/이메일 노출을 축소하고 필요 시 확장한다.
+// 4) 글 카드 밀도/미리보기 길이를 조정해 리스트 가독성을 높인다.
 
 const AUTHOR_LIMIT = 10;      // 한 번에 가져올 글 개수(페이지 크기)
 let authorOffset = 0;         // 지금까지 불러온 글 개수(다음 요청 offset)
 let authorLoading = false;    // 현재 글을 로딩 중인지 여부(중복 요청 방지)
 let authorDone = false;       // 더 이상 불러올 글이 없는지 여부
 let currentAuthorId = null;   // 현재 작가(유저)의 ID
+let authorSort = 'latest';
 let authorFollowState = {
   isLoggedIn: false,
   isOwnProfile: false,
   isFollowing: false,
 };
 let authorFollowProcessing = false;
+let authorShareTimeout = null;
 
 // 페이지가 완전히 로드되면 작가 페이지 초기화 + 프로필 카드 스티키 처리 설정
 document.addEventListener('DOMContentLoaded', () => {
@@ -28,6 +35,26 @@ document.addEventListener('DOMContentLoaded', () => {
 async function initAuthorPage() {
   const params = new URLSearchParams(window.location.search);
   const userId = params.get('userId');
+  const sortSelect = document.getElementById('authorSortSelect');
+  const shareBtn = document.getElementById('authorShareBtn');
+  const aboutToggle = document.getElementById('authorAboutToggle');
+
+  if (sortSelect) {
+    authorSort = sortSelect.value || 'latest';
+    sortSelect.addEventListener('change', () => {
+      authorSort = sortSelect.value || 'latest';
+      resetAuthorPosts();
+      loadMoreAuthorPosts();
+    });
+  }
+
+  if (shareBtn) {
+    shareBtn.addEventListener('click', handleShareLink);
+  }
+
+  if (aboutToggle) {
+    aboutToggle.addEventListener('click', handleAboutToggle);
+  }
 
   // userId 없이 접근하면 잘못된 진입으로 간주
   if (!userId) {
@@ -68,7 +95,6 @@ async function loadAuthorProfile(authorId) {
     // 닉네임이 있으면 사용, 없으면 "익명"
     const nickname = (user.nickname && user.nickname.trim()) || '익명';
     // 이메일은 utils.js의 maskEmail로 일부만 보여주기
-    const emailMasked = maskEmail(user.email || '');
     const bio = (user.bio || '').trim();     // 한 줄 소개
     const about = (user.about || '').trim(); // 여러 줄 자기소개
     const level = Number(user.level) || 1;
@@ -91,11 +117,20 @@ async function loadAuthorProfile(authorId) {
       avatarEl.textContent = initial;
     }
 
+    const isOwnProfile = !!data.viewer?.is_own_profile;
+    const emailValue = isOwnProfile ? user.email || '' : maskEmail(user.email || '');
+    const emailDetails = document.getElementById('authorEmailDetails');
+
+    if (emailDetails) {
+      emailDetails.hidden = !isOwnProfile;
+      emailDetails.open = false;
+    }
+
     // 이메일 (마스킹된 값)
     const emailEl = document.getElementById('authorEmailDisplay');
     if (emailEl) {
-      emailEl.textContent = emailMasked
-        ? `이메일: ${emailMasked}`
+      emailEl.textContent = emailValue
+        ? `이메일: ${emailValue}`
         : '이메일: -';
     }
 
@@ -119,6 +154,7 @@ async function loadAuthorProfile(authorId) {
         aboutEl.textContent = '';
         aboutEl.style.display = 'none';
       }
+      updateAboutToggle(about);
     }
 
     const growthEl = document.getElementById('authorGrowthBadge');
@@ -141,7 +177,7 @@ async function loadAuthorProfile(authorId) {
 
     authorFollowState = {
       isLoggedIn: !!data.viewer?.is_logged_in,
-      isOwnProfile: !!data.viewer?.is_own_profile,
+      isOwnProfile: isOwnProfile,
       isFollowing: !!data.viewer?.is_following,
     };
     updateAuthorFollowUI();
@@ -183,46 +219,58 @@ function getGrowthBadge(level) {
  * 팔로우 버튼 상태/UI 갱신
  */
 function updateAuthorFollowUI() {
-  const followBtn = document.getElementById('authorFollowBtn');
+  const followButtons = document.querySelectorAll('.author-follow-btn');
   const hintEl = document.getElementById('authorFollowHint');
 
-  if (!followBtn) return;
+  if (!followButtons.length) return;
 
-  if (!followBtn.dataset.bound) {
-    followBtn.addEventListener('click', handleAuthorFollowToggle);
-    followBtn.dataset.bound = 'true';
-  }
+  followButtons.forEach((followBtn) => {
+    if (!followBtn.dataset.bound) {
+      followBtn.addEventListener('click', handleAuthorFollowToggle);
+      followBtn.dataset.bound = 'true';
+    }
+  });
 
-  followBtn.classList.remove('gls-btn-primary', 'gls-btn-secondary', 'is-active');
-  followBtn.classList.add('gls-btn');
-  followBtn.disabled = false;
+  followButtons.forEach((followBtn) => {
+    followBtn.classList.remove('gls-btn-primary', 'gls-btn-secondary', 'is-active');
+    followBtn.classList.add('gls-btn');
+    followBtn.disabled = false;
+  });
 
   if (!authorFollowState.isLoggedIn) {
-    followBtn.textContent = '로그인 후 팔로우';
-    followBtn.classList.add('gls-btn-secondary');
-    followBtn.disabled = true;
+    followButtons.forEach((followBtn) => {
+      followBtn.textContent = '로그인 후 팔로우';
+      followBtn.classList.add('gls-btn-secondary');
+      followBtn.disabled = true;
+    });
     if (hintEl)
       hintEl.textContent = '팔로우하려면 로그인해주세요.';
     return;
   }
 
   if (authorFollowState.isOwnProfile) {
-    followBtn.textContent = '내 프로필입니다';
-    followBtn.classList.add('gls-btn-secondary');
-    followBtn.disabled = true;
+    followButtons.forEach((followBtn) => {
+      followBtn.textContent = '내 프로필입니다';
+      followBtn.classList.add('gls-btn-secondary');
+      followBtn.disabled = true;
+    });
     if (hintEl)
       hintEl.textContent = '내 페이지에서는 팔로우 버튼이 비활성화됩니다.';
     return;
   }
 
   if (authorFollowState.isFollowing) {
-    followBtn.textContent = '팔로잉';
-    followBtn.classList.add('gls-btn-primary','is-active');
+    followButtons.forEach((followBtn) => {
+      followBtn.textContent = '팔로잉';
+      followBtn.classList.add('gls-btn-secondary', 'is-active');
+    });
     if (hintEl)
       hintEl.textContent = '팔로잉을 해제하면 새 소식을 받지 않게 돼요.';
   } else {
-    followBtn.textContent = '팔로우';
-    followBtn.classList.add('gls-btn-secondary');
+    followButtons.forEach((followBtn) => {
+      followBtn.textContent = '팔로우';
+      followBtn.classList.add('gls-btn-primary');
+    });
     if (hintEl)
       hintEl.textContent = '팔로우해서 작가의 소식을 받아보세요!';
   }
@@ -237,13 +285,13 @@ async function handleAuthorFollowToggle() {
   if (!currentAuthorId) return;
 
   authorFollowProcessing = true;
-  const followBtn = document.getElementById('authorFollowBtn');
+  const followButtons = document.querySelectorAll('.author-follow-btn');
   const followerCountEl = document.getElementById('authorFollowerCount');
 
-  if (followBtn) {
+  followButtons.forEach((followBtn) => {
     followBtn.disabled = true;
     followBtn.textContent = '처리 중...';
-  }
+  });
 
   try {
     const res = await fetch(`/api/users/${currentAuthorId}/follow`, {
@@ -314,6 +362,7 @@ async function loadMoreAuthorPosts() {
     const params = new URLSearchParams({
       offset: String(authorOffset),
       limit: String(AUTHOR_LIMIT),
+      sort: authorSort,
     });
 
     const res = await fetch(
@@ -398,7 +447,7 @@ function renderAuthorPosts(posts) {
           : '';
 
       return `
-        <article class="post-panel gls-surface-panel gls-surface-veil author-post-card" data-post-id="${post.id}">
+        <article class="post-panel gls-surface-glass gls-surface-veil author-post-card" data-post-id="${post.id}">
           <div class="author-post-inner">
             <h6 class="author-post-title gls-mb-1">${escapeHtml(post.title)}</h6>
 
@@ -539,6 +588,96 @@ function setupAuthorPostInteractions(card) {
     });
   });
 }
+
+function resetAuthorPosts() {
+  const listBox = document.getElementById('authorPostsList');
+  const emptyEl = document.getElementById('authorPostsEmpty');
+  const endEl = document.getElementById('authorPostsEnd');
+
+  authorOffset = 0;
+  authorDone = false;
+  authorLoading = false;
+
+  if (listBox) listBox.innerHTML = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (endEl) endEl.style.display = 'none';
+}
+
+function updateAboutToggle(aboutText) {
+  const aboutEl = document.getElementById('authorAbout');
+  const toggleBtn = document.getElementById('authorAboutToggle');
+
+  if (!aboutEl || !toggleBtn) return;
+
+  if (!aboutText) {
+    toggleBtn.hidden = true;
+    return;
+  }
+
+  aboutEl.classList.remove('is-expanded');
+  aboutEl.classList.add('is-clamped');
+  toggleBtn.textContent = '더보기';
+  toggleBtn.setAttribute('aria-expanded', 'false');
+
+  requestAnimationFrame(() => {
+    const needsToggle = aboutEl.scrollHeight > aboutEl.clientHeight + 4;
+    toggleBtn.hidden = !needsToggle;
+    if (!needsToggle) {
+      aboutEl.classList.remove('is-clamped');
+    }
+  });
+}
+
+function handleAboutToggle() {
+  const aboutEl = document.getElementById('authorAbout');
+  const toggleBtn = document.getElementById('authorAboutToggle');
+  if (!aboutEl || !toggleBtn) return;
+
+  const isExpanded = aboutEl.classList.toggle('is-expanded');
+  if (isExpanded) {
+    aboutEl.classList.remove('is-clamped');
+    toggleBtn.textContent = '접기';
+    toggleBtn.setAttribute('aria-expanded', 'true');
+  } else {
+    aboutEl.classList.remove('is-expanded');
+    aboutEl.classList.add('is-clamped');
+    toggleBtn.textContent = '더보기';
+    toggleBtn.setAttribute('aria-expanded', 'false');
+  }
+}
+
+async function handleShareLink() {
+  const url = window.location.href;
+  const statusEl = document.getElementById('authorShareStatus');
+
+  const showStatus = (message) => {
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    if (authorShareTimeout) window.clearTimeout(authorShareTimeout);
+    authorShareTimeout = window.setTimeout(() => {
+      statusEl.textContent = '';
+    }, 2400);
+  };
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+      showStatus('링크가 복사되었습니다.');
+      return;
+    }
+    prompt('링크를 복사하세요:', url);
+    showStatus('복사 창을 열었습니다.');
+  } catch (error) {
+    console.error(error);
+    prompt('링크를 복사하세요:', url);
+    showStatus('복사에 실패해 수동 복사를 안내했습니다.');
+  }
+}
+
+// 수동 체크리스트:
+// - 액션바 CTA/정렬/공유 노출 확인
+// - 소개 텍스트 더보기 토글 동작 확인
+// - 글 목록 미리보기/라인클램프 확인
 
 /* ===== 해시태그 → 버튼 HTML =====
  * post.hashtags 문자열을 받아서

@@ -51,13 +51,31 @@
 }
 
 .gls-btn-primary {
-  background: var(--gls-ghost-bg);
-  border-color: var(--gls-btn-border-default);
+  background: var(--gls-btn-primary-bg, var(--gls-ghost-bg));
+  border-color: var(--gls-btn-primary-border, var(--gls-btn-border-default));
+  color: var(--gls-btn-primary-text, var(--gls-color-text));
 }
 
 .gls-btn-secondary {
   background: var(--gls-btn-secondary-bg);
-  border-color: var(--gls-btn-border-default);
+  border-color: var(--gls-btn-secondary-border, var(--gls-btn-border-default));
+  color: var(--gls-btn-secondary-text, var(--gls-color-text));
+}
+
+.gls-btn-tertiary {
+  background: transparent;
+  border-color: var(--gls-ghost-border);
+  color: var(--gls-color-text);
+  box-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-btn-tertiary:hover,
+  .gls-btn-tertiary:focus-visible {
+    background: var(--gls-ghost-bg);
+    border-color: var(--gls-ghost-border-hover);
+    box-shadow: var(--gls-glass-inset);
+  }
 }
 
 

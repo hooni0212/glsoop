@@ -42,3 +42,19 @@
   flex-wrap: wrap;
   gap: var(--gls-space-2, 8px);
 }
+
+/* Action bar (title + controls) */
+.gls-action-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gls-space-3, 12px);
+  flex-wrap: wrap;
+}
+
+.gls-action-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gls-space-2, 8px);
+  flex-wrap: wrap;
+}

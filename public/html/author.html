@@ -143,7 +143,7 @@
       <div class="author-page-main-row gls-items-start">
         <!-- 왼쪽: 작가 정보 카드 -->
         <aside class="author-left-col">
-          <div class="card author-profile-card gls-surface-panel gls-surface-veil">
+          <div class="card author-profile-card gls-surface-muted gls-surface-veil">
             <div class="card-body gls-flex gls-flex-col">
               <div class="author-card-title">작가 정보</div>
 
@@ -154,9 +154,12 @@
                 <div class="author-identity-text">
                   <p class="author-nickname gls-mb-1" id="authorNicknameDisplay">닉네임</p>
                   <p class="author-growth gls-text-small gls-mb-1" id="authorGrowthBadge">Lv.1 🌰 씨앗</p>
-                  <p class="author-email gls-text-muted gls-text-small gls-mb-0 break-anywhere" id="authorEmailDisplay">
-                    이메일: -
-                  </p>
+                  <details class="author-email-details gls-text-muted gls-text-small" id="authorEmailDetails" hidden>
+                    <summary class="author-email-summary">연락처 보기</summary>
+                    <p class="author-email gls-mb-0 break-anywhere" id="authorEmailDisplay">
+                      이메일: -
+                    </p>
+                  </details>
                 </div>
               </div>
 
@@ -166,9 +169,18 @@
                   <!-- 한 줄 소개 -->
                 </p>
                 <p class="author-label gls-text-small gls-mb-1">작가 소개</p>
-                <p id="authorAbout" class="author-about-text gls-mb-0">
+                <p id="authorAbout" class="author-about-text gls-mb-2">
                   <!-- 자기소개 여러 줄 -->
                 </p>
+                <button
+                  id="authorAboutToggle"
+                  class="gls-btn gls-btn-tertiary gls-btn-xs author-about-toggle"
+                  type="button"
+                  aria-expanded="false"
+                  hidden
+                >
+                  더보기
+                </button>
               </div>
 
               <div class="author-stats-card">
@@ -195,9 +207,9 @@
 
               <div class="author-follow-block mt-auto">
                 <button
-                  id="authorFollowBtn"
                   type="button"
-                  class="gls-btn gls-btn-secondary gls-btn-block"
+                  class="gls-btn gls-btn-secondary gls-btn-block author-follow-btn"
+                  data-follow-variant="panel"
                   aria-live="polite"
                 >
                   팔로우
@@ -212,20 +224,47 @@
 
         <!-- 오른쪽: 작가의 글 목록 카드 -->
         <div class="author-right-col">
-          <!-- 상단 제목 + 설명 -->
-          <div class="gls-flex gls-justify-between gls-items-end gls-mb-2">
-            <h4 class="gls-mb-0">이 작가의 글</h4>
-            <!-- 데스크톱에서만 보이는 스크롤 안내 텍스트 -->
-            <p class="gls-text-muted gls-text-small gls-mb-0 gls-hidden gls-md-block">
-              아래로 스크롤하면 더 많은 글을 볼 수 있어요.
-            </p>
+          <div class="gls-action-bar author-action-bar gls-mb-2">
+            <div class="author-action-title">
+              <h4 class="gls-mb-0">이 작가의 글</h4>
+              <p class="gls-text-muted gls-text-small gls-mb-0">
+                작가의 분위기를 보고 팔로우할지 결정해 보세요.
+              </p>
+            </div>
+            <div class="gls-action-tools author-action-tools">
+              <button
+                type="button"
+                class="gls-btn gls-btn-primary author-follow-btn"
+                data-follow-variant="header"
+                aria-live="polite"
+              >
+                팔로우
+              </button>
+              <button
+                type="button"
+                class="gls-btn gls-btn-secondary"
+                id="authorShareBtn"
+              >
+                공유
+              </button>
+              <label class="author-sort-label" for="authorSortSelect">정렬</label>
+              <select id="authorSortSelect" class="gls-select gls-select-sm gls-select-tertiary">
+                <option value="latest" selected>최신</option>
+                <option value="popular">인기</option>
+                <option value="oldest">오래된순</option>
+              </select>
+            </div>
+            <p class="author-share-status gls-text-muted gls-text-small gls-mb-0" id="authorShareStatus" aria-live="polite"></p>
           </div>
+          <p class="gls-text-muted gls-text-small gls-mb-3 gls-hidden gls-md-block author-scroll-hint">
+            아래로 스크롤하면 더 많은 글을 볼 수 있어요.
+          </p>
 
           <!-- 글 목록 카드(안에 무한 스크롤로 글들이 쌓임) -->
-          <div class="author-posts-card gls-surface-panel gls-surface-veil">
+          <div class="author-posts-card gls-surface-glass gls-surface-veil">
             <div class="author-posts-card-body">
               <!-- 실제 글 카드들이 JS로 렌더링 되는 영역 -->
-              <div id="authorPostsList"></div>
+              <div id="authorPostsList" class="gls-card-list author-posts-list"></div>
 
               <!-- 글 로딩 중 메시지 -->
               <div

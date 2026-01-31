@@ -156,3 +156,8 @@ margin-top: 0.25rem;
   margin-top: 2px;
 }
 
+/* Card list pattern */
+.gls-card-list {
+  display: grid;
+  gap: var(--gls-space-4, 16px);
+}
