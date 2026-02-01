@@ -254,7 +254,10 @@ function renderPostDetail(container, post) {
     setupHashtagSearch(card);
 
     const feedContent = card.querySelector('.feed-post-content');
-    if (feedContent) feedContent.classList.add('expanded');
+    if (feedContent) feedContent.classList.add('expanded', 'post-inner-surface');
+
+    const authorBadge = card.querySelector('.gls-author-badge');
+    if (authorBadge) authorBadge.classList.add('post-author-chip');
 
     const moreBtn = card.querySelector('.more-toggle');
     if (moreBtn) moreBtn.style.display = 'none';

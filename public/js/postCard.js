@@ -330,17 +330,29 @@ function setupCardAuthorLink(cardEl, post) {
 
   const badge = cardEl.querySelector('.gls-author-badge');
   if (!badge) return;
+  if (badge.dataset.authorLinkBound) return;
 
   // author_id 또는 user_id 중 있는 것 사용
   const authorId = post.author_id || post.user_id;
   if (!authorId) return;
 
+  badge.dataset.authorLinkBound = '1';
+  badge.setAttribute('role', 'link');
+  badge.setAttribute('tabindex', '0');
   badge.style.cursor = 'pointer';
-  badge.addEventListener('click', (e) => {
+  const navigateToAuthor = (e) => {
     e.stopPropagation(); // 카드 클릭(상세 이동)과 분리
     window.location.href = `/html/author.html?userId=${encodeURIComponent(
       authorId
     )}`;
+  };
+
+  badge.addEventListener('click', navigateToAuthor);
+  badge.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      navigateToAuthor(e);
+    }
   });
 }
 

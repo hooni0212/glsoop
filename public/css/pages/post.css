@@ -24,6 +24,11 @@ body.page-post .page-section.post-page {
 body.page-post {
   --gls-post-panel-bg: rgba(255, 255, 255, 0.16);
   --gls-post-content-bg: rgba(255, 255, 255, 0.00);
+  --post-glass-bg: rgba(255, 255, 255, 0.45);
+  --post-glass-border: rgba(255, 255, 255, 0.60);
+  --post-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+  --post-glass-radius: 22px;
+  --post-glass-blur: 18px;
 }
 
 /* =========================
@@ -83,8 +88,17 @@ body.page-post .post-panel {
   padding: var(--gls-space-6, 24px);
 }
 
+body.page-post .post-glass-panel {
+  background: var(--post-glass-bg);
+  border: 1px solid var(--post-glass-border);
+  border-radius: var(--post-glass-radius);
+  box-shadow: var(--post-glass-shadow);
+  backdrop-filter: blur(var(--post-glass-blur));
+  -webkit-backdrop-filter: blur(var(--post-glass-blur));
+}
+
 /* post-panel 자체(외곽) 유리면: 더 투명하게 */
-body.page-post .post-panel.gls-surface-panel {
+body.page-post .post-panel.gls-surface-panel:not(.post-glass-panel) {
   background: var(--gls-post-panel-bg);
 }
 
@@ -131,7 +145,7 @@ body.page-post #postDetail .quote-card {
   max-width: 100%;
   aspect-ratio: auto;
   margin: 0;
-  padding: var(--gls-space-5, 20px);
+  padding: 0;
   display: block;
   text-align: left;
 
@@ -148,12 +162,32 @@ body.page-post #postDetail .quote-card {
   overflow: visible;
 }
 
+body.page-post #postDetail .post-inner-surface {
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 18px;
+  padding: var(--gls-space-5, 20px);
+}
+
 body.page-post #postDetail .quote-card > * {
   margin: 0 0 var(--gls-space-3, 12px);
 }
 
 body.page-post #postDetail .quote-card > *:last-child {
   margin-bottom: 0;
+}
+
+body.page-post .post-author-chip {
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body.page-post .post-author-chip:hover,
+  body.page-post .post-author-chip:focus-visible {
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.7);
+    color: rgba(30, 42, 51, 0.95);
+  }
 }
 
 /* =========================
@@ -350,6 +384,16 @@ body.page-post .post-actions-panel {
   padding: var(--gls-space-4, 16px);
 }
 
+body.page-post .post-toolbar {
+  background: var(--post-glass-bg);
+  border: 1px solid var(--post-glass-border);
+  border-radius: var(--post-glass-radius);
+  box-shadow: var(--post-glass-shadow);
+  backdrop-filter: blur(var(--post-glass-blur));
+  -webkit-backdrop-filter: blur(var(--post-glass-blur));
+  padding: 14px 16px;
+}
+
 body.page-post .post-actions-grid {
   display: grid;
   /* Like button has icon+count+label; give it a touch more room to avoid wrapping */
@@ -357,14 +401,21 @@ body.page-post .post-actions-grid {
   gap: var(--gls-space-2, 8px);
 }
 
+body.page-post .post-pill-btn {
+  border-radius: 999px;
+  border: 1px solid var(--post-glass-border);
+  background: rgba(255, 255, 255, 0.4);
+  padding: 10px 16px;
+  font-weight: 600;
+  backdrop-filter: blur(var(--post-glass-blur));
+  -webkit-backdrop-filter: blur(var(--post-glass-blur));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
 body.page-post .post-side-btn {
   width: 100%;
-  border-radius: var(--gls-btn-radius);
-  border: 1px solid var(--gls-ghost-border);
-  background: var(--gls-ghost-bg);
-  padding: 12px 12px;
   font-size: 0.95rem;
-  font-weight: 700;
   color: var(--gls-color-text, #1e2a33);
   display: inline-flex;
   align-items: center;
@@ -374,10 +425,6 @@ body.page-post .post-side-btn {
   white-space: nowrap;
   word-break: keep-all;
   overflow-wrap: normal;
-  backdrop-filter: blur(var(--gls-glass-blur));
-  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
-  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
 body.page-post .post-side-btn:active {
@@ -385,14 +432,16 @@ body.page-post .post-side-btn:active {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  body.page-post .post-side-btn:hover {
-    background: var(--gls-ghost-bg-hover);
-    border-color: var(--gls-ghost-border-hover);
+  body.page-post .post-pill-btn:hover {
+    background: rgba(255, 255, 255, 0.7);
+    border-color: rgba(255, 255, 255, 0.75);
+    transform: translateY(-1px);
   }
 }
-body.page-post .post-side-btn[aria-pressed="true"] {
-  border-color: rgba(46, 139, 87, 0.32);
-  background: var(--gls-ghost-bg-active);
+body.page-post .post-pill-btn[aria-pressed="true"] {
+  border-color: rgba(46, 139, 87, 0.35);
+  background: rgba(255, 255, 255, 0.72);
+  color: rgba(23, 80, 46, 0.9);
 }
 
 
