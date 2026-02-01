@@ -21,6 +21,8 @@
 /* Feature-specific */
 @import url("./like.css");
 @import url("./actions.css");
+@import url("./action-controls.css");
+@import url("./user-badge.css");
 @import url("./modals.css");
 @import url("./bookmark-modal.css");
 @import url("./editor-align.css");

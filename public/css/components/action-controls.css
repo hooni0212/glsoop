@@ -1,0 +1,105 @@
+/* =========================
+   Action Controls (Pills & Tiles)
+   - Shared action buttons across pages
+========================= */
+
+.gls-action-pill,
+.gls-action-tile {
+  --gls-action-bg: var(--gls-glass-bg-strong);
+  --gls-action-border: var(--gls-glass-border);
+  --gls-action-shadow: var(--gls-glass-shadow);
+  --gls-action-blur: var(--gls-glass-blur);
+  --gls-action-radius: var(--gls-radius-pill, 999px);
+  --gls-action-text: var(--gls-color-text);
+  --gls-action-hover-bg: color-mix(in srgb, var(--gls-action-bg) 78%, #ffffff 22%);
+  --gls-action-active-bg: color-mix(in srgb, var(--gls-action-bg) 68%, #ffffff 32%);
+  --gls-action-focus: color-mix(in srgb, var(--gls-glass-border) 35%, #ffffff 65%);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--gls-action-radius);
+  border: 1px solid var(--gls-action-border);
+  background: var(--gls-action-bg);
+  color: var(--gls-action-text);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  box-shadow: var(--gls-action-shadow);
+  backdrop-filter: blur(var(--gls-action-blur));
+  -webkit-backdrop-filter: blur(var(--gls-action-blur));
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.gls-action-pill {
+  height: 40px;
+  padding: 0 16px;
+  font-size: 0.9rem;
+}
+
+.gls-action-pill--sm {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+}
+
+.gls-action-tile {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 0.9rem;
+}
+
+.gls-action-tile__content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+.gls-action-tile__icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-action-pill:hover,
+  .gls-action-tile:hover {
+    background: var(--gls-action-hover-bg);
+    transform: translateY(-1px);
+  }
+}
+
+.gls-action-pill:focus-visible,
+.gls-action-tile:focus-visible {
+  outline: 2px solid var(--gls-action-focus);
+  outline-offset: 2px;
+}
+
+.gls-action-pill:active,
+.gls-action-tile:active {
+  transform: translateY(1px);
+}
+
+.gls-action-pill[aria-pressed="true"],
+.gls-action-pill.is-active,
+.gls-action-tile[aria-pressed="true"],
+.gls-action-tile.is-active {
+  background: var(--gls-action-active-bg);
+  border-color: color-mix(in srgb, var(--gls-action-border) 70%, #ffffff 30%);
+}
+
+.gls-action-pill:disabled,
+.gls-action-tile:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}

@@ -14,6 +14,30 @@
 body.page-post .page-section.post-page {
   padding: var(--gls-space-7, 32px) 0 var(--gls-space-8, 40px);
 }
+
+body.page-post .post-veil {
+  position: relative;
+}
+
+body.page-post .post-veil::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.18)
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body.page-post .post-veil > * {
+  position: relative;
+  z-index: 1;
+}
 /* =========================
    Glass 투명도 튜닝(상세 페이지)
    - 외곽 패널(post-panel) : 더 투명
@@ -24,6 +48,11 @@ body.page-post .page-section.post-page {
 body.page-post {
   --gls-post-panel-bg: rgba(255, 255, 255, 0.16);
   --gls-post-content-bg: rgba(255, 255, 255, 0.00);
+  --post-glass-bg: rgba(255, 255, 255, 0.45);
+  --post-glass-border: rgba(255, 255, 255, 0.60);
+  --post-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+  --post-glass-radius: 22px;
+  --post-glass-blur: 18px;
 }
 
 /* =========================
@@ -83,8 +112,17 @@ body.page-post .post-panel {
   padding: var(--gls-space-6, 24px);
 }
 
+body.page-post .post-glass-panel {
+  background: var(--post-glass-bg);
+  border: 1px solid var(--post-glass-border);
+  border-radius: var(--post-glass-radius);
+  box-shadow: var(--post-glass-shadow);
+  backdrop-filter: blur(var(--post-glass-blur));
+  -webkit-backdrop-filter: blur(var(--post-glass-blur));
+}
+
 /* post-panel 자체(외곽) 유리면: 더 투명하게 */
-body.page-post .post-panel.gls-surface-panel {
+body.page-post .post-panel.gls-surface-panel:not(.post-glass-panel) {
   background: var(--gls-post-panel-bg);
 }
 
@@ -131,7 +169,7 @@ body.page-post #postDetail .quote-card {
   max-width: 100%;
   aspect-ratio: auto;
   margin: 0;
-  padding: var(--gls-space-5, 20px);
+  padding: 0;
   display: block;
   text-align: left;
 
@@ -146,6 +184,24 @@ body.page-post #postDetail .quote-card {
   box-shadow: none;
   line-clamp: unset;
   overflow: visible;
+}
+
+body.page-post #postDetail .post-inner-surface {
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 18px;
+  padding: var(--gls-space-5, 20px);
+}
+
+body.page-post #postDetail .post-content-surface {
+  min-height: 520px;
+  padding-bottom: calc(var(--gls-space-5, 20px) + 16px);
+}
+
+@media (max-width: 768px) {
+  body.page-post #postDetail .post-content-surface {
+    min-height: 360px;
+  }
 }
 
 body.page-post #postDetail .quote-card > * {
@@ -212,6 +268,20 @@ body.page-post .post-tag-chip {
   line-height: 1;
   display: inline-flex;
   align-items: center;
+}
+
+body.page-post .post-chip-btn {
+  height: var(--gls-meta-chip-h);
+  padding: 0 var(--gls-meta-chip-px);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+body.page-post .post-meta-category .post-category-row {
+  margin-bottom: 0;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -350,59 +420,45 @@ body.page-post .post-actions-panel {
   padding: var(--gls-space-4, 16px);
 }
 
+body.page-post .post-toolbar {
+  background: var(--post-glass-bg);
+  border: 1px solid var(--post-glass-border);
+  border-radius: var(--post-glass-radius);
+  box-shadow: var(--post-glass-shadow);
+  backdrop-filter: blur(var(--post-glass-blur));
+  -webkit-backdrop-filter: blur(var(--post-glass-blur));
+  padding: 14px 16px;
+}
+
 body.page-post .post-actions-grid {
-  display: grid;
-  /* Like button has icon+count+label; give it a touch more room to avoid wrapping */
-  grid-template-columns: 1.15fr 1fr 1fr;
-  gap: var(--gls-space-2, 8px);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+body.page-post .post-actions-grid .post-side-like {
+  flex: 1.15 1 0;
 }
 
 body.page-post .post-side-btn {
-  width: 100%;
-  border-radius: var(--gls-btn-radius);
-  border: 1px solid var(--gls-ghost-border);
-  background: var(--gls-ghost-bg);
-  padding: 12px 12px;
-  font-size: 0.95rem;
-  font-weight: 700;
   color: var(--gls-color-text, #1e2a33);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
   /* Prevent Korean words from breaking into multiple lines (e.g. "좋아\n요") */
   white-space: nowrap;
   word-break: keep-all;
   overflow-wrap: normal;
-  backdrop-filter: blur(var(--gls-glass-blur));
-  -webkit-backdrop-filter: blur(var(--gls-glass-blur));
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
-  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 
-body.page-post .post-side-btn:active {
-  transform: translateY(1px);
+body.page-post .post-actions-grid .gls-action-tile {
+  flex: 1 1 0;
 }
-
-@media (hover: hover) and (pointer: fine) {
-  body.page-post .post-side-btn:hover {
-    background: var(--gls-ghost-bg-hover);
-    border-color: var(--gls-ghost-border-hover);
-  }
-}
-body.page-post .post-side-btn[aria-pressed="true"] {
-  border-color: rgba(46, 139, 87, 0.32);
-  background: var(--gls-ghost-bg-active);
-}
-
 
 body.page-post .post-side-like {
   justify-content: center;
 }
 
 body.page-post .post-side-like-heart {
-  font-size: 1.05rem;
-  line-height: 1;
+  font-size: 1rem;
 }
 
 body.page-post .post-side-like-count {
@@ -418,11 +474,11 @@ body.page-post .post-side-like-label {
 /* 모바일에서는 액션을 조금 더 편하게 */
 @media (max-width: 420px) {
   body.page-post .post-actions-grid {
-    grid-template-columns: 1fr 1fr;
+    flex-wrap: wrap;
   }
 
   body.page-post .post-side-like {
-    grid-column: 1 / -1;
+    flex-basis: 100%;
   }
 }
 
@@ -461,7 +517,7 @@ body.page-post .post-related-more:hover {
 
 /* 하이라이트 카드 */
 body.page-post .post-related-highlight {
-  border-radius: 16px;
+  border-radius: var(--gls-radius-card);
   border: 1px solid var(--gls-glass-border);
   background: var(--gls-glass-bg-strong);
   padding: 14px 14px;
@@ -513,9 +569,9 @@ body.page-post .post-related-list {
 
 body.page-post .post-related-item {
   padding: 10px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(30, 42, 51, 0.07);
-  background: var(--gls-post-content-bg);
+  border-radius: var(--gls-radius-card);
+  border: 1px solid var(--gls-glass-border);
+  background: var(--gls-glass-bg-subtle);
   cursor: pointer;
   transition: background 0.14s ease, border-color 0.14s ease;
 }
@@ -523,7 +579,7 @@ body.page-post .post-related-item {
 @media (hover: hover) and (pointer: fine) {
   body.page-post .post-related-item:hover {
     background: var(--gls-glass-bg-strong);
-    border-color: rgba(46, 139, 87, 0.16);
+    border-color: color-mix(in srgb, var(--gls-glass-border) 70%, #ffffff 30%);
   }
 }
 

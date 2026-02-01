@@ -88,12 +88,12 @@
   </nav>
 
   <!-- 글 상세 (옵션 B: 데스크탑 2컬럼) -->
-  <section class="page-section post-page">
+  <section class="page-section post-page post-veil">
     <div class="gls-container post-shell">
       <div class="post-layout">
         <!-- 좌측: 본문(읽기) -->
         <main class="post-main" aria-label="글 본문">
-          <div class="post-panel gls-surface-panel gls-surface-veil">
+          <div class="post-panel gls-surface-panel gls-surface-veil post-content-panel post-glass-panel">
             <div id="postDetail">
               <p class="gls-text-muted">글을 불러오는 중입니다...</p>
             </div>
@@ -104,7 +104,7 @@
               <div class="post-meta-category" id="postMetaCategory"></div>
 
               <div class="post-meta-tags-wrap" aria-label="해시태그">
-                <span class="post-tags-label" aria-hidden="true">태그</span>
+                <span class="post-tags-label post-chip-btn" aria-hidden="true">태그</span>
                 <div class="post-meta-tags" id="postMetaTags"></div>
               </div>
             </div>
@@ -116,22 +116,24 @@
         <!-- 우측: 액션 + 관련 글(시안 A) -->
         <aside class="post-side" aria-label="상세 도구 및 관련 글">
           <div class="post-side-inner">
-            <div class="post-actions-panel gls-surface-panel">
+            <div class="post-actions-panel gls-surface-panel post-toolbar">
               <div class="post-actions-grid">
-                <button id="sideLikeBtn" type="button" class="post-side-btn post-side-like" aria-label="좋아요">
-                  <span class="post-side-like-heart" aria-hidden="true">♡</span>
-                  <span class="post-side-like-count" id="sideLikeCount">0</span>
-                  <span class="post-side-like-label">좋아요</span>
+                <button id="sideLikeBtn" type="button" class="post-side-btn post-side-like gls-action-tile" aria-label="좋아요">
+                  <span class="gls-action-tile__content">
+                    <span class="post-side-like-heart gls-action-tile__icon" aria-hidden="true">♡</span>
+                    <span class="post-side-like-count" id="sideLikeCount">0</span>
+                    <span class="post-side-like-label">좋아요</span>
+                  </span>
                 </button>
-                <button id="sideBookmarkBtn" type="button" class="post-side-btn" aria-label="북마크">북마크</button>
-                <button id="sideShareBtn" type="button" class="post-side-btn" aria-label="공유">공유</button>
+                <button id="sideBookmarkBtn" type="button" class="post-side-btn gls-action-tile" aria-label="북마크">북마크</button>
+                <button id="sideShareBtn" type="button" class="post-side-btn gls-action-tile" aria-label="공유">공유</button>
               </div>
             </div>
 
             <div class="post-related-panel gls-surface-panel">
               <div class="post-related-head">
                 <h4 class="post-related-title">관련 글</h4>
-                <button id="relatedMoreBtn" type="button" class="gls-btn gls-btn-secondary gls-btn-xs post-related-more">더 보기</button>
+                <button id="relatedMoreBtn" type="button" class="gls-btn gls-btn-secondary gls-btn-xs post-related-more gls-action-pill gls-action-pill--sm">더 보기</button>
               </div>
 
               <div id="relatedHighlight" class="post-related-highlight">
