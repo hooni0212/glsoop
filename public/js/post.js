@@ -307,8 +307,10 @@ function renderPostDetail(container, post) {
       const categoryRow = legacyMeta.querySelector('.post-category-row');
       if (categoryRow) {
         const categoryBadge = categoryRow.querySelector('.post-category-label');
-        if (categoryBadge) categoryBadge.classList.add('post-type-chip', 'post-chip-btn');
-        metaCategory.appendChild(categoryRow);
+        if (categoryBadge) {
+          categoryBadge.classList.add('post-type-chip', 'post-chip-btn');
+          metaCategory.appendChild(categoryBadge);
+        }
       }
 
       // 해시태그 컨테이너(.gls-card-hashtags)는 그대로 옮기되 버튼 클래스를 통일

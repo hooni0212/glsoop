@@ -271,13 +271,17 @@ body.page-post .post-tag-chip {
 }
 
 body.page-post .post-chip-btn {
-  height: 36px;
-  padding: 0 14px;
+  height: var(--gls-meta-chip-h);
+  padding: 0 var(--gls-meta-chip-px);
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+
+body.page-post .post-meta-category .post-category-row {
+  margin-bottom: 0;
 }
 
 @media (hover: hover) and (pointer: fine) {
