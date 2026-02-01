@@ -395,36 +395,63 @@ body.page-post .post-toolbar {
 }
 
 body.page-post .post-actions-grid {
-  display: grid;
-  /* Like button has icon+count+label; give it a touch more room to avoid wrapping */
-  grid-template-columns: 1.15fr 1fr 1fr;
-  gap: var(--gls-space-2, 8px);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 body.page-post .post-pill-btn {
+  height: 44px;
+  padding: 0 16px;
   border-radius: 999px;
-  border: 1px solid var(--post-glass-border);
-  background: rgba(255, 255, 255, 0.4);
-  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.60);
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+  font-size: 14px;
   font-weight: 600;
-  backdrop-filter: blur(var(--post-glass-blur));
-  -webkit-backdrop-filter: blur(var(--post-glass-blur));
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
-  transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
-}
-
-body.page-post .post-side-btn {
-  width: 100%;
-  font-size: 0.95rem;
-  color: var(--gls-color-text, #1e2a33);
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+body.page-post .post-pill-btn--sm {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+body.page-post .post-side-btn {
+  flex: 1 1 0;
+  color: var(--gls-color-text, #1e2a33);
   /* Prevent Korean words from breaking into multiple lines (e.g. "좋아\n요") */
   white-space: nowrap;
   word-break: keep-all;
   overflow-wrap: normal;
+}
+
+body.page-post .post-pill-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+body.page-post .post-side-like-heart {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 body.page-post .post-side-btn:active {
@@ -433,15 +460,20 @@ body.page-post .post-side-btn:active {
 
 @media (hover: hover) and (pointer: fine) {
   body.page-post .post-pill-btn:hover {
-    background: rgba(255, 255, 255, 0.7);
-    border-color: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.55);
     transform: translateY(-1px);
   }
 }
-body.page-post .post-pill-btn[aria-pressed="true"] {
-  border-color: rgba(46, 139, 87, 0.35);
-  background: rgba(255, 255, 255, 0.72);
-  color: rgba(23, 80, 46, 0.9);
+
+body.page-post .post-pill-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 2px;
+}
+
+body.page-post .post-pill-btn[aria-pressed="true"],
+body.page-post .post-pill-btn.is-active {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(255, 255, 255, 0.75);
 }
 
 
@@ -450,7 +482,7 @@ body.page-post .post-side-like {
 }
 
 body.page-post .post-side-like-heart {
-  font-size: 1.05rem;
+  font-size: 1rem;
   line-height: 1;
 }
 
@@ -467,11 +499,11 @@ body.page-post .post-side-like-label {
 /* 모바일에서는 액션을 조금 더 편하게 */
 @media (max-width: 420px) {
   body.page-post .post-actions-grid {
-    grid-template-columns: 1fr 1fr;
+    flex-wrap: wrap;
   }
 
   body.page-post .post-side-like {
-    grid-column: 1 / -1;
+    flex-basis: 100%;
   }
 }
 
