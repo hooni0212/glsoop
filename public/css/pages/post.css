@@ -14,6 +14,30 @@
 body.page-post .page-section.post-page {
   padding: var(--gls-space-7, 32px) 0 var(--gls-space-8, 40px);
 }
+
+body.page-post .post-veil {
+  position: relative;
+}
+
+body.page-post .post-veil::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.18)
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body.page-post .post-veil > * {
+  position: relative;
+  z-index: 1;
+}
 /* =========================
    Glass 투명도 튜닝(상세 페이지)
    - 외곽 패널(post-panel) : 더 투명
@@ -169,6 +193,17 @@ body.page-post #postDetail .post-inner-surface {
   padding: var(--gls-space-5, 20px);
 }
 
+body.page-post #postDetail .post-content-surface {
+  min-height: 520px;
+  padding-bottom: calc(var(--gls-space-5, 20px) + 16px);
+}
+
+@media (max-width: 768px) {
+  body.page-post #postDetail .post-content-surface {
+    min-height: 360px;
+  }
+}
+
 body.page-post #postDetail .quote-card > * {
   margin: 0 0 var(--gls-space-3, 12px);
 }
@@ -233,6 +268,16 @@ body.page-post .post-tag-chip {
   line-height: 1;
   display: inline-flex;
   align-items: center;
+}
+
+body.page-post .post-chip-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 @media (hover: hover) and (pointer: fine) {

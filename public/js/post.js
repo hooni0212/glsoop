@@ -279,7 +279,9 @@ function renderPostDetail(container, post) {
     setupHashtagSearch(card);
 
     const feedContent = card.querySelector('.feed-post-content');
-    if (feedContent) feedContent.classList.add('expanded', 'post-inner-surface');
+    if (feedContent) {
+      feedContent.classList.add('expanded', 'post-inner-surface', 'post-content-surface');
+    }
 
     const moreBtn = card.querySelector('.more-toggle');
     if (moreBtn) moreBtn.style.display = 'none';
@@ -305,13 +307,13 @@ function renderPostDetail(container, post) {
       const categoryRow = legacyMeta.querySelector('.post-category-row');
       if (categoryRow) {
         const categoryBadge = categoryRow.querySelector('.post-category-label');
-        if (categoryBadge) categoryBadge.classList.add('post-type-chip');
+        if (categoryBadge) categoryBadge.classList.add('post-type-chip', 'post-chip-btn');
         metaCategory.appendChild(categoryRow);
       }
 
       // 해시태그 컨테이너(.gls-card-hashtags)는 그대로 옮기되 버튼 클래스를 통일
       legacyMeta.querySelectorAll('.gls-tag-btn').forEach((btn) => {
-        btn.classList.add('post-tag-chip');
+        btn.classList.add('post-tag-chip', 'post-chip-btn');
       });
 
       Array.from(legacyMeta.children || []).forEach((node) => {
