@@ -145,18 +145,20 @@
         <aside class="author-left-col">
           <div class="card author-profile-card gls-surface-panel gls-surface-veil">
             <div class="card-body gls-flex gls-flex-col">
-              <div class="author-card-title">작가 정보</div>
+              <div class="author-card-header">
+                <span class="author-card-title">작가 정보</span>
+              </div>
 
               <div class="author-identity-block">
-                <div class="author-avatar" id="authorAvatarInitial" aria-hidden="true">
-                  🌿
-                </div>
-                <div class="author-identity-text">
-                  <p class="author-nickname gls-mb-1" id="authorNicknameDisplay">닉네임</p>
-                  <p class="author-growth gls-text-small gls-mb-1" id="authorGrowthBadge">Lv.1 🌰 씨앗</p>
-                  <p class="author-email gls-text-muted gls-text-small gls-mb-0 break-anywhere" id="authorEmailDisplay">
-                    이메일: -
-                  </p>
+                <div class="gls-user-badge">
+                  <div class="gls-user-badge__avatar" id="authorAvatarInitial" aria-hidden="true">
+                    🌿
+                  </div>
+                  <div class="gls-user-badge__body">
+                    <p class="gls-user-badge__name gls-mb-1" id="authorNicknameDisplay">닉네임</p>
+                    <div id="authorEmailDisplay" class="gls-user-badge__sub" aria-live="polite">-</div>
+                    <p class="gls-user-badge__chip gls-text-small gls-mb-1" id="authorGrowthBadge">Lv.1 🌰 씨앗</p>
+                  </div>
                 </div>
               </div>
 
@@ -212,14 +214,47 @@
 
         <!-- 오른쪽: 작가의 글 목록 카드 -->
         <div class="author-right-col">
-          <!-- 상단 제목 + 설명 -->
-          <div class="gls-flex gls-justify-between gls-items-end gls-mb-2">
-            <h4 class="gls-mb-0">이 작가의 글</h4>
-            <!-- 데스크톱에서만 보이는 스크롤 안내 텍스트 -->
-            <p class="gls-text-muted gls-text-small gls-mb-0 gls-hidden gls-md-block">
-              아래로 스크롤하면 더 많은 글을 볼 수 있어요.
-            </p>
+          <div class="author-feed-toolbar">
+            <div class="author-feed-toolbar-text">
+              <h4 class="gls-mb-1">이 작가의 글</h4>
+              <p class="gls-text-muted gls-text-small gls-mb-0">
+                작가가 남긴 문장과 공감이 모이는 공간이에요.
+              </p>
+            </div>
+            <div class="author-feed-toolbar-actions">
+              <button
+                type="button"
+                class="gls-action-pill"
+                id="authorShareBtn"
+                aria-label="작가 페이지 공유"
+              >
+                공유
+              </button>
+              <button
+                type="button"
+                class="gls-action-pill"
+                id="authorSortBtn"
+                data-gls-toggle="modal"
+                data-gls-target="#authorSortModal"
+                aria-label="정렬 방식 선택"
+              >
+                정렬
+              </button>
+              <a
+                href="/html/mypage.html"
+                class="gls-action-pill author-profile-action gls-hidden"
+                id="authorProfileActionBtn"
+                aria-label="내 프로필로 이동"
+              >
+                내 프로필
+              </a>
+            </div>
           </div>
+
+          <!-- 데스크톱에서만 보이는 스크롤 안내 텍스트 -->
+          <p class="gls-text-muted gls-text-small gls-mb-3 gls-hidden gls-md-block">
+            아래로 스크롤하면 더 많은 글을 볼 수 있어요.
+          </p>
 
           <!-- 글 목록 카드(안에 무한 스크롤로 글들이 쌓임) -->
           <div class="author-posts-card gls-surface-panel gls-surface-veil">
@@ -259,6 +294,57 @@
       </div>
     </div>
   </section>
+
+  <!-- 정렬 모달 -->
+  <div
+    class="modal fade"
+    id="authorSortModal"
+    tabindex="-1"
+    aria-labelledby="authorSortModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="authorSortModalLabel">정렬</h5>
+          <button
+            type="button"
+            class="gls-modal-close"
+            data-gls-dismiss="modal"
+            aria-label="닫기"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <div class="gls-modal-section">
+            <p class="gls-text-muted gls-text-small gls-mb-3">
+              보고 싶은 순서를 선택하면 글 목록이 새로 정렬됩니다.
+            </p>
+            <div class="author-sort-options" role="radiogroup" aria-label="정렬 선택">
+              <label class="author-sort-option">
+                <input type="radio" name="authorSort" value="newest" checked />
+                <span>최신순</span>
+              </label>
+              <label class="author-sort-option">
+                <input type="radio" name="authorSort" value="oldest" />
+                <span>오래된순</span>
+              </label>
+              <label class="author-sort-option">
+                <input type="radio" name="authorSort" value="likes" />
+                <span>공감 많은순</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="gls-btn gls-btn-secondary" data-gls-dismiss="modal">
+            닫기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="authorToast" class="author-toast" role="status" aria-live="polite"></div>
 
   <!-- 푸터 -->
   <!-- 이 페이지는 사이트 공통 custom-footer 대신, author 전용 라이트한 푸터 사용 -->

@@ -262,6 +262,21 @@ router.get('/users/:id/posts', async (req, res) => {
 
   const userId = getViewerId(req);
   const { limit, offset } = parseListPagination(req.query);
+  const sortKey = typeof req.query.sort === 'string' ? req.query.sort : 'newest';
+  let orderBy = 'p.created_at DESC';
+
+  switch (sortKey) {
+    case 'oldest':
+      orderBy = 'p.created_at ASC';
+      break;
+    case 'likes':
+      orderBy = 'like_count DESC, p.created_at DESC';
+      break;
+    case 'newest':
+    default:
+      orderBy = 'p.created_at DESC';
+      break;
+  }
 
   const baseSelect = `
     SELECT
@@ -291,7 +306,7 @@ router.get('/users/:id/posts', async (req, res) => {
 
   const baseGroupOrder = `
     GROUP BY p.id
-    ORDER BY p.created_at DESC
+    ORDER BY ${orderBy}
     LIMIT ? OFFSET ?
   `;
 

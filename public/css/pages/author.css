@@ -5,13 +5,19 @@
    - 테마 변수: 작가 카드 배경·음영, 포인트 색상을 일괄 제어
    ============================================================= */
 
+/* =============================================================
+   Architecture audit notes (2025-XX-XX)
+   - 전역 누수 방지: 모든 규칙은 body.page-author 또는 author- prefix로 제한
+   - 컴포넌트 재정의 제거: surfaces는 변수 override로 통일
+   - 교차 페이지 의존 제거: post-panel/feed-post-content/quote-card 직접 덮기 제거
+   ============================================================= */
+
 /* =========================
   1. 작가 페이지 공통 영역
 ========================= */
 
 body.page-author {
   --author-surface: var(--gls-color-bg);
-  --author-card-bg: var(--gls-post-panel-bg);
   --author-card-shadow: var(--gls-glass-shadow);
   --author-card-shadow-compact: var(--gls-shadow-sm);
   --author-text-muted: var(--gls-color-muted);
@@ -19,6 +25,17 @@ body.page-author {
   --author-accent: var(--gls-color-primary);
   --author-page-max: clamp(1200px, 92vw, 1320px);
   --author-page-padding: clamp(16px, 2.6vw, 32px);
+  --author-card-padding: clamp(22px, 2.1vw, var(--gls-card-padding, 28px));
+  --author-glass-bg: rgba(255, 255, 255, 0.45);
+  --author-glass-border: rgba(255, 255, 255, 0.6);
+  --author-glass-blur: 20px;
+  --author-glass-radius: 22px;
+  --author-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+  --gls-surface-panel-bg: var(--author-glass-bg);
+  --gls-surface-panel-border: var(--author-glass-border);
+  --gls-surface-panel-radius: var(--author-glass-radius);
+  --gls-surface-panel-shadow: var(--author-glass-shadow);
+  --gls-surface-panel-blur: var(--author-glass-blur);
   color: var(--gls-text);
   background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 35%),
     radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.4), transparent 28%),
@@ -41,14 +58,17 @@ body.page-author {
 }
 
 .author-page-header {
-  background: var(--gls-glass-bg-subtle);
-  border: 1px solid var(--gls-glass-border);
-  border-radius: var(--gls-card-radius);
-  box-shadow: var(--gls-glass-shadow);
-  backdrop-filter: blur(var(--gls-blur));
-  -webkit-backdrop-filter: blur(var(--gls-blur));
-  padding: var(--gls-card-padding);
-  margin-bottom: var(--gls-card-gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gls-space-1);
+  background: color-mix(in srgb, var(--author-glass-bg) 70%, transparent);
+  border: 1px solid var(--author-glass-border);
+  border-radius: var(--author-glass-radius);
+  box-shadow: var(--author-glass-shadow);
+  backdrop-filter: blur(var(--author-glass-blur));
+  -webkit-backdrop-filter: blur(var(--author-glass-blur));
+  padding: var(--author-card-padding);
+  margin-bottom: clamp(20px, 2vw, 28px);
 }
 
 /* 메인 레이아웃: 두 컬럼(row) 상단 정렬 */
@@ -78,21 +98,10 @@ body.page-author {
   2. 카드 공통 스타일
 ========================= */
 
-.author-profile-card,
-.author-posts-card {
-  border-radius: var(--gls-card-radius);
-  border: 1px solid var(--gls-glass-border);
-  box-shadow: var(--gls-glass-shadow);
-  background: var(--author-card-bg);
-  backdrop-filter: blur(var(--gls-blur));
-  -webkit-backdrop-filter: blur(var(--gls-blur));
-  position: relative;
-}
-
 /* 작가 정보 영역(왼쪽 카드 내용) */
 .author-profile-card .card-body {
   font-size: 0.96rem;
-  padding: calc(var(--gls-card-padding) + 2px);
+  padding: calc(var(--author-card-padding) + 2px);
   gap: var(--gls-space-2);
   word-break: normal;
   overflow-wrap: normal;
@@ -106,13 +115,24 @@ body.page-author {
   color: var(--gls-text);
 }
 
+.author-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gls-space-2);
+}
+
+.author-card-header .author-card-title {
+  margin-bottom: 0;
+}
+
 /* 오른쪽: 글 목록 카드 안의 개별 글 카드 */
 .author-posts-card {
   padding: 0;
 }
 
 .author-posts-card-body {
-  padding: calc(var(--gls-card-padding) + 6px);
+  padding: calc(var(--author-card-padding) + 6px);
 }
 
 #authorPostsList,
@@ -123,18 +143,23 @@ body.page-author {
 
 .author-post-card {
   margin: 0;
-  border: 1px solid var(--gls-glass-border);
-  border-radius: var(--gls-radius-card, var(--gls-card-radius));
-  background: var(--gls-post-panel-bg);
-  box-shadow: var(--gls-glass-shadow);
-  backdrop-filter: blur(var(--gls-blur));
-  -webkit-backdrop-filter: blur(var(--gls-blur));
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  border-radius: var(--gls-radius-card);
+  transition: border-color 0.16s ease, transform 0.16s ease;
 }
 
-.author-post-card.gls-post-card {
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .author-post-card:hover {
+    border-color: color-mix(in srgb, var(--gls-surface-panel-border) 70%, #ffffff 30%);
+    transform: translateY(-2px);
+  }
+}
+
+.author-post-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--author-accent) 45%, transparent);
+  outline-offset: 3px;
 }
 
 .author-post-inner {
@@ -149,7 +174,7 @@ body.page-author {
   text-align: left;
 }
 
-body.page-author .feed-post-content {
+body.page-author .author-feed-post-content {
   padding: 0;
   max-height: none;
   overflow: visible;
@@ -169,7 +194,7 @@ body.page-author .author-post-preview {
   mask-image: linear-gradient(180deg, #000 78%, rgba(0, 0, 0, 0));
 }
 
-body.page-author .author-post-preview .quote-card {
+body.page-author .author-post-preview .author-quote-card {
   background: var(--gls-ghost-bg);
   border: 1px solid var(--gls-ghost-border);
   border-radius: var(--gls-btn-radius);
@@ -187,54 +212,25 @@ body.page-author .author-post-preview .quote-card {
 }
 
 .author-identity-block {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--gls-space-3);
+  display: flex;
   align-items: center;
   padding-bottom: var(--gls-space-3);
   border-bottom: 1px solid var(--author-divider);
 }
 
-.author-avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, rgba(91, 150, 115, 0.35), rgba(255, 255, 255, 0.8));
-  color: var(--gls-text);
-  font-weight: 700;
-  font-size: 1.1rem;
-  border: 1px solid var(--author-divider);
+.author-identity-block .gls-user-badge {
+  width: 100%;
+}
+
+.author-identity-block .gls-user-badge__avatar {
   box-shadow: var(--author-card-shadow-compact);
+  border-color: var(--author-divider);
 }
 
-.author-identity-text {
-  min-width: 0;
-}
-
-.author-nickname {
-  font-weight: 700;
-  font-size: 1.05rem;
-  margin-bottom: 2px;
-  word-break: keep-all;
-}
-
-.author-growth {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid var(--author-divider);
-  border-radius: 999px;
+.author-identity-block .gls-user-badge__chip {
+  border-color: var(--author-divider);
+  background: color-mix(in srgb, var(--gls-glass-bg-strong) 60%, #ffffff 40%);
   color: var(--gls-text);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.author-email {
-  word-break: keep-all;
 }
 
 .author-bio-text,
@@ -287,8 +283,9 @@ body.page-author .author-post-preview .quote-card {
   box-shadow:
     0 1px 0 color-mix(in srgb, #fff 45%, transparent) inset,
     0 1px 2px color-mix(in srgb, var(--gls-border) 12%, transparent);
+  text-align: center;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
-
 
 .author-stat::after {
   content: "";
@@ -301,6 +298,18 @@ body.page-author .author-post-preview .quote-card {
   );
   pointer-events: none;
   opacity: 0.95;
+}
+
+.author-stat:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.06),
+    0 1px 0 color-mix(in srgb, #fff 65%, transparent) inset;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 82%, transparent 18%),
+    color-mix(in srgb, #fff 70%, transparent 30%)
+  );
 }
 
 .author-stat .label {
@@ -390,6 +399,83 @@ body.page-author .author-post-preview .quote-card {
   margin-top: 0.4rem;
 }
 
+.author-feed-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gls-space-3);
+  background: var(--gls-surface-panel-bg);
+  border: 1px solid var(--gls-surface-panel-border);
+  border-radius: var(--gls-surface-panel-radius);
+  box-shadow: var(--gls-surface-panel-shadow);
+  backdrop-filter: blur(var(--gls-surface-panel-blur));
+  -webkit-backdrop-filter: blur(var(--gls-surface-panel-blur));
+  padding: clamp(18px, 2vw, 24px);
+  margin-bottom: var(--gls-space-3);
+}
+
+.author-feed-toolbar-text h4 {
+  font-weight: 700;
+}
+
+.author-feed-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gls-space-2);
+}
+
+.author-profile-action.gls-hidden {
+  display: none;
+}
+
+.author-sort-options {
+  display: grid;
+  gap: var(--gls-space-2);
+}
+
+.author-sort-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--gls-radius-md);
+  border: 1px solid color-mix(in srgb, var(--gls-border) 40%, transparent);
+  background: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--gls-text);
+}
+
+.author-sort-option input {
+  accent-color: var(--author-accent);
+}
+
+.author-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: rgba(30, 30, 30, 0.85);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 2000;
+}
+
+.author-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+body.page-author #authorEmailDisplay {
+  color: var(--author-text-muted);
+}
+
 /* =========================
    3. 왼쪽 프로필 카드 높이 & sticky
 ========================= */
@@ -426,7 +512,7 @@ body.page-author .author-post-preview .quote-card {
   }
 }
 
-.break-anywhere {
+body.page-author .break-anywhere {
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -438,8 +524,6 @@ body.page-author .author-post-preview .quote-card {
 .author-profile-card strong,
 .author-posts-card h4,
 .author-post-title,
-.author-nickname,
-.author-growth,
 .author-label,
 .author-bio-text,
 .author-about-text,
@@ -464,7 +548,7 @@ body.page-author .author-post-preview .quote-card {
   white-space: pre-line;
 }
 
-.author-identity-text {
+.author-identity-block .gls-user-badge__body {
   overflow: hidden;
 }
 
@@ -472,7 +556,7 @@ body.page-author .author-post-preview .quote-card {
   4. 작가 페이지 전용 푸터(선택)
 ========================= */
 
-.site-footer {
+body.page-author .site-footer {
   border-top: 1px solid var(--author-divider);
   background: var(--author-surface);
 }

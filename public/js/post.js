@@ -250,11 +250,38 @@ function renderPostDetail(container, post) {
 
   const card = container.querySelector('.gls-post-card');
   if (card) {
+    const authorBadge = card.querySelector('.gls-author-badge');
+    if (authorBadge) {
+      const authorName = authorBadge.textContent?.trim() || '글쓴이';
+      const badgeWrap = document.createElement('div');
+      badgeWrap.className = 'gls-user-badge gls-user-badge--compact';
+      badgeWrap.innerHTML = `
+        <div class="gls-user-badge__avatar" aria-hidden="true"></div>
+        <div class="gls-user-badge__body">
+          <span class="gls-user-badge__name"></span>
+        </div>
+      `;
+
+      const avatarEl = badgeWrap.querySelector('.gls-user-badge__avatar');
+      if (avatarEl) {
+        avatarEl.textContent = authorName.charAt(0) || '🌿';
+      }
+
+      const nameEl = badgeWrap.querySelector('.gls-user-badge__name');
+      if (nameEl) {
+        nameEl.textContent = authorName;
+      }
+
+      authorBadge.replaceWith(badgeWrap);
+    }
+
     enhanceStandardPostCard(card, post);
     setupHashtagSearch(card);
 
     const feedContent = card.querySelector('.feed-post-content');
-    if (feedContent) feedContent.classList.add('expanded');
+    if (feedContent) {
+      feedContent.classList.add('expanded', 'post-inner-surface', 'post-content-surface');
+    }
 
     const moreBtn = card.querySelector('.more-toggle');
     if (moreBtn) moreBtn.style.display = 'none';
@@ -280,13 +307,15 @@ function renderPostDetail(container, post) {
       const categoryRow = legacyMeta.querySelector('.post-category-row');
       if (categoryRow) {
         const categoryBadge = categoryRow.querySelector('.post-category-label');
-        if (categoryBadge) categoryBadge.classList.add('post-type-chip');
-        metaCategory.appendChild(categoryRow);
+        if (categoryBadge) {
+          categoryBadge.classList.add('post-type-chip', 'post-chip-btn');
+          metaCategory.appendChild(categoryBadge);
+        }
       }
 
       // 해시태그 컨테이너(.gls-card-hashtags)는 그대로 옮기되 버튼 클래스를 통일
       legacyMeta.querySelectorAll('.gls-tag-btn').forEach((btn) => {
-        btn.classList.add('post-tag-chip');
+        btn.classList.add('post-tag-chip', 'post-chip-btn');
       });
 
       Array.from(legacyMeta.children || []).forEach((node) => {
