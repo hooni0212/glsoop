@@ -150,13 +150,15 @@
               </div>
 
               <div class="author-identity-block">
-                <div class="author-avatar" id="authorAvatarInitial" aria-hidden="true">
-                  🌿
-                </div>
-                <div class="author-identity-text">
-                  <p class="author-nickname gls-mb-1" id="authorNicknameDisplay">닉네임</p>
-                  <div id="authorEmailDisplay" class="author-identifier" aria-live="polite">-</div>
-                  <p class="author-growth gls-text-small gls-mb-1" id="authorGrowthBadge">Lv.1 🌰 씨앗</p>
+                <div class="gls-user-badge">
+                  <div class="gls-user-badge__avatar" id="authorAvatarInitial" aria-hidden="true">
+                    🌿
+                  </div>
+                  <div class="gls-user-badge__body">
+                    <p class="gls-user-badge__name gls-mb-1" id="authorNicknameDisplay">닉네임</p>
+                    <div id="authorEmailDisplay" class="gls-user-badge__sub" aria-live="polite">-</div>
+                    <p class="gls-user-badge__chip gls-text-small gls-mb-1" id="authorGrowthBadge">Lv.1 🌰 씨앗</p>
+                  </div>
                 </div>
               </div>
 
@@ -222,7 +224,7 @@
             <div class="author-feed-toolbar-actions">
               <button
                 type="button"
-                class="author-pill-btn"
+                class="gls-action-pill"
                 id="authorShareBtn"
                 aria-label="작가 페이지 공유"
               >
@@ -230,7 +232,7 @@
               </button>
               <button
                 type="button"
-                class="author-pill-btn"
+                class="gls-action-pill"
                 id="authorSortBtn"
                 data-gls-toggle="modal"
                 data-gls-target="#authorSortModal"
@@ -240,7 +242,7 @@
               </button>
               <a
                 href="/html/mypage.html"
-                class="author-pill-btn author-profile-action gls-hidden"
+                class="gls-action-pill author-profile-action gls-hidden"
                 id="authorProfileActionBtn"
                 aria-label="내 프로필로 이동"
               >

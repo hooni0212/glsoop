@@ -328,7 +328,9 @@ async function toggleLike(postId, likeBtn) {
 function setupCardAuthorLink(cardEl, post) {
   if (!cardEl || !post) return;
 
-  const badge = cardEl.querySelector('.gls-author-badge');
+  const badge =
+    cardEl.querySelector('.gls-user-badge') ||
+    cardEl.querySelector('.gls-author-badge');
   if (!badge) return;
   if (badge.dataset.authorLinkBound) return;
 
@@ -339,6 +341,7 @@ function setupCardAuthorLink(cardEl, post) {
   badge.dataset.authorLinkBound = '1';
   badge.setAttribute('role', 'link');
   badge.setAttribute('tabindex', '0');
+  badge.classList.add('gls-user-badge--link');
   badge.style.cursor = 'pointer';
   const navigateToAuthor = (e) => {
     e.stopPropagation(); // 카드 클릭(상세 이동)과 분리

@@ -1,0 +1,91 @@
+/* =========================
+   User Badge
+   - Shared author identity block
+========================= */
+
+.gls-user-badge {
+  --gls-user-badge-avatar: 52px;
+  --gls-user-badge-gap: 12px;
+  --gls-user-badge-padding: 4px;
+  --gls-user-badge-text: var(--gls-color-text);
+  --gls-user-badge-muted: var(--gls-color-muted);
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gls-user-badge-gap);
+  padding: var(--gls-user-badge-padding);
+  color: var(--gls-user-badge-text);
+}
+
+.gls-user-badge--compact {
+  --gls-user-badge-avatar: 28px;
+  --gls-user-badge-gap: 10px;
+}
+
+.gls-user-badge__avatar {
+  width: var(--gls-user-badge-avatar);
+  height: var(--gls-user-badge-avatar);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gls-glass-bg-strong);
+  border: 1px solid var(--gls-glass-border);
+  box-shadow: var(--gls-shadow-sm);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.gls-user-badge__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.gls-user-badge__name {
+  font-weight: 700;
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
+.gls-user-badge--compact .gls-user-badge__name {
+  font-size: 0.92rem;
+}
+
+.gls-user-badge__sub {
+  font-size: 0.78rem;
+  color: var(--gls-user-badge-muted);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gls-user-badge__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--gls-glass-border);
+  background: var(--gls-glass-bg-strong);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.gls-user-badge--link {
+  border-radius: var(--gls-radius-pill, 999px);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-user-badge--link:hover,
+  .gls-user-badge--link:focus-visible {
+    background: color-mix(in srgb, var(--gls-glass-bg-strong) 60%, #ffffff 40%);
+    border-color: color-mix(in srgb, var(--gls-glass-border) 60%, #ffffff 40%);
+  }
+}

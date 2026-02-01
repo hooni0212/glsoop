@@ -14,6 +14,7 @@ let authorFollowState = {
 let authorFollowProcessing = false;
 let currentSort = 'newest';
 let currentAuthorNickname = '';
+const authorPostCache = new Map();
 
 // 페이지가 완전히 로드되면 작가 페이지 초기화 + 프로필 카드 스티키 처리 설정
 document.addEventListener('DOMContentLoaded', () => {
@@ -51,6 +52,7 @@ async function initAuthorPage() {
 
   setupAuthorToolbarActions();
   setupAuthorSortModal();
+  setupAuthorPostNavigation();
 }
 
 /**
@@ -396,6 +398,7 @@ function renderAuthorPosts(posts) {
 
   const fragmentHtml = posts
     .map((post) => {
+      authorPostCache.set(String(post.id), post);
       // 작성일 포맷
       const dateStr = post.created_at
         ? formatKoreanDateTime(post.created_at)
@@ -421,7 +424,7 @@ function renderAuthorPosts(posts) {
           : '';
 
       return `
-        <article class="gls-surface-panel gls-surface-veil author-post-card" data-post-id="${post.id}">
+        <article class="gls-surface-panel gls-surface-veil author-post-card" data-post-id="${post.id}" tabindex="0" role="link">
           <div class="author-post-inner">
             <h6 class="author-post-title gls-mb-1">${escapeHtml(post.title)}</h6>
 
@@ -482,27 +485,6 @@ function renderAuthorPosts(posts) {
  */
 function setupAuthorPostInteractions(card, post) {
   if (!card || !post) return;
-  const postId = post.id;
-
-  if (!card.dataset.linkBound) {
-    card.setAttribute('role', 'link');
-    card.setAttribute('tabindex', '0');
-    card.addEventListener('click', (event) => {
-      if (!postId) return;
-      if (event.target.closest('.like-btn')) return;
-      if (event.target.closest('.hashtag-pill')) return;
-      navigateToPostDetail(post);
-    });
-    card.addEventListener('keydown', (event) => {
-      if (!postId) return;
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      if (event.target.closest('.like-btn')) return;
-      if (event.target.closest('.hashtag-pill')) return;
-      event.preventDefault();
-      navigateToPostDetail(post);
-    });
-    card.dataset.linkBound = 'true';
-  }
 
   // 글귀 폰트 자동 조절 (글 길이에 따라 폰트 크기 조정)
   const quoteCard = card.querySelector('.quote-card');
@@ -585,6 +567,44 @@ function setupAuthorPostInteractions(card, post) {
       // index.html?tag=태그 형식으로 이동
       window.location.href = `/explore?tag=${encodeURIComponent(tag)}`;
     });
+  });
+}
+
+function setupAuthorPostNavigation() {
+  const listBox = document.getElementById('authorPostsList');
+  if (!listBox || listBox.dataset.navBound) return;
+  listBox.dataset.navBound = 'true';
+
+  listBox.addEventListener('click', (event) => {
+    const card = event.target.closest('.author-post-card');
+    if (!card) return;
+    if (event.target.closest('.like-btn, .hashtag-pill, button, a')) return;
+
+    const postId = card.getAttribute('data-post-id');
+    if (!postId) return;
+    const post = authorPostCache.get(String(postId));
+    if (post) {
+      navigateToPostDetail(post);
+      return;
+    }
+    window.location.href = `/html/post.html?postId=${encodeURIComponent(postId)}`;
+  });
+
+  listBox.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const card = event.target.closest('.author-post-card');
+    if (!card) return;
+    if (event.target.closest('.like-btn, .hashtag-pill, button, a')) return;
+    event.preventDefault();
+
+    const postId = card.getAttribute('data-post-id');
+    if (!postId) return;
+    const post = authorPostCache.get(String(postId));
+    if (post) {
+      navigateToPostDetail(post);
+      return;
+    }
+    window.location.href = `/html/post.html?postId=${encodeURIComponent(postId)}`;
   });
 }
 
@@ -731,6 +751,7 @@ function resetAuthorPosts() {
 
   authorOffset = 0;
   authorDone = false;
+  authorPostCache.clear();
 
   if (listBox) listBox.innerHTML = '';
   if (emptyEl) emptyEl.style.display = 'none';

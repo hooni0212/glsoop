@@ -177,19 +177,6 @@ body.page-post #postDetail .quote-card > *:last-child {
   margin-bottom: 0;
 }
 
-body.page-post .post-author-chip {
-  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  body.page-post .post-author-chip:hover,
-  body.page-post .post-author-chip:focus-visible {
-    background: rgba(255, 255, 255, 0.6);
-    border-color: rgba(255, 255, 255, 0.7);
-    color: rgba(30, 42, 51, 0.95);
-  }
-}
-
 /* =========================
    메타 바 (카테고리/태그 + 돌아가기)
 ========================= */
@@ -401,35 +388,11 @@ body.page-post .post-actions-grid {
   justify-content: flex-start;
 }
 
-body.page-post .post-pill-btn {
-  height: 44px;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.60);
-  background: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
-  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
-}
-
-body.page-post .post-pill-btn--sm {
-  height: 36px;
-  padding: 0 12px;
-  font-size: 13px;
+body.page-post .post-actions-grid .post-side-like {
+  flex: 1.15 1 0;
 }
 
 body.page-post .post-side-btn {
-  flex: 1 1 0;
   color: var(--gls-color-text, #1e2a33);
   /* Prevent Korean words from breaking into multiple lines (e.g. "좋아\n요") */
   white-space: nowrap;
@@ -437,45 +400,9 @@ body.page-post .post-side-btn {
   overflow-wrap: normal;
 }
 
-body.page-post .post-pill-content {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  line-height: 1;
+body.page-post .post-actions-grid .gls-action-tile {
+  flex: 1 1 0;
 }
-
-body.page-post .post-side-like-heart {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-body.page-post .post-side-btn:active {
-  transform: translateY(1px);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  body.page-post .post-pill-btn:hover {
-    background: rgba(255, 255, 255, 0.55);
-    transform: translateY(-1px);
-  }
-}
-
-body.page-post .post-pill-btn:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.65);
-  outline-offset: 2px;
-}
-
-body.page-post .post-pill-btn[aria-pressed="true"],
-body.page-post .post-pill-btn.is-active {
-  background: rgba(255, 255, 255, 0.62);
-  border-color: rgba(255, 255, 255, 0.75);
-}
-
 
 body.page-post .post-side-like {
   justify-content: center;
@@ -483,7 +410,6 @@ body.page-post .post-side-like {
 
 body.page-post .post-side-like-heart {
   font-size: 1rem;
-  line-height: 1;
 }
 
 body.page-post .post-side-like-count {
@@ -542,7 +468,7 @@ body.page-post .post-related-more:hover {
 
 /* 하이라이트 카드 */
 body.page-post .post-related-highlight {
-  border-radius: 16px;
+  border-radius: var(--gls-radius-card);
   border: 1px solid var(--gls-glass-border);
   background: var(--gls-glass-bg-strong);
   padding: 14px 14px;
@@ -594,9 +520,9 @@ body.page-post .post-related-list {
 
 body.page-post .post-related-item {
   padding: 10px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(30, 42, 51, 0.07);
-  background: var(--gls-post-content-bg);
+  border-radius: var(--gls-radius-card);
+  border: 1px solid var(--gls-glass-border);
+  background: var(--gls-glass-bg-subtle);
   cursor: pointer;
   transition: background 0.14s ease, border-color 0.14s ease;
 }
@@ -604,7 +530,7 @@ body.page-post .post-related-item {
 @media (hover: hover) and (pointer: fine) {
   body.page-post .post-related-item:hover {
     background: var(--gls-glass-bg-strong);
-    border-color: rgba(46, 139, 87, 0.16);
+    border-color: color-mix(in srgb, var(--gls-glass-border) 70%, #ffffff 30%);
   }
 }
 
