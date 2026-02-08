@@ -2,21 +2,12 @@
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET, JWT_ALGORITHM, JWT_ISSUER, JWT_AUDIENCE } = require('../config');
 const db = require('../db');
+const { extractToken } = require('../utils/token');
 
 // 로그인 필수 라우트용 미들웨어
-// - 쿠키에 담긴 JWT를 검증해 req.user에 디코딩 정보 세팅
+// - Bearer 또는 쿠키 JWT를 검증해 req.user에 디코딩 정보 세팅
 function authRequired(req, res, next) {
-  // 1) Bearer 토큰 (모바일/앱 권장)
-  const authHeader = req.headers?.authorization;
-  const bearerToken =
-    typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
-      ? authHeader.slice(7).trim()
-      : null;
-
-  // 2) 쿠키 토큰 (웹)
-  const cookieToken = req.cookies?.token;
-
-  const token = bearerToken || cookieToken;
+  const token = extractToken(req);
   if (!token) {
     return res.status(401).json({ ok: false, message: '로그인이 필요합니다.' });
   }
