@@ -81,11 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   renderInitialLoadingState();
-  await Promise.allSettled([
-    loadGrowthSummary(),
-    loadGrowthAchievements(),
-    loadActiveQuests(),
-  ]);
+  await loadGrowthDashboard({ showLoading: false, fallback: true });
 });
 
 function setSectionLoading(sectionId, isLoading) {
@@ -93,6 +89,14 @@ function setSectionLoading(sectionId, isLoading) {
   if (!section) return;
   section.classList.toggle('is-loading', Boolean(isLoading));
   section.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+}
+
+function setAllGrowthSectionsLoading(isLoading) {
+  setSectionLoading(SECTION_IDS.summary, isLoading);
+  setSectionLoading(SECTION_IDS.quests, isLoading);
+  setSectionLoading(SECTION_IDS.achievementQuests, isLoading);
+  setSectionLoading(SECTION_IDS.forest, isLoading);
+  setSectionLoading(SECTION_IDS.achievements, isLoading);
 }
 
 function syncGrowthViewTabButtons() {
@@ -175,11 +179,7 @@ function showNotice(message, tone = 'info') {
 }
 
 function renderInitialLoadingState() {
-  setSectionLoading(SECTION_IDS.summary, true);
-  setSectionLoading(SECTION_IDS.quests, true);
-  setSectionLoading(SECTION_IDS.achievementQuests, true);
-  setSectionLoading(SECTION_IDS.forest, true);
-  setSectionLoading(SECTION_IDS.achievements, true);
+  setAllGrowthSectionsLoading(true);
 
   const levelXp = document.getElementById('growthLevelXp');
   if (levelXp) levelXp.textContent = '불러오는 중...';
@@ -282,6 +282,82 @@ async function ensureAuthenticated() {
   if (!data.ok) {
     window.location.href = '/html/login.html?next=/html/growth.html';
     throw new Error('Unauthenticated');
+  }
+}
+
+async function loadGrowthDashboard(options = {}) {
+  const { showLoading = true, fallback = true } = options;
+
+  if (showLoading) {
+    renderInitialLoadingState();
+  }
+
+  try {
+    const res = await fetch('/api/growth/dashboard', { cache: 'no-store' });
+    if (!res.ok) throw new Error('growth dashboard request failed');
+
+    const data = await res.json();
+    if (
+      !data.ok ||
+      !data.summary ||
+      !Array.isArray(data.achievements) ||
+      !Array.isArray(data.campaigns)
+    ) {
+      throw new Error('invalid growth dashboard response');
+    }
+
+    renderGrowthSummary(data.summary);
+
+    achievementCache = data.achievements;
+    renderForestMapNodes(achievementCache);
+    renderAchievementGrid(selectedAchievementFilter);
+
+    if (achievementCache.length > 0) {
+      renderAchievementDetail(achievementCache[0]);
+    } else {
+      const detail = document.getElementById('forestMapDetail');
+      if (detail) {
+        detail.innerHTML = '<p class="gls-text-muted gls-mb-0">아직 표시할 업적이 없습니다.</p>';
+      }
+    }
+
+    renderQuestGroups(formatCampaignMeta(data.campaigns));
+    setAllGrowthSectionsLoading(false);
+    return true;
+  } catch (error) {
+    console.error(error);
+
+    if (!fallback) {
+      renderGrowthSummaryFallback();
+      renderQuestGroupsError();
+
+      const map = document.getElementById('forestMapAchievements');
+      if (map) {
+        map.innerHTML = '<p class="gls-text-muted">업적 정보를 불러오지 못했습니다.</p>';
+      }
+
+      const grid = document.getElementById('achievementGrid');
+      if (grid) {
+        grid.innerHTML = '<p class="gls-text-muted">업적 정보를 불러오지 못했습니다.</p>';
+      }
+
+      const detail = document.getElementById('forestMapDetail');
+      if (detail) {
+        detail.innerHTML = '<p class="gls-text-muted gls-mb-0">업적 상세 정보를 표시할 수 없습니다.</p>';
+      }
+
+      setAllGrowthSectionsLoading(false);
+      showNotice('성장 대시보드 정보를 불러오지 못했습니다.', 'error');
+      return false;
+    }
+
+    await Promise.allSettled([
+      loadGrowthSummary({ showLoading: true }),
+      loadGrowthAchievements({ showLoading: true }),
+      loadActiveQuests({ showLoading: true }),
+    ]);
+
+    return false;
   }
 }
 
