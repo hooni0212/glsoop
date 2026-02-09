@@ -22,6 +22,7 @@ const LATEST_ROOT = path.join(SNAPSHOT_ROOT, 'latest');
 const DB_PATH = process.env.DB_PATH
   ? path.resolve(REPO_ROOT, process.env.DB_PATH)
   : path.join(REPO_ROOT, 'tmp', 'e2e_playwright.sqlite');
+const SEED_READY_FILE = path.join(path.dirname(DB_PATH), '.ui-snapshots-seed-ready');
 const BASE_STYLE = '*{transition:none!important;animation:none!important;caret-color:transparent!important;}';
 
 const guestPages = [
@@ -68,6 +69,10 @@ const waitForFile = async (filePath, timeoutMs = 5000) => {
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
+};
+
+const waitForSeedReady = async (timeoutMs = 30000) => {
+  await waitForFile(SEED_READY_FILE, timeoutMs);
 };
 
 const seedTestData = async () => {
@@ -438,7 +443,12 @@ test.describe('UI snapshot tour', () => {
     const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
 
     await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
-    await seedTestData();
+    if (projectName === 'desktop-chrome') {
+      await seedTestData();
+      fs.writeFileSync(SEED_READY_FILE, `${Date.now()}`, 'utf8');
+    } else {
+      await waitForSeedReady();
+    }
 
     const modes = [
       { name: 'guest', pages: guestPages },
@@ -521,7 +531,11 @@ test.describe('UI snapshot tour', () => {
           }
         }
 
-        if (mode.name === 'authed' && pageEntry.key === 'post-1') {
+        if (
+          projectName === 'desktop-chrome' &&
+          mode.name === 'authed' &&
+          pageEntry.key === 'post-1'
+        ) {
           const liked = await safeClickIfVisible(page, '.like-btn');
           if (liked) {
             await stabilizePage(page);
@@ -549,7 +563,11 @@ test.describe('UI snapshot tour', () => {
           }
         }
 
-        if (mode.name === 'authed' && pageEntry.key === 'author-1') {
+        if (
+          projectName === 'desktop-chrome' &&
+          mode.name === 'authed' &&
+          pageEntry.key === 'author-1'
+        ) {
           const followed = await safeClickIfVisible(page, '#authorFollowBtn');
           if (followed) {
             await stabilizePage(page);

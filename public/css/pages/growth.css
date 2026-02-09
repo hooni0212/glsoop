@@ -37,6 +37,42 @@ body.page-growth .growth-section {
   margin-top: var(--gls-space-5);
 }
 
+body.page-growth .growth-notice {
+  margin-top: var(--gls-space-3);
+  margin-bottom: var(--gls-space-2);
+  border-radius: var(--gls-radius-md);
+  border: 1px solid transparent;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+body.page-growth .growth-notice.is-info {
+  background: color-mix(in srgb, var(--gls-action-surface) 86%, transparent);
+  border-color: color-mix(in srgb, var(--gls-action-border) 82%, transparent);
+  color: var(--gls-color-text);
+}
+
+body.page-growth .growth-notice.is-success {
+  background: color-mix(in srgb, rgba(46, 139, 87, 0.14) 90%, transparent);
+  border-color: color-mix(in srgb, rgba(46, 139, 87, 0.32) 84%, transparent);
+  color: color-mix(in srgb, var(--gls-color-text) 80%, #0b5d3f 20%);
+}
+
+body.page-growth .growth-notice.is-error {
+  background: color-mix(in srgb, rgba(198, 73, 73, 0.16) 90%, transparent);
+  border-color: color-mix(in srgb, rgba(198, 73, 73, 0.4) 84%, transparent);
+  color: color-mix(in srgb, var(--gls-color-text) 72%, #8f1d1d 28%);
+}
+
+body.page-growth .growth-section.is-loading {
+  opacity: 0.82;
+}
+
+body.page-growth .growth-section.is-loading :where(button, a, input, select, textarea) {
+  pointer-events: none;
+}
+
 body.page-growth .growth-hero-grid {
   display: grid;
   gap: var(--gls-space-4);
@@ -54,16 +90,18 @@ body.page-growth .growth-level-card {
 }
 
 body.page-growth .growth-level-ring {
+  --xp-progress: 0deg;
   width: 132px;
   height: 132px;
   border-radius: 50%;
   background: conic-gradient(
-    var(--gls-action-accent) 0deg,
-    var(--growth-ring-track) 0deg 360deg
+    var(--gls-action-accent) 0deg var(--xp-progress),
+    var(--growth-ring-track) var(--xp-progress) 360deg
   );
   padding: 10px;
   position: relative;
   box-shadow: var(--gls-shadow-sm);
+  transition: background 0.35s ease;
 }
 
 body.page-growth .growth-level-ring-fill {
@@ -71,11 +109,12 @@ body.page-growth .growth-level-ring-fill {
   inset: 0;
   border-radius: inherit;
   background: conic-gradient(
-    var(--gls-action-accent) 0deg,
-    var(--growth-ring-track-soft) 0deg 360deg
+    color-mix(in srgb, var(--gls-action-accent) 68%, transparent) 0deg var(--xp-progress),
+    var(--growth-ring-track-soft) var(--xp-progress) 360deg
   );
   opacity: 0.65;
   filter: blur(0.4px);
+  transition: background 0.35s ease;
 }
 
 body.page-growth .growth-level-core {
@@ -242,6 +281,123 @@ body.page-growth .quest-card-list {
   gap: var(--gls-space-3);
 }
 
+body.page-growth .campaign-card,
+body.page-growth .quest-card {
+  border-radius: var(--gls-radius-md);
+  border: 1px solid color-mix(in srgb, var(--gls-glass-border) 82%, transparent);
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle) 94%, transparent);
+  box-shadow: var(--gls-shadow-sm);
+  padding: var(--gls-space-3);
+}
+
+body.page-growth .campaign-card {
+  display: grid;
+  gap: 8px;
+}
+
+body.page-growth .campaign-card h5 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.96rem;
+}
+
+body.page-growth .campaign-card .campaign-type {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--gls-color-primary-strong);
+  background: color-mix(in srgb, var(--gls-action-surface) 74%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gls-action-border) 82%, transparent);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+body.page-growth .campaign-card .campaign-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--gls-muted);
+}
+
+body.page-growth .campaign-card .campaign-desc {
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+body.page-growth .quest-card {
+  display: grid;
+  gap: 10px;
+}
+
+body.page-growth .quest-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+body.page-growth .quest-card-title {
+  font-weight: 700;
+  font-size: 0.96rem;
+}
+
+body.page-growth .quest-card-status {
+  font-size: 0.75rem;
+  border-radius: 999px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--gls-border) 55%, transparent);
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle) 90%, transparent);
+}
+
+body.page-growth .quest-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--gls-muted);
+}
+
+body.page-growth .quest-card-meta-secondary {
+  font-size: 0.74rem;
+}
+
+body.page-growth .quest-card-progress {
+  height: 7px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--growth-progress-track-strong) 90%, transparent);
+}
+
+body.page-growth .quest-card-progress-bar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gls-action-accent), var(--gls-color-primary-strong));
+  transition: width 0.55s ease;
+}
+
+body.page-growth .quest-card.is-completed {
+  border-color: color-mix(in srgb, rgba(46, 139, 87, 0.42) 76%, transparent);
+}
+
+body.page-growth .quest-card.is-completed .quest-card-status {
+  border-color: color-mix(in srgb, rgba(46, 139, 87, 0.45) 84%, transparent);
+  background: color-mix(in srgb, rgba(46, 139, 87, 0.15) 84%, transparent);
+}
+
+body.page-growth .quest-card.is-in-progress {
+  border-color: color-mix(in srgb, rgba(95, 168, 211, 0.4) 76%, transparent);
+}
+
+body.page-growth .quest-card.is-locked {
+  opacity: 0.82;
+}
+
 body.page-growth .forest-map {
   position: relative;
   overflow: hidden;
@@ -281,6 +437,47 @@ body.page-growth .forest-map-achievements {
   gap: var(--gls-space-3);
 }
 
+body.page-growth .forest-map-node {
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+  border-radius: var(--gls-radius-md);
+  border: 1px solid color-mix(in srgb, var(--gls-glass-border) 82%, transparent);
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle) 95%, transparent);
+  box-shadow: var(--gls-shadow-sm);
+  padding: var(--gls-space-3);
+  display: grid;
+  gap: 6px;
+  cursor: pointer;
+  transition: var(--gls-transition-lift-ui);
+}
+
+body.page-growth .forest-map-node:hover,
+body.page-growth .forest-map-node:focus-visible,
+body.page-growth .forest-map-node.is-selected {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--gls-action-border-strong) 78%, transparent);
+  box-shadow: var(--gls-shadow-md);
+}
+
+body.page-growth .forest-map-node.is-completed {
+  border-color: color-mix(in srgb, rgba(46, 139, 87, 0.45) 84%, transparent);
+}
+
+body.page-growth .forest-map-icon {
+  font-size: 1.3rem;
+}
+
+body.page-growth .forest-map-node-name {
+  font-size: 0.93rem;
+  font-weight: 700;
+}
+
+body.page-growth .forest-map-node-progress {
+  font-size: 0.78rem;
+  color: var(--gls-muted);
+}
+
 body.page-growth .forest-map-detail-panel {
   background: var(--growth-detail-bg);
   border: 1px solid var(--growth-detail-border);
@@ -294,6 +491,32 @@ body.page-growth .forest-map-detail-label {
   font-weight: 700;
   color: var(--gls-muted);
   margin-bottom: var(--gls-space-2);
+}
+
+body.page-growth .forest-map-detail-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 1.35rem;
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gls-glass-border) 82%, transparent);
+}
+
+body.page-growth .forest-map-detail-progress {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--growth-progress-track-strong) 90%, transparent);
+}
+
+body.page-growth .forest-map-detail-progress-bar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gls-action-accent), var(--gls-color-primary-strong));
+  transition: width 0.55s ease;
 }
 
 body.page-growth .growth-achievement-list {
@@ -329,6 +552,76 @@ body.page-growth .achievement-grid {
   gap: var(--gls-space-3);
 }
 
+body.page-growth .achievement-card {
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+  border-radius: var(--gls-radius-md);
+  border: 1px solid color-mix(in srgb, var(--gls-glass-border) 82%, transparent);
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle) 95%, transparent);
+  box-shadow: var(--gls-shadow-sm);
+  padding: var(--gls-space-3);
+  display: grid;
+  gap: 10px;
+  cursor: pointer;
+  transition: var(--gls-transition-lift-ui);
+}
+
+body.page-growth .achievement-card:hover,
+body.page-growth .achievement-card:focus-visible {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--gls-action-border-strong) 78%, transparent);
+  box-shadow: var(--gls-shadow-md);
+}
+
+body.page-growth .achievement-card.is-completed {
+  border-color: color-mix(in srgb, rgba(46, 139, 87, 0.45) 84%, transparent);
+}
+
+body.page-growth .achievement-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+body.page-growth .achievement-card h5 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+body.page-growth .achievement-card .achievement-icon {
+  font-size: 1.24rem;
+}
+
+body.page-growth .achievement-card .achievement-status {
+  font-size: 0.75rem;
+  border-radius: 999px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--gls-border) 55%, transparent);
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle) 90%, transparent);
+}
+
+body.page-growth .achievement-progress {
+  height: 7px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--growth-progress-track-strong) 90%, transparent);
+}
+
+body.page-growth .achievement-progress-bar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gls-action-accent), var(--gls-color-primary-strong));
+  transition: width 0.55s ease;
+}
+
+body.page-growth .achievement-progress-label {
+  font-size: 0.78rem;
+  color: var(--gls-muted);
+}
+
 body.page-growth .achievement-quest-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -336,14 +629,25 @@ body.page-growth .achievement-quest-list {
 }
 
 body.page-growth .achievement-quest-card {
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
+  border-radius: var(--gls-radius-md);
+  border: 1px solid color-mix(in srgb, var(--gls-glass-border) 82%, transparent);
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle) 95%, transparent);
+  box-shadow: var(--gls-shadow-sm);
   padding: var(--gls-space-3);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 8px;
 }
 
 body.page-growth .achievement-quest-card.is-completed {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: color-mix(in srgb, rgba(46, 139, 87, 0.45) 84%, transparent);
+}
+
+body.page-growth .achievement-quest-card.is-in-progress {
+  border-color: color-mix(in srgb, rgba(95, 168, 211, 0.4) 76%, transparent);
+}
+
+body.page-growth .achievement-quest-card.is-locked {
+  opacity: 0.82;
 }
 
 body.page-growth .achievement-quest-header {
@@ -399,6 +703,47 @@ body.page-growth .achievement-quest-actions {
   display: flex;
   align-items: center;
   gap: var(--gls-space-2);
+}
+
+body.page-growth :where(.quest-card, .campaign-card, .achievement-card, .achievement-quest-card, .forest-map-node).is-skeleton {
+  position: relative;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+body.page-growth :where(.quest-card, .campaign-card, .achievement-card, .achievement-quest-card, .forest-map-node).is-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.35) 45%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: growth-skeleton-shimmer 1.1s ease-in-out infinite;
+}
+
+body.page-growth .skeleton-line {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gls-glass-border) 72%, transparent);
+}
+
+body.page-growth .skeleton-line.skeleton-line-lg {
+  width: 82%;
+  height: 12px;
+}
+
+body.page-growth .skeleton-line.skeleton-line-sm {
+  width: 58%;
+}
+
+@keyframes growth-skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @media (min-width: 768px) {

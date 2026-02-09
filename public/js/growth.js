@@ -1,3 +1,13 @@
+const SECTION_IDS = {
+  summary: 'growthSummarySection',
+  quests: 'growthQuestSection',
+  achievementQuests: 'growthAchievementQuestSection',
+  forest: 'growthForestSection',
+  achievements: 'growthAchievementListSection',
+};
+
+const claimInFlight = new Set();
+let noticeTimer = null;
 let achievementCache = [];
 
 function getLevelEmoji(level) {
@@ -11,37 +21,184 @@ function getLevelEmoji(level) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await ensureAuthenticated();
-  await loadGrowthSummary();
-  await loadGrowthAchievements();
-  await loadActiveQuests();
   bindAchievementFilters();
+
+  try {
+    await ensureAuthenticated();
+  } catch (error) {
+    console.error(error);
+    return;
+  }
+
+  renderInitialLoadingState();
+  await Promise.allSettled([
+    loadGrowthSummary(),
+    loadGrowthAchievements(),
+    loadActiveQuests(),
+  ]);
 });
+
+function setSectionLoading(sectionId, isLoading) {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  section.classList.toggle('is-loading', Boolean(isLoading));
+  section.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+}
+
+function showNotice(message, tone = 'info') {
+  const notice = document.getElementById('growthNotice');
+  if (!notice) return;
+
+  notice.classList.remove('gls-hidden', 'is-info', 'is-success', 'is-error');
+  notice.classList.add(`is-${tone}`);
+  notice.textContent = message;
+  notice.setAttribute('role', tone === 'error' ? 'alert' : 'status');
+
+  if (noticeTimer) {
+    clearTimeout(noticeTimer);
+  }
+  noticeTimer = setTimeout(() => {
+    notice.classList.add('gls-hidden');
+  }, tone === 'error' ? 6000 : 3500);
+}
+
+function renderInitialLoadingState() {
+  setSectionLoading(SECTION_IDS.summary, true);
+  setSectionLoading(SECTION_IDS.quests, true);
+  setSectionLoading(SECTION_IDS.achievementQuests, true);
+  setSectionLoading(SECTION_IDS.forest, true);
+  setSectionLoading(SECTION_IDS.achievements, true);
+
+  const levelXp = document.getElementById('growthLevelXp');
+  if (levelXp) levelXp.textContent = '불러오는 중...';
+
+  renderQuestLoadingSkeleton();
+  renderAchievementQuestLoadingSkeleton();
+  renderForestLoadingSkeleton();
+  renderAchievementGridLoadingSkeleton();
+}
+
+function renderQuestLoadingSkeleton() {
+  const questToday = document.getElementById('growthQuestListToday');
+  const questWeek = document.getElementById('growthQuestListWeek');
+  const campaignStack = document.getElementById('campaignStack');
+
+  const skeletonCard = `
+    <div class="quest-card is-skeleton" aria-hidden="true">
+      <div class="skeleton-line skeleton-line-lg"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line skeleton-line-sm"></div>
+    </div>
+  `;
+
+  if (questToday) questToday.innerHTML = `${skeletonCard}${skeletonCard}`;
+  if (questWeek) questWeek.innerHTML = `${skeletonCard}${skeletonCard}`;
+  if (campaignStack) {
+    campaignStack.innerHTML = `
+      <div class="campaign-card is-skeleton" aria-hidden="true">
+        <div class="skeleton-line skeleton-line-lg"></div>
+        <div class="skeleton-line"></div>
+      </div>
+      <div class="campaign-card is-skeleton" aria-hidden="true">
+        <div class="skeleton-line skeleton-line-lg"></div>
+        <div class="skeleton-line"></div>
+      </div>
+    `;
+  }
+}
+
+function renderAchievementQuestLoadingSkeleton() {
+  const achievementList = document.getElementById('achievementQuestList');
+  if (!achievementList) return;
+
+  achievementList.innerHTML = `
+    <div class="achievement-quest-card is-skeleton" aria-hidden="true">
+      <div class="skeleton-line skeleton-line-lg"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line skeleton-line-sm"></div>
+    </div>
+    <div class="achievement-quest-card is-skeleton" aria-hidden="true">
+      <div class="skeleton-line skeleton-line-lg"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line skeleton-line-sm"></div>
+    </div>
+  `;
+}
+
+function renderForestLoadingSkeleton() {
+  const map = document.getElementById('forestMapAchievements');
+  if (!map) return;
+
+  map.innerHTML = `
+    <div class="forest-map-node is-skeleton" aria-hidden="true">
+      <div class="skeleton-line skeleton-line-lg"></div>
+      <div class="skeleton-line skeleton-line-sm"></div>
+    </div>
+    <div class="forest-map-node is-skeleton" aria-hidden="true">
+      <div class="skeleton-line skeleton-line-lg"></div>
+      <div class="skeleton-line skeleton-line-sm"></div>
+    </div>
+  `;
+}
+
+function renderAchievementGridLoadingSkeleton() {
+  const grid = document.getElementById('achievementGrid');
+  if (!grid) return;
+
+  grid.innerHTML = `
+    <div class="achievement-card is-skeleton" aria-hidden="true">
+      <div class="skeleton-line skeleton-line-lg"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line skeleton-line-sm"></div>
+    </div>
+    <div class="achievement-card is-skeleton" aria-hidden="true">
+      <div class="skeleton-line skeleton-line-lg"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line skeleton-line-sm"></div>
+    </div>
+  `;
+}
 
 async function ensureAuthenticated() {
   const res = await fetch('/api/me', { cache: 'no-store' });
   if (!res.ok) {
-    alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-    window.location.href = '/html/login.html';
+    window.location.href = '/html/login.html?next=/html/growth.html';
     throw new Error('Unauthenticated');
   }
+
   const data = await res.json();
   if (!data.ok) {
-    alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-    window.location.href = '/html/login.html';
+    window.location.href = '/html/login.html?next=/html/growth.html';
     throw new Error('Unauthenticated');
   }
 }
 
-async function loadActiveQuests() {
+async function loadActiveQuests(options = {}) {
+  const { showLoading = true } = options;
+  if (showLoading) {
+    setSectionLoading(SECTION_IDS.quests, true);
+    setSectionLoading(SECTION_IDS.achievementQuests, true);
+  }
+
   try {
     const res = await fetch('/api/quests/active', { cache: 'no-store' });
     if (!res.ok) throw new Error('active quests request failed');
+
     const data = await res.json();
-    if (!data.ok || !Array.isArray(data.campaigns)) throw new Error('invalid active quests response');
+    if (!data.ok || !Array.isArray(data.campaigns)) {
+      throw new Error('invalid active quests response');
+    }
+
     renderQuestGroups(formatCampaignMeta(data.campaigns));
   } catch (error) {
     console.error(error);
+    renderQuestGroupsError();
+    showNotice('퀘스트 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.', 'error');
+  } finally {
+    if (showLoading) {
+      setSectionLoading(SECTION_IDS.quests, false);
+      setSectionLoading(SECTION_IDS.achievementQuests, false);
+    }
   }
 }
 
@@ -106,16 +263,28 @@ function conditionLabelFromType(condition, category) {
   }
 }
 
-async function loadGrowthSummary() {
+async function loadGrowthSummary(options = {}) {
+  const { showLoading = true } = options;
+  if (showLoading) {
+    setSectionLoading(SECTION_IDS.summary, true);
+  }
+
   try {
     const res = await fetch('/api/growth/summary', { cache: 'no-store' });
     if (!res.ok) throw new Error('summary request failed');
+
     const data = await res.json();
     if (!data.ok || !data.summary) throw new Error('invalid summary response');
+
     renderGrowthSummary(data.summary);
   } catch (error) {
     console.error(error);
     renderGrowthSummaryFallback();
+    showNotice('성장 요약을 불러오지 못했습니다.', 'error');
+  } finally {
+    if (showLoading) {
+      setSectionLoading(SECTION_IDS.summary, false);
+    }
   }
 }
 
@@ -140,15 +309,17 @@ function renderGrowthSummary(summary) {
 
   const levelText = `Lv.${summary.level}`;
   const levelEmoji = getLevelEmoji(summary.level);
-  const percent = summary.next_level_xp > 0
-    ? Math.min(1, summary.current_xp / summary.next_level_xp)
-    : 0;
+  const percent =
+    summary.next_level_xp > 0
+      ? Math.min(1, summary.current_xp / summary.next_level_xp)
+      : 0;
   const degree = `${Math.round(percent * 360)}deg`;
   const percentLabel = `${summary.current_xp} / ${summary.next_level_xp} XP`;
   const remainingXp = Math.max(0, summary.next_level_xp - summary.current_xp);
-  const streakPercent = summary.max_streak_days > 0
-    ? Math.min(1, (summary.streak_days || 0) / summary.max_streak_days)
-    : 0;
+  const streakPercent =
+    summary.max_streak_days > 0
+      ? Math.min(1, (summary.streak_days || 0) / summary.max_streak_days)
+      : 0;
 
   if (levelLabel) levelLabel.textContent = levelText;
   if (levelNumber) levelNumber.textContent = levelText;
@@ -158,7 +329,13 @@ function renderGrowthSummary(summary) {
   }
   if (levelTitle) levelTitle.textContent = summary.title || '새싹';
   if (levelXp) levelXp.textContent = percentLabel;
-  if (ring) ring.style.setProperty('--xp-progress', degree);
+  if (ring) {
+    ring.style.setProperty('--xp-progress', degree);
+    ring.setAttribute('aria-valuenow', String(Math.round(percent * 100)));
+    ring.setAttribute('aria-valuemin', '0');
+    ring.setAttribute('aria-valuemax', '100');
+    ring.setAttribute('aria-valuetext', percentLabel);
+  }
   if (progressBar) animateProgressWidth(progressBar, Math.round(percent * 100));
   if (todayXp) todayXp.textContent = `+${summary.today_xp || 0}`;
   if (todayXpDetail) todayXpDetail.textContent = `+${summary.today_xp || 0}`;
@@ -174,32 +351,59 @@ function renderGrowthSummary(summary) {
 
 function renderGrowthSummaryFallback() {
   const todayList = document.getElementById('growthTodayList');
+  const levelXp = document.getElementById('growthLevelXp');
+  const ring = document.querySelector('.growth-level-ring');
+
+  if (levelXp) levelXp.textContent = '요약 정보를 불러오지 못했습니다.';
+  if (ring) ring.style.setProperty('--xp-progress', '0deg');
   if (todayList) {
-    todayList.innerHTML = '<li class="text-danger">성장 요약 정보를 불러오지 못했습니다.</li>';
+    todayList.innerHTML = '<li class="gls-text-muted">성장 요약 정보를 불러오지 못했습니다.</li>';
   }
 }
 
-async function loadGrowthAchievements() {
+async function loadGrowthAchievements(options = {}) {
+  const { showLoading = true } = options;
+  if (showLoading) {
+    setSectionLoading(SECTION_IDS.forest, true);
+    setSectionLoading(SECTION_IDS.achievements, true);
+  }
+
   try {
     const res = await fetch('/api/growth/achievements', { cache: 'no-store' });
     if (!res.ok) throw new Error('achievements request failed');
+
     const data = await res.json();
     if (!data.ok || !Array.isArray(data.achievements)) {
       throw new Error('invalid achievement response');
     }
+
     achievementCache = data.achievements;
     renderForestMapNodes(achievementCache);
     renderAchievementGrid('all');
     renderAchievementDetail(achievementCache[0]);
   } catch (error) {
     console.error(error);
+
     const map = document.getElementById('forestMapAchievements');
     if (map) {
-      map.innerHTML = '<p class="text-danger">업적 정보를 불러오지 못했습니다.</p>';
+      map.innerHTML = '<p class="gls-text-muted">업적 정보를 불러오지 못했습니다.</p>';
     }
+
     const grid = document.getElementById('achievementGrid');
     if (grid) {
-      grid.innerHTML = '<p class="text-danger">업적 정보를 불러오지 못했습니다.</p>';
+      grid.innerHTML = '<p class="gls-text-muted">업적 정보를 불러오지 못했습니다.</p>';
+    }
+
+    const detail = document.getElementById('forestMapDetail');
+    if (detail) {
+      detail.innerHTML = '<p class="gls-text-muted gls-mb-0">업적 상세 정보를 표시할 수 없습니다.</p>';
+    }
+
+    showNotice('업적 정보를 불러오지 못했습니다.', 'error');
+  } finally {
+    if (showLoading) {
+      setSectionLoading(SECTION_IDS.forest, false);
+      setSectionLoading(SECTION_IDS.achievements, false);
     }
   }
 }
@@ -207,12 +411,17 @@ async function loadGrowthAchievements() {
 function renderForestMapNodes(list = []) {
   const container = document.getElementById('forestMapAchievements');
   if (!container) return;
+
   container.innerHTML = '';
-  const sorted = [...list].sort((a, b) => (a.position_index || 0) - (b.position_index || 0));
-  sorted.forEach((achievement) => {
+  const sorted = [...list].sort(
+    (a, b) => (a.position_index || 0) - (b.position_index || 0)
+  );
+
+  sorted.forEach((achievement, index) => {
     const node = document.createElement('button');
     node.type = 'button';
     node.className = `forest-map-node ${statusClass(achievement.status)}`;
+    if (index === 0) node.classList.add('is-selected');
     node.dataset.achievementId = achievement.id;
     node.innerHTML = `
       <div class="forest-map-icon">${achievement.icon || '🌿'}</div>
@@ -221,7 +430,9 @@ function renderForestMapNodes(list = []) {
     `;
     node.addEventListener('click', () => {
       renderAchievementDetail(achievement);
-      container.querySelectorAll('.forest-map-node').forEach((btn) => btn.classList.remove('is-selected'));
+      container
+        .querySelectorAll('.forest-map-node')
+        .forEach((btn) => btn.classList.remove('is-selected'));
       node.classList.add('is-selected');
     });
     container.appendChild(node);
@@ -231,7 +442,11 @@ function renderForestMapNodes(list = []) {
 function renderAchievementDetail(achievement) {
   const detail = document.getElementById('forestMapDetail');
   if (!detail || !achievement) return;
-  const progressPercent = achievement.target ? Math.min(100, Math.round((achievement.progress / achievement.target) * 100)) : 0;
+
+  const progressPercent = achievement.target
+    ? Math.min(100, Math.round((achievement.progress / achievement.target) * 100))
+    : 0;
+
   detail.innerHTML = `
     <div class="forest-map-detail">
       <div class="forest-map-detail-label">선택한 업적</div>
@@ -252,6 +467,7 @@ function renderAchievementDetail(achievement) {
       </div>
     </div>
   `;
+
   const bar = detail.querySelector('.forest-map-detail-progress-bar');
   animateProgressWidth(bar, progressPercent);
 }
@@ -259,15 +475,24 @@ function renderAchievementDetail(achievement) {
 function renderAchievementGrid(filter = 'all') {
   const grid = document.getElementById('achievementGrid');
   if (!grid) return;
+
   grid.innerHTML = '';
-  const filtered = achievementCache.filter((item) => filter === 'all' || item.status === filter);
+  const filtered = achievementCache.filter(
+    (item) => filter === 'all' || item.status === filter
+  );
+
   if (!filtered.length) {
     grid.innerHTML = '<p class="gls-text-muted">해당 조건의 업적이 없습니다.</p>';
     return;
   }
+
   filtered.forEach((achievement) => {
-    const progressPercent = achievement.target ? Math.min(100, Math.round((achievement.progress / achievement.target) * 100)) : 0;
-    const card = document.createElement('div');
+    const progressPercent = achievement.target
+      ? Math.min(100, Math.round((achievement.progress / achievement.target) * 100))
+      : 0;
+
+    const card = document.createElement('button');
+    card.type = 'button';
     card.className = `achievement-card ${statusClass(achievement.status)}`;
     card.innerHTML = `
       <div class="achievement-card-header">
@@ -281,8 +506,10 @@ function renderAchievementGrid(filter = 'all') {
       </div>
       <div class="achievement-progress-label">${achievement.progress || 0} / ${achievement.target || 0}</div>
     `;
+
     card.addEventListener('click', () => renderAchievementDetail(achievement));
     grid.appendChild(card);
+
     const bar = card.querySelector('.achievement-progress-bar');
     animateProgressWidth(bar, progressPercent);
   });
@@ -310,40 +537,12 @@ function animateProgressWidth(element, percent) {
   });
 }
 
-function hydrateQuestListFromAchievements() {
-  const questToday = document.getElementById('growthQuestListToday');
-  const questWeek = document.getElementById('growthQuestListWeek');
-  if ((!questToday && !questWeek) || !achievementCache.length) return;
-
-  const todayItems = achievementCache.slice(0, 2);
-  const weekItems = achievementCache.slice(2, 5);
-
-  if (questToday) {
-    questToday.innerHTML = '';
-    todayItems.forEach((achievement) => {
-      const li = document.createElement('li');
-      li.className = `quest-item ${achievement.status === 'completed' ? 'is-completed' : ''}`;
-      li.textContent = achievement.name;
-      questToday.appendChild(li);
-    });
-  }
-
-  if (questWeek) {
-    questWeek.innerHTML = '';
-    weekItems.forEach((achievement) => {
-      const li = document.createElement('li');
-      li.className = `quest-item ${achievement.status === 'completed' ? 'is-completed' : ''}`;
-      li.textContent = achievement.name;
-      questWeek.appendChild(li);
-    });
-  }
-}
-
 function renderQuestGroups(campaigns = []) {
   const questToday = document.getElementById('growthQuestListToday');
   const questWeek = document.getElementById('growthQuestListWeek');
   const campaignStack = document.getElementById('campaignStack');
   const achievementList = document.getElementById('achievementQuestList');
+
   if (questToday) questToday.innerHTML = '';
   if (questWeek) questWeek.innerHTML = '';
   if (campaignStack) campaignStack.innerHTML = '';
@@ -351,8 +550,9 @@ function renderQuestGroups(campaigns = []) {
 
   const addCampaignCard = (campaign) => {
     if (!campaignStack) return;
+
     const card = document.createElement('div');
-    card.className = 'campaign-card';
+    card.className = `campaign-card ${campaign.campaignType || ''}`;
     card.innerHTML = `
       <h5>${campaign.name || '이름 없는 캠페인'} <span class="campaign-type">${campaign.campaignTypeLabel || ''}</span></h5>
       <div class="campaign-meta">
@@ -361,17 +561,23 @@ function renderQuestGroups(campaigns = []) {
       </div>
       ${campaign.description ? `<p class="campaign-desc gls-text-muted gls-mb-0">${campaign.description}</p>` : ''}
     `;
+
     campaignStack.appendChild(card);
   };
 
-  const addItem = (parent, quest, campaignName, campaignTypeLabel) => {
+  const addQuestItem = (parent, quest, campaignName, campaignTypeLabel) => {
     const card = document.createElement('div');
-    card.className = `quest-card ${quest.status === 'completed' ? 'is-completed' : ''}`;
-    const progressPercent = quest.target ? Math.min(100, Math.round((quest.progress / quest.target) * 100)) : 0;
+    card.className = `quest-card ${statusClass(quest.status)}`;
+
+    const progressPercent = quest.target
+      ? Math.min(100, Math.round((quest.progress / quest.target) * 100))
+      : 0;
+
     const conditionLabel =
       quest.condition_type_label ||
       conditionLabelFromType(quest.condition_type, quest.category) ||
       '';
+
     card.innerHTML = `
       <div class="quest-card-header">
         <span class="quest-card-title">${quest.name}</span>
@@ -388,6 +594,7 @@ function renderQuestGroups(campaigns = []) {
       </div>
       <div class="quest-card-progress"><div class="quest-card-progress-bar" style="width: ${progressPercent}%"></div></div>
     `;
+
     parent.appendChild(card);
     const bar = card.querySelector('.quest-card-progress-bar');
     animateProgressWidth(bar, progressPercent);
@@ -395,14 +602,18 @@ function renderQuestGroups(campaigns = []) {
 
   const addAchievementItem = (quest, campaign) => {
     if (!achievementList) return;
+
     const uiMeta = parseUiMeta(quest.ui_json || quest.uiJson);
     const icon = uiMeta.icon || '🏆';
     const label = uiMeta.label || campaign?.name || '업적';
-    const progressPercent = quest.target ? Math.min(100, Math.round((quest.progress / quest.target) * 100)) : 0;
+    const progressPercent = quest.target
+      ? Math.min(100, Math.round((quest.progress / quest.target) * 100))
+      : 0;
     const claimed = Boolean(quest.reward_claimed_at || quest.rewardClaimedAt);
     const canClaim = quest.status === 'completed' && !claimed;
+
     const card = document.createElement('div');
-    card.className = `achievement-quest-card ${quest.status === 'completed' ? 'is-completed' : ''}`;
+    card.className = `achievement-quest-card ${statusClass(quest.status)}`;
     card.innerHTML = `
       <div class="achievement-quest-header">
         <div class="achievement-quest-icon">${icon}</div>
@@ -422,27 +633,38 @@ function renderQuestGroups(campaigns = []) {
       </div>
       <div class="achievement-quest-actions">
         ${canClaim ? `<button class="gls-btn gls-btn-primary gls-btn-xs" data-claim-id="${quest.state_id || quest.stateId}">보상 받기</button>` : ''}
-        ${claimed ? `<span class="gls-text-muted gls-text-small">보상 지급 완료</span>` : ''}
+        ${claimed ? '<span class="gls-text-muted gls-text-small">보상 지급 완료</span>' : ''}
       </div>
     `;
+
     const bar = card.querySelector('.achievement-quest-progress-bar');
     animateProgressWidth(bar, progressPercent);
+
     const claimBtn = card.querySelector('[data-claim-id]');
     if (claimBtn) {
       claimBtn.addEventListener('click', async () => {
         const stateId = claimBtn.getAttribute('data-claim-id');
         if (!stateId) return;
-        await claimQuestReward(stateId);
+        await claimQuestReward(stateId, claimBtn);
       });
     }
+
     achievementList.appendChild(card);
   };
 
   if (!campaigns.length) {
-    if (questToday) questToday.innerHTML = '<div class="quest-card gls-text-muted">현재 진행 중인 퀘스트가 없습니다.</div>';
-    if (questWeek) questWeek.innerHTML = '<div class="quest-card gls-text-muted">현재 진행 중인 퀘스트가 없습니다.</div>';
-    if (campaignStack) campaignStack.innerHTML = '<div class="gls-text-muted gls-text-small">활성 캠페인이 없습니다.</div>';
-    if (achievementList) achievementList.innerHTML = '<div class="gls-text-muted">표시할 업적이 없습니다.</div>';
+    if (questToday) {
+      questToday.innerHTML = '<div class="quest-card gls-text-muted">현재 진행 중인 퀘스트가 없습니다.</div>';
+    }
+    if (questWeek) {
+      questWeek.innerHTML = '<div class="quest-card gls-text-muted">현재 진행 중인 퀘스트가 없습니다.</div>';
+    }
+    if (campaignStack) {
+      campaignStack.innerHTML = '<div class="campaign-card gls-text-muted gls-text-small">활성 캠페인이 없습니다.</div>';
+    }
+    if (achievementList) {
+      achievementList.innerHTML = '<div class="achievement-quest-card gls-text-muted">표시할 업적이 없습니다.</div>';
+    }
     return;
   }
 
@@ -453,39 +675,103 @@ function renderQuestGroups(campaigns = []) {
         (campaign.campaignType === 'permanent' && (quest.template_kind || quest.templateKind))
     );
     achievementQuests.forEach((quest) => addAchievementItem(quest, campaign));
+
     const normalQuests = (campaign.quests || []).filter(
-      (quest) =>
-        (quest.template_kind || quest.templateKind) !== 'achievement'
+      (quest) => (quest.template_kind || quest.templateKind) !== 'achievement'
     );
+
     const bucket =
-      campaign.campaignType === 'weekly' || campaign.campaignType === 'season' || campaign.campaignType === 'event'
+      campaign.campaignType === 'weekly' ||
+      campaign.campaignType === 'season' ||
+      campaign.campaignType === 'event'
         ? questWeek
         : questToday;
-    if (campaignStack) {
-      addCampaignCard({
-        ...campaign,
-        campaignTypeLabel: campaign.campaignTypeLabel || campaign.campaignType || '',
-        dateLabel: campaign.dateLabel || '',
-      });
-    }
+
+    addCampaignCard({
+      ...campaign,
+      campaignTypeLabel: campaign.campaignTypeLabel || campaign.campaignType || '',
+      dateLabel: campaign.dateLabel || '',
+    });
+
     if (!bucket) return;
-    normalQuests.forEach((quest) => addItem(bucket, quest, campaign.name, campaign.campaignTypeLabel));
+    normalQuests.forEach((quest) => {
+      addQuestItem(bucket, quest, campaign.name, campaign.campaignTypeLabel);
+    });
   });
 }
 
-async function claimQuestReward(stateId) {
+function renderQuestGroupsError() {
+  const questToday = document.getElementById('growthQuestListToday');
+  const questWeek = document.getElementById('growthQuestListWeek');
+  const campaignStack = document.getElementById('campaignStack');
+  const achievementList = document.getElementById('achievementQuestList');
+
+  if (questToday) {
+    questToday.innerHTML = '<div class="quest-card gls-text-muted">퀘스트 정보를 불러오지 못했습니다.</div>';
+  }
+  if (questWeek) {
+    questWeek.innerHTML = '<div class="quest-card gls-text-muted">퀘스트 정보를 불러오지 못했습니다.</div>';
+  }
+  if (campaignStack) {
+    campaignStack.innerHTML = '<div class="campaign-card gls-text-muted gls-text-small">캠페인 정보를 불러오지 못했습니다.</div>';
+  }
+  if (achievementList) {
+    achievementList.innerHTML = '<div class="achievement-quest-card gls-text-muted">업적 퀘스트 정보를 불러오지 못했습니다.</div>';
+  }
+}
+
+function setButtonBusy(button, busy, busyLabel = '처리 중...') {
+  if (!button || !button.isConnected) return;
+
+  if (busy) {
+    button.dataset.originalLabel = button.textContent || '';
+    button.textContent = busyLabel;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    return;
+  }
+
+  const originalLabel = button.dataset.originalLabel || '보상 받기';
+  button.textContent = originalLabel;
+  button.disabled = false;
+  button.removeAttribute('aria-busy');
+}
+
+async function claimQuestReward(stateId, triggerButton) {
+  const key = String(stateId);
+  if (claimInFlight.has(key)) return;
+
+  claimInFlight.add(key);
+  setButtonBusy(triggerButton, true, '지급 중...');
+
   try {
     const res = await fetch(`/api/quests/${stateId}/claim`, { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      alert(data.message || '보상 지급에 실패했습니다.');
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (parseError) {
+      data = null;
+    }
+
+    if (!res.ok || !data?.ok) {
+      showNotice(data?.message || '보상 지급에 실패했습니다.', 'error');
       return;
     }
-    await loadGrowthSummary();
-    await loadActiveQuests();
+
+    const xp = Number(data.gained_xp) || 0;
+    const successMessage = xp > 0 ? `보상 지급 완료 (+${xp} XP)` : '보상 지급 완료';
+    showNotice(successMessage, 'success');
+
+    await Promise.allSettled([
+      loadGrowthSummary({ showLoading: false }),
+      loadActiveQuests({ showLoading: false }),
+    ]);
   } catch (error) {
     console.error(error);
-    alert('보상 지급 중 오류가 발생했습니다.');
+    showNotice('보상 지급 중 오류가 발생했습니다.', 'error');
+  } finally {
+    claimInFlight.delete(key);
+    setButtonBusy(triggerButton, false);
   }
 }
 
