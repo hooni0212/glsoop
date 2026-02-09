@@ -33,6 +33,8 @@ const dashboardTopPosts = [
     title: '테스트 인기 글',
     excerpt: '인기 글 요약',
     author_name: '테스터',
+    category: 'short',
+    created_at: '2026-02-09T00:00:00.000Z',
     like_count: 12,
     bookmark_count: 4,
   },
@@ -175,6 +177,8 @@ test.describe('Growth dashboard loading', () => {
       title: expect.any(String),
       excerpt: expect.any(String),
       author_name: expect.any(String),
+      category: expect.any(String),
+      created_at: expect.any(String),
       like_count: expect.any(Number),
       bookmark_count: expect.any(Number),
     });

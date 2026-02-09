@@ -102,12 +102,22 @@ function toExcerpt(content, maxLength = 100) {
   return `${normalized.slice(0, maxLength - 3)}...`;
 }
 
+function normalizeTopPostCategory(category) {
+  const normalized = String(category || '').trim().toLowerCase();
+  if (normalized === 'poem' || normalized === 'essay' || normalized === 'short') {
+    return normalized;
+  }
+  return 'short';
+}
+
 function mapTopPosts(posts = []) {
   return posts.map((item) => ({
     id: item.id,
     title: item.title,
     excerpt: toExcerpt(item.content),
     author_name: item.author_name || '',
+    category: normalizeTopPostCategory(item.category),
+    created_at: item.created_at || null,
     like_count: Number(item.like_count) || 0,
     bookmark_count: Number(item.bookmark_count) || 0,
   }));
@@ -125,6 +135,7 @@ async function fetchGrowthTopPosts(limit = 3) {
         p.id,
         p.title,
         p.content,
+        p.category,
         p.created_at,
         u.name AS author_name,
         IFNULL(lc.like_count, 0) AS like_count,
