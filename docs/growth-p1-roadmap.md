@@ -55,6 +55,8 @@
 
 - Task 3: `routes/growthRoutes.js`의 quest claim XP 적립 경로를 중복 SQL 처리 대신 `addXp` 유틸 재사용으로 통일해 레벨/로그 갱신 경로를 일관화함.
 
+- Task 4: `tests/e2e/growth-dashboard.spec.js`를 추가해 dashboard-first 성공 경로와 dashboard 실패 시 legacy API fallback 경로를 Playwright로 회귀 검증함.
+
 ## Definition of Done
 - 성장 페이지 초기 진입 시 데이터 로드가 안정적으로 완료된다.
 - 보상 지급 재시도/중복 요청에서 서버 응답이 일관된다.
