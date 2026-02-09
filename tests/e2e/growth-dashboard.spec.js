@@ -27,6 +27,17 @@ const dashboardAchievements = [
   },
 ];
 
+const dashboardTopPosts = [
+  {
+    id: 101,
+    title: '테스트 인기 글',
+    excerpt: '인기 글 요약',
+    author_name: '테스터',
+    like_count: 12,
+    bookmark_count: 4,
+  },
+];
+
 const fallbackSummary = {
   level: 4,
   current_xp: 130,
@@ -104,6 +115,11 @@ test.describe('Growth dashboard loading', () => {
     let achievementsHits = 0;
     let activeQuestsHits = 0;
 
+    const dashboardResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/growth/dashboard') && response.request().method() === 'GET'
+    );
+
     await mockAuth(page);
 
     await page.route('**/api/growth/dashboard', (route) => {
@@ -116,6 +132,7 @@ test.describe('Growth dashboard loading', () => {
           summary: dashboardSummary,
           achievements: dashboardAchievements,
           campaigns: [],
+          top_posts: dashboardTopPosts,
         }),
       });
     });
@@ -148,6 +165,19 @@ test.describe('Growth dashboard loading', () => {
     });
 
     await page.goto('/html/growth.html');
+
+    const dashboardResponse = await dashboardResponsePromise;
+    const dashboardJson = await dashboardResponse.json();
+    expect(Array.isArray(dashboardJson.top_posts)).toBe(true);
+    expect(dashboardJson.top_posts.length).toBeGreaterThan(0);
+    expect(dashboardJson.top_posts[0]).toMatchObject({
+      id: expect.any(Number),
+      title: expect.any(String),
+      excerpt: expect.any(String),
+      author_name: expect.any(String),
+      like_count: expect.any(Number),
+      bookmark_count: expect.any(Number),
+    });
 
     await expect(page.locator('#growthLevelLabel')).toContainText('Lv.3');
 
