@@ -45,7 +45,7 @@
 - [x] Step 3. 프론트를 dashboard 우선 호출로 전환 (fallback 유지)
 - [x] Step 4. claim/XP 경로 일관성 정리
 - [x] Step 5. API + E2E 테스트 추가/보강
-- [ ] Step 6. 문서 갱신 및 머지 준비
+- [x] Step 6. 문서 갱신 및 머지 준비
 
 ## Progress Log
 - Task 1: `routes/growthRoutes.js`에 `GET /api/growth/dashboard`를 추가하고, 기존 growth 엔드포인트 응답 매핑을 공통 함수로 정리함.
@@ -58,6 +58,8 @@
 - Task 4: `tests/e2e/growth-dashboard.spec.js`를 추가해 dashboard-first 성공 경로와 dashboard 실패 시 legacy API fallback 경로를 Playwright로 회귀 검증함.
 
 - Task 5: `docs/API_REFERENCE.md`의 Growth 섹션에 `GET /api/growth/dashboard`를 반영하고 dashboard 우선 + legacy fallback 운영 정책을 문서화함.
+
+- Task 6: 머지 전 검증으로 `node --check routes/growthRoutes.js`, `node --check public/js/growth.js`, `npx playwright test tests/e2e/growth-dashboard.spec.js`를 재실행했고 모두 통과함.
 
 ## Definition of Done
 - 성장 페이지 초기 진입 시 데이터 로드가 안정적으로 완료된다.
