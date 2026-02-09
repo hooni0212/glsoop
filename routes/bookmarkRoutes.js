@@ -12,6 +12,10 @@ function normalizeListPayload(body = {}) {
   return { name, description };
 }
 
+function sendBookmarkError(res, status, code, message) {
+  return res.status(status).json({ ok: false, code, message });
+}
+
 router.get('/bookmarks/lists', authRequired, (req, res) => {
   const userId = req.user.id;
 
@@ -26,9 +30,12 @@ router.get('/bookmarks/lists', authRequired, (req, res) => {
     (err, rows) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '북마크 폴더 조회 중 오류가 발생했습니다.' });
+        return sendBookmarkError(
+          res,
+          500,
+          'INTERNAL_ERROR',
+          '북마크 폴더 조회 중 오류가 발생했습니다.'
+        );
       }
       return res.json({
         ok: true,
@@ -45,17 +52,21 @@ router.get('/bookmarks/lists/recent', authRequired, (req, res) => {
   const requestedLimit = parseInt(req.query.limit, 10);
 
   if (!postId) {
-    return res.status(400).json({
-      ok: false,
-      message: 'post_id 쿼리 파라미터가 필요합니다.',
-    });
+    return sendBookmarkError(
+      res,
+      400,
+      'INVALID_REQUEST',
+      'post_id 쿼리 파라미터가 필요합니다.'
+    );
   }
 
   if (Number.isFinite(requestedLimit) && requestedLimit < 1) {
-    return res.status(400).json({
-      ok: false,
-      message: 'limit은 1 이상의 정수여야 합니다.',
-    });
+    return sendBookmarkError(
+      res,
+      400,
+      'INVALID_REQUEST',
+      'limit은 1 이상의 정수여야 합니다.'
+    );
   }
 
   const limit = Number.isFinite(requestedLimit)
@@ -86,10 +97,12 @@ router.get('/bookmarks/lists/recent', authRequired, (req, res) => {
     (err, rows) => {
       if (err) {
         console.error(err);
-        return res.status(500).json({
-          ok: false,
-          message: '최근 사용 북마크 폴더 조회 중 오류가 발생했습니다.',
-        });
+        return sendBookmarkError(
+          res,
+          500,
+          'INTERNAL_ERROR',
+          '최근 사용 북마크 폴더 조회 중 오류가 발생했습니다.'
+        );
       }
 
       return res.json({
@@ -106,10 +119,12 @@ router.post('/bookmarks/lists', authRequired, (req, res) => {
   const { name, description } = normalizeListPayload(req.body);
 
   if (!name || name.length > 80) {
-    return res.status(400).json({
-      ok: false,
-      message: '폴더 이름을 입력해주세요. (1~80자)',
-    });
+    return sendBookmarkError(
+      res,
+      400,
+      'INVALID_REQUEST',
+      '폴더 이름을 입력해주세요. (1~80자)'
+    );
   }
 
   db.run(
@@ -118,14 +133,15 @@ router.post('/bookmarks/lists', authRequired, (req, res) => {
     function (err) {
       if (err) {
         if (err.code === 'SQLITE_CONSTRAINT') {
-          return res
-            .status(400)
-            .json({ ok: false, message: '같은 이름의 폴더가 이미 있습니다.' });
+          return sendBookmarkError(
+            res,
+            400,
+            'CONFLICT',
+            '같은 이름의 폴더가 이미 있습니다.'
+          );
         }
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '폴더 생성 중 오류가 발생했습니다.' });
+        return sendBookmarkError(res, 500, 'INTERNAL_ERROR', '폴더 생성 중 오류가 발생했습니다.');
       }
 
       return res.json({
@@ -148,9 +164,7 @@ router.patch('/bookmarks/lists/:listId', authRequired, (req, res) => {
   const { name, description } = normalizeListPayload(req.body);
 
   if (!listId) {
-    return res
-      .status(400)
-      .json({ ok: false, message: '잘못된 폴더 ID입니다.' });
+    return sendBookmarkError(res, 400, 'INVALID_REQUEST', '잘못된 폴더 ID입니다.');
   }
 
   db.get(
@@ -159,19 +173,13 @@ router.patch('/bookmarks/lists/:listId', authRequired, (req, res) => {
     (err, list) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '폴더 조회 중 오류가 발생했습니다.' });
+        return sendBookmarkError(res, 500, 'INTERNAL_ERROR', '폴더 조회 중 오류가 발생했습니다.');
       }
       if (!list) {
-        return res
-          .status(404)
-          .json({ ok: false, message: '폴더를 찾을 수 없습니다.' });
+        return sendBookmarkError(res, 404, 'RESOURCE_NOT_FOUND', '폴더를 찾을 수 없습니다.');
       }
       if (list.user_id !== userId) {
-        return res
-          .status(403)
-          .json({ ok: false, message: '폴더를 수정할 권한이 없습니다.' });
+        return sendBookmarkError(res, 403, 'AUTH_FORBIDDEN', '폴더를 수정할 권한이 없습니다.');
       }
 
       const nextName = name || list.name;
@@ -181,9 +189,12 @@ router.patch('/bookmarks/lists/:listId', authRequired, (req, res) => {
           : list.description;
 
       if (!nextName || nextName.length > 80) {
-        return res
-          .status(400)
-          .json({ ok: false, message: '폴더 이름을 입력해주세요. (1~80자)' });
+        return sendBookmarkError(
+          res,
+          400,
+          'INVALID_REQUEST',
+          '폴더 이름을 입력해주세요. (1~80자)'
+        );
       }
 
       db.run(
@@ -192,16 +203,20 @@ router.patch('/bookmarks/lists/:listId', authRequired, (req, res) => {
         function (err2) {
           if (err2) {
             if (err2.code === 'SQLITE_CONSTRAINT') {
-              return res.status(400).json({
-                ok: false,
-                message: '같은 이름의 폴더가 이미 있습니다.',
-              });
+              return sendBookmarkError(
+                res,
+                400,
+                'CONFLICT',
+                '같은 이름의 폴더가 이미 있습니다.'
+              );
             }
             console.error(err2);
-            return res.status(500).json({
-              ok: false,
-              message: '폴더 수정 중 오류가 발생했습니다.',
-            });
+            return sendBookmarkError(
+              res,
+              500,
+              'INTERNAL_ERROR',
+              '폴더 수정 중 오류가 발생했습니다.'
+            );
           }
 
           return res.json({
@@ -219,9 +234,7 @@ router.delete('/bookmarks/lists/:listId', authRequired, (req, res) => {
   const userId = req.user.id;
   const listId = parseInt(req.params.listId, 10);
   if (!listId) {
-    return res
-      .status(400)
-      .json({ ok: false, message: '잘못된 폴더 ID입니다.' });
+    return sendBookmarkError(res, 400, 'INVALID_REQUEST', '잘못된 폴더 ID입니다.');
   }
 
   db.get(
@@ -230,36 +243,30 @@ router.delete('/bookmarks/lists/:listId', authRequired, (req, res) => {
     (err, list) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '폴더 조회 중 오류가 발생했습니다.' });
+        return sendBookmarkError(res, 500, 'INTERNAL_ERROR', '폴더 조회 중 오류가 발생했습니다.');
       }
       if (!list) {
-        return res
-          .status(404)
-          .json({ ok: false, message: '폴더를 찾을 수 없습니다.' });
+        return sendBookmarkError(res, 404, 'RESOURCE_NOT_FOUND', '폴더를 찾을 수 없습니다.');
       }
       if (list.user_id !== userId) {
-        return res
-          .status(403)
-          .json({ ok: false, message: '폴더를 삭제할 권한이 없습니다.' });
+        return sendBookmarkError(res, 403, 'AUTH_FORBIDDEN', '폴더를 삭제할 권한이 없습니다.');
       }
 
       db.run('DELETE FROM bookmark_items WHERE list_id = ?', [listId], (err2) => {
         if (err2) {
           console.error(err2);
-          return res
-            .status(500)
-            .json({ ok: false, message: '폴더 삭제 중 오류가 발생했습니다.' });
+          return sendBookmarkError(res, 500, 'INTERNAL_ERROR', '폴더 삭제 중 오류가 발생했습니다.');
         }
 
         db.run('DELETE FROM bookmark_lists WHERE id = ?', [listId], (err3) => {
           if (err3) {
             console.error(err3);
-            return res.status(500).json({
-              ok: false,
-              message: '폴더 삭제 중 오류가 발생했습니다.',
-            });
+            return sendBookmarkError(
+              res,
+              500,
+              'INTERNAL_ERROR',
+              '폴더 삭제 중 오류가 발생했습니다.'
+            );
           }
 
           return res.json({ ok: true, message: '폴더가 삭제되었습니다.' });
@@ -275,7 +282,7 @@ router.post('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
   const postId = parseInt(req.body.postId, 10);
 
   if (!listId || !postId) {
-    return res.status(400).json({ ok: false, message: '잘못된 요청입니다.' });
+    return sendBookmarkError(res, 400, 'INVALID_REQUEST', '잘못된 요청입니다.');
   }
 
   db.get(
@@ -284,30 +291,27 @@ router.post('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
     (err, list) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '폴더 확인 중 오류가 발생했습니다.' });
+        return sendBookmarkError(res, 500, 'INTERNAL_ERROR', '폴더 확인 중 오류가 발생했습니다.');
       }
       if (!list) {
-        return res
-          .status(404)
-          .json({ ok: false, message: '폴더를 찾을 수 없습니다.' });
+        return sendBookmarkError(res, 404, 'RESOURCE_NOT_FOUND', '폴더를 찾을 수 없습니다.');
       }
       if (list.user_id !== userId) {
-        return res
-          .status(403)
-          .json({ ok: false, message: '이 폴더에 추가할 권한이 없습니다.' });
+        return sendBookmarkError(
+          res,
+          403,
+          'AUTH_FORBIDDEN',
+          '이 폴더에 추가할 권한이 없습니다.'
+        );
       }
 
       db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (postErr, post) => {
         if (postErr) {
           console.error(postErr);
-          return res.status(500).json({ ok: false, message: '글 정보를 불러오지 못했습니다.' });
+          return sendBookmarkError(res, 500, 'INTERNAL_ERROR', '글 정보를 불러오지 못했습니다.');
         }
         if (!post) {
-          return res
-            .status(404)
-            .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+          return sendBookmarkError(res, 404, 'RESOURCE_NOT_FOUND', '해당 글을 찾을 수 없습니다.');
         }
 
         db.run(
@@ -316,10 +320,12 @@ router.post('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
           function (err2) {
             if (err2) {
               console.error(err2);
-              return res.status(500).json({
-                ok: false,
-                message: '북마크 추가 중 오류가 발생했습니다.',
-              });
+              return sendBookmarkError(
+                res,
+                500,
+                'INTERNAL_ERROR',
+                '북마크 추가 중 오류가 발생했습니다.'
+              );
             }
 
             const inserted = this.changes > 0;
@@ -346,7 +352,7 @@ router.delete(
     const postId = parseInt(req.params.postId, 10);
 
     if (!listId || !postId) {
-      return res.status(400).json({ ok: false, message: '잘못된 요청입니다.' });
+      return sendBookmarkError(res, 400, 'INVALID_REQUEST', '잘못된 요청입니다.');
     }
 
     db.get(
@@ -355,20 +361,23 @@ router.delete(
       (err, list) => {
         if (err) {
           console.error(err);
-          return res
-            .status(500)
-            .json({ ok: false, message: '폴더 확인 중 오류가 발생했습니다.' });
+          return sendBookmarkError(
+            res,
+            500,
+            'INTERNAL_ERROR',
+            '폴더 확인 중 오류가 발생했습니다.'
+          );
         }
         if (!list) {
-          return res
-            .status(404)
-            .json({ ok: false, message: '폴더를 찾을 수 없습니다.' });
+          return sendBookmarkError(res, 404, 'RESOURCE_NOT_FOUND', '폴더를 찾을 수 없습니다.');
         }
         if (list.user_id !== userId) {
-          return res.status(403).json({
-            ok: false,
-            message: '이 폴더에서 삭제할 권한이 없습니다.',
-          });
+          return sendBookmarkError(
+            res,
+            403,
+            'AUTH_FORBIDDEN',
+            '이 폴더에서 삭제할 권한이 없습니다.'
+          );
         }
 
         db.run(
@@ -377,10 +386,12 @@ router.delete(
           (err2) => {
             if (err2) {
               console.error(err2);
-              return res.status(500).json({
-                ok: false,
-                message: '북마크 삭제 중 오류가 발생했습니다.',
-              });
+              return sendBookmarkError(
+                res,
+                500,
+                'INTERNAL_ERROR',
+                '북마크 삭제 중 오류가 발생했습니다.'
+              );
             }
             return res.json({ ok: true, message: '북마크가 삭제되었습니다.' });
           }
@@ -397,9 +408,7 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
   const offset = parseInt(req.query.offset, 10) || 0;
 
   if (!listId) {
-    return res
-      .status(400)
-      .json({ ok: false, message: '잘못된 폴더 ID입니다.' });
+    return sendBookmarkError(res, 400, 'INVALID_REQUEST', '잘못된 폴더 ID입니다.');
   }
 
   db.get(
@@ -408,19 +417,13 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
     (err, list) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '폴더 조회 중 오류가 발생했습니다.' });
+        return sendBookmarkError(res, 500, 'INTERNAL_ERROR', '폴더 조회 중 오류가 발생했습니다.');
       }
       if (!list) {
-        return res
-          .status(404)
-          .json({ ok: false, message: '폴더를 찾을 수 없습니다.' });
+        return sendBookmarkError(res, 404, 'RESOURCE_NOT_FOUND', '폴더를 찾을 수 없습니다.');
       }
       if (list.user_id !== userId) {
-        return res
-          .status(403)
-          .json({ ok: false, message: '폴더 접근 권한이 없습니다.' });
+        return sendBookmarkError(res, 403, 'AUTH_FORBIDDEN', '폴더 접근 권한이 없습니다.');
       }
 
       const selectClause = `
@@ -460,10 +463,12 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
       db.all(sql, [userId, listId, limit, offset], (err2, rows) => {
         if (err2) {
           console.error(err2);
-          return res.status(500).json({
-            ok: false,
-            message: '북마크 글을 가져오는 중 오류가 발생했습니다.',
-          });
+          return sendBookmarkError(
+            res,
+            500,
+            'INTERNAL_ERROR',
+            '북마크 글을 가져오는 중 오류가 발생했습니다.'
+          );
         }
 
         return res.json({
@@ -481,9 +486,7 @@ router.get('/posts/:postId/bookmarks', authRequired, (req, res) => {
   const userId = req.user.id;
   const postId = parseInt(req.params.postId, 10);
   if (!postId) {
-    return res
-      .status(400)
-      .json({ ok: false, message: '잘못된 글 ID입니다.' });
+    return sendBookmarkError(res, 400, 'INVALID_REQUEST', '잘못된 글 ID입니다.');
   }
 
   db.all(
@@ -499,9 +502,7 @@ router.get('/posts/:postId/bookmarks', authRequired, (req, res) => {
     (err, rows) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '북마크 정보를 불러오지 못했습니다.' });
+        return sendBookmarkError(res, 500, 'INTERNAL_ERROR', '북마크 정보를 불러오지 못했습니다.');
       }
 
       return res.json({

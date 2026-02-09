@@ -14,7 +14,9 @@
 > 응답 규칙
 >
 > - 성공/실패 모두 `ok`, `message` 필드를 포함합니다.
+> - 실패 응답은 `code` 필드를 포함합니다.
 > - 복합 단어 키는 `snake_case`로 통일합니다.
+> - 공통 오류 코드(1차 표준화): `INVALID_REQUEST`(400), `AUTH_REQUIRED`(401), `AUTH_INVALID_TOKEN`(401), `AUTH_INVALID_SESSION`(401), `AUTH_FORBIDDEN`(403), `RESOURCE_NOT_FOUND`(404), `CONFLICT`(409), `INTERNAL_ERROR`(500)
 
 ---
 

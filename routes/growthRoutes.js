@@ -8,6 +8,10 @@ const {
 const { getActiveQuestsForUser } = require('../utils/questService');
 const db = require('../db');
 
+function sendGrowthError(res, status, code, message) {
+  return res.status(status).json({ ok: false, code, message });
+}
+
 function runAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
@@ -181,10 +185,12 @@ router.get('/growth/dashboard', authRequired, async (req, res) => {
     });
   } catch (error) {
     console.error('growth dashboard error:', error);
-    return res.status(500).json({
-      ok: false,
-      message: '성장 대시보드 정보를 불러오지 못했습니다.',
-    });
+    return sendGrowthError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '성장 대시보드 정보를 불러오지 못했습니다.'
+    );
   }
 });
 
@@ -198,9 +204,7 @@ router.get('/growth/top-posts', authRequired, async (req, res) => {
     });
   } catch (error) {
     console.error('growth top posts error:', error);
-    return res
-      .status(500)
-      .json({ ok: false, message: '인기 글 정보를 불러오지 못했습니다.' });
+    return sendGrowthError(res, 500, 'INTERNAL_ERROR', '인기 글 정보를 불러오지 못했습니다.');
   }
 });
 
@@ -214,9 +218,7 @@ router.get('/growth/summary', authRequired, async (req, res) => {
     });
   } catch (error) {
     console.error('growth summary error:', error);
-    return res
-      .status(500)
-      .json({ ok: false, message: '성장 요약 정보를 불러오지 못했습니다.' });
+    return sendGrowthError(res, 500, 'INTERNAL_ERROR', '성장 요약 정보를 불러오지 못했습니다.');
   }
 });
 
@@ -230,9 +232,7 @@ router.get('/growth/achievements', authRequired, async (req, res) => {
     });
   } catch (error) {
     console.error('growth achievements error:', error);
-    return res
-      .status(500)
-      .json({ ok: false, message: '업적 정보를 불러오지 못했습니다.' });
+    return sendGrowthError(res, 500, 'INTERNAL_ERROR', '업적 정보를 불러오지 못했습니다.');
   }
 });
 
@@ -246,16 +246,14 @@ router.get('/quests/active', authRequired, async (req, res) => {
     });
   } catch (error) {
     console.error('active quests error:', error);
-    return res
-      .status(500)
-      .json({ ok: false, message: '활성 퀘스트를 불러오지 못했습니다.' });
+    return sendGrowthError(res, 500, 'INTERNAL_ERROR', '활성 퀘스트를 불러오지 못했습니다.');
   }
 });
 
 router.post('/quests/:stateId/claim', authRequired, async (req, res) => {
   const stateId = Number(req.params.stateId);
   if (!Number.isFinite(stateId)) {
-    return res.status(400).json({ ok: false, message: '올바르지 않은 stateId입니다.' });
+    return sendGrowthError(res, 400, 'INVALID_REQUEST', '올바르지 않은 stateId입니다.');
   }
 
   const nowIso = new Date().toISOString();
@@ -272,17 +270,22 @@ router.post('/quests/:stateId/claim', authRequired, async (req, res) => {
 
     if (!state) {
       await runAsync('ROLLBACK;');
-      return res.status(404).json({ ok: false, message: '퀘스트 상태를 찾을 수 없습니다.' });
+      return sendGrowthError(res, 404, 'RESOURCE_NOT_FOUND', '퀘스트 상태를 찾을 수 없습니다.');
     }
 
     if (!state.completed_at) {
       await runAsync('ROLLBACK;');
-      return res.status(400).json({ ok: false, message: '아직 완료되지 않은 퀘스트입니다.' });
+      return sendGrowthError(
+        res,
+        400,
+        'INVALID_REQUEST',
+        '아직 완료되지 않은 퀘스트입니다.'
+      );
     }
 
     if (state.reward_claimed_at) {
       await runAsync('ROLLBACK;');
-      return res.status(409).json({ ok: false, message: '이미 보상을 받았습니다.' });
+      return sendGrowthError(res, 409, 'CONFLICT', '이미 보상을 받았습니다.');
     }
 
     await runAsync(
@@ -317,7 +320,7 @@ router.post('/quests/:stateId/claim', authRequired, async (req, res) => {
       console.error('claim rollback failed:', rollbackError);
     }
     console.error('claim reward error:', error);
-    return res.status(500).json({ ok: false, message: '보상 지급 중 오류가 발생했습니다.' });
+    return sendGrowthError(res, 500, 'INTERNAL_ERROR', '보상 지급 중 오류가 발생했습니다.');
   }
 });
 
