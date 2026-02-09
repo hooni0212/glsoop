@@ -12,7 +12,9 @@
     "verify:phase3": "node scripts/verify-phase3.mjs",
     "backfill:quests": "node scripts/backfill-permanent-quests.mjs",
     "phase3:seed-legacy-achievements": "node scripts/phase3-seed-legacy-achievements.mjs",
-    "phase3:migrate-legacy-achievements": "node scripts/phase3-migrate-legacy-achievements.mjs"
+    "phase3:migrate-legacy-achievements": "node scripts/phase3-migrate-legacy-achievements.mjs",
+    "sync:notion": "node tools/notion-sync/sync.mjs",
+    "sync:notion:dry": "NOTION_SYNC_DRY_RUN=true node tools/notion-sync/sync.mjs"
   },
   "keywords": [],
   "author": "",

@@ -63,3 +63,7 @@ data/**
 tmp/
 test-results/
 playwright-report/
+
+# Notion sync local artifacts
+docs/work-notes/
+tools/notion-sync/sync.mjs
