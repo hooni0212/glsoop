@@ -6,9 +6,19 @@ const SECTION_IDS = {
   achievements: 'growthAchievementListSection',
 };
 
+const STORAGE_KEYS = {
+  achievementFilter: 'glsoop:growth:achievement-filter',
+  mobilePanel: 'glsoop:growth:mobile-panel',
+};
+
+const VALID_ACHIEVEMENT_FILTERS = new Set(['all', 'in_progress', 'completed', 'locked']);
+const VALID_MOBILE_PANELS = new Set(['forest', 'achievements']);
+
 const claimInFlight = new Set();
 let noticeTimer = null;
 let achievementCache = [];
+let selectedAchievementFilter = readStoredAchievementFilter();
+let selectedMobilePanel = readStoredMobilePanel();
 
 function getLevelEmoji(level) {
   const n = Number(level) || 0;
@@ -20,8 +30,48 @@ function getLevelEmoji(level) {
   return '🌲';
 }
 
+function readStorageValue(key) {
+  try {
+    if (!window?.localStorage) return null;
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeStorageValue(key, value) {
+  try {
+    if (!window?.localStorage) return;
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    // no-op: storage는 best effort
+  }
+}
+
+function normalizeAchievementFilter(filter) {
+  if (VALID_ACHIEVEMENT_FILTERS.has(filter)) return filter;
+  return 'all';
+}
+
+function normalizeMobilePanel(panel) {
+  if (VALID_MOBILE_PANELS.has(panel)) return panel;
+  return 'forest';
+}
+
+function readStoredAchievementFilter() {
+  const stored = readStorageValue(STORAGE_KEYS.achievementFilter);
+  return normalizeAchievementFilter(stored || 'all');
+}
+
+function readStoredMobilePanel() {
+  const stored = readStorageValue(STORAGE_KEYS.mobilePanel);
+  return normalizeMobilePanel(stored || 'forest');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   bindAchievementFilters();
+  bindGrowthViewTabs();
+  applyGrowthViewPanel(selectedMobilePanel, { persist: false });
 
   try {
     await ensureAuthenticated();
@@ -45,6 +95,61 @@ function setSectionLoading(sectionId, isLoading) {
   section.setAttribute('aria-busy', isLoading ? 'true' : 'false');
 }
 
+function syncGrowthViewTabButtons() {
+  const tabs = document.querySelectorAll('#growthViewTabs .growth-view-tab');
+  tabs.forEach((tab) => {
+    const view = normalizeMobilePanel(tab.dataset.view || 'forest');
+    const isActive = view === selectedMobilePanel;
+    tab.classList.toggle('is-active', isActive);
+    tab.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
+function applyGrowthViewPanel(panel, options = {}) {
+  const { persist = true } = options;
+  selectedMobilePanel = normalizeMobilePanel(panel);
+
+  if (persist) {
+    writeStorageValue(STORAGE_KEYS.mobilePanel, selectedMobilePanel);
+  }
+
+  const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
+  const forestSection = document.getElementById(SECTION_IDS.forest);
+  const achievementSection = document.getElementById(SECTION_IDS.achievements);
+
+  if (forestSection) {
+    forestSection.classList.toggle(
+      'is-mobile-hidden',
+      isMobile && selectedMobilePanel !== 'forest'
+    );
+  }
+
+  if (achievementSection) {
+    achievementSection.classList.toggle(
+      'is-mobile-hidden',
+      isMobile && selectedMobilePanel !== 'achievements'
+    );
+  }
+
+  syncGrowthViewTabButtons();
+}
+
+function bindGrowthViewTabs() {
+  const tabs = document.querySelectorAll('#growthViewTabs .growth-view-tab');
+  if (!tabs.length) return;
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const panel = normalizeMobilePanel(tab.dataset.view || 'forest');
+      applyGrowthViewPanel(panel);
+    });
+  });
+
+  window.addEventListener('resize', () => {
+    applyGrowthViewPanel(selectedMobilePanel, { persist: false });
+  });
+}
+
 function showNotice(message, tone = 'info') {
   const notice = document.getElementById('growthNotice');
   if (!notice) return;
@@ -53,6 +158,13 @@ function showNotice(message, tone = 'info') {
   notice.classList.add(`is-${tone}`);
   notice.textContent = message;
   notice.setAttribute('role', tone === 'error' ? 'alert' : 'status');
+  notice.setAttribute('tabindex', '-1');
+
+  try {
+    notice.focus({ preventScroll: true });
+  } catch (error) {
+    notice.focus();
+  }
 
   if (noticeTimer) {
     clearTimeout(noticeTimer);
@@ -379,7 +491,7 @@ async function loadGrowthAchievements(options = {}) {
 
     achievementCache = data.achievements;
     renderForestMapNodes(achievementCache);
-    renderAchievementGrid('all');
+    renderAchievementGrid(selectedAchievementFilter);
     renderAchievementDetail(achievementCache[0]);
   } catch (error) {
     console.error(error);
@@ -472,17 +584,70 @@ function renderAchievementDetail(achievement) {
   animateProgressWidth(bar, progressPercent);
 }
 
-function renderAchievementGrid(filter = 'all') {
+function syncAchievementFilterButtons() {
+  const filters = document.querySelectorAll('#achievementFilters .achievement-filter-btn');
+  filters.forEach((btn) => {
+    const filter = normalizeAchievementFilter(btn.dataset.filter || 'all');
+    const isActive = filter === selectedAchievementFilter;
+    btn.classList.toggle('is-active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
+function setAchievementFilter(filter, options = {}) {
+  const { persist = true, render = true } = options;
+  selectedAchievementFilter = normalizeAchievementFilter(filter);
+
+  if (persist) {
+    writeStorageValue(STORAGE_KEYS.achievementFilter, selectedAchievementFilter);
+  }
+
+  syncAchievementFilterButtons();
+  if (render) {
+    renderAchievementGrid(selectedAchievementFilter);
+  }
+}
+
+function renderAchievementGrid(filter = selectedAchievementFilter) {
   const grid = document.getElementById('achievementGrid');
   if (!grid) return;
 
+  selectedAchievementFilter = normalizeAchievementFilter(filter);
+  syncAchievementFilterButtons();
+
   grid.innerHTML = '';
   const filtered = achievementCache.filter(
-    (item) => filter === 'all' || item.status === filter
+    (item) => selectedAchievementFilter === 'all' || item.status === selectedAchievementFilter
   );
 
   if (!filtered.length) {
-    grid.innerHTML = '<p class="gls-text-muted">해당 조건의 업적이 없습니다.</p>';
+    if (selectedAchievementFilter === 'all') {
+      grid.innerHTML = `
+        <div class="growth-empty-state">
+          <p class="gls-text-muted gls-mb-2">아직 노출할 업적이 없습니다.</p>
+          <div class="growth-empty-actions">
+            <a class="gls-btn gls-btn-secondary gls-btn-xs" href="/html/editor.html">첫 글 쓰러 가기</a>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = `
+      <div class="growth-empty-state">
+        <p class="gls-text-muted gls-mb-2">선택한 필터에 해당하는 업적이 없습니다.</p>
+        <div class="growth-empty-actions">
+          <button type="button" class="gls-btn gls-btn-secondary gls-btn-xs" data-reset-achievement-filter>전체 보기</button>
+        </div>
+      </div>
+    `;
+
+    const resetBtn = grid.querySelector('[data-reset-achievement-filter]');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        setAchievementFilter('all');
+      });
+    }
     return;
   }
 
@@ -517,12 +682,12 @@ function renderAchievementGrid(filter = 'all') {
 
 function bindAchievementFilters() {
   const filters = document.querySelectorAll('#achievementFilters .achievement-filter-btn');
+  syncAchievementFilterButtons();
+
   filters.forEach((btn) => {
     btn.addEventListener('click', () => {
-      filters.forEach((b) => b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-      const filter = btn.dataset.filter || 'all';
-      renderAchievementGrid(filter);
+      const filter = normalizeAchievementFilter(btn.dataset.filter || 'all');
+      setAchievementFilter(filter);
     });
   });
 }
@@ -654,16 +819,41 @@ function renderQuestGroups(campaigns = []) {
 
   if (!campaigns.length) {
     if (questToday) {
-      questToday.innerHTML = '<div class="quest-card gls-text-muted">현재 진행 중인 퀘스트가 없습니다.</div>';
+      questToday.innerHTML = `
+        <div class="quest-card growth-empty-state">
+          <p class="gls-text-muted gls-mb-2">오늘 진행 중인 퀘스트가 없습니다.</p>
+          <div class="growth-empty-actions">
+            <a class="gls-btn gls-btn-secondary gls-btn-xs" href="/html/editor.html">오늘 글 쓰러 가기</a>
+          </div>
+        </div>
+      `;
     }
     if (questWeek) {
-      questWeek.innerHTML = '<div class="quest-card gls-text-muted">현재 진행 중인 퀘스트가 없습니다.</div>';
+      questWeek.innerHTML = `
+        <div class="quest-card growth-empty-state">
+          <p class="gls-text-muted gls-mb-2">주간/시즌 퀘스트가 없습니다.</p>
+          <div class="growth-empty-actions">
+            <a class="gls-btn gls-btn-secondary gls-btn-xs" href="/explore">추천 글 둘러보기</a>
+          </div>
+        </div>
+      `;
     }
     if (campaignStack) {
-      campaignStack.innerHTML = '<div class="campaign-card gls-text-muted gls-text-small">활성 캠페인이 없습니다.</div>';
+      campaignStack.innerHTML = `
+        <div class="campaign-card growth-empty-state">
+          <p class="gls-text-muted gls-text-small gls-mb-0">활성 캠페인이 없습니다.</p>
+        </div>
+      `;
     }
     if (achievementList) {
-      achievementList.innerHTML = '<div class="achievement-quest-card gls-text-muted">표시할 업적이 없습니다.</div>';
+      achievementList.innerHTML = `
+        <div class="achievement-quest-card growth-empty-state">
+          <p class="gls-text-muted gls-mb-2">표시할 업적 퀘스트가 없습니다.</p>
+          <div class="growth-empty-actions">
+            <a class="gls-btn gls-btn-secondary gls-btn-xs" href="/html/editor.html">글 작성으로 진행도 올리기</a>
+          </div>
+        </div>
+      `;
     }
     return;
   }
@@ -707,16 +897,32 @@ function renderQuestGroupsError() {
   const achievementList = document.getElementById('achievementQuestList');
 
   if (questToday) {
-    questToday.innerHTML = '<div class="quest-card gls-text-muted">퀘스트 정보를 불러오지 못했습니다.</div>';
+    questToday.innerHTML = `
+      <div class="quest-card growth-empty-state">
+        <p class="gls-text-muted gls-mb-0">퀘스트 정보를 불러오지 못했습니다.</p>
+      </div>
+    `;
   }
   if (questWeek) {
-    questWeek.innerHTML = '<div class="quest-card gls-text-muted">퀘스트 정보를 불러오지 못했습니다.</div>';
+    questWeek.innerHTML = `
+      <div class="quest-card growth-empty-state">
+        <p class="gls-text-muted gls-mb-0">퀘스트 정보를 불러오지 못했습니다.</p>
+      </div>
+    `;
   }
   if (campaignStack) {
-    campaignStack.innerHTML = '<div class="campaign-card gls-text-muted gls-text-small">캠페인 정보를 불러오지 못했습니다.</div>';
+    campaignStack.innerHTML = `
+      <div class="campaign-card growth-empty-state">
+        <p class="gls-text-muted gls-text-small gls-mb-0">캠페인 정보를 불러오지 못했습니다.</p>
+      </div>
+    `;
   }
   if (achievementList) {
-    achievementList.innerHTML = '<div class="achievement-quest-card gls-text-muted">업적 퀘스트 정보를 불러오지 못했습니다.</div>';
+    achievementList.innerHTML = `
+      <div class="achievement-quest-card growth-empty-state">
+        <p class="gls-text-muted gls-mb-0">업적 퀘스트 정보를 불러오지 못했습니다.</p>
+      </div>
+    `;
   }
 }
 
