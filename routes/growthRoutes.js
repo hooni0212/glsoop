@@ -26,7 +26,91 @@ function getAsync(sql, params = []) {
   });
 }
 
+function mapSummary(summary) {
+  return {
+    level: summary.level,
+    current_xp: summary.currentXp,
+    next_level_xp: summary.nextLevelXp,
+    today_xp: summary.todayXp,
+    weekly_posts: summary.weeklyPosts,
+    streak_days: summary.streakDays,
+    max_streak_days: summary.maxStreakDays,
+    title: summary.title,
+  };
+}
+
+function mapAchievements(achievements = []) {
+  return achievements.map((item) => ({
+    id: item.id,
+    code: item.code,
+    name: item.name,
+    description: item.description,
+    category: item.category,
+    status: item.status,
+    progress: item.progress,
+    target: item.target,
+    unlocked_at: item.unlockedAt,
+    position_index: item.positionIndex,
+    icon: item.icon,
+  }));
+}
+
+function mapCampaigns(campaigns = []) {
+  return campaigns.map((campaign) => ({
+    id: campaign.id,
+    name: campaign.name,
+    description: campaign.description,
+    campaign_type: campaign.campaignType,
+    start_at: campaign.startAt,
+    end_at: campaign.endAt,
+    quests: (campaign.quests || []).map((quest) => ({
+      id: quest.id,
+      state_id: quest.stateId,
+      name: quest.name,
+      description: quest.description,
+      condition_type: quest.conditionType,
+      category: quest.category,
+      target: quest.target,
+      reward_xp: quest.rewardXp,
+      status: quest.status,
+      progress: quest.progress,
+      position_index: quest.positionIndex,
+      campaign_id: quest.campaignId,
+      campaign_type: quest.campaignType,
+      template_kind: quest.templateKind,
+      code: quest.code,
+      ui_json: quest.uiJson,
+      completed_at: quest.completedAt,
+      reward_claimed_at: quest.rewardClaimedAt,
+    })),
+  }));
+}
+
 const router = express.Router();
+
+router.get('/growth/dashboard', authRequired, async (req, res) => {
+  try {
+    const [summary, achievements, campaigns] = await Promise.all([
+      fetchGrowthSummary(req.user.id),
+      fetchUserAchievements(req.user.id),
+      getActiveQuestsForUser(req.user.id),
+    ]);
+
+    return res.json({
+      ok: true,
+      message: '성장 대시보드 정보를 불러왔습니다.',
+      summary: mapSummary(summary),
+      achievements: mapAchievements(achievements),
+      campaigns: mapCampaigns(campaigns),
+    });
+  } catch (error) {
+    console.error('growth dashboard error:', error);
+    return res.status(500).json({
+      ok: false,
+      message: '성장 대시보드 정보를 불러오지 못했습니다.',
+    });
+  }
+});
 
 router.get('/growth/summary', authRequired, async (req, res) => {
   try {
@@ -34,16 +118,7 @@ router.get('/growth/summary', authRequired, async (req, res) => {
     return res.json({
       ok: true,
       message: '성장 요약 정보를 불러왔습니다.',
-      summary: {
-        level: summary.level,
-        current_xp: summary.currentXp,
-        next_level_xp: summary.nextLevelXp,
-        today_xp: summary.todayXp,
-        weekly_posts: summary.weeklyPosts,
-        streak_days: summary.streakDays,
-        max_streak_days: summary.maxStreakDays,
-        title: summary.title,
-      },
+      summary: mapSummary(summary),
     });
   } catch (error) {
     console.error('growth summary error:', error);
@@ -56,23 +131,10 @@ router.get('/growth/summary', authRequired, async (req, res) => {
 router.get('/growth/achievements', authRequired, async (req, res) => {
   try {
     const achievements = await fetchUserAchievements(req.user.id);
-    const payload = (achievements || []).map((item) => ({
-      id: item.id,
-      code: item.code,
-      name: item.name,
-      description: item.description,
-      category: item.category,
-      status: item.status,
-      progress: item.progress,
-      target: item.target,
-      unlocked_at: item.unlockedAt,
-      position_index: item.positionIndex,
-      icon: item.icon,
-    }));
     return res.json({
       ok: true,
       message: '업적 정보를 불러왔습니다.',
-      achievements: payload,
+      achievements: mapAchievements(achievements),
     });
   } catch (error) {
     console.error('growth achievements error:', error);
@@ -85,38 +147,10 @@ router.get('/growth/achievements', authRequired, async (req, res) => {
 router.get('/quests/active', authRequired, async (req, res) => {
   try {
     const campaigns = await getActiveQuestsForUser(req.user.id);
-    const payload = (campaigns || []).map((campaign) => ({
-      id: campaign.id,
-      name: campaign.name,
-      description: campaign.description,
-      campaign_type: campaign.campaignType,
-      start_at: campaign.startAt,
-      end_at: campaign.endAt,
-      quests: (campaign.quests || []).map((quest) => ({
-        id: quest.id,
-        state_id: quest.stateId,
-        name: quest.name,
-        description: quest.description,
-        condition_type: quest.conditionType,
-        category: quest.category,
-        target: quest.target,
-        reward_xp: quest.rewardXp,
-        status: quest.status,
-        progress: quest.progress,
-        position_index: quest.positionIndex,
-        campaign_id: quest.campaignId,
-        campaign_type: quest.campaignType,
-        template_kind: quest.templateKind,
-        code: quest.code,
-        ui_json: quest.uiJson,
-        completed_at: quest.completedAt,
-        reward_claimed_at: quest.rewardClaimedAt,
-      })),
-    }));
     return res.json({
       ok: true,
       message: '활성 퀘스트를 불러왔습니다.',
-      campaigns: payload,
+      campaigns: mapCampaigns(campaigns),
     });
   } catch (error) {
     console.error('active quests error:', error);
