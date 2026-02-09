@@ -1,5 +1,15 @@
 const { defineConfig, devices } = require('@playwright/test');
 
+const buildRunId = () => {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(
+    now.getHours()
+  )}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+};
+
+process.env.GLSOOP_SNAPSHOT_RUN_ID = process.env.GLSOOP_SNAPSHOT_RUN_ID || buildRunId();
+
 module.exports = defineConfig({
   testDir: './tests',
   timeout: 60 * 1000,
