@@ -26,6 +26,15 @@ function getAsync(sql, params = []) {
   });
 }
 
+function allAsync(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+}
+
 function mapSummary(summary) {
   return {
     level: summary.level,
@@ -86,14 +95,69 @@ function mapCampaigns(campaigns = []) {
   }));
 }
 
+function toExcerpt(content, maxLength = 100) {
+  const normalized = String(content || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 3)}...`;
+}
+
+function mapTopPosts(posts = []) {
+  return posts.map((item) => ({
+    id: item.id,
+    title: item.title,
+    excerpt: toExcerpt(item.content),
+    author_name: item.author_name || '',
+    like_count: Number(item.like_count) || 0,
+    bookmark_count: Number(item.bookmark_count) || 0,
+  }));
+}
+
+async function fetchGrowthTopPosts(limit = 3) {
+  const parsedLimit = Number(limit);
+  const safeLimit = Number.isFinite(parsedLimit) && parsedLimit > 0
+    ? Math.min(10, Math.floor(parsedLimit))
+    : 3;
+
+  return allAsync(
+    `
+      SELECT
+        p.id,
+        p.title,
+        p.content,
+        p.created_at,
+        u.name AS author_name,
+        IFNULL(lc.like_count, 0) AS like_count,
+        IFNULL(bc.bookmark_count, 0) AS bookmark_count
+      FROM posts p
+      JOIN users u ON u.id = p.user_id
+      LEFT JOIN (
+        SELECT post_id, COUNT(*) AS like_count
+        FROM likes
+        GROUP BY post_id
+      ) lc ON lc.post_id = p.id
+      LEFT JOIN (
+        SELECT bi.post_id, COUNT(DISTINCT bl.user_id) AS bookmark_count
+        FROM bookmark_items bi
+        JOIN bookmark_lists bl ON bl.id = bi.list_id
+        GROUP BY bi.post_id
+      ) bc ON bc.post_id = p.id
+      ORDER BY IFNULL(lc.like_count, 0) DESC, IFNULL(bc.bookmark_count, 0) DESC, p.created_at DESC
+      LIMIT ?
+    `,
+    [safeLimit]
+  );
+}
+
 const router = express.Router();
 
 router.get('/growth/dashboard', authRequired, async (req, res) => {
   try {
-    const [summary, achievements, campaigns] = await Promise.all([
+    const [summary, achievements, campaigns, topPosts] = await Promise.all([
       fetchGrowthSummary(req.user.id),
       fetchUserAchievements(req.user.id),
       getActiveQuestsForUser(req.user.id),
+      fetchGrowthTopPosts(),
     ]);
 
     return res.json({
@@ -102,6 +166,7 @@ router.get('/growth/dashboard', authRequired, async (req, res) => {
       summary: mapSummary(summary),
       achievements: mapAchievements(achievements),
       campaigns: mapCampaigns(campaigns),
+      top_posts: mapTopPosts(topPosts),
     });
   } catch (error) {
     console.error('growth dashboard error:', error);
@@ -109,6 +174,22 @@ router.get('/growth/dashboard', authRequired, async (req, res) => {
       ok: false,
       message: '성장 대시보드 정보를 불러오지 못했습니다.',
     });
+  }
+});
+
+router.get('/growth/top-posts', authRequired, async (req, res) => {
+  try {
+    const topPosts = await fetchGrowthTopPosts(req.query.limit || 3);
+    return res.json({
+      ok: true,
+      message: '인기 글 정보를 불러왔습니다.',
+      top_posts: mapTopPosts(topPosts),
+    });
+  } catch (error) {
+    console.error('growth top posts error:', error);
+    return res
+      .status(500)
+      .json({ ok: false, message: '인기 글 정보를 불러오지 못했습니다.' });
   }
 });
 

@@ -95,10 +95,11 @@
 
 ## 5) Growth / Achievements / Quests (`/api`)
 
-- `GET /api/growth/dashboard` (**auth**) — 성장 대시보드 통합 응답 (summary + achievements + campaigns)
+- `GET /api/growth/dashboard` (**auth**) — 성장 대시보드 통합 응답 (summary + achievements + campaigns + top_posts)
 - `GET /api/growth/summary` (**auth**) — 성장 요약
 - `GET /api/growth/achievements` (**auth**) — 업적 진행/해제 현황
 - `GET /api/quests/active` (**auth**) — 활성 퀘스트(캠페인) 조회
+- `GET /api/growth/top-posts` (**auth**) — 인기 글 요약 목록(대시보드와 동일 스키마)
 - 하위호환: 기존 개별 엔드포인트는 유지되며, 프론트는 dashboard 우선 호출 후 필요 시 fallback
 
 ---
