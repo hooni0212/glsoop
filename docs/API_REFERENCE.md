@@ -79,6 +79,7 @@
 
 북마크 폴더
 - `GET /api/bookmarks/lists` (**auth**) — 내 북마크 폴더 목록
+- `GET /api/bookmarks/lists/recent?post_id=<id>&limit=<n>` (**auth**) — 특정 글 기준 최근 사용 폴더 목록 (`contains`, `item_count`, `last_used_at` 포함)
 - `POST /api/bookmarks/lists` (**auth**) — 폴더 생성
 - `PATCH /api/bookmarks/lists/:listId` (**auth**) — 폴더 수정
 - `DELETE /api/bookmarks/lists/:listId` (**auth**) — 폴더 삭제

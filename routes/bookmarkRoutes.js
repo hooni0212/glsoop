@@ -39,6 +39,68 @@ router.get('/bookmarks/lists', authRequired, (req, res) => {
   );
 });
 
+router.get('/bookmarks/lists/recent', authRequired, (req, res) => {
+  const userId = req.user.id;
+  const postId = parseInt(req.query.post_id, 10);
+  const requestedLimit = parseInt(req.query.limit, 10);
+
+  if (!postId) {
+    return res.status(400).json({
+      ok: false,
+      message: 'post_id 쿼리 파라미터가 필요합니다.',
+    });
+  }
+
+  if (Number.isFinite(requestedLimit) && requestedLimit < 1) {
+    return res.status(400).json({
+      ok: false,
+      message: 'limit은 1 이상의 정수여야 합니다.',
+    });
+  }
+
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(requestedLimit, 20)
+    : 5;
+
+  db.all(
+    `
+      SELECT
+        l.id,
+        l.name,
+        l.description,
+        CASE WHEN cp.post_id IS NULL THEN 0 ELSE 1 END AS contains,
+        COUNT(bi.post_id) AS item_count,
+        COALESCE(MAX(bi.created_at), l.created_at) AS last_used_at
+      FROM bookmark_lists l
+      LEFT JOIN bookmark_items bi
+        ON bi.list_id = l.id
+      LEFT JOIN bookmark_items cp
+        ON cp.list_id = l.id
+       AND cp.post_id = ?
+      WHERE l.user_id = ?
+      GROUP BY l.id, l.name, l.description, l.created_at, cp.post_id
+      ORDER BY last_used_at DESC, l.id DESC
+      LIMIT ?
+    `,
+    [postId, userId, limit],
+    (err, rows) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({
+          ok: false,
+          message: '최근 사용 북마크 폴더 조회 중 오류가 발생했습니다.',
+        });
+      }
+
+      return res.json({
+        ok: true,
+        message: '최근 사용 북마크 폴더를 불러왔습니다.',
+        lists: rows || [],
+      });
+    }
+  );
+});
+
 router.post('/bookmarks/lists', authRequired, (req, res) => {
   const userId = req.user.id;
   const { name, description } = normalizeListPayload(req.body);
