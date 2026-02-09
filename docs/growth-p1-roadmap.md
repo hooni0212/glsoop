@@ -43,7 +43,7 @@
 - [x] Step 1. `GET /api/growth/dashboard` 스펙 확정
 - [x] Step 2. 서버 엔드포인트 구현 및 하위호환 유지
 - [x] Step 3. 프론트를 dashboard 우선 호출로 전환 (fallback 유지)
-- [ ] Step 4. claim/XP 경로 일관성 정리
+- [x] Step 4. claim/XP 경로 일관성 정리
 - [ ] Step 5. API + E2E 테스트 추가/보강
 - [ ] Step 6. 문서 갱신 및 머지 준비
 
@@ -52,6 +52,8 @@
 - Task 1: 하위호환을 위해 기존 `/growth/summary`, `/growth/achievements`, `/quests/active` 엔드포인트는 유지함.
 
 - Task 2: `public/js/growth.js` 초기 로드를 `GET /api/growth/dashboard` 우선으로 전환하고, 실패 시 기존 summary/achievements/active quests 호출로 fallback 하도록 구현함.
+
+- Task 3: `routes/growthRoutes.js`의 quest claim XP 적립 경로를 중복 SQL 처리 대신 `addXp` 유틸 재사용으로 통일해 레벨/로그 갱신 경로를 일관화함.
 
 ## Definition of Done
 - 성장 페이지 초기 진입 시 데이터 로드가 안정적으로 완료된다.

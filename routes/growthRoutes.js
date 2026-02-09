@@ -1,11 +1,11 @@
 const express = require('express');
 const { authRequired } = require('../middleware/auth');
 const {
+  addXp,
   fetchGrowthSummary,
   fetchUserAchievements,
 } = require('../utils/growth');
 const { getActiveQuestsForUser } = require('../utils/questService');
-const { computeLevelFromXp } = require('../utils/growth');
 const db = require('../db');
 
 function runAsync(sql, params = []) {
@@ -199,40 +199,23 @@ router.post('/quests/:stateId/claim', authRequired, async (req, res) => {
     );
 
     const rewardXp = Number(state.reward_xp) || 0;
-    let newXp = null;
-    if (rewardXp > 0) {
-      await runAsync(
-        'INSERT INTO xp_log (user_id, delta, reason, meta, created_at) VALUES (?, ?, ?, ?, ?)',
-        [
-          req.user.id,
-          rewardXp,
-          'QUEST_REWARD',
-          JSON.stringify({
+    const gainedXp =
+      rewardXp > 0
+        ? await addXp(req.user.id, rewardXp, 'QUEST_REWARD', {
             stateId,
             templateId: state.template_id,
             campaignId: state.campaign_id,
-          }),
-          nowIso,
-        ]
-      );
-      await runAsync('UPDATE users SET xp = COALESCE(xp, 0) + ? WHERE id = ?', [
-        rewardXp,
-        req.user.id,
-      ]);
-      const updated = await getAsync('SELECT xp FROM users WHERE id = ?', [req.user.id]);
-      newXp = updated?.xp || 0;
-      const { level } = computeLevelFromXp(newXp);
-      await runAsync('UPDATE users SET level = ? WHERE id = ?', [level, req.user.id]);
-    } else {
-      const updated = await getAsync('SELECT xp FROM users WHERE id = ?', [req.user.id]);
-      newXp = updated?.xp || 0;
-    }
+          })
+        : 0;
+
+    const updated = await getAsync('SELECT xp FROM users WHERE id = ?', [req.user.id]);
+    const newXp = updated?.xp || 0;
 
     await runAsync('COMMIT;');
     return res.json({
       ok: true,
       reward_claimed_at: nowIso,
-      gained_xp: rewardXp,
+      gained_xp: gainedXp,
       new_xp: newXp,
     });
   } catch (error) {
