@@ -121,7 +121,23 @@
 
 ---
 
-## 7) Admin API (`/api/admin`)
+## 7) Share Events (`/api`)
+
+- `POST /api/share-events` (**public, authOptional**) — 공유 이벤트 기록
+  - Body: `post_id`(required), `platform`(`mobile|web`), `surface`, `channel`, `result`(`shared|dismissed|failed`)
+  - Body(optional): `request_id`, `meta`(object|string, JSON 저장)
+  - Success: `201` + `event{id, created_at}`
+  - Error: 400 `INVALID_REQUEST`, 404 `RESOURCE_NOT_FOUND`, 500 `INTERNAL_ERROR`
+
+- `GET /api/admin/share-events/summary` (**admin**) — 공유 이벤트 요약 통계
+  - Query(optional): `from`, `to`(YYYY-MM-DD), `platform`(`all|mobile|web`), `surface`, `channel`
+  - Query(optional): `top_limit`(1~50, default 10), `daily_limit`(1~120, default 30)
+  - Response: `summary`, `by_channel`, `by_surface`, `daily`, `filters`
+  - Error: 400 `INVALID_REQUEST`, 500 `INTERNAL_ERROR`
+
+---
+
+## 8) Admin API (`/api/admin`)
 
 헬스 체크
 - `GET /api/admin/` (**admin**) — admin API 연결 확인
