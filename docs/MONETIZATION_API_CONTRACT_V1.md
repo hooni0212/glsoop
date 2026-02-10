@@ -342,6 +342,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_purchases_google_token
 
 - 초기: 저장 중심 + admin 검증 플래그
 - 이후: Apple/Google 실검증 연동
+- 서버 모드 확장:
+  - `MONETIZATION_VERIFY_MODE=pending_only` (기본)
+  - `MONETIZATION_VERIFY_MODE=auto_active` (개발/스모크)
+  - `MONETIZATION_VERIFY_MODE=receipt_inspect` (`receipt_data` JWS/JSON 기반 상태 추론)
 
 ### 7.4 `verify` 활성화 규칙 (정책 확정)
 

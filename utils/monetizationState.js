@@ -8,7 +8,11 @@ const ALLOWED_PURCHASE_STATUSES = new Set([
   'pending',
 ]);
 
-const ALLOWED_VERIFY_MODES = new Set(['pending_only', 'auto_active']);
+const ALLOWED_VERIFY_MODES = new Set([
+  'pending_only',
+  'auto_active',
+  'receipt_inspect',
+]);
 
 const EMPTY_RECONCILE_RESULT = {
   expired_purchases: 0,

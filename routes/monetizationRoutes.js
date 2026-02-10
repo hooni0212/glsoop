@@ -4,9 +4,9 @@ const db = require('../db');
 const { authRequired } = require('../middleware/auth');
 const {
   mergeMonetizationRawJson,
-  normalizeVerifyMode,
   reconcileMonetizationState,
 } = require('../utils/monetizationState');
+const { resolveVerifyDecision } = require('../utils/purchaseVerification');
 
 const router = express.Router();
 
@@ -180,24 +180,6 @@ async function findPurchaseByIdentifier(platform, transactionId, purchaseToken) 
   return null;
 }
 
-function resolveVerifyDecision() {
-  const verifyMode = normalizeVerifyMode(
-    process.env.MONETIZATION_VERIFY_MODE || 'pending_only'
-  );
-  if (verifyMode === 'auto_active') {
-    return {
-      verify_mode: verifyMode,
-      purchase_status: 'active',
-      success_message: '결제가 확인되었습니다.',
-    };
-  }
-  return {
-    verify_mode: verifyMode,
-    purchase_status: 'pending',
-    success_message: '결제 검증 요청이 접수되었습니다.',
-  };
-}
-
 router.get('/store/catalog', async (req, res) => {
   try {
     const products = await dbAll(
@@ -290,7 +272,7 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
   }
 
   const userId = req.user.id;
-  const verifyDecision = resolveVerifyDecision();
+  const verifyDecision = resolveVerifyDecision(parsed);
 
   try {
     const product = await dbGet(
@@ -331,27 +313,37 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
         );
       }
 
+      let didUpdateExistingPurchase = false;
       if (
-        verifyDecision.purchase_status === 'active' &&
-        existingPurchase.status === 'pending'
+        existingPurchase.status === 'pending' &&
+        verifyDecision.purchase_status !== 'pending'
       ) {
+        const nextExpiresAt =
+          verifyDecision.expires_at || existingPurchase.expires_at || null;
         const promotedRawJson = mergeMonetizationRawJson(
           existingPurchase.raw_json,
           {
             verification_mode: verifyDecision.verify_mode,
             promoted_by: 'purchases/verify',
             promoted_at: new Date().toISOString(),
+            verification: verifyDecision.verification || null,
           }
         );
 
-        await dbRun(
+        const updateResult = await dbRun(
           `
           UPDATE purchases
-          SET status = 'active', raw_json = ?
+          SET status = ?, expires_at = ?, raw_json = ?
           WHERE id = ?
           `,
-          [promotedRawJson, existingPurchase.id]
+          [
+            verifyDecision.purchase_status,
+            nextExpiresAt,
+            promotedRawJson,
+            existingPurchase.id,
+          ]
         );
+        didUpdateExistingPurchase = Number(updateResult?.changes || 0) > 0;
       }
 
       await reconcileMonetizationState({ userId });
@@ -374,7 +366,9 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
 
       return res.json({
         ok: true,
-        message: '이미 처리된 결제입니다.',
+        message: didUpdateExistingPurchase
+          ? verifyDecision.success_message
+          : '이미 처리된 결제입니다.',
         purchase: mapPurchaseRow(latestPurchase || existingPurchase),
         entitlements: existingEntitlement
           ? [mapEntitlementRow(existingEntitlement)]
@@ -382,13 +376,15 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
       });
     }
 
-    const purchasedAtIso = new Date().toISOString();
+    const purchasedAtIso = verifyDecision.purchased_at || new Date().toISOString();
+    const expiresAtIso = verifyDecision.expires_at || null;
     const rawJson = mergeMonetizationRawJson(null, {
       receipt_data: parsed.receipt_data || null,
       client_meta: parsed.client_meta || null,
       verification_mode: verifyDecision.verify_mode,
       submitted_at: purchasedAtIso,
       purchase_status: verifyDecision.purchase_status,
+      verification: verifyDecision.verification || null,
     });
 
     await dbRun('BEGIN IMMEDIATE');
@@ -406,7 +402,7 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
           expires_at,
           raw_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           userId,
@@ -416,6 +412,7 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
           parsed.purchase_token,
           verifyDecision.purchase_status,
           purchasedAtIso,
+          expiresAtIso,
           rawJson,
         ]
       );

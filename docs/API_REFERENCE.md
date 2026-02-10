@@ -157,8 +157,10 @@
   - Body(required): `platform`(`apple|google|web`), `store_sku`
   - Body(platform): `transaction_id`(apple), `purchase_token` 또는 `receipt_data`(google)
   - Body(optional): `receipt_data`, `client_meta`
+  - 모드: `MONETIZATION_VERIFY_MODE` (`pending_only` 기본, `auto_active`, `receipt_inspect`)
   - 동작(기본): `purchases` 원장에 `pending` 저장 + `user_entitlements` 기본 `inactive` 생성/유지
   - 동작(옵션): 서버 `MONETIZATION_VERIFY_MODE=auto_active`일 때 `active`로 즉시 반영
+  - 동작(옵션): `receipt_inspect`일 때 `receipt_data`(JWS/JSON) 기반으로 `active|expired|refunded|canceled|pending` 추론 반영
   - 중복 처리: 같은 플랫폼 식별자 재요청 시 동일 사용자 기준 idempotent 응답
   - Response: `purchase`, `entitlements`
   - Error: 400 `INVALID_REQUEST`, 404 `RESOURCE_NOT_FOUND`, 409 `CONFLICT`, 500 `INTERNAL_ERROR`
