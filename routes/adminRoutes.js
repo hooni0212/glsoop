@@ -114,6 +114,60 @@ function parsePositiveInt(raw) {
   return parsed;
 }
 
+function normalizeEntitlementKey(raw) {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > 120) return null;
+  return trimmed;
+}
+
+function parseOptionalIsoDateTime(raw) {
+  if (raw === undefined || raw === null || raw === '') {
+    return null;
+  }
+  if (typeof raw !== 'string') {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+  return parsed.toISOString();
+}
+
+function parseEntitlementGrantPayload(body = {}) {
+  const userId = parsePositiveInt(body.user_id);
+  const entitlementKey = normalizeEntitlementKey(body.entitlement_key);
+  const source =
+    typeof body.source === 'string' && body.source.trim()
+      ? body.source.trim().toLowerCase()
+      : 'admin';
+  const endsAt = parseOptionalIsoDateTime(body.ends_at);
+
+  if (!userId) {
+    return { error: 'user_id는 1 이상의 정수여야 합니다.' };
+  }
+  if (!entitlementKey) {
+    return { error: 'entitlement_key는 문자열이어야 합니다.' };
+  }
+  if (!['admin', 'promo'].includes(source)) {
+    return { error: "source는 'admin' 또는 'promo'만 허용됩니다." };
+  }
+  if (endsAt === undefined) {
+    return { error: 'ends_at은 ISO datetime 형식이어야 합니다.' };
+  }
+
+  return {
+    userId,
+    entitlementKey,
+    source,
+    endsAt,
+  };
+}
+
 function parseCosmeticGrantPayload(body = {}) {
   const userId = parsePositiveInt(body.user_id);
   const cosmeticKey =
@@ -178,6 +232,89 @@ function parseShareSummaryQuery(query = {}) {
     dailyLimit,
   };
 }
+
+router.post('/entitlements/grant', async (req, res) => {
+  const parsed = parseEntitlementGrantPayload(req.body || {});
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  try {
+    const user = await getAsync('SELECT id FROM users WHERE id = ? LIMIT 1', [parsed.userId]);
+    if (!user) {
+      return sendAdminError(
+        res,
+        404,
+        'RESOURCE_NOT_FOUND',
+        '지급 대상 사용자를 찾을 수 없습니다.'
+      );
+    }
+
+    const metaJson = JSON.stringify({
+      granted_by_admin_id: req.user?.id || null,
+      granted_at: new Date().toISOString(),
+      route: 'admin/entitlements/grant',
+    });
+
+    await runAsync(
+      `
+      INSERT INTO user_entitlements (
+        user_id,
+        entitlement_key,
+        status,
+        source,
+        starts_at,
+        ends_at,
+        meta_json
+      )
+      VALUES (?, ?, 'active', ?, CURRENT_TIMESTAMP, ?, ?)
+      ON CONFLICT(user_id, entitlement_key) DO UPDATE SET
+        status = 'active',
+        source = excluded.source,
+        ends_at = excluded.ends_at,
+        meta_json = COALESCE(excluded.meta_json, user_entitlements.meta_json),
+        updated_at = CURRENT_TIMESTAMP
+      `,
+      [parsed.userId, parsed.entitlementKey, parsed.source, parsed.endsAt, metaJson]
+    );
+
+    const entitlement = await getAsync(
+      `
+      SELECT
+        entitlement_key,
+        status,
+        source,
+        starts_at,
+        ends_at
+      FROM user_entitlements
+      WHERE user_id = ? AND entitlement_key = ?
+      LIMIT 1
+      `,
+      [parsed.userId, parsed.entitlementKey]
+    );
+
+    return res.json({
+      ok: true,
+      message: '권한을 지급했습니다.',
+      entitlement: {
+        user_id: parsed.userId,
+        entitlement_key: entitlement?.entitlement_key || parsed.entitlementKey,
+        status: entitlement?.status || 'active',
+        source: entitlement?.source || parsed.source,
+        starts_at: entitlement?.starts_at || null,
+        ends_at: entitlement?.ends_at || null,
+      },
+    });
+  } catch (error) {
+    console.error('[admin/entitlements/grant] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '권한 지급 중 오류가 발생했습니다.'
+    );
+  }
+});
 
 router.post('/cosmetics/grant', async (req, res) => {
   const parsed = parseCosmeticGrantPayload(req.body || {});

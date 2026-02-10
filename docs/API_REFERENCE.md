@@ -16,7 +16,7 @@
 > - 성공/실패 모두 `ok`, `message` 필드를 포함합니다.
 > - 실패 응답은 `code` 필드를 포함합니다.
 > - 복합 단어 키는 `snake_case`로 통일합니다.
-> - 공통 오류 코드(1차 표준화): `INVALID_REQUEST`(400), `AUTH_REQUIRED`(401), `AUTH_INVALID_TOKEN`(401), `AUTH_INVALID_SESSION`(401), `AUTH_FORBIDDEN`(403), `RESOURCE_NOT_FOUND`(404), `CONFLICT`(409), `ALREADY_CLAIMED`(409), `INTERNAL_ERROR`(500)
+> - 공통 오류 코드(1차 표준화): `INVALID_REQUEST`(400), `AUTH_REQUIRED`(401), `AUTH_INVALID_TOKEN`(401), `AUTH_INVALID_SESSION`(401), `AUTH_FORBIDDEN`(403), `ENTITLEMENT_REQUIRED`(403), `NOT_OWNED`(403), `RESOURCE_NOT_FOUND`(404), `CONFLICT`(409), `ALREADY_CLAIMED`(409), `INTERNAL_ERROR`(500)
 > - 공유 정책(2026-02-10): Phase A/B는 클라이언트 시스템 ShareSheet만 사용하고 서버 API는 추가하지 않습니다. 공유 이벤트 로깅은 Phase C에서 필요 시 별도 API로 분리합니다.
 
 ---
@@ -112,9 +112,14 @@
 ## 6) Growth / Achievements / Quests (`/api`)
 
 - `GET /api/growth/dashboard` (**auth**) — 성장 대시보드 통합 응답 (summary + achievements + campaigns + top_posts)
+  - `campaigns[].quests[]` 추가 필드: `is_locked`(boolean), `required_entitlement`(string|null), `lock_reason`(string|null)
 - `GET /api/growth/summary` (**auth**) — 성장 요약
 - `GET /api/growth/achievements` (**auth**) — 업적 진행/해제 현황
 - `GET /api/quests/active` (**auth**) — 활성 퀘스트(캠페인) 조회
+  - `campaigns[].quests[]`에 `is_locked`, `required_entitlement`, `lock_reason` 포함
+- `POST /api/quests/:stateId/claim` (**auth**) — 퀘스트 보상 수령
+  - 잠금 퀘스트(`required_entitlement` 미보유)일 경우 403 `ENTITLEMENT_REQUIRED`
+  - Response 확장: `gained_cosmetics[]` (`key`, `name`, `icon_emoji`, `rarity`, `season`)
 - `GET /api/growth/top-posts` (**auth**) — 인기 글 요약 목록(대시보드와 동일 스키마)
 - `top_posts` 항목 필드: `id`, `title`, `excerpt`, `author_name`, `category`, `created_at`, `like_count`, `bookmark_count`
 - 하위호환: 기존 개별 엔드포인트는 유지되며, 프론트는 dashboard 우선 호출 후 필요 시 fallback
@@ -185,3 +190,9 @@ Quest Campaigns
 - `PUT /api/admin/quest-campaigns/:id` (**admin**) — 캠페인 수정
 - `DELETE /api/admin/quest-campaigns/:id` (**admin**) — 캠페인 삭제
 - `PUT /api/admin/quest-campaigns/:id/items` (**admin**) — 캠페인 아이템(템플릿 연결) 업데이트
+
+Monetization / Cosmetics (Debug)
+- `POST /api/admin/entitlements/grant` (**admin**) — 사용자 entitlement 강제 활성화(테스트/복구)
+  - Body: `user_id`, `entitlement_key`, `ends_at`(optional), `source`(`admin|promo`, optional)
+- `POST /api/admin/cosmetics/grant` (**admin**) — 사용자 코스메틱 지급(중복 요청 idempotent)
+  - Body: `user_id`, `cosmetic_key`

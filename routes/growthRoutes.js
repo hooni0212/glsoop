@@ -6,7 +6,10 @@ const {
   fetchUserAchievements,
 } = require('../utils/growth');
 const { getActiveQuestsForUser } = require('../utils/questService');
+const { mapCosmeticItem } = require('../utils/profileCosmetics');
 const db = require('../db');
+
+const LOCK_REASON_ENTITLEMENT_REQUIRED = 'SEASON_PASS_REQUIRED';
 
 function sendGrowthError(res, status, code, message) {
   return res.status(status).json({ ok: false, code, message });
@@ -39,6 +42,155 @@ function allAsync(sql, params = []) {
   });
 }
 
+function parseUiJson(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object') {
+    return raw;
+  }
+  if (typeof raw !== 'string') {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function normalizeEntitlementKey(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > 120) return null;
+  return trimmed;
+}
+
+function normalizeRewardCosmeticKeys(value) {
+  if (!Array.isArray(value)) return [];
+  const unique = new Set();
+  const keys = [];
+
+  for (const raw of value) {
+    if (typeof raw !== 'string') continue;
+    const trimmed = raw.trim();
+    if (!trimmed || unique.has(trimmed)) continue;
+    unique.add(trimmed);
+    keys.push(trimmed);
+  }
+
+  return keys;
+}
+
+function parseQuestMonetizationConfig(rawUiJson) {
+  const parsed = parseUiJson(rawUiJson);
+  const requiredEntitlement = normalizeEntitlementKey(parsed?.required_entitlement);
+  const rewardCosmeticKeys = normalizeRewardCosmeticKeys(parsed?.rewards?.cosmetics);
+  return {
+    required_entitlement: requiredEntitlement,
+    reward_cosmetic_keys: rewardCosmeticKeys,
+  };
+}
+
+async function fetchActiveEntitlementKeySet(userId) {
+  const rows = await allAsync(
+    `
+      SELECT entitlement_key
+      FROM user_entitlements
+      WHERE user_id = ?
+        AND status = 'active'
+        AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
+    `,
+    [userId]
+  );
+
+  const keys = new Set();
+  for (const row of rows) {
+    const key = normalizeEntitlementKey(row?.entitlement_key);
+    if (key) {
+      keys.add(key);
+    }
+  }
+  return keys;
+}
+
+function buildQuestLockState(quest, entitlementKeySet = new Set()) {
+  const monetization = parseQuestMonetizationConfig(quest?.uiJson);
+  const requiredEntitlement = monetization.required_entitlement || null;
+  const isLocked =
+    !!requiredEntitlement && !entitlementKeySet.has(requiredEntitlement);
+
+  return {
+    is_locked: isLocked,
+    required_entitlement: requiredEntitlement,
+    lock_reason: isLocked ? LOCK_REASON_ENTITLEMENT_REQUIRED : null,
+  };
+}
+
+async function fetchCosmeticRowsByKeys(keys = []) {
+  if (!Array.isArray(keys) || keys.length === 0) {
+    return [];
+  }
+
+  const placeholders = keys.map(() => '?').join(', ');
+  return allAsync(
+    `
+      SELECT
+        id,
+        key,
+        type,
+        name,
+        icon_emoji,
+        COALESCE(rarity, 'common') AS rarity,
+        season
+      FROM cosmetic_items
+      WHERE key IN (${placeholders})
+    `,
+    keys
+  );
+}
+
+async function grantQuestRewardCosmetics(userId, cosmeticKeys = []) {
+  if (!Array.isArray(cosmeticKeys) || cosmeticKeys.length === 0) {
+    return [];
+  }
+
+  const rows = await fetchCosmeticRowsByKeys(cosmeticKeys);
+  const itemByKey = new Map();
+  for (const row of rows) {
+    if (!row?.key) continue;
+    if (!itemByKey.has(row.key)) {
+      itemByKey.set(row.key, row);
+    }
+  }
+
+  const gained = [];
+  for (const key of cosmeticKeys) {
+    const item = itemByKey.get(key);
+    if (!item) {
+      continue;
+    }
+    if (item.type !== 'badge' && item.type !== 'sticker') {
+      continue;
+    }
+
+    const result = await runAsync(
+      `
+        INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
+        VALUES (?, ?, 'quest')
+      `,
+      [userId, item.id]
+    );
+
+    if (Number(result?.changes || 0) > 0) {
+      gained.push(mapCosmeticItem(item));
+    }
+  }
+
+  return gained;
+}
+
 function mapSummary(summary) {
   return {
     level: summary.level,
@@ -68,7 +220,7 @@ function mapAchievements(achievements = []) {
   }));
 }
 
-function mapCampaigns(campaigns = []) {
+function mapCampaigns(campaigns = [], entitlementKeySet = new Set()) {
   return campaigns.map((campaign) => ({
     id: campaign.id,
     name: campaign.name,
@@ -77,6 +229,7 @@ function mapCampaigns(campaigns = []) {
     start_at: campaign.startAt,
     end_at: campaign.endAt,
     quests: (campaign.quests || []).map((quest) => ({
+      ...buildQuestLockState(quest, entitlementKeySet),
       id: quest.id,
       state_id: quest.stateId,
       name: quest.name,
@@ -168,19 +321,21 @@ const router = express.Router();
 
 router.get('/growth/dashboard', authRequired, async (req, res) => {
   try {
-    const [summary, achievements, campaigns, topPosts] = await Promise.all([
-      fetchGrowthSummary(req.user.id),
-      fetchUserAchievements(req.user.id),
-      getActiveQuestsForUser(req.user.id),
-      fetchGrowthTopPosts(),
-    ]);
+    const [summary, achievements, campaigns, topPosts, entitlementKeySet] =
+      await Promise.all([
+        fetchGrowthSummary(req.user.id),
+        fetchUserAchievements(req.user.id),
+        getActiveQuestsForUser(req.user.id),
+        fetchGrowthTopPosts(),
+        fetchActiveEntitlementKeySet(req.user.id),
+      ]);
 
     return res.json({
       ok: true,
       message: '성장 대시보드 정보를 불러왔습니다.',
       summary: mapSummary(summary),
       achievements: mapAchievements(achievements),
-      campaigns: mapCampaigns(campaigns),
+      campaigns: mapCampaigns(campaigns, entitlementKeySet),
       top_posts: mapTopPosts(topPosts),
     });
   } catch (error) {
@@ -238,11 +393,15 @@ router.get('/growth/achievements', authRequired, async (req, res) => {
 
 router.get('/quests/active', authRequired, async (req, res) => {
   try {
-    const campaigns = await getActiveQuestsForUser(req.user.id);
+    const [campaigns, entitlementKeySet] = await Promise.all([
+      getActiveQuestsForUser(req.user.id),
+      fetchActiveEntitlementKeySet(req.user.id),
+    ]);
+
     return res.json({
       ok: true,
       message: '활성 퀘스트를 불러왔습니다.',
-      campaigns: mapCampaigns(campaigns),
+      campaigns: mapCampaigns(campaigns, entitlementKeySet),
     });
   } catch (error) {
     console.error('active quests error:', error);
@@ -261,7 +420,7 @@ router.post('/quests/:stateId/claim', authRequired, async (req, res) => {
     await runAsync('BEGIN IMMEDIATE;');
     const state = await getAsync(
       `SELECT uqs.id, uqs.user_id, uqs.completed_at, uqs.reward_claimed_at, uqs.template_id, uqs.campaign_id,
-              qt.reward_xp
+              qt.reward_xp, qt.ui_json
        FROM user_quest_state uqs
        JOIN quest_templates qt ON qt.id = uqs.template_id
        WHERE uqs.id = ? AND uqs.user_id = ?`,
@@ -288,6 +447,32 @@ router.post('/quests/:stateId/claim', authRequired, async (req, res) => {
       return sendGrowthError(res, 409, 'CONFLICT', '이미 보상을 받았습니다.');
     }
 
+    const monetization = parseQuestMonetizationConfig(state.ui_json);
+    if (monetization.required_entitlement) {
+      const entitlement = await getAsync(
+        `
+        SELECT entitlement_key
+        FROM user_entitlements
+        WHERE user_id = ?
+          AND entitlement_key = ?
+          AND status = 'active'
+          AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
+        LIMIT 1
+        `,
+        [req.user.id, monetization.required_entitlement]
+      );
+
+      if (!entitlement) {
+        await runAsync('ROLLBACK;');
+        return sendGrowthError(
+          res,
+          403,
+          'ENTITLEMENT_REQUIRED',
+          '시즌 패스가 필요합니다.'
+        );
+      }
+    }
+
     await runAsync(
       'UPDATE user_quest_state SET reward_claimed_at = ? WHERE id = ?',
       [nowIso, stateId]
@@ -305,6 +490,10 @@ router.post('/quests/:stateId/claim', authRequired, async (req, res) => {
 
     const updated = await getAsync('SELECT xp FROM users WHERE id = ?', [req.user.id]);
     const newXp = updated?.xp || 0;
+    const gainedCosmetics = await grantQuestRewardCosmetics(
+      req.user.id,
+      monetization.reward_cosmetic_keys
+    );
 
     await runAsync('COMMIT;');
     return res.json({
@@ -312,6 +501,7 @@ router.post('/quests/:stateId/claim', authRequired, async (req, res) => {
       reward_claimed_at: nowIso,
       gained_xp: gainedXp,
       new_xp: newXp,
+      gained_cosmetics: gainedCosmetics,
     });
   } catch (error) {
     try {
