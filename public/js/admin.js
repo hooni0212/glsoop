@@ -19,6 +19,17 @@ Glsoop.AdminPage = (function () {
     campaignItems: [],
   };
 
+  const shareSummaryState = {
+    from: '',
+    to: '',
+    platform: 'all',
+    surface: '',
+    channel: '',
+    topLimit: 10,
+    dailyLimit: 30,
+    initialized: false,
+  };
+
   const THEME_LABELS = {
     spring: '봄',
     summer: '여름',
@@ -52,10 +63,11 @@ Glsoop.AdminPage = (function () {
     const contentBox = document.getElementById('adminContent');
     const usersBox = document.getElementById('adminUsers');
     const postsBox = document.getElementById('adminPosts');
+    const shareSummaryBox = document.getElementById('adminShareSummary');
 
-    if (!statusBox || !contentBox || !usersBox || !postsBox) {
+    if (!statusBox || !contentBox || !usersBox || !postsBox || !shareSummaryBox) {
       console.error(
-        'adminStatus / adminContent / adminUsers / adminPosts 요소를 찾을 수 없습니다.'
+        'adminStatus / adminContent / adminUsers / adminPosts / adminShareSummary 요소를 찾을 수 없습니다.'
       );
       return;
     }
@@ -83,6 +95,7 @@ Glsoop.AdminPage = (function () {
     await loadQuestTemplates();
     await loadQuestCampaigns();
     setupAchievementBackfillButton();
+    setupShareSummaryUi(shareSummaryBox);
   }
 
   function setupThemeControls() {
@@ -192,6 +205,309 @@ Glsoop.AdminPage = (function () {
         confirmAndDeletePost(postId, card);
       }
     });
+  }
+
+
+
+  function setupShareSummaryUi(shareSummaryBox) {
+    const filterBox = document.getElementById('adminShareSummaryFilters');
+    if (!shareSummaryBox || !filterBox || shareSummaryState.initialized) return;
+
+    shareSummaryState.initialized = true;
+    renderShareSummaryFilters(filterBox);
+
+    filterBox.addEventListener('click', (e) => {
+      if (e.target.id === 'adminShareApply') {
+        e.preventDefault();
+        applyShareSummaryFilters(filterBox);
+        loadShareSummary(shareSummaryBox);
+      }
+      if (e.target.id === 'adminShareReset') {
+        e.preventDefault();
+        resetShareSummaryFilters();
+        renderShareSummaryFilters(filterBox);
+        loadShareSummary(shareSummaryBox);
+      }
+    });
+
+    filterBox.addEventListener('submit', (e) => {
+      if (e.target.id !== 'adminShareSummaryForm') return;
+      e.preventDefault();
+      applyShareSummaryFilters(filterBox);
+      loadShareSummary(shareSummaryBox);
+    });
+
+    loadShareSummary(shareSummaryBox);
+  }
+
+  function renderShareSummaryFilters(filterBox) {
+    filterBox.innerHTML = [
+      '<form id="adminShareSummaryForm" class="admin-toolbar admin-share-toolbar">',
+      '  <label>시작일<input type="date" class="gls-input gls-input-sm" id="adminShareFrom" value="' +
+        escapeHtml(shareSummaryState.from) +
+        '"></label>',
+      '  <label>종료일<input type="date" class="gls-input gls-input-sm" id="adminShareTo" value="' +
+        escapeHtml(shareSummaryState.to) +
+        '"></label>',
+      '  <label>플랫폼<select class="gls-select gls-select-sm" id="adminSharePlatform">' +
+        buildSharePlatformOptions(shareSummaryState.platform) +
+        '</select></label>',
+      '  <label>Surface<input type="search" class="gls-input gls-input-sm" id="adminShareSurface" placeholder="예: post-detail" value="' +
+        escapeHtml(shareSummaryState.surface) +
+        '"></label>',
+      '  <label>Channel<input type="search" class="gls-input gls-input-sm" id="adminShareChannel" placeholder="예: native-share-sheet" value="' +
+        escapeHtml(shareSummaryState.channel) +
+        '"></label>',
+      '  <label>Top N<input type="number" class="gls-input gls-input-sm" id="adminShareTopLimit" min="1" max="50" value="' +
+        String(shareSummaryState.topLimit) +
+        '"></label>',
+      '  <label>Daily N<input type="number" class="gls-input gls-input-sm" id="adminShareDailyLimit" min="1" max="120" value="' +
+        String(shareSummaryState.dailyLimit) +
+        '"></label>',
+      '  <div class="admin-share-toolbar__actions">',
+      '    <button class="gls-btn gls-btn-primary gls-btn-sm" type="submit" id="adminShareApply">적용</button>',
+      '    <button class="gls-btn gls-btn-secondary gls-btn-sm" type="button" id="adminShareReset">초기화</button>',
+      '  </div>',
+      '</form>',
+    ].join('');
+  }
+
+  function buildSharePlatformOptions(selected) {
+    const options = [
+      { value: 'all', label: '전체' },
+      { value: 'mobile', label: '모바일' },
+      { value: 'web', label: '웹' },
+    ];
+    return options
+      .map((option) => {
+        const selectedAttr = option.value === selected ? ' selected' : '';
+        return '<option value="' + option.value + '"' + selectedAttr + '>' + option.label + '</option>';
+      })
+      .join('');
+  }
+
+  function applyShareSummaryFilters(filterBox) {
+    const fromInput = filterBox.querySelector('#adminShareFrom');
+    const toInput = filterBox.querySelector('#adminShareTo');
+    const platformInput = filterBox.querySelector('#adminSharePlatform');
+    const surfaceInput = filterBox.querySelector('#adminShareSurface');
+    const channelInput = filterBox.querySelector('#adminShareChannel');
+    const topLimitInput = filterBox.querySelector('#adminShareTopLimit');
+    const dailyLimitInput = filterBox.querySelector('#adminShareDailyLimit');
+
+    shareSummaryState.from = fromInput?.value?.trim() || '';
+    shareSummaryState.to = toInput?.value?.trim() || '';
+
+    const selectedPlatform = (platformInput?.value || 'all').trim().toLowerCase();
+    shareSummaryState.platform = ['all', 'mobile', 'web'].includes(selectedPlatform)
+      ? selectedPlatform
+      : 'all';
+
+    shareSummaryState.surface = (surfaceInput?.value || '').trim();
+    shareSummaryState.channel = (channelInput?.value || '').trim();
+    shareSummaryState.topLimit = clampShareLimit(topLimitInput?.value, 1, 50, 10);
+    shareSummaryState.dailyLimit = clampShareLimit(dailyLimitInput?.value, 1, 120, 30);
+  }
+
+  function resetShareSummaryFilters() {
+    shareSummaryState.from = '';
+    shareSummaryState.to = '';
+    shareSummaryState.platform = 'all';
+    shareSummaryState.surface = '';
+    shareSummaryState.channel = '';
+    shareSummaryState.topLimit = 10;
+    shareSummaryState.dailyLimit = 30;
+  }
+
+  function clampShareLimit(raw, min, max, fallback) {
+    const parsed = Number.parseInt(String(raw || ''), 10);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(max, Math.max(min, parsed));
+  }
+
+  async function loadShareSummary(shareSummaryBox) {
+    shareSummaryBox.innerHTML = '<p class="gls-text-muted">공유 이벤트 통계를 불러오는 중입니다...</p>';
+
+    try {
+      const params = new URLSearchParams();
+      if (shareSummaryState.from) params.set('from', shareSummaryState.from);
+      if (shareSummaryState.to) params.set('to', shareSummaryState.to);
+      if (shareSummaryState.platform) params.set('platform', shareSummaryState.platform);
+      if (shareSummaryState.surface) params.set('surface', shareSummaryState.surface);
+      if (shareSummaryState.channel) params.set('channel', shareSummaryState.channel);
+      params.set('top_limit', String(shareSummaryState.topLimit));
+      params.set('daily_limit', String(shareSummaryState.dailyLimit));
+
+      const response = await fetch('/api/admin/share-events/summary?' + params.toString(), {
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        alert('로그인이 필요한 페이지입니다.');
+        window.location.href = '/html/login.html?next=/admin';
+        return;
+      }
+
+      if (response.status === 403) {
+        alert('관리자 권한이 필요합니다.');
+        window.location.href = '/index.html';
+        return;
+      }
+
+      if (!response.ok || !payload.ok) {
+        const message =
+          typeof payload.message === 'string'
+            ? payload.message
+            : '공유 이벤트 요약을 불러오지 못했습니다.';
+        shareSummaryBox.innerHTML = '<p class="text-danger">' + escapeHtml(message) + '</p>';
+        return;
+      }
+
+      shareSummaryBox.innerHTML = renderShareSummaryHtml(payload);
+    } catch (error) {
+      console.error('share summary 로드 실패:', error);
+      shareSummaryBox.innerHTML =
+        '<p class="text-danger">공유 이벤트 요약을 불러오는 중 오류가 발생했습니다.</p>';
+    }
+  }
+
+  function renderShareSummaryHtml(payload) {
+    const summary = payload?.summary || {};
+    const byChannel = Array.isArray(payload?.by_channel) ? payload.by_channel : [];
+    const bySurface = Array.isArray(payload?.by_surface) ? payload.by_surface : [];
+    const daily = Array.isArray(payload?.daily) ? payload.daily : [];
+
+    const totalCount = toCount(summary.total_count);
+    const sharedCount = toCount(summary.shared_count);
+    const dismissedCount = toCount(summary.dismissed_count);
+    const failedCount = toCount(summary.failed_count);
+    const uniqueUserCount = toCount(summary.unique_user_count);
+    const uniquePostCount = toCount(summary.unique_post_count);
+    const shareRate = totalCount > 0 ? ((sharedCount / totalCount) * 100).toFixed(1) : '0.0';
+
+    const cardsHtml = [
+      buildShareMetricCard('총 이벤트', formatCount(totalCount), '필터 조건 전체'),
+      buildShareMetricCard('공유 성공', formatCount(sharedCount), '성공률 ' + shareRate + '%'),
+      buildShareMetricCard('닫힘/취소', formatCount(dismissedCount), '사용자 취소 포함'),
+      buildShareMetricCard('실패', formatCount(failedCount), '에러/실패 응답'),
+      buildShareMetricCard('고유 사용자', formatCount(uniqueUserCount), '로그인 사용자 기준'),
+      buildShareMetricCard('고유 글', formatCount(uniquePostCount), 'post_id 기준'),
+    ].join('');
+
+    const channelRows = byChannel
+      .map((row) => {
+        return (
+          '<tr>' +
+          '<td>' + escapeHtml(row?.channel || '-') + '</td>' +
+          '<td class="gls-text-end">' + formatCount(toCount(row?.event_count)) + '</td>' +
+          '</tr>'
+        );
+      })
+      .join('');
+
+    const surfaceRows = bySurface
+      .map((row) => {
+        return (
+          '<tr>' +
+          '<td>' + escapeHtml(row?.surface || '-') + '</td>' +
+          '<td class="gls-text-end">' + formatCount(toCount(row?.event_count)) + '</td>' +
+          '</tr>'
+        );
+      })
+      .join('');
+
+    const dailyRows = daily
+      .map((row) => {
+        return (
+          '<tr>' +
+          '<td>' + escapeHtml(row?.day || '-') + '</td>' +
+          '<td class="gls-text-end">' + formatCount(toCount(row?.total_count)) + '</td>' +
+          '<td class="gls-text-end">' + formatCount(toCount(row?.shared_count)) + '</td>' +
+          '<td class="gls-text-end">' + formatCount(toCount(row?.dismissed_count)) + '</td>' +
+          '<td class="gls-text-end">' + formatCount(toCount(row?.failed_count)) + '</td>' +
+          '</tr>'
+        );
+      })
+      .join('');
+
+    return [
+      '<div class="admin-share-summary-grid gls-mb-3">' + cardsHtml + '</div>',
+      '<div class="admin-share-table-grid">',
+      '  <section class="admin-share-table-card card glass-card">',
+      '    <div class="card-body">',
+      '      <h5 class="gls-mb-2">채널별 이벤트</h5>',
+      '      <div class="table-responsive">',
+      '        <table class="table table-sm align-middle">',
+      '          <thead><tr><th>채널</th><th class="gls-text-end">이벤트 수</th></tr></thead>',
+      '          <tbody>' +
+        (channelRows ||
+          '<tr><td colspan="2" class="gls-text-muted gls-text-center">데이터가 없습니다.</td></tr>') +
+        '</tbody>',
+      '        </table>',
+      '      </div>',
+      '    </div>',
+      '  </section>',
+      '  <section class="admin-share-table-card card glass-card">',
+      '    <div class="card-body">',
+      '      <h5 class="gls-mb-2">Surface별 이벤트</h5>',
+      '      <div class="table-responsive">',
+      '        <table class="table table-sm align-middle">',
+      '          <thead><tr><th>Surface</th><th class="gls-text-end">이벤트 수</th></tr></thead>',
+      '          <tbody>' +
+        (surfaceRows ||
+          '<tr><td colspan="2" class="gls-text-muted gls-text-center">데이터가 없습니다.</td></tr>') +
+        '</tbody>',
+      '        </table>',
+      '      </div>',
+      '    </div>',
+      '  </section>',
+      '</div>',
+      '<section class="admin-share-table-card card glass-card gls-mt-3">',
+      '  <div class="card-body">',
+      '    <h5 class="gls-mb-2">일별 추이</h5>',
+      '    <div class="table-responsive">',
+      '      <table class="table table-sm align-middle">',
+      '        <thead>',
+      '          <tr>',
+      '            <th>일자</th>',
+      '            <th class="gls-text-end">총 이벤트</th>',
+      '            <th class="gls-text-end">공유 성공</th>',
+      '            <th class="gls-text-end">닫힘/취소</th>',
+      '            <th class="gls-text-end">실패</th>',
+      '          </tr>',
+      '        </thead>',
+      '        <tbody>' +
+        (dailyRows ||
+          '<tr><td colspan="5" class="gls-text-muted gls-text-center">데이터가 없습니다.</td></tr>') +
+        '</tbody>',
+      '      </table>',
+      '    </div>',
+      '  </div>',
+      '</section>',
+    ].join('');
+  }
+
+  function buildShareMetricCard(title, value, hint) {
+    return [
+      '<article class="admin-share-metric card glass-card">',
+      '  <div class="card-body">',
+      '    <p class="gls-text-muted gls-text-small gls-mb-1">' + escapeHtml(title) + '</p>',
+      '    <p class="admin-share-metric__value gls-mb-1">' + escapeHtml(value) + '</p>',
+      '    <p class="gls-text-muted gls-text-small gls-mb-0">' + escapeHtml(hint) + '</p>',
+      '  </div>',
+      '</article>',
+    ].join('');
+  }
+
+  function toCount(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return Math.floor(parsed);
+  }
+
+  function formatCount(value) {
+    return toCount(value).toLocaleString('ko-KR');
   }
 
   async function fetchMeAsAdmin() {

@@ -44,3 +44,54 @@
 .admin-theme-card .gls-btn:focus-visible {
   box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
 }
+
+
+.admin-share-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+}
+
+.admin-share-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--gls-muted);
+  min-width: 140px;
+}
+
+.admin-share-toolbar__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.admin-share-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-share-metric {
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.admin-share-metric__value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.admin-share-table-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 992px) {
+  .admin-share-table-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

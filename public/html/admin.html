@@ -141,6 +141,7 @@
           <div class="admin-tabs" role="tablist" aria-orientation="vertical">
             <button class="nav-link active" data-target="usersTab" type="button">Users</button>
             <button class="nav-link" data-target="postsTab" type="button">Posts</button>
+            <button class="nav-link" data-target="shareSummaryTab" type="button">Share</button>
             <button class="nav-link" data-target="questsTab" type="button">Quests</button>
           </div>
         </aside>
@@ -223,6 +224,23 @@
                   <div class="admin-modal__footer gls-flex gls-justify-end gls-gap-2">
                     <button class="gls-btn gls-btn-secondary gls-btn-sm" type="button" data-dismiss="adminPostModal">닫기</button>
                     <button class="gls-btn gls-btn-danger gls-btn-sm" type="button" id="adminPostModalDelete">이 글 삭제</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-panel gls-hidden" id="shareSummaryTab">
+              <div class="admin-panel card glass-card gls-mb-4">
+                <div class="card-body">
+                  <div class="gls-flex gls-flex-wrap gls-gap-2 gls-items-center gls-justify-between gls-mb-3 sticky-admin-toolbar">
+                    <div>
+                      <h3 class="gls-mb-0">공유 이벤트 요약</h3>
+                      <p class="gls-text-muted gls-text-small gls-mb-0">기간·플랫폼·채널 기준으로 공유 성과를 확인하세요.</p>
+                    </div>
+                    <div class="admin-filter-group" id="adminShareSummaryFilters"></div>
+                  </div>
+                  <div id="adminShareSummary">
+                    <p class="gls-text-muted">공유 이벤트 통계를 불러오는 중입니다...</p>
                   </div>
                 </div>
               </div>
