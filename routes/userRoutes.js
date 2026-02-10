@@ -5,6 +5,12 @@ const express = require('express');
 const db = require('../db');
 const { authRequired } = require('../middleware/auth');
 const { getViewerId } = require('../utils/requestUser');
+const {
+  parseStoredProfileCosmetics,
+  extractProfileCosmeticKeys,
+  makeKeyedCosmeticMap,
+  buildExpandedProfileCosmetics,
+} = require('../utils/profileCosmetics');
 
 const router = express.Router();
 
@@ -139,6 +145,48 @@ async function buildAuthorProfile(authorId) {
   };
 }
 
+async function fetchExpandedProfileCosmetics(userId) {
+  const profileRow = await dbGet(
+    `
+    SELECT
+      primary_badge_key,
+      showcase_badge_keys_json,
+      header_stickers_json
+    FROM user_profile_cosmetics
+    WHERE user_id = ?
+    LIMIT 1
+    `,
+    [userId]
+  );
+
+  const parsedProfile = parseStoredProfileCosmetics(profileRow);
+  const keys = extractProfileCosmeticKeys(parsedProfile);
+  if (keys.length === 0) {
+    return buildExpandedProfileCosmetics(parsedProfile, new Map());
+  }
+
+  const placeholders = keys.map(() => '?').join(', ');
+  const items = await dbAll(
+    `
+    SELECT
+      ci.key,
+      ci.type,
+      ci.name,
+      ci.icon_emoji,
+      COALESCE(ci.rarity, 'common') AS rarity,
+      ci.season
+    FROM user_cosmetics uc
+    JOIN cosmetic_items ci ON ci.id = uc.cosmetic_id
+    WHERE uc.user_id = ?
+      AND ci.key IN (${placeholders})
+    `,
+    [userId, ...keys]
+  );
+
+  const itemByKey = makeKeyedCosmeticMap(items);
+  return buildExpandedProfileCosmetics(parsedProfile, itemByKey);
+}
+
 function validateFollowTarget(targetUserId, viewerId, res) {
   if (!targetUserId) {
     res.status(400).json({ ok: false, message: '잘못된 요청입니다.' });
@@ -187,6 +235,7 @@ router.get('/users/:id/profile', async (req, res) => {
           [viewerId, authorId]
         ))
       : false;
+    const profileCosmetics = await fetchExpandedProfileCosmetics(authorId);
 
     return res.json({
       ok: true,
@@ -203,6 +252,7 @@ router.get('/users/:id/profile', async (req, res) => {
         total_likes: profile.total_likes,
         follower_count: profile.follower_count,
         following_count: profile.following_count,
+        profile_cosmetics: profileCosmetics,
       },
       viewer: {
         id: viewerId,

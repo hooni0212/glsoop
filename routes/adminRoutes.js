@@ -101,6 +101,34 @@ function parseBoundedInt(raw, fallback, min, max) {
   return parsed;
 }
 
+function parsePositiveInt(raw) {
+  if (typeof raw === 'number') {
+    if (!Number.isInteger(raw) || raw < 1) return null;
+    return raw;
+  }
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!/^[1-9]\d*$/.test(trimmed)) return null;
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return null;
+  return parsed;
+}
+
+function parseCosmeticGrantPayload(body = {}) {
+  const userId = parsePositiveInt(body.user_id);
+  const cosmeticKey =
+    typeof body.cosmetic_key === 'string' ? body.cosmetic_key.trim() : '';
+
+  if (!userId) {
+    return { error: 'user_id는 1 이상의 정수여야 합니다.' };
+  }
+  if (!cosmeticKey) {
+    return { error: 'cosmetic_key는 문자열이어야 합니다.' };
+  }
+
+  return { userId, cosmeticKey };
+}
+
 function parseShareSummaryQuery(query = {}) {
   const from = typeof query.from === 'string' ? query.from.trim() : '';
   const to = typeof query.to === 'string' ? query.to.trim() : '';
@@ -150,6 +178,86 @@ function parseShareSummaryQuery(query = {}) {
     dailyLimit,
   };
 }
+
+router.post('/cosmetics/grant', async (req, res) => {
+  const parsed = parseCosmeticGrantPayload(req.body || {});
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  try {
+    const [user, cosmeticItem] = await Promise.all([
+      getAsync('SELECT id FROM users WHERE id = ? LIMIT 1', [parsed.userId]),
+      getAsync(
+        `
+        SELECT
+          id,
+          key,
+          type,
+          name,
+          icon_emoji,
+          COALESCE(rarity, 'common') AS rarity,
+          season
+        FROM cosmetic_items
+        WHERE key = ?
+        LIMIT 1
+        `,
+        [parsed.cosmeticKey]
+      ),
+    ]);
+
+    if (!user) {
+      return sendAdminError(
+        res,
+        404,
+        'RESOURCE_NOT_FOUND',
+        '지급 대상 사용자를 찾을 수 없습니다.'
+      );
+    }
+    if (!cosmeticItem) {
+      return sendAdminError(
+        res,
+        404,
+        'RESOURCE_NOT_FOUND',
+        '해당 cosmetic_key를 찾을 수 없습니다.'
+      );
+    }
+
+    const result = await runAsync(
+      `
+      INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
+      VALUES (?, ?, 'admin')
+      `,
+      [parsed.userId, cosmeticItem.id]
+    );
+
+    return res.json({
+      ok: true,
+      message: '코스메틱을 지급했습니다.',
+      granted: {
+        user_id: parsed.userId,
+        source: 'admin',
+        cosmetic: {
+          key: cosmeticItem.key,
+          type: cosmeticItem.type,
+          name: cosmeticItem.name,
+          icon_emoji: cosmeticItem.icon_emoji || null,
+          rarity: cosmeticItem.rarity || 'common',
+          season: cosmeticItem.season || null,
+        },
+      },
+      inserted: Number(result?.changes || 0) > 0,
+    });
+  } catch (error) {
+    console.error('[admin/cosmetics/grant] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '코스메틱 지급 중 오류가 발생했습니다.'
+    );
+  }
+});
 
 router.get('/share-events/summary', async (req, res) => {
   const parsed = parseShareSummaryQuery(req.query || {});

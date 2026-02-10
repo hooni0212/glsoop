@@ -84,6 +84,42 @@ function calculateRetryAfterSeconds(createdAt) {
   return Math.ceil((OTP_COOLDOWN_MS - elapsedMs) / 1000);
 }
 
+function seedDefaultCosmeticsForSignup(userId, done) {
+  db.run(
+    `
+    INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
+    SELECT ?, id, 'default'
+    FROM cosmetic_items
+    WHERE key = 'badge_default_seedling'
+    `,
+    [userId],
+    (grantErr) => {
+      if (grantErr) {
+        return done(grantErr);
+      }
+
+      db.run(
+        `
+        INSERT OR IGNORE INTO user_profile_cosmetics (
+          user_id,
+          primary_badge_key,
+          showcase_badge_keys_json,
+          header_stickers_json
+        )
+        VALUES (?, 'badge_default_seedling', '[]', '[]')
+        `,
+        [userId],
+        (profileErr) => {
+          if (profileErr) {
+            return done(profileErr);
+          }
+          return done(null);
+        }
+      );
+    }
+  );
+}
+
 async function commitPendingSignup(pending) {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
@@ -112,20 +148,26 @@ async function commitPendingSignup(pending) {
 
             const newUserId = this.lastID;
 
-            db.run(
-              'DELETE FROM pending_signups WHERE id = ?',
-              [pending.id],
-              (deleteErr) => {
-                if (deleteErr) {
-                  return db.run('ROLLBACK', () => reject(deleteErr));
-                }
-
-                db.run('COMMIT', (commitErr) => {
-                  if (commitErr) return reject(commitErr);
-                  resolve(newUserId);
-                });
+            seedDefaultCosmeticsForSignup(newUserId, (cosmeticErr) => {
+              if (cosmeticErr) {
+                return db.run('ROLLBACK', () => reject(cosmeticErr));
               }
-            );
+
+              db.run(
+                'DELETE FROM pending_signups WHERE id = ?',
+                [pending.id],
+                (deleteErr) => {
+                  if (deleteErr) {
+                    return db.run('ROLLBACK', () => reject(deleteErr));
+                  }
+
+                  db.run('COMMIT', (commitErr) => {
+                    if (commitErr) return reject(commitErr);
+                    resolve(newUserId);
+                  });
+                }
+              );
+            });
           }
         );
       });
