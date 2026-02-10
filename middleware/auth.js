@@ -45,6 +45,37 @@ function authRequired(req, res, next) {
   );
 }
 
+// 선택 인증 라우트용 미들웨어
+// - 토큰이 없거나 유효하지 않으면 req.user를 null로 두고 그대로 진행
+function authOptional(req, res, next) {
+  const token = extractToken(req);
+  if (!token) {
+    req.user = null;
+    next();
+    return;
+  }
+
+  jwt.verify(
+    token,
+    JWT_SECRET,
+    {
+      algorithms: [JWT_ALGORITHM],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+    },
+    (err, decoded) => {
+      if (err || !decoded || !decoded.id) {
+        req.user = null;
+        next();
+        return;
+      }
+
+      req.user = decoded;
+      next();
+    }
+  );
+}
+
 // ✅ 관리자 전용 라우트용 미들웨어 (DB에서 is_admin을 매 요청 재확인)
 // - authRequired 이후에 배치하여 req.user.id 존재한다고 가정
 function adminRequired(req, res, next) {
@@ -71,5 +102,6 @@ function adminRequired(req, res, next) {
 
 module.exports = {
   authRequired,
+  authOptional,
   adminRequired,
 };
