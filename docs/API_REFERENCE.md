@@ -52,7 +52,17 @@
 
 ---
 
-## 3) Posts / Feed / Likes (`/api`)
+## 3) Search (`/api`)
+
+- `GET /api/search` (**public**) — 통합 검색(글/작가 분리 반환)
+  - Query: `q`(required, 1~80), `type`(`all|posts|authors`, default `all`)
+  - Query: `limit`(1~30, default 10), `offset`(0+, default 0)
+  - Response: `query`, `type`, `posts[]`, `authors[]`, `meta{ posts_count, authors_count, limit, offset }`
+  - Error: 400 `INVALID_REQUEST`, 500 `INTERNAL_ERROR`
+
+---
+
+## 4) Posts / Feed / Likes (`/api`)
 
 작성/수정/삭제
 - `POST /api/posts` (**auth**) — 글 작성
@@ -77,7 +87,7 @@
 
 ---
 
-## 4) Bookmarks (`/api`)
+## 5) Bookmarks (`/api`)
 
 북마크 폴더
 - `GET /api/bookmarks/lists` (**auth**) — 내 북마크 폴더 목록
@@ -96,7 +106,7 @@
 
 ---
 
-## 5) Growth / Achievements / Quests (`/api`)
+## 6) Growth / Achievements / Quests (`/api`)
 
 - `GET /api/growth/dashboard` (**auth**) — 성장 대시보드 통합 응답 (summary + achievements + campaigns + top_posts)
 - `GET /api/growth/summary` (**auth**) — 성장 요약
@@ -108,7 +118,7 @@
 
 ---
 
-## 6) Admin API (`/api/admin`)
+## 7) Admin API (`/api/admin`)
 
 헬스 체크
 - `GET /api/admin/` (**admin**) — admin API 연결 확인

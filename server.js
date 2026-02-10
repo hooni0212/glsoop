@@ -26,6 +26,7 @@ const userRoutes = require('./routes/userRoutes');
 const postRoutes = require('./routes/postRoutes');
 const bookmarkRoutes = require('./routes/bookmarkRoutes');
 const growthRoutes = require('./routes/growthRoutes');
+const searchRoutes = require('./routes/searchRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const adminPageRoutes = require('./routes/adminPageRoutes');
 
@@ -78,6 +79,7 @@ app.use('/api', authRoutes);
 app.use('/api', userRoutes);
 app.use('/api', postRoutes);
 app.use('/api', bookmarkRoutes);
+app.use('/api', searchRoutes);
 app.use('/api', growthRoutes);
 app.use('/api/admin', adminRoutes);
 
