@@ -16,8 +16,8 @@
 > - 성공/실패 모두 `ok`, `message` 필드를 포함합니다.
 > - 실패 응답은 `code` 필드를 포함합니다.
 > - 복합 단어 키는 `snake_case`로 통일합니다.
-> - 공통 오류 코드(1차 표준화): `INVALID_REQUEST`(400), `AUTH_REQUIRED`(401), `AUTH_INVALID_TOKEN`(401), `AUTH_INVALID_SESSION`(401), `AUTH_FORBIDDEN`(403), `RESOURCE_NOT_FOUND`(404), `CONFLICT`(409), `INTERNAL_ERROR`(500)
-- 공유 정책(2026-02-10): Phase A/B는 클라이언트 시스템 ShareSheet만 사용하고 서버 API는 추가하지 않습니다. 공유 이벤트 로깅은 Phase C에서 필요 시 별도 API로 분리합니다.
+> - 공통 오류 코드(1차 표준화): `INVALID_REQUEST`(400), `AUTH_REQUIRED`(401), `AUTH_INVALID_TOKEN`(401), `AUTH_INVALID_SESSION`(401), `AUTH_FORBIDDEN`(403), `RESOURCE_NOT_FOUND`(404), `CONFLICT`(409), `ALREADY_CLAIMED`(409), `INTERNAL_ERROR`(500)
+> - 공유 정책(2026-02-10): Phase A/B는 클라이언트 시스템 ShareSheet만 사용하고 서버 API는 추가하지 않습니다. 공유 이벤트 로깅은 Phase C에서 필요 시 별도 API로 분리합니다.
 
 ---
 
@@ -137,7 +137,29 @@
 
 ---
 
-## 8) Admin API (`/api/admin`)
+## 8) Monetization (`/api`)
+
+- `GET /api/store/catalog` (**public**) — 스토어 카탈로그 조회
+  - 활성 상품만 반환(`is_active=1`)
+  - Response: `products[]` (`store_sku`, `platform`, `product_type`, `entitlement_key`, `title`, `description`, `season`, `is_active`, `meta`)
+  - Error: 500 `INTERNAL_ERROR`
+
+- `GET /api/entitlements/me` (**auth**) — 내 entitlement 목록 조회
+  - Response: `entitlements[]` (`entitlement_key`, `status`, `starts_at`, `ends_at`, `source`)
+  - Error: 500 `INTERNAL_ERROR`
+
+- `POST /api/purchases/verify` (**auth**) — 결제 검증 요청 접수 (v1 pending 모드)
+  - Body(required): `platform`(`apple|google|web`), `store_sku`
+  - Body(platform): `transaction_id`(apple), `purchase_token` 또는 `receipt_data`(google)
+  - Body(optional): `receipt_data`, `client_meta`
+  - 동작: `purchases` 원장에 `pending` 저장 + `user_entitlements` 기본 `inactive` 생성/유지
+  - 중복 처리: 같은 플랫폼 식별자 재요청 시 동일 사용자 기준 idempotent 응답
+  - Response: `purchase`, `entitlements`
+  - Error: 400 `INVALID_REQUEST`, 404 `RESOURCE_NOT_FOUND`, 409 `CONFLICT`, 500 `INTERNAL_ERROR`
+
+---
+
+## 9) Admin API (`/api/admin`)
 
 헬스 체크
 - `GET /api/admin/` (**admin**) — admin API 연결 확인

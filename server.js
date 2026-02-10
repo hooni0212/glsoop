@@ -29,6 +29,7 @@ const growthRoutes = require('./routes/growthRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const shareRoutes = require('./routes/shareRoutes');
 const cosmeticsRoutes = require('./routes/cosmeticsRoutes');
+const monetizationRoutes = require('./routes/monetizationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const adminPageRoutes = require('./routes/adminPageRoutes');
 
@@ -85,6 +86,7 @@ app.use('/api', searchRoutes);
 app.use('/api', shareRoutes);
 app.use('/api', growthRoutes);
 app.use('/api', cosmeticsRoutes);
+app.use('/api', monetizationRoutes);
 app.use('/api/admin', adminRoutes);
 
 // 4. 루트 페이지
