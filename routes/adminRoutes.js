@@ -84,6 +84,188 @@ router.get('/', (req, res) => {
   res.json({ ok: true, message: 'admin api ready' });
 });
 
+function sendAdminError(res, status, code, message) {
+  return res.status(status).json({ ok: false, code, message });
+}
+
+function isValidIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime());
+}
+
+function parseBoundedInt(raw, fallback, min, max) {
+  if (raw === undefined) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) return null;
+  return parsed;
+}
+
+function parseShareSummaryQuery(query = {}) {
+  const from = typeof query.from === 'string' ? query.from.trim() : '';
+  const to = typeof query.to === 'string' ? query.to.trim() : '';
+  const platformRaw = typeof query.platform === 'string' ? query.platform.trim().toLowerCase() : 'all';
+  const surface = typeof query.surface === 'string' ? query.surface.trim() : '';
+  const channel = typeof query.channel === 'string' ? query.channel.trim() : '';
+  const topLimit = parseBoundedInt(query.top_limit, 10, 1, 50);
+  const dailyLimit = parseBoundedInt(query.daily_limit, 30, 1, 120);
+
+  if (from && !isValidIsoDate(from)) {
+    return { error: 'from은 YYYY-MM-DD 형식이어야 합니다.' };
+  }
+  if (to && !isValidIsoDate(to)) {
+    return { error: 'to는 YYYY-MM-DD 형식이어야 합니다.' };
+  }
+  if (from && to && from > to) {
+    return { error: 'from은 to보다 이후일 수 없습니다.' };
+  }
+
+  if (!['all', 'mobile', 'web'].includes(platformRaw)) {
+    return { error: 'platform은 all, mobile, web 중 하나여야 합니다.' };
+  }
+
+  if (surface && surface.length > 60) {
+    return { error: 'surface는 60자 이하여야 합니다.' };
+  }
+
+  if (channel && channel.length > 60) {
+    return { error: 'channel은 60자 이하여야 합니다.' };
+  }
+
+  if (topLimit === null) {
+    return { error: 'top_limit은 1~50 범위여야 합니다.' };
+  }
+
+  if (dailyLimit === null) {
+    return { error: 'daily_limit은 1~120 범위여야 합니다.' };
+  }
+
+  return {
+    from: from || null,
+    to: to || null,
+    platform: platformRaw,
+    surface: surface || null,
+    channel: channel || null,
+    topLimit,
+    dailyLimit,
+  };
+}
+
+router.get('/share-events/summary', async (req, res) => {
+  const parsed = parseShareSummaryQuery(req.query || {});
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  const { from, to, platform, surface, channel, topLimit, dailyLimit } = parsed;
+
+  const where = [];
+  const params = [];
+
+  if (from) {
+    where.push("se.created_at >= datetime(?, 'start of day')");
+    params.push(from);
+  }
+  if (to) {
+    where.push("se.created_at < datetime(?, '+1 day', 'start of day')");
+    params.push(to);
+  }
+  if (platform !== 'all') {
+    where.push('se.platform = ?');
+    params.push(platform);
+  }
+  if (surface) {
+    where.push('se.surface = ?');
+    params.push(surface);
+  }
+  if (channel) {
+    where.push('se.channel = ?');
+    params.push(channel);
+  }
+
+  const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+  try {
+    const [summaryRow, byChannel, bySurface, byDay] = await Promise.all([
+      getAsync(
+        `SELECT
+           COUNT(*) AS total_count,
+           SUM(CASE WHEN se.result = 'shared' THEN 1 ELSE 0 END) AS shared_count,
+           SUM(CASE WHEN se.result = 'dismissed' THEN 1 ELSE 0 END) AS dismissed_count,
+           SUM(CASE WHEN se.result = 'failed' THEN 1 ELSE 0 END) AS failed_count,
+           COUNT(DISTINCT CASE WHEN se.user_id IS NOT NULL THEN se.user_id END) AS unique_user_count,
+           COUNT(DISTINCT CASE WHEN se.post_id IS NOT NULL THEN se.post_id END) AS unique_post_count
+         FROM share_events se
+         ${whereClause}`,
+        params
+      ),
+      allAsync(
+        `SELECT se.channel, COUNT(*) AS event_count
+         FROM share_events se
+         ${whereClause}
+         GROUP BY se.channel
+         ORDER BY event_count DESC, se.channel ASC
+         LIMIT ?`,
+        [...params, topLimit]
+      ),
+      allAsync(
+        `SELECT se.surface, COUNT(*) AS event_count
+         FROM share_events se
+         ${whereClause}
+         GROUP BY se.surface
+         ORDER BY event_count DESC, se.surface ASC
+         LIMIT ?`,
+        [...params, topLimit]
+      ),
+      allAsync(
+        `SELECT
+           date(se.created_at) AS day,
+           COUNT(*) AS total_count,
+           SUM(CASE WHEN se.result = 'shared' THEN 1 ELSE 0 END) AS shared_count,
+           SUM(CASE WHEN se.result = 'dismissed' THEN 1 ELSE 0 END) AS dismissed_count,
+           SUM(CASE WHEN se.result = 'failed' THEN 1 ELSE 0 END) AS failed_count
+         FROM share_events se
+         ${whereClause}
+         GROUP BY date(se.created_at)
+         ORDER BY day DESC
+         LIMIT ?`,
+        [...params, dailyLimit]
+      ),
+    ]);
+
+    return res.json({
+      ok: true,
+      message: '공유 이벤트 요약을 불러왔습니다.',
+      filters: {
+        from,
+        to,
+        platform,
+        surface,
+        channel,
+      },
+      summary: {
+        total_count: Number(summaryRow?.total_count || 0),
+        shared_count: Number(summaryRow?.shared_count || 0),
+        dismissed_count: Number(summaryRow?.dismissed_count || 0),
+        failed_count: Number(summaryRow?.failed_count || 0),
+        unique_user_count: Number(summaryRow?.unique_user_count || 0),
+        unique_post_count: Number(summaryRow?.unique_post_count || 0),
+      },
+      by_channel: byChannel || [],
+      by_surface: bySurface || [],
+      daily: byDay || [],
+    });
+  } catch (error) {
+    console.error('[admin/share-events/summary] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '공유 이벤트 요약 조회 중 오류가 발생했습니다.'
+    );
+  }
+});
+
 router.get('/users', async (req, res) => {
   const { search = '', filter = 'all', sort = 'id', page = 1, adminOnly } = req.query;
   const pageSize = 20;
