@@ -17,6 +17,7 @@
 > - 실패 응답은 `code` 필드를 포함합니다.
 > - 복합 단어 키는 `snake_case`로 통일합니다.
 > - 공통 오류 코드(1차 표준화): `INVALID_REQUEST`(400), `AUTH_REQUIRED`(401), `AUTH_INVALID_TOKEN`(401), `AUTH_INVALID_SESSION`(401), `AUTH_FORBIDDEN`(403), `RESOURCE_NOT_FOUND`(404), `CONFLICT`(409), `INTERNAL_ERROR`(500)
+- 공유 정책(2026-02-10): Phase A/B는 클라이언트 시스템 ShareSheet만 사용하고 서버 API는 추가하지 않습니다. 공유 이벤트 로깅은 Phase C에서 필요 시 별도 API로 분리합니다.
 
 ---
 
