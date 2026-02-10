@@ -14,6 +14,7 @@ const cookieParser = require('cookie-parser');
 const { applySecurity } = require('./middleware/security');
 const { cleanupExpiredPending } = require('./utils/pendingSignup');
 const { runMigrations } = require('./utils/migrations');
+const { reconcileMonetizationState } = require('./utils/monetizationState');
 
 // 환경 변수 및 메일/JWT 설정, DB는 각각 모듈에서 처리
 // (실제 DB 연결 로직은 db.js, 이메일/JWT 키는 config.js에서 초기화됨)
@@ -39,6 +40,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const PENDING_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
+const MONETIZATION_RECONCILE_INTERVAL_MS = 30 * 60 * 1000;
 
 // 프록시/로드밸런서 뒤에서도 올바른 프로토콜 정보를 사용하기 위함
 app.set('trust proxy', 1);
@@ -115,11 +117,31 @@ const startServer = async () => {
     console.error('pending signup cleanup failed:', error);
   });
 
+  const runMonetizationReconcile = () => {
+    reconcileMonetizationState()
+      .then((summary) => {
+        const changedCount =
+          Number(summary?.expired_purchases || 0) +
+          Number(summary?.activated_entitlements || 0) +
+          Number(summary?.deactivated_entitlements || 0);
+        if (changedCount > 0) {
+          console.log('[monetization/reconcile] summary:', summary);
+        }
+      })
+      .catch((error) => {
+        console.error('monetization reconcile failed:', error);
+      });
+  };
+
+  runMonetizationReconcile();
+
   setInterval(() => {
     cleanupExpiredPending().catch((error) => {
       console.error('pending signup cleanup failed:', error);
     });
   }, PENDING_CLEANUP_INTERVAL_MS);
+
+  setInterval(runMonetizationReconcile, MONETIZATION_RECONCILE_INTERVAL_MS);
 };
 
 startServer();

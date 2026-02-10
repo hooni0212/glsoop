@@ -10,6 +10,8 @@ const E2E_JWT_ISSUER = 'glsoop';
 const E2E_JWT_AUDIENCE = 'glsoop-client';
 
 const TEST_USER_ID = 9901;
+const TEST_USER_REFUND_ID = 9902;
+const ADMIN_USER_ID = 9903;
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -80,6 +82,34 @@ const seedMonetizationFixtures = async () => {
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [TEST_USER_ID, 'Buyer Fixture', 'buyer_fixture', 'buyer-fixture@glsoop.test', 'password', 0, 1]
   );
+  await dbRun(
+    db,
+    `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      TEST_USER_REFUND_ID,
+      'Buyer Refund Fixture',
+      'buyer_refund_fixture',
+      'buyer-refund-fixture@glsoop.test',
+      'password',
+      0,
+      1,
+    ]
+  );
+  await dbRun(
+    db,
+    `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      ADMIN_USER_ID,
+      'Admin Fixture',
+      'admin_fixture',
+      'admin-fixture@glsoop.test',
+      'password',
+      1,
+      1,
+    ]
+  );
 
   await dbRun(
     db,
@@ -114,8 +144,18 @@ const seedMonetizationFixtures = async () => {
   );
   await dbRun(
     db,
+    'DELETE FROM purchases WHERE user_id = ?',
+    [TEST_USER_REFUND_ID]
+  );
+  await dbRun(
+    db,
     'DELETE FROM user_entitlements WHERE user_id = ?',
     [TEST_USER_ID]
+  );
+  await dbRun(
+    db,
+    'DELETE FROM user_entitlements WHERE user_id = ?',
+    [TEST_USER_REFUND_ID]
   );
 
   await dbRun(db, 'PRAGMA foreign_keys = ON');
@@ -291,5 +331,163 @@ test.describe('Monetization API', () => {
       ok: false,
       code: 'RESOURCE_NOT_FOUND',
     });
+  });
+
+  test('admin can activate pending purchase and sync entitlement', async ({
+    request,
+  }) => {
+    const buyerToken = signAuthToken({
+      id: TEST_USER_ID,
+      name: 'Buyer Fixture',
+      nickname: 'buyer_fixture',
+      email: 'buyer-fixture@glsoop.test',
+    });
+    const adminToken = signAuthToken({
+      id: ADMIN_USER_ID,
+      name: 'Admin Fixture',
+      nickname: 'admin_fixture',
+      email: 'admin-fixture@glsoop.test',
+      isAdmin: true,
+    });
+    const txId = `apple-admin-activate-${Date.now()}`;
+    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+    const verifyResponse = await request.post('/api/purchases/verify', {
+      headers: { Authorization: `Bearer ${buyerToken}` },
+      data: {
+        platform: 'apple',
+        store_sku: 'pass_2026_spring',
+        transaction_id: txId,
+        receipt_data: 'base64-test-receipt',
+      },
+    });
+    expect(verifyResponse.status()).toBe(200);
+
+    const reconcileResponse = await request.post('/api/admin/purchases/reconcile', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: {
+        platform: 'apple',
+        transaction_id: txId,
+        status: 'active',
+        expires_at: expiresAt,
+        source: 'admin',
+        reason: 'e2e activate pending purchase',
+      },
+    });
+    expect(reconcileResponse.status()).toBe(200);
+    const reconcilePayload = await reconcileResponse.json();
+    expect(reconcilePayload.ok).toBe(true);
+    expect(reconcilePayload.purchase).toMatchObject({
+      user_id: TEST_USER_ID,
+      status: 'active',
+    });
+    expect(reconcilePayload.entitlement).toMatchObject({
+      user_id: TEST_USER_ID,
+      entitlement_key: 'pass:2026_spring',
+      status: 'active',
+      source: 'iap',
+    });
+
+    const db = new sqlite3.Database(DB_PATH);
+    const purchaseRow = await dbGet(
+      db,
+      'SELECT status, expires_at FROM purchases WHERE platform = ? AND transaction_id = ? LIMIT 1',
+      ['apple', txId]
+    );
+    const entitlementRow = await dbGet(
+      db,
+      'SELECT status, source, ends_at FROM user_entitlements WHERE user_id = ? AND entitlement_key = ? LIMIT 1',
+      [TEST_USER_ID, 'pass:2026_spring']
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(purchaseRow.status).toBe('active');
+    expect(purchaseRow.expires_at).toBe(expiresAt);
+    expect(entitlementRow.status).toBe('active');
+    expect(entitlementRow.source).toBe('iap');
+    expect(entitlementRow.ends_at).toBe(expiresAt);
+  });
+
+  test('admin can mark purchase refunded and entitlement becomes inactive', async ({
+    request,
+  }) => {
+    const buyerToken = signAuthToken({
+      id: TEST_USER_REFUND_ID,
+      name: 'Buyer Refund Fixture',
+      nickname: 'buyer_refund_fixture',
+      email: 'buyer-refund-fixture@glsoop.test',
+    });
+    const adminToken = signAuthToken({
+      id: ADMIN_USER_ID,
+      name: 'Admin Fixture',
+      nickname: 'admin_fixture',
+      email: 'admin-fixture@glsoop.test',
+      isAdmin: true,
+    });
+    const txId = `apple-admin-refund-${Date.now()}`;
+
+    const verifyResponse = await request.post('/api/purchases/verify', {
+      headers: { Authorization: `Bearer ${buyerToken}` },
+      data: {
+        platform: 'apple',
+        store_sku: 'pass_2026_spring',
+        transaction_id: txId,
+        receipt_data: 'base64-test-receipt',
+      },
+    });
+    expect(verifyResponse.status()).toBe(200);
+
+    const activateResponse = await request.post('/api/admin/purchases/reconcile', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: {
+        platform: 'apple',
+        transaction_id: txId,
+        status: 'active',
+        source: 'admin',
+        reason: 'e2e activate before refund',
+      },
+    });
+    expect(activateResponse.status()).toBe(200);
+
+    const refundResponse = await request.post('/api/admin/purchases/reconcile', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: {
+        platform: 'apple',
+        transaction_id: txId,
+        status: 'refunded',
+        source: 'admin',
+        reason: 'e2e refund',
+      },
+    });
+    expect(refundResponse.status()).toBe(200);
+    const refundPayload = await refundResponse.json();
+    expect(refundPayload.ok).toBe(true);
+    expect(refundPayload.purchase).toMatchObject({
+      user_id: TEST_USER_REFUND_ID,
+      status: 'refunded',
+    });
+    expect(refundPayload.entitlement).toMatchObject({
+      user_id: TEST_USER_REFUND_ID,
+      entitlement_key: 'pass:2026_spring',
+      status: 'inactive',
+      source: 'iap',
+    });
+
+    const db = new sqlite3.Database(DB_PATH);
+    const purchaseRow = await dbGet(
+      db,
+      'SELECT status FROM purchases WHERE platform = ? AND transaction_id = ? LIMIT 1',
+      ['apple', txId]
+    );
+    const entitlementRow = await dbGet(
+      db,
+      'SELECT status, source FROM user_entitlements WHERE user_id = ? AND entitlement_key = ? LIMIT 1',
+      [TEST_USER_REFUND_ID, 'pass:2026_spring']
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(purchaseRow.status).toBe('refunded');
+    expect(entitlementRow.status).toBe('inactive');
+    expect(entitlementRow.source).toBe('iap');
   });
 });

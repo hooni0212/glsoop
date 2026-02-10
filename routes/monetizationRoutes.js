@@ -2,6 +2,11 @@ const express = require('express');
 
 const db = require('../db');
 const { authRequired } = require('../middleware/auth');
+const {
+  mergeMonetizationRawJson,
+  normalizeVerifyMode,
+  reconcileMonetizationState,
+} = require('../utils/monetizationState');
 
 const router = express.Router();
 
@@ -141,7 +146,8 @@ async function findPurchaseByIdentifier(platform, transactionId, purchaseToken) 
         store_sku,
         status,
         purchased_at,
-        expires_at
+        expires_at,
+        raw_json
       FROM purchases
       WHERE platform = ? AND transaction_id = ?
       LIMIT 1
@@ -161,7 +167,8 @@ async function findPurchaseByIdentifier(platform, transactionId, purchaseToken) 
         store_sku,
         status,
         purchased_at,
-        expires_at
+        expires_at,
+        raw_json
       FROM purchases
       WHERE platform = ? AND purchase_token = ?
       LIMIT 1
@@ -171,6 +178,24 @@ async function findPurchaseByIdentifier(platform, transactionId, purchaseToken) 
   }
 
   return null;
+}
+
+function resolveVerifyDecision() {
+  const verifyMode = normalizeVerifyMode(
+    process.env.MONETIZATION_VERIFY_MODE || 'pending_only'
+  );
+  if (verifyMode === 'auto_active') {
+    return {
+      verify_mode: verifyMode,
+      purchase_status: 'active',
+      success_message: '결제가 확인되었습니다.',
+    };
+  }
+  return {
+    verify_mode: verifyMode,
+    purchase_status: 'pending',
+    success_message: '결제 검증 요청이 접수되었습니다.',
+  };
 }
 
 router.get('/store/catalog', async (req, res) => {
@@ -225,6 +250,8 @@ router.get('/store/catalog', async (req, res) => {
 
 router.get('/entitlements/me', authRequired, async (req, res) => {
   try {
+    await reconcileMonetizationState({ userId: req.user.id });
+
     const rows = await dbAll(
       `
       SELECT
@@ -263,6 +290,7 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
   }
 
   const userId = req.user.id;
+  const verifyDecision = resolveVerifyDecision();
 
   try {
     const product = await dbGet(
@@ -303,6 +331,37 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
         );
       }
 
+      if (
+        verifyDecision.purchase_status === 'active' &&
+        existingPurchase.status === 'pending'
+      ) {
+        const promotedRawJson = mergeMonetizationRawJson(
+          existingPurchase.raw_json,
+          {
+            verification_mode: verifyDecision.verify_mode,
+            promoted_by: 'purchases/verify',
+            promoted_at: new Date().toISOString(),
+          }
+        );
+
+        await dbRun(
+          `
+          UPDATE purchases
+          SET status = 'active', raw_json = ?
+          WHERE id = ?
+          `,
+          [promotedRawJson, existingPurchase.id]
+        );
+      }
+
+      await reconcileMonetizationState({ userId });
+
+      const latestPurchase = await findPurchaseByIdentifier(
+        parsed.platform,
+        parsed.transaction_id,
+        parsed.purchase_token
+      );
+
       const existingEntitlement = await dbGet(
         `
         SELECT entitlement_key, status, starts_at, ends_at, source
@@ -316,7 +375,7 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
       return res.json({
         ok: true,
         message: '이미 처리된 결제입니다.',
-        purchase: mapPurchaseRow(existingPurchase),
+        purchase: mapPurchaseRow(latestPurchase || existingPurchase),
         entitlements: existingEntitlement
           ? [mapEntitlementRow(existingEntitlement)]
           : [],
@@ -324,11 +383,12 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
     }
 
     const purchasedAtIso = new Date().toISOString();
-    const rawJson = serializeRawPayload({
+    const rawJson = mergeMonetizationRawJson(null, {
       receipt_data: parsed.receipt_data || null,
       client_meta: parsed.client_meta || null,
-      verification_mode: 'pending_only',
+      verification_mode: verifyDecision.verify_mode,
       submitted_at: purchasedAtIso,
+      purchase_status: verifyDecision.purchase_status,
     });
 
     await dbRun('BEGIN IMMEDIATE');
@@ -346,7 +406,7 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
           expires_at,
           raw_json
         )
-        VALUES (?, ?, ?, ?, ?, 'pending', ?, NULL, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)
         `,
         [
           userId,
@@ -354,6 +414,7 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
           parsed.store_sku,
           parsed.transaction_id,
           parsed.purchase_token,
+          verifyDecision.purchase_status,
           purchasedAtIso,
           rawJson,
         ]
@@ -361,7 +422,7 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
 
       const entitlementMeta = serializeRawPayload({
         source: 'iap',
-        verification_mode: 'pending_only',
+        verification_mode: verifyDecision.verify_mode,
         purchase_id: insertPurchase.lastID,
         store_sku: parsed.store_sku,
         platform: parsed.platform,
@@ -405,6 +466,8 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
       throw error;
     }
 
+    await reconcileMonetizationState({ userId });
+
     const [purchaseRow, entitlementRow] = await Promise.all([
       findPurchaseByIdentifier(
         parsed.platform,
@@ -424,7 +487,7 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
 
     return res.json({
       ok: true,
-      message: '결제 검증 요청이 접수되었습니다.',
+      message: verifyDecision.success_message,
       purchase: mapPurchaseRow(purchaseRow),
       entitlements: entitlementRow ? [mapEntitlementRow(entitlementRow)] : [],
     });

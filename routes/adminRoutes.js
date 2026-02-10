@@ -2,6 +2,11 @@ const express = require('express');
 const db = require('../db');
 const { authRequired, adminRequired } = require('../middleware/auth');
 const { allAsync, getAsync, runAsync } = require('../utils/questService');
+const {
+  mergeMonetizationRawJson,
+  normalizePurchaseStatus,
+  reconcileMonetizationState,
+} = require('../utils/monetizationState');
 
 const router = express.Router();
 
@@ -168,6 +173,116 @@ function parseEntitlementGrantPayload(body = {}) {
   };
 }
 
+const MONETIZATION_PLATFORMS = new Set(['apple', 'google', 'web']);
+
+function normalizeShortString(raw, maxLength = 255) {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.length > maxLength) return null;
+  return trimmed;
+}
+
+function normalizeMonetizationPlatform(raw) {
+  const normalized = normalizeShortString(raw, 20)?.toLowerCase();
+  if (!normalized || !MONETIZATION_PLATFORMS.has(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
+function parsePurchaseReconcilePayload(body = {}) {
+  const purchaseId = parsePositiveInt(body.purchase_id);
+  const platform = normalizeMonetizationPlatform(body.platform);
+  const transactionId = normalizeShortString(body.transaction_id, 255);
+  const purchaseToken = normalizeShortString(body.purchase_token, 400);
+  const status = normalizePurchaseStatus(body.status);
+  const hasExpiresAt = Object.prototype.hasOwnProperty.call(body, 'expires_at');
+  const expiresAt = hasExpiresAt
+    ? parseOptionalIsoDateTime(body.expires_at)
+    : null;
+  const source =
+    typeof body.source === 'string' && body.source.trim()
+      ? body.source.trim().toLowerCase()
+      : 'admin';
+  const reason = normalizeShortString(body.reason, 200);
+
+  if (!status) {
+    return {
+      error:
+        "status는 'active', 'expired', 'refunded', 'canceled', 'pending' 중 하나여야 합니다.",
+    };
+  }
+  if (!['admin', 'promo', 'iap'].includes(source)) {
+    return { error: "source는 'admin', 'promo', 'iap'만 허용됩니다." };
+  }
+  if (hasExpiresAt && expiresAt === undefined) {
+    return { error: 'expires_at은 ISO datetime 형식이어야 합니다.' };
+  }
+
+  const hasLookupById = Boolean(purchaseId);
+  const hasLookupByIdentifier = Boolean(platform && (transactionId || purchaseToken));
+  if (!hasLookupById && !hasLookupByIdentifier) {
+    return {
+      error:
+        'purchase_id 또는 (platform + transaction_id/purchase_token) 조합이 필요합니다.',
+    };
+  }
+  if (hasLookupById && (platform || transactionId || purchaseToken)) {
+    return {
+      error:
+        'purchase_id를 사용할 때는 platform/transaction_id/purchase_token을 함께 보낼 수 없습니다.',
+    };
+  }
+
+  return {
+    purchaseId: hasLookupById ? purchaseId : null,
+    platform: hasLookupByIdentifier ? platform : null,
+    transactionId: hasLookupByIdentifier ? transactionId : null,
+    purchaseToken: hasLookupByIdentifier ? purchaseToken : null,
+    status,
+    expiresAt,
+    hasExpiresAt,
+    source,
+    reason: reason || null,
+  };
+}
+
+function parseMonetizationReconcilePayload(body = {}) {
+  if (body.user_id === undefined || body.user_id === null || body.user_id === '') {
+    return { userId: null };
+  }
+  const userId = parsePositiveInt(body.user_id);
+  if (!userId) {
+    return { error: 'user_id는 1 이상의 정수여야 합니다.' };
+  }
+  return { userId };
+}
+
+function mapAdminPurchaseRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    platform: row.platform,
+    store_sku: row.store_sku,
+    status: row.status,
+    purchased_at: row.purchased_at,
+    expires_at: row.expires_at || null,
+  };
+}
+
+function mapAdminEntitlementRow(row) {
+  if (!row) return null;
+  return {
+    user_id: row.user_id,
+    entitlement_key: row.entitlement_key,
+    status: row.status,
+    source: row.source,
+    starts_at: row.starts_at || null,
+    ends_at: row.ends_at || null,
+  };
+}
+
 function parseCosmeticGrantPayload(body = {}) {
   const userId = parsePositiveInt(body.user_id);
   const cosmeticKey =
@@ -312,6 +427,176 @@ router.post('/entitlements/grant', async (req, res) => {
       500,
       'INTERNAL_ERROR',
       '권한 지급 중 오류가 발생했습니다.'
+    );
+  }
+});
+
+router.post('/purchases/reconcile', async (req, res) => {
+  const parsed = parsePurchaseReconcilePayload(req.body || {});
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  const selectPurchaseBase = `
+    SELECT
+      p.id,
+      p.user_id,
+      p.platform,
+      p.store_sku,
+      p.transaction_id,
+      p.purchase_token,
+      p.status,
+      p.purchased_at,
+      p.expires_at,
+      p.raw_json,
+      pr.entitlement_key
+    FROM purchases p
+    LEFT JOIN products pr
+      ON pr.platform = p.platform
+     AND pr.store_sku = p.store_sku
+  `;
+
+  try {
+    let purchase = null;
+    if (parsed.purchaseId) {
+      purchase = await getAsync(
+        `
+        ${selectPurchaseBase}
+        WHERE p.id = ?
+        LIMIT 1
+        `,
+        [parsed.purchaseId]
+      );
+    } else {
+      const identifierClauses = [];
+      const identifierParams = [parsed.platform];
+      if (parsed.transactionId) {
+        identifierClauses.push('p.transaction_id = ?');
+        identifierParams.push(parsed.transactionId);
+      }
+      if (parsed.purchaseToken) {
+        identifierClauses.push('p.purchase_token = ?');
+        identifierParams.push(parsed.purchaseToken);
+      }
+
+      purchase = await getAsync(
+        `
+        ${selectPurchaseBase}
+        WHERE p.platform = ?
+          AND (${identifierClauses.join(' OR ')})
+        ORDER BY p.id DESC
+        LIMIT 1
+        `,
+        identifierParams
+      );
+    }
+
+    if (!purchase) {
+      return sendAdminError(
+        res,
+        404,
+        'RESOURCE_NOT_FOUND',
+        '해당 결제 레코드를 찾을 수 없습니다.'
+      );
+    }
+
+    const nextExpiresAt = parsed.hasExpiresAt
+      ? parsed.expiresAt
+      : purchase.expires_at || null;
+
+    const reconciledRawJson = mergeMonetizationRawJson(purchase.raw_json, {
+      admin_reconcile: {
+        actor_user_id: req.user?.id || null,
+        source: parsed.source,
+        reason: parsed.reason,
+        status: parsed.status,
+        expires_at: nextExpiresAt,
+        reconciled_at: new Date().toISOString(),
+      },
+    });
+
+    await runAsync(
+      `
+      UPDATE purchases
+      SET
+        status = ?,
+        expires_at = ?,
+        raw_json = ?
+      WHERE id = ?
+      `,
+      [parsed.status, nextExpiresAt, reconciledRawJson, purchase.id]
+    );
+
+    const summary = await reconcileMonetizationState({ userId: purchase.user_id });
+
+    const updatedPurchase = await getAsync(
+      `
+      ${selectPurchaseBase}
+      WHERE p.id = ?
+      LIMIT 1
+      `,
+      [purchase.id]
+    );
+
+    const entitlement = updatedPurchase?.entitlement_key
+      ? await getAsync(
+          `
+          SELECT
+            user_id,
+            entitlement_key,
+            status,
+            source,
+            starts_at,
+            ends_at
+          FROM user_entitlements
+          WHERE user_id = ? AND entitlement_key = ?
+          LIMIT 1
+          `,
+          [updatedPurchase.user_id, updatedPurchase.entitlement_key]
+        )
+      : null;
+
+    return res.json({
+      ok: true,
+      message: '결제 상태를 반영했습니다.',
+      purchase: mapAdminPurchaseRow(updatedPurchase),
+      entitlement: mapAdminEntitlementRow(entitlement),
+      summary,
+    });
+  } catch (error) {
+    console.error('[admin/purchases/reconcile] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '결제 상태 반영 중 오류가 발생했습니다.'
+    );
+  }
+});
+
+router.post('/monetization/reconcile', async (req, res) => {
+  const parsed = parseMonetizationReconcilePayload(req.body || {});
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  try {
+    const summary = await reconcileMonetizationState({ userId: parsed.userId });
+    return res.json({
+      ok: true,
+      message: '유료화 상태 동기화를 완료했습니다.',
+      summary,
+      scope: {
+        user_id: parsed.userId,
+      },
+    });
+  } catch (error) {
+    console.error('[admin/monetization/reconcile] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '유료화 상태 동기화 중 오류가 발생했습니다.'
     );
   }
 });

@@ -153,11 +153,12 @@
   - Response: `entitlements[]` (`entitlement_key`, `status`, `starts_at`, `ends_at`, `source`)
   - Error: 500 `INTERNAL_ERROR`
 
-- `POST /api/purchases/verify` (**auth**) — 결제 검증 요청 접수 (v1 pending 모드)
+- `POST /api/purchases/verify` (**auth**) — 결제 검증 요청/처리
   - Body(required): `platform`(`apple|google|web`), `store_sku`
   - Body(platform): `transaction_id`(apple), `purchase_token` 또는 `receipt_data`(google)
   - Body(optional): `receipt_data`, `client_meta`
-  - 동작: `purchases` 원장에 `pending` 저장 + `user_entitlements` 기본 `inactive` 생성/유지
+  - 동작(기본): `purchases` 원장에 `pending` 저장 + `user_entitlements` 기본 `inactive` 생성/유지
+  - 동작(옵션): 서버 `MONETIZATION_VERIFY_MODE=auto_active`일 때 `active`로 즉시 반영
   - 중복 처리: 같은 플랫폼 식별자 재요청 시 동일 사용자 기준 idempotent 응답
   - Response: `purchase`, `entitlements`
   - Error: 400 `INVALID_REQUEST`, 404 `RESOURCE_NOT_FOUND`, 409 `CONFLICT`, 500 `INTERNAL_ERROR`
@@ -194,5 +195,13 @@ Quest Campaigns
 Monetization / Cosmetics (Debug)
 - `POST /api/admin/entitlements/grant` (**admin**) — 사용자 entitlement 강제 활성화(테스트/복구)
   - Body: `user_id`, `entitlement_key`, `ends_at`(optional), `source`(`admin|promo`, optional)
+- `POST /api/admin/purchases/reconcile` (**admin**) — 결제 상태 강제 반영 + entitlement 동기화
+  - Lookup: `purchase_id` 또는 `platform + (transaction_id|purchase_token)`
+  - Body(required): `status`(`active|expired|refunded|canceled|pending`)
+  - Body(optional): `expires_at`(ISO datetime), `source`(`admin|promo|iap`), `reason`
+  - Response: `purchase`, `entitlement`, `summary`
+- `POST /api/admin/monetization/reconcile` (**admin**) — 만료/상태 동기화 수동 실행
+  - Body(optional): `user_id` (없으면 전체)
+  - Response: `summary{expired_purchases, activated_entitlements, deactivated_entitlements}`
 - `POST /api/admin/cosmetics/grant` (**admin**) — 사용자 코스메틱 지급(중복 요청 idempotent)
   - Body: `user_id`, `cosmetic_key`
