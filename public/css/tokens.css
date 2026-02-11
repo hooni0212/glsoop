@@ -1,14 +1,14 @@
 /* 글숲 Design Tokens: tokens.css */
 :root {
   /* Layout / Width */
-  --gls-content-max: 1120px;
+  --gls-content-max: 1180px;
   --gls-content-read: 860px;
   --gls-content-width: 760px;
   --gls-fullbleed-width: 1400px;
   --gls-gutter: 16px;
-  --gls-inner-width: 1320px;
-  --gls-nav-height: 110px;
-  --gls-page-margin: 32px;
+  --gls-inner-width: 1380px;
+  --gls-nav-height: 102px;
+  --gls-page-margin: 34px;
   --gls-page-max-width: var(--gls-content-max);
   --gls-sticky-offset: calc(var(--gls-nav-height) + var(--gls-space-4, 16px));
   /* Spacing */
@@ -21,18 +21,19 @@
   --gls-space-7: 32px;
   --gls-space-8: 40px;
   /* Radius */
-  --gls-btn-radius: 12px;
+  --gls-btn-radius: 14px;
   --gls-card-gap: var(--gls-space-5, 20px);
   --gls-radius-card: var(--gls-radius-lg);
-  --gls-radius-hero: 20px;
-  --gls-radius-lg: 18px;
+  --gls-radius-hero: 24px;
+  --gls-radius-lg: 20px;
   --gls-radius-md: 14px;
   --gls-radius-pill: 999px;
   --gls-radius-sm: 10px;
   /* Typography */
-  --gls-font-sans: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --gls-font-hand: 'Nanum Pen Script', cursive;
-  --gls-font-serif: 'Nanum Myeongjo', serif;
+  --gls-font-sans: 'IBM Plex Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --gls-font-hand: 'Gaegu', cursive;
+  --gls-font-serif: 'Hahmlet', 'Nanum Myeongjo', serif;
+  --gls-font-brand: 'Gaegu', 'Nanum Pen Script', cursive;
   --gls-btn-font-weight: 600;
   --gls-fs-lg: 1.22rem;
   --gls-fs-md: 1.0625rem;
@@ -44,49 +45,49 @@
   --gls-lh-tight: 1.28;
 
   /* Colors (semantic) */
-  --gls-color-bg: #e9ece5;
-  --gls-color-border: #d5decf;
-  --gls-color-highlight: #e7f2e8;
-  --gls-color-muted: #5c655e;
-  --gls-color-overlay: rgba(255, 255, 255, 0.7);
-  --gls-color-overlay-strong: rgba(255, 255, 255, 0.85);
-  --gls-color-primary: #2e8b57;
-  --gls-color-primary-fade: rgba(46, 139, 87, 0.08);
-  --gls-color-primary-strong: #226b45;
-  --gls-color-surface: #ffffff;
-  --gls-color-surface-strong: #f0f3ec;
-  --gls-color-surface-subtle: #f7f9f4;
-  --gls-color-text: #1f2a2b;
-  --gls-color-hero-subtitle: #555555;
-  --gls-color-hero-cta-hover: #28794a;
-  --gls-color-search-input: #ffffff;
-  --gls-color-search-placeholder: #bbbbbb;
-  --gls-color-search-accent: #00d1b2;
-  --gls-footer-bg: linear-gradient(90deg, #2e8b57, #3ca66c);
-  --gls-footer-text: #fdfdfd;
-  --gls-footer-border: rgba(255, 255, 255, 0.12);
-  --gls-footer-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
-  --gls-footer-link: #fdfdfd;
+  --gls-color-bg: #efe8db;
+  --gls-color-border: #cfc3ad;
+  --gls-color-highlight: #f6eddc;
+  --gls-color-muted: #5f5a4f;
+  --gls-color-overlay: rgba(255, 249, 241, 0.72);
+  --gls-color-overlay-strong: rgba(255, 249, 241, 0.9);
+  --gls-color-primary: #1f6b4b;
+  --gls-color-primary-fade: rgba(31, 107, 75, 0.12);
+  --gls-color-primary-strong: #145137;
+  --gls-color-surface: #fffdf8;
+  --gls-color-surface-strong: #f6efe3;
+  --gls-color-surface-subtle: #fbf5ea;
+  --gls-color-text: #1b2620;
+  --gls-color-hero-subtitle: #4f5c53;
+  --gls-color-hero-cta-hover: #1a5d40;
+  --gls-color-search-input: #fffdf8;
+  --gls-color-search-placeholder: #9e9686;
+  --gls-color-search-accent: #d0762a;
+  --gls-footer-bg: linear-gradient(115deg, #1b5d41, #2d7e5a 58%, #216d4c);
+  --gls-footer-text: #f8f7f2;
+  --gls-footer-border: rgba(255, 255, 255, 0.18);
+  --gls-footer-shadow: 0 -10px 28px rgba(17, 43, 31, 0.18);
+  --gls-footer-link: #f8f7f2;
   /* Shadows */
-  --gls-shadow-accent: 0 12px 30px rgba(46, 139, 87, 0.2);
+  --gls-shadow-accent: 0 16px 36px rgba(31, 107, 75, 0.24);
   --gls-shadow-card: var(--gls-shadow-sm);
   --gls-shadow-card-hover: var(--gls-shadow-hover);
-  --gls-shadow-hover: 0 16px 32px rgba(19, 34, 30, 0.12);
-  --gls-shadow-md: 0 12px 30px rgba(19, 34, 30, 0.08);
-  --gls-shadow-sm: 0 8px 20px rgba(19, 34, 30, 0.06);
+  --gls-shadow-hover: 0 22px 46px rgba(40, 29, 13, 0.17);
+  --gls-shadow-md: 0 14px 34px rgba(40, 29, 13, 0.12);
+  --gls-shadow-sm: 0 8px 24px rgba(40, 29, 13, 0.08);
   --gls-shadow-surface: var(--gls-shadow-md);
   /* Glass / Surface helpers */
   --gls-blur: var(--gls-glass-blur);
   --gls-border: var(--gls-glass-border);
-  --gls-glass-bg: rgba(255, 255, 255, 0.28);
-  --gls-glass-bg-strong: rgba(255, 255, 255, 0.42);
-  --gls-glass-bg-subtle: rgba(255, 255, 255, 0.18);
-  --gls-glass-blur: 12px;
+  --gls-glass-bg: rgba(255, 252, 245, 0.34);
+  --gls-glass-bg-strong: rgba(255, 252, 245, 0.56);
+  --gls-glass-bg-subtle: rgba(255, 252, 245, 0.22);
+  --gls-glass-blur: 14px;
   --gls-ui-blur: 10px;
-  --gls-glass-border: rgba(30, 42, 51, 0.12);
+  --gls-glass-border: rgba(47, 39, 27, 0.14);
   --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
-  --gls-glass-shadow: 0 12px 30px rgba(19, 34, 30, 0.10);
-  --gls-glass-shadow-hover: 0 18px 42px rgba(19, 34, 30, 0.14);
+  --gls-glass-shadow: 0 14px 34px rgba(36, 26, 12, 0.1);
+  --gls-glass-shadow-hover: 0 24px 48px rgba(36, 26, 12, 0.14);
 
   /* Glass Surface preset (중복 제거용) */
   --gls-surface-glass-bg: var(--gls-glass-bg-subtle);
@@ -102,20 +103,20 @@
   --gls-surface-overlay: rgba(255, 255, 255, 0.62);
   --gls-text: var(--gls-color-text);
   /* Ghost buttons */
-  --gls-ghost-bg: rgba(255, 255, 255, 0.10);
-  --gls-ghost-bg-active: rgba(255, 255, 255, 0.22);
-  --gls-ghost-bg-hover: rgba(255, 255, 255, 0.16);
-  --gls-ghost-border: rgba(30, 42, 51, 0.14);
-  --gls-ghost-border-hover: rgba(46, 139, 87, 0.26);
-  --gls-ghost-text: rgba(30, 42, 51, 0.84);
+  --gls-ghost-bg: rgba(255, 250, 242, 0.24);
+  --gls-ghost-bg-active: rgba(255, 250, 242, 0.42);
+  --gls-ghost-bg-hover: rgba(255, 250, 242, 0.32);
+  --gls-ghost-border: rgba(44, 36, 26, 0.18);
+  --gls-ghost-border-hover: rgba(31, 107, 75, 0.34);
+  --gls-ghost-text: rgba(24, 34, 28, 0.9);
   /* Action / CTA */
   --gls-action-accent: var(--gls-color-primary, #2e8b57);
   --gls-action-border: rgba(30, 42, 51, 0.16);
-  --gls-action-border-strong: rgba(46, 139, 87, 0.28);
-  --gls-action-glow: 0 10px 26px rgba(46, 139, 87, 0.16);
-  --gls-action-surface: rgba(255, 255, 255, 0.82);
-  --gls-action-surface-hover: rgba(255, 255, 255, 0.9);
-  --gls-action-surface-strong: rgba(46, 139, 87, 0.08);
+  --gls-action-border-strong: rgba(31, 107, 75, 0.38);
+  --gls-action-glow: 0 12px 28px rgba(31, 107, 75, 0.2);
+  --gls-action-surface: rgba(255, 253, 247, 0.86);
+  --gls-action-surface-hover: rgba(255, 253, 247, 0.94);
+  --gls-action-surface-strong: rgba(31, 107, 75, 0.12);
 
   /* Buttons/Chips (dedupe) */
   --gls-btn-border-default: rgba(30, 42, 51, 0.14);

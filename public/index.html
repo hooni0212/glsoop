@@ -34,17 +34,13 @@
   <meta name="twitter:image" content="/img/snowingtree.jpg">
   <title>글숲 홈</title>
 
-  <!-- Google Fonts: 손글씨체 / 본문용 고딕 / 감성 명조체 -->
+  <!-- Google Fonts: 본문/명조/브랜드 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-  href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap"
-  rel="stylesheet"
-/>
-<link
-  href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap"
-  rel="stylesheet"
-/>
+    href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Hahmlet:wght@400;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
 
 
   <!-- Bootstrap CSS (레이아웃 / 반응형 유틸) -->
@@ -52,10 +48,10 @@
 
   <link rel="stylesheet" href="/css/app.css">
   <!-- 계절별 배경 스타일 추가-->
-  <link rel="stylesheet" id="seasonTheme" href="/css/themes/winter-theme.css">
+  <link rel="stylesheet" id="seasonTheme" href="/css/themes/default-theme.css">
 
 </head>
-<body class="page-index page-home winter-theme">
+<body class="page-index page-home">
   <!-- =========================
        상단 네비게이션 / 헤더 영역
        ========================= -->
@@ -162,11 +158,22 @@
       <div class="home-layout">
         <section class="home-main">
           <div class="home-hero">
+            <p class="home-hero-kicker">GLSOOP CURATION</p>
             <h1 class="home-hero-title">글숲</h1>
-            <p class="home-hero-copy">오늘 읽을 이야기의 방향을 고르고 시작하세요.</p>
+            <p class="home-hero-copy">
+              머무르고 싶은 문장과 사람을 발견하는 감성 큐레이션 홈입니다.
+            </p>
+            <p class="home-hero-quote">
+              "짧은 글 하나가 하루의 결을 바꿀 수 있으니까."
+            </p>
             <div class="home-hero-actions">
-              <a class="gls-btn gls-btn-primary" href="/explore">읽기 시작</a>
+              <a class="gls-btn gls-btn-primary" href="/explore">숲 탐색 시작</a>
               <a class="gls-btn gls-btn-secondary" href="/explore">전체 글</a>
+            </div>
+            <div class="home-hero-meta" aria-hidden="true">
+              <span class="home-hero-chip">큐레이션 기반 홈</span>
+              <span class="home-hero-chip">작가 발견</span>
+              <span class="home-hero-chip">문장 기록</span>
             </div>
           </div>
 

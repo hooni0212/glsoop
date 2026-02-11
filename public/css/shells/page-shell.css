@@ -257,15 +257,20 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
    - 테마는 --gls-header-gradient 만 덮어쓰면 됨
 */
 .custom-navbar {
-  background: var(--gls-header-gradient, linear-gradient(90deg, #2e8b57, #3ca66c));
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  background:
+    linear-gradient(115deg, rgba(17, 54, 38, 0.9), rgba(28, 94, 65, 0.86)),
+    var(--gls-header-gradient, linear-gradient(90deg, #2e8b57, #3ca66c));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 12px 30px rgba(8, 26, 18, 0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* 헤더 로고 "글숲" */
 .custom-navbar .navbar-brand {
-  font-family: 'Nanum Pen Script', cursive;
-  font-size: 2.1rem;
-  letter-spacing: 0.08em;
+  font-family: var(--gls-font-brand, 'Gaegu', 'Nanum Pen Script', cursive);
+  font-size: 2.3rem;
+  letter-spacing: 0.04em;
   line-height: 1;
 
   /* 🟢 기본 로고 그라디언트 (테마에서 변수로 덮어쓰기 가능) */
@@ -287,14 +292,15 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
 
 /* 네비게이션 링크 */
 .navbar-nav .nav-link {
-  font-weight: 500;
+  font-weight: 600;
   opacity: 0.92;
-  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out, color 0.15s ease-out;
 }
 
 .navbar-nav .nav-link:hover {
   opacity: 1;
   transform: translateY(-1px);
+  color: #fff;
 }
 
 /* Bootstrap 제거 대비: 모바일 네비 토글( collapse ) 기본 동작 */
@@ -715,9 +721,9 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
 }
 
 .footer-brand {
-  font-family: 'Nanum Pen Script', cursive;
-  font-size: 1.55rem;
-  letter-spacing: 0.01em;
+  font-family: var(--gls-font-brand, 'Gaegu', 'Nanum Pen Script', cursive);
+  font-size: 1.8rem;
+  letter-spacing: 0.015em;
 }
 
 .footer-subtitle {

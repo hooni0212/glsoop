@@ -11,9 +11,12 @@
   <title>글숲 - 글 상세</title>
 
   <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Hahmlet:wght@400;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
 
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -25,7 +28,7 @@
   <link rel="stylesheet" href="/css/pages/ig-export.css" />
 </head>
 
-<body class="winter-theme page-post">
+<body class="page-post">
   <!-- 상단 헤더 네비게이션 -->
   <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
     <div class="gls-container">
@@ -90,6 +93,27 @@
   <!-- 글 상세 (옵션 B: 데스크탑 2컬럼) -->
   <section class="page-section post-page post-veil">
     <div class="gls-container post-shell">
+      <header class="post-page-intro">
+        <div class="post-page-intro-row">
+          <div class="post-page-intro-copy">
+            <p class="post-kicker">READING MODE</p>
+            <h1 class="post-page-title">오늘의 글</h1>
+            <p class="post-page-copy">
+              긴 호흡으로 읽을 수 있도록 본문 중심 레이아웃으로 구성했습니다.
+              글의 결을 따라 천천히 읽어보세요.
+            </p>
+          </div>
+          <div class="post-page-intro-tools" aria-label="읽기 도구">
+            <a class="post-intro-link" href="/explore">탐색 피드</a>
+            <a class="post-intro-link" href="/html/editor.html">글쓰기</a>
+          </div>
+        </div>
+        <div class="post-page-intro-chips" aria-label="리딩 상태 안내">
+          <span class="post-intro-chip">집중 읽기 레이아웃</span>
+          <span class="post-intro-chip">관련 글 추천</span>
+          <span class="post-intro-chip">공유/북마크 지원</span>
+        </div>
+      </header>
       <div class="post-layout">
         <!-- 좌측: 본문(읽기) -->
         <main class="post-main" aria-label="글 본문">

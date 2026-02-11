@@ -34,17 +34,13 @@
   <meta name="twitter:image" content="/img/snowingtree.jpg">
   <title>글숲 탐색</title>
 
-  <!-- Google Fonts: 손글씨체 / 본문용 고딕 / 감성 명조체 -->
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-  href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap"
-  rel="stylesheet"
-/>
-<link
-  href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap"
-  rel="stylesheet"
-/>
+    href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Hahmlet:wght@400;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
 
 
   <!-- Bootstrap CSS (레이아웃 / 반응형 유틸) -->
@@ -52,10 +48,10 @@
 
   <link rel="stylesheet" href="/css/app.css">
   <!-- 계절별 배경 스타일 추가-->
-  <link rel="stylesheet" id="seasonTheme" href="/css/themes/winter-theme.css">
+  <link rel="stylesheet" id="seasonTheme" href="/css/themes/default-theme.css">
 
 </head>
-<body class="page-explore page-index winter-theme">
+<body class="page-explore page-index">
   <!-- =========================
        상단 네비게이션 / 헤더 영역
        ========================= -->
@@ -157,74 +153,128 @@
     </div>
   </nav>
 
-  <!-- =========================
-       메인 히어로 섹션 (브랜드 소개)
-       ========================= -->
-  <section class="hero-section">
-    <div class="container gls-container">
-      <!-- 중앙 카드형 히어로 (main.css의 .hero-card 스타일 사용) -->
-      <div class="hero-card">
-        <h1 class="hero-title">글숲</h1>
-        <p class="hero-subtitle">
-          글을 쓰는 사람, 읽는 사람이 함께 머무는 작은 숲.<br />
-          오늘의 생각, 감정을 천천히 적어 내려가 보세요.
-        </p>
-
-        <a href="/html/editor.html" class="gls-btn gls-btn-primary hero-cta-btn">
-          <span class="hero-cta-text">바로 글 쓰러 가기</span>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- =========================
-       피드 섹션: 모든 사용자의 글 목록
-       ========================= -->
-    <section class="page-section">
+  <main class="explore-hub">
+    <!-- =========================
+         메인 히어로 섹션 (브랜드 소개)
+         ========================= -->
+    <section class="hero-section explore-hero">
       <div class="container gls-container">
-      <div class="gls-flex gls-flex-col gls-md-flex-row gls-gap-3 gls-md-items-center gls-mb-3">
-        <h3 class="gls-mb-0">피드</h3>
-        <div class="feed-tabs nav nav-pills" role="tablist">
-          <button
-            type="button"
-            class="nav-link feed-tab feed-tab-active"
-            data-feed-tab="latest"
-            data-sort="latest"
-            data-type="all"
-            aria-current="true"
-          >
-            최신
-          </button>
-          <button
-            type="button"
-            class="nav-link feed-tab"
-            data-feed-tab="popular"
-            data-sort="popular"
-            data-type="all"
-          >
-            인기
-          </button>
-          <button
-            type="button"
-            class="nav-link feed-tab"
-            data-feed-tab="following"
-            data-sort="latest"
-            data-type="following"
-          >
-            팔로잉
-          </button>
+        <div class="explore-hero-card">
+          <div class="explore-hero-grid">
+            <div class="explore-hero-main">
+              <p class="explore-kicker">CURATED DISCOVERY</p>
+              <h1 class="explore-title">마음에 머무는 글을 찾아보세요</h1>
+              <p class="explore-copy">
+                짧은 구절부터 긴 호흡의 에세이까지, 지금 이 순간 사람들의 기록이
+                모여 있는 피드입니다. 취향에 맞는 글을 골라 읽고 마음에 드는 작가를 팔로우해 보세요.
+              </p>
+              <div class="explore-hero-actions">
+                <a href="/html/editor.html" class="gls-btn gls-btn-primary hero-cta-btn">바로 글 쓰기</a>
+                <a href="/html/category.html?category=poem" class="gls-btn gls-btn-secondary">시 카테고리</a>
+              </div>
+            </div>
+
+            <aside class="explore-hero-aside" aria-label="탐색 가이드">
+              <p class="explore-aside-title">탐색 가이드</p>
+              <ul class="explore-aside-list">
+                <li><span>01</span> 탭에서 최신 / 인기 / 팔로잉을 선택하세요.</li>
+                <li><span>02</span> 카테고리 필터로 원하는 글감을 좁히세요.</li>
+                <li><span>03</span> 태그 칩 클릭으로 교집합 탐색이 가능합니다.</li>
+              </ul>
+            </aside>
+          </div>
         </div>
       </div>
+    </section>
 
-      <!-- 홈 피드 카드들이 들어갈 영역
-           - 기본 상태: "피드를 불러오는 중입니다..." 안내 문구
-           - index.js(Glsoop.FeedPage)가 /api/posts/feed를 호출하여
-             카드들을 무한 스크롤 방식으로 추가 렌더링 -->
-      <div id="feedPosts">
-        <p class="gls-text-muted">피드를 불러오는 중입니다...</p>
+    <section class="explore-filter-strip">
+      <div class="container gls-container">
+        <div class="explore-filter-shell">
+          <div class="explore-filter-copy">
+            <p class="explore-filter-kicker">CATEGORY FILTER</p>
+            <h2 class="explore-filter-title">분위기에 맞는 글 고르기</h2>
+          </div>
+          <div class="explore-category-filter" role="tablist" aria-label="카테고리 필터">
+            <button type="button" class="explore-category-btn active" data-category-filter="all" aria-current="true">
+              전체
+            </button>
+            <button type="button" class="explore-category-btn" data-category-filter="poem">
+              시
+            </button>
+            <button type="button" class="explore-category-btn" data-category-filter="essay">
+              에세이/일기
+            </button>
+            <button type="button" class="explore-category-btn" data-category-filter="short">
+              짧은 구절
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+
+    <!-- =========================
+         피드 섹션: 모든 사용자의 글 목록
+         ========================= -->
+    <section class="page-section explore-feed-section">
+      <div class="container gls-container">
+        <div class="explore-feed-shell">
+          <div class="explore-feed-head">
+            <div class="explore-feed-head-copy">
+              <p class="explore-feed-kicker">LIVE FEED</p>
+              <h3 class="explore-feed-title">지금 올라오는 글</h3>
+              <p class="explore-feed-subtitle">
+                탭을 전환해 흐름을 바꿔보세요. 좋아요와 태그를 기준으로 새로운 글을 빠르게 발견할 수 있습니다.
+              </p>
+            </div>
+            <div class="explore-feed-meta">
+              <span class="explore-feed-meta-chip">무한 스크롤</span>
+              <span class="explore-feed-meta-chip">태그 교집합</span>
+              <span class="explore-feed-meta-chip">팔로잉 전용 피드</span>
+            </div>
+          </div>
+
+          <div class="feed-tabs nav nav-pills" role="tablist">
+            <button
+              type="button"
+              class="nav-link feed-tab feed-tab-active"
+              data-feed-tab="latest"
+              data-sort="latest"
+              data-type="all"
+              aria-current="true"
+            >
+              최신
+            </button>
+            <button
+              type="button"
+              class="nav-link feed-tab"
+              data-feed-tab="popular"
+              data-sort="popular"
+              data-type="all"
+            >
+              인기
+            </button>
+            <button
+              type="button"
+              class="nav-link feed-tab"
+              data-feed-tab="following"
+              data-sort="latest"
+              data-type="following"
+            >
+              팔로잉
+            </button>
+          </div>
+
+          <!-- 홈 피드 카드들이 들어갈 영역
+               - 기본 상태: "피드를 불러오는 중입니다..." 안내 문구
+               - index.js(Glsoop.FeedPage)가 /api/posts/feed를 호출하여
+                 카드들을 무한 스크롤 방식으로 추가 렌더링 -->
+          <div id="feedPosts">
+            <p class="gls-text-muted">피드를 불러오는 중입니다...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
 
   <!-- =========================
        하단 푸터 영역
