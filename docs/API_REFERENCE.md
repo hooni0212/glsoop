@@ -1,242 +1,157 @@
 # 글숲 Server API Reference
 
-> 관련 문서
->
-> - 유료화 계약서: `docs/MONETIZATION_API_CONTRACT_V1.md`
-> - 유료화 운영 가이드(Phase C): `docs/MONETIZATION_PHASEC_RUNBOOK.md`
->
-> 기준: `server.js` 라우팅 구성
->
-> - API Base: `/api`
-> - Admin API Base: `/api/admin`
->
-> 표기
->
-> - **public**: 로그인 없이 호출 가능
-> - **auth**: 로그인 필요 (`authRequired`)
-> - **admin**: 관리자 권한 필요 (`authRequired` + `adminRequired`)
->
-> 응답 규칙
->
-> - 성공/실패 모두 `ok`, `message` 필드를 포함합니다.
-> - 실패 응답은 `code` 필드를 포함합니다.
-> - 복합 단어 키는 `snake_case`로 통일합니다.
-> - 공통 오류 코드(1차 표준화): `INVALID_REQUEST`(400), `AUTH_REQUIRED`(401), `AUTH_INVALID_TOKEN`(401), `AUTH_INVALID_SESSION`(401), `AUTH_FORBIDDEN`(403), `ENTITLEMENT_REQUIRED`(403), `NOT_OWNED`(403), `RESOURCE_NOT_FOUND`(404), `CONFLICT`(409), `ALREADY_CLAIMED`(409), `VERIFICATION_FAILED`(400/502), `VERIFICATION_UNAVAILABLE`(503/504), `INTERNAL_ERROR`(500)
-> - 공유 정책(2026-02-10): Phase A/B는 클라이언트 시스템 ShareSheet만 사용하고 서버 API는 추가하지 않습니다. 공유 이벤트 로깅은 Phase C에서 필요 시 별도 API로 분리합니다.
+서버 API 문서를 기능별로 재구성한 인덱스입니다.
 
 ---
 
-## 0) Admin Page (HTML)
+## 공통 규칙
 
-- `GET /admin` (**admin**) — 관리자 페이지 진입점 (admin.html)
-- `GET /html/admin.html` (**blocked**) — 직접 접근은 항상 404 (의도적으로 차단)
+- Base: `/api`
+- Admin Base: `/api/admin`
+- 응답 키: `snake_case`
+- 성공: `{ ok: true, message, ... }`
+- 실패: `{ ok: false, message, code? }`
+- 하위호환: 기존 필드 변경/삭제 금지, 신규 필드 추가만 허용
 
----
+대표 오류 코드:
 
-## 1) Auth / Account (`/api`)
-
-- `POST /api/signup` (**public**) — 회원가입 + 이메일 인증 메일 발송
-- `POST /api/verify-email` (**public**) — 이메일 인증 번호(OTP) 검증
-- `POST /api/verify-email/resend` (**public**) — 이메일 인증 번호(OTP) 재발송
-- `POST /api/password-reset-request` (**public**) — 비밀번호 재설정 메일 요청
-- `POST /api/password-reset` (**public**) — 비밀번호 재설정 처리
-- `POST /api/login` (**public**) — 로그인
-- `POST /api/logout` (**public**) — 로그아웃
-- `GET /api/me` (**auth**) — 내 정보 조회
-- `PUT /api/me` (**auth**) — 내 정보 수정
-- `GET /api/me/followings` (**auth**) — 내가 팔로우 중인 사용자 목록
-
----
-
-## 2) Users / Follow (`/api`)
-
-- `GET /api/users/:id/profile` (**public**) — 작가 공개 프로필
-- `GET /api/users/:id/posts` (**public**) — 특정 작가의 글 목록 (무한스크롤)
-
-팔로우
-- `POST /api/users/:id/follow` (**auth**) — 팔로우/언팔로우 토글
+- `INVALID_REQUEST` (400)
+- `AUTH_REQUIRED` / `AUTH_INVALID_TOKEN` / `AUTH_INVALID_SESSION` (401)
+- `AUTH_FORBIDDEN` / `ENTITLEMENT_REQUIRED` / `NOT_OWNED` (403)
+- `RESOURCE_NOT_FOUND` (404)
+- `CONFLICT` / `ALREADY_CLAIMED` (409)
+- `VERIFICATION_FAILED` (400/502)
+- `VERIFICATION_UNAVAILABLE` (503/504)
+- `INTERNAL_ERROR` (500)
 
 ---
 
-## 3) Search (`/api`)
+## 기능별 API 문서
 
-- `GET /api/search` (**public**) — 통합 검색(글/작가 분리 반환)
-  - Query: `q`(required, 1~80), `type`(`all|posts|authors`, default `all`)
-  - Query: `limit`(1~30, default 10), `offset`(0+, default 0)
-  - Response: `query`, `type`, `posts[]`, `authors[]`, `meta{ posts_count, authors_count, limit, offset }`
-  - Error: 400 `INVALID_REQUEST`, 500 `INTERNAL_ERROR`
-
----
-
-## 4) Posts / Feed / Likes (`/api`)
-
-작성/수정/삭제
-- `POST /api/posts` (**auth**) — 글 작성
-- `PUT /api/posts/:id` (**auth**) — 글 수정
-- `DELETE /api/posts/:id` (**auth**) — 글 삭제
-
-내 글/좋아요
-- `GET /api/posts/my` (**auth**) — 내가 쓴 글 목록
-- `GET /api/posts/liked` (**auth**) — 내가 좋아요한 글 목록
-
-피드/목록
-- `GET /api/posts/feed` (**public**) — 피드
-- `GET /api/posts` (**public**) — 글 목록 (필터/정렬/페이징 포함)
-
-상세/편집/관련
-- `GET /api/posts/:id` (**public**) — 글 상세
-- `GET /api/posts/:id/edit` (**auth**) — 편집 화면용 데이터
-- `GET /api/posts/:id/related` (**public**) — 관련 글
-
-좋아요
-- `POST /api/posts/:id/toggle-like` (**auth**) — 좋아요 토글
+- 인증/계정: `docs/server/api/auth-account.md`
+- 사용자/팔로우/프로필: `docs/server/api/users-follow.md`
+- 게시글/피드/좋아요: `docs/server/api/posts-feed-likes.md`
+- 북마크: `docs/server/api/bookmarks.md`
+- 검색: `docs/server/api/search.md`
+- 성장/퀘스트: `docs/server/api/growth-quests.md`
+- 코스메틱/프로필 꾸미기: `docs/server/api/cosmetics-profile.md`
+- 유료화(결제/권한/웹훅): `docs/server/api/monetization.md`
+- 공유 이벤트: `docs/server/api/share-events.md`
+- 관리자 운영: `docs/server/api/admin-ops.md`
 
 ---
 
-## 5) Bookmarks (`/api`)
+## 빠른 엔드포인트 맵
 
-북마크 폴더
-- `GET /api/bookmarks/lists` (**auth**) — 내 북마크 폴더 목록
-- `GET /api/bookmarks/lists/recent?post_id=<id>&limit=<n>` (**auth**) — 특정 글 기준 최근 사용 폴더 목록 (`contains`, `item_count`, `last_used_at` 포함)
-  - Query: `post_id`(required), `limit`(optional, default 5, max 20)
-  - 모바일 권장 흐름: 상세 북마크 모달 최초 진입 시 recent API를 우선 호출하고, 폴더 전체 상태는 `GET /api/posts/:postId/bookmarks`로 동기화
-- `POST /api/bookmarks/lists` (**auth**) — 폴더 생성
-- `PATCH /api/bookmarks/lists/:listId` (**auth**) — 폴더 수정
-- `DELETE /api/bookmarks/lists/:listId` (**auth**) — 폴더 삭제
+### 1) Auth / Account
 
-폴더 내 글
-- `GET /api/bookmarks/lists/:listId/items` (**auth**) — 폴더 내 글 목록
-- `POST /api/bookmarks/lists/:listId/items` (**auth**) — 폴더에 글 추가
-- `DELETE /api/bookmarks/lists/:listId/items/:postId` (**auth**) — 폴더에서 글 제거
+- `POST /api/signup`
+- `POST /api/verify-email`
+- `POST /api/verify-email/resend`
+- `POST /api/password-reset-request`
+- `POST /api/password-reset`
+- `POST /api/login`
+- `POST /api/logout`
+- `GET /api/me`
+- `GET /api/me/followings`
+- `PUT /api/me`
 
-글 기준(내 폴더들 중 어디에 담겼는지)
-- `GET /api/posts/:postId/bookmarks` (**auth**) — 특정 글이 담긴 내 폴더 목록
+### 2) Users / Follow
+
+- `GET /api/users/:id/profile`
+- `POST /api/users/:id/follow`
+- `GET /api/users/:id/posts`
+
+### 3) Posts / Feed / Likes
+
+- `POST /api/posts`
+- `PUT /api/posts/:id`
+- `DELETE /api/posts/:id`
+- `GET /api/posts/my`
+- `GET /api/posts/liked`
+- `GET /api/posts/feed`
+- `GET /api/posts`
+- `GET /api/posts/:id`
+- `GET /api/posts/:id/edit`
+- `GET /api/posts/:id/related`
+- `POST /api/posts/:id/toggle-like`
+
+### 4) Bookmarks
+
+- `GET /api/bookmarks/lists`
+- `GET /api/bookmarks/lists/recent`
+- `POST /api/bookmarks/lists`
+- `PATCH /api/bookmarks/lists/:listId`
+- `DELETE /api/bookmarks/lists/:listId`
+- `GET /api/bookmarks/lists/:listId/items`
+- `POST /api/bookmarks/lists/:listId/items`
+- `DELETE /api/bookmarks/lists/:listId/items/:postId`
+- `GET /api/posts/:postId/bookmarks`
+
+### 5) Search
+
+- `GET /api/search`
+
+### 6) Growth / Quests
+
+- `GET /api/growth/dashboard`
+- `GET /api/growth/top-posts`
+- `GET /api/growth/summary`
+- `GET /api/growth/achievements`
+- `GET /api/quests/active`
+- `POST /api/quests/:stateId/claim`
+
+### 7) Cosmetics / Profile
+
+- `GET /api/cosmetics/me`
+- `PUT /api/me/profile-cosmetics`
+- `GET /api/users/:id/profile` (`user.profile_cosmetics` 확장)
+- `POST /api/admin/cosmetics/grant`
+
+### 8) Monetization
+
+- `GET /api/store/catalog`
+- `GET /api/entitlements/me`
+- `POST /api/purchases/verify`
+- `POST /api/monetization/webhooks/apple`
+- `POST /api/monetization/webhooks/google`
+
+### 9) Share Events
+
+- `POST /api/share-events`
+- `GET /api/admin/share-events/summary`
+
+### 10) Admin
+
+- `GET /api/admin/`
+- `GET /api/admin/users`
+- `DELETE /api/admin/users/:id`
+- `GET /api/admin/posts`
+- `GET /api/admin/posts/:id`
+- `DELETE /api/admin/posts/:id`
+- `GET /api/admin/quest-templates`
+- `POST /api/admin/quest-templates`
+- `PUT /api/admin/quest-templates/:id`
+- `DELETE /api/admin/quest-templates/:id`
+- `POST /api/admin/quests/achievements/backfill`
+- `GET /api/admin/quest-campaigns`
+- `POST /api/admin/quest-campaigns`
+- `PUT /api/admin/quest-campaigns/:id`
+- `DELETE /api/admin/quest-campaigns/:id`
+- `PUT /api/admin/quest-campaigns/:id/items`
+- `POST /api/admin/entitlements/grant`
+- `POST /api/admin/purchases/reconcile`
+- `POST /api/admin/monetization/reconcile`
+- `GET /api/admin/monetization/webhook-events`
+- `GET /api/admin/monetization/alerts`
+- `POST /api/admin/monetization/alerts/:id/resolve`
+- `POST /api/admin/cosmetics/grant`
+- `GET /api/admin/share-events/summary`
 
 ---
 
-## 6) Growth / Achievements / Quests (`/api`)
+## 운영/계약 문서
 
-- `GET /api/growth/dashboard` (**auth**) — 성장 대시보드 통합 응답 (summary + achievements + campaigns + top_posts)
-  - `campaigns[].quests[]` 추가 필드: `is_locked`(boolean), `required_entitlement`(string|null), `lock_reason`(string|null)
-- `GET /api/growth/summary` (**auth**) — 성장 요약
-- `GET /api/growth/achievements` (**auth**) — 업적 진행/해제 현황
-- `GET /api/quests/active` (**auth**) — 활성 퀘스트(캠페인) 조회
-  - `campaigns[].quests[]`에 `is_locked`, `required_entitlement`, `lock_reason` 포함
-- `POST /api/quests/:stateId/claim` (**auth**) — 퀘스트 보상 수령
-  - 잠금 퀘스트(`required_entitlement` 미보유)일 경우 403 `ENTITLEMENT_REQUIRED`
-  - Response 확장: `gained_cosmetics[]` (`key`, `name`, `icon_emoji`, `rarity`, `season`)
-- `GET /api/growth/top-posts` (**auth**) — 인기 글 요약 목록(대시보드와 동일 스키마)
-- `top_posts` 항목 필드: `id`, `title`, `excerpt`, `author_name`, `category`, `created_at`, `like_count`, `bookmark_count`
-- 하위호환: 기존 개별 엔드포인트는 유지되며, 프론트는 dashboard 우선 호출 후 필요 시 fallback
-
----
-
-## 7) Share Events (`/api`)
-
-- `POST /api/share-events` (**public, authOptional**) — 공유 이벤트 기록
-  - Body: `post_id`(required), `platform`(`mobile|web`), `surface`, `channel`, `result`(`shared|dismissed|failed`)
-  - Body(optional): `request_id`, `meta`(object|string, JSON 저장)
-  - Success: `201` + `event{id, created_at}`
-  - Error: 400 `INVALID_REQUEST`, 404 `RESOURCE_NOT_FOUND`, 500 `INTERNAL_ERROR`
-
-- `GET /api/admin/share-events/summary` (**admin**) — 공유 이벤트 요약 통계
-  - Query(optional): `from`, `to`(YYYY-MM-DD), `platform`(`all|mobile|web`), `surface`, `channel`
-  - Query(optional): `top_limit`(1~50, default 10), `daily_limit`(1~120, default 30)
-  - Response: `summary`, `by_channel`, `by_surface`, `daily`, `filters`
-  - Error: 400 `INVALID_REQUEST`, 500 `INTERNAL_ERROR`
-
----
-
-## 8) Monetization (`/api`)
-
-운영/검증 절차(환경 변수, preflight, webhook 점검)는 `docs/MONETIZATION_PHASEC_RUNBOOK.md`를 기준으로 진행합니다.
-
-- `GET /api/store/catalog` (**public**) — 스토어 카탈로그 조회
-  - 활성 상품만 반환(`is_active=1`)
-  - Response: `products[]` (`store_sku`, `platform`, `product_type`, `entitlement_key`, `title`, `description`, `season`, `is_active`, `meta`)
-  - Error: 500 `INTERNAL_ERROR`
-
-- `GET /api/entitlements/me` (**auth**) — 내 entitlement 목록 조회
-  - Response: `entitlements[]` (`entitlement_key`, `status`, `starts_at`, `ends_at`, `source`)
-  - Error: 500 `INTERNAL_ERROR`
-
-- `POST /api/purchases/verify` (**auth**) — 결제 검증 요청/처리
-  - Body(required): `platform`(`apple|google|web`), `store_sku`
-  - Body(platform): `transaction_id`(apple), `purchase_token` 또는 `receipt_data`(google)
-  - Body(optional): `receipt_data`, `client_meta`
-  - 모드: `MONETIZATION_VERIFY_MODE` (`pending_only` 기본, `auto_active`, `receipt_inspect`, `live_verify`)
-  - 동작(기본): `purchases` 원장에 `pending` 저장 + `user_entitlements` 기본 `inactive` 생성/유지
-  - 동작(옵션): 서버 `MONETIZATION_VERIFY_MODE=auto_active`일 때 `active`로 즉시 반영
-  - 동작(옵션): `receipt_inspect`일 때 `receipt_data`(JWS/JSON) 기반으로 `active|expired|refunded|canceled|pending` 추론 반영
-  - 동작(옵션): `live_verify`일 때 Apple/Google API 실검증 시도
-  - fallback: `MONETIZATION_VERIFY_LIVE_STRICT=false`(기본)에서는 실검증 실패 시 `MONETIZATION_VERIFY_LIVE_FALLBACK_MODE`(`receipt_inspect` 기본)로 안전 fallback
-  - strict: `MONETIZATION_VERIFY_LIVE_STRICT=true`에서는 실검증 실패를 `VERIFICATION_FAILED`/`VERIFICATION_UNAVAILABLE`로 즉시 반환
-  - Apple env: `MONETIZATION_APPLE_ISSUER_ID`, `MONETIZATION_APPLE_KEY_ID`, `MONETIZATION_APPLE_PRIVATE_KEY`, `MONETIZATION_APPLE_BUNDLE_ID`(optional), `MONETIZATION_APPLE_ENV`(`sandbox|production`)
-  - Google env: `MONETIZATION_GOOGLE_PACKAGE_NAME`, `MONETIZATION_GOOGLE_SERVICE_ACCOUNT_EMAIL`, `MONETIZATION_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` (또는 `MONETIZATION_GOOGLE_SERVICE_ACCOUNT_JSON`)
-  - 중복 처리: 같은 플랫폼 식별자 재요청 시 동일 사용자 기준 idempotent 응답
-  - Response: `purchase`, `entitlements`
-  - Error: 400 `INVALID_REQUEST`, 400/502 `VERIFICATION_FAILED`, 503/504 `VERIFICATION_UNAVAILABLE`, 404 `RESOURCE_NOT_FOUND`, 409 `CONFLICT`, 500 `INTERNAL_ERROR`
-
-- `POST /api/monetization/webhooks/apple` (**provider webhook**) — Apple 결제 상태 웹훅 인입
-  - Header: `x-monetization-webhook-secret` (또는 Bearer token)
-  - Secret: `MONETIZATION_APPLE_WEBHOOK_SECRET` 또는 `MONETIZATION_WEBHOOK_SECRET`
-  - 동작: 이벤트 원장(`monetization_webhook_events`) 저장 -> purchase 매칭 -> 상태 반영 -> entitlement 동기화
-  - 매칭 실패 시: `monetization_alerts`에 경고 생성 + 이벤트 `ignored`
-  - Error: 400 `INVALID_REQUEST`, 401 `AUTH_FORBIDDEN`, 503 `VERIFICATION_UNAVAILABLE`, 500 `INTERNAL_ERROR`
-
-- `POST /api/monetization/webhooks/google` (**provider webhook**) — Google 결제 상태 웹훅 인입
-  - Header/Secret 규칙은 Apple과 동일 (google 전용 secret 우선)
-  - Google Pub/Sub envelope(`message.data` base64 JSON) 파싱 지원
-  - Error: 400 `INVALID_REQUEST`, 401 `AUTH_FORBIDDEN`, 503 `VERIFICATION_UNAVAILABLE`, 500 `INTERNAL_ERROR`
-
----
-
-## 9) Admin API (`/api/admin`)
-
-헬스 체크
-- `GET /api/admin/` (**admin**) — admin API 연결 확인
-
-Users
-- `GET /api/admin/users` (**admin**) — 회원 목록(검색/필터/정렬/페이지)
-- `DELETE /api/admin/users/:id` (**admin**) — 회원 삭제(관련 데이터 포함)
-
-Posts
-- `GET /api/admin/posts` (**admin**) — 글 목록(검색/필터/정렬/페이지)
-- `GET /api/admin/posts/:id` (**admin**) — 글 상세
-- `DELETE /api/admin/posts/:id` (**admin**) — 글 삭제(좋아요/북마크 아이템 정리 포함)
-
-Quest Templates
-- `GET /api/admin/quest-templates` (**admin**) — 템플릿 목록
-- `POST /api/admin/quest-templates` (**admin**) — 템플릿 생성
-- `PUT /api/admin/quest-templates/:id` (**admin**) — 템플릿 수정
-- `DELETE /api/admin/quest-templates/:id` (**admin**) — 템플릿 삭제
-
-Quest Campaigns
-- `GET /api/admin/quest-campaigns` (**admin**) — 캠페인 목록
-- `POST /api/admin/quest-campaigns` (**admin**) — 캠페인 생성
-- `PUT /api/admin/quest-campaigns/:id` (**admin**) — 캠페인 수정
-- `DELETE /api/admin/quest-campaigns/:id` (**admin**) — 캠페인 삭제
-- `PUT /api/admin/quest-campaigns/:id/items` (**admin**) — 캠페인 아이템(템플릿 연결) 업데이트
-
-Monetization / Cosmetics (Debug)
-- `POST /api/admin/entitlements/grant` (**admin**) — 사용자 entitlement 강제 활성화(테스트/복구)
-  - Body: `user_id`, `entitlement_key`, `ends_at`(optional), `source`(`admin|promo`, optional)
-- `POST /api/admin/purchases/reconcile` (**admin**) — 결제 상태 강제 반영 + entitlement 동기화
-  - Lookup: `purchase_id` 또는 `platform + (transaction_id|purchase_token)`
-  - Body(required): `status`(`active|expired|refunded|canceled|pending`)
-  - Body(optional): `expires_at`(ISO datetime), `source`(`admin|promo|iap`), `reason`
-  - Response: `purchase`, `entitlement`, `summary`
-- `POST /api/admin/monetization/reconcile` (**admin**) — 만료/상태 동기화 수동 실행
-  - Body(optional): `user_id` (없으면 전체)
-  - Response: `summary{expired_purchases, activated_entitlements, deactivated_entitlements}`
-- `GET /api/admin/monetization/webhook-events` (**admin**) — 유료화 웹훅 이벤트 조회
-  - Query(optional): `provider`(`apple|google|all`, default `all`)
-  - Query(optional): `process_state`(`received|processed|ignored|failed|all`, default `all`)
-  - Query(optional): `limit`(1~200, default 50)
-- `GET /api/admin/monetization/alerts` (**admin**) — 유료화 운영 알림 조회
-  - Query(optional): `status`(`open|resolved|all`, default `open`)
-  - Query(optional): `level`(`info|warn|error|all`, default `all`)
-  - Query(optional): `limit`(1~200, default 50)
-- `POST /api/admin/monetization/alerts/:id/resolve` (**admin**) — 운영 알림 해결 처리
-- `POST /api/admin/cosmetics/grant` (**admin**) — 사용자 코스메틱 지급(중복 요청 idempotent)
-  - Body: `user_id`, `cosmetic_key`
+- 유료화 계약서: `docs/MONETIZATION_API_CONTRACT_V1.md`
+- 유료화 운영 런북: `docs/MONETIZATION_PHASEC_RUNBOOK.md`
+- 서버 문서 허브: `docs/README.md`

@@ -1,0 +1,45 @@
+# Users / Follow / Public Profile API
+
+기준 라우트: `routes/userRoutes.js`
+
+Base: `/api`
+
+---
+
+## Endpoints
+
+- `GET /users/:id/profile` (public)
+- `POST /users/:id/follow` (auth)
+- `GET /users/:id/posts` (public)
+
+---
+
+## `GET /users/:id/profile` 확장 포인트
+
+기존 응답을 유지하면서 `user.profile_cosmetics`를 추가합니다.
+
+`profile_cosmetics` 구조:
+
+- `primary_badge`: `{ key, name, icon_emoji, rarity, season } | null`
+- `showcase_badges`: `[{ key, name, icon_emoji, rarity, season }]`
+- `header_stickers`: `[{ slot, sticker: { key, name, icon_emoji, rarity, season } }]`
+
+주의:
+
+- 기존 `user`/`viewer` 필드는 유지
+- `profile_cosmetics`가 없거나 null이어도 모바일에서 안전 렌더링
+
+---
+
+## Follow API
+
+- `POST /users/:id/follow`는 토글 방식(팔로우/언팔로우)
+- 자기 자신 팔로우는 허용하지 않음
+- 최신 `is_following`, `follower_count`를 반환
+
+---
+
+## 관련 문서
+
+- 코스메틱 장착 규칙: `docs/server/api/cosmetics-profile.md`
+- 게시글 목록 상세: `docs/server/api/posts-feed-likes.md`
