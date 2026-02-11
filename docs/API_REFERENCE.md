@@ -1,5 +1,10 @@
 # 글숲 Server API Reference
 
+> 관련 문서
+>
+> - 유료화 계약서: `docs/MONETIZATION_API_CONTRACT_V1.md`
+> - 유료화 운영 가이드(Phase C): `docs/MONETIZATION_PHASEC_RUNBOOK.md`
+>
 > 기준: `server.js` 라우팅 구성
 >
 > - API Base: `/api`
@@ -143,6 +148,8 @@
 ---
 
 ## 8) Monetization (`/api`)
+
+운영/검증 절차(환경 변수, preflight, webhook 점검)는 `docs/MONETIZATION_PHASEC_RUNBOOK.md`를 기준으로 진행합니다.
 
 - `GET /api/store/catalog` (**public**) — 스토어 카탈로그 조회
   - 활성 상품만 반환(`is_active=1`)
