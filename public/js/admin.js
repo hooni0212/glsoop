@@ -4,6 +4,8 @@
 window.Glsoop = window.Glsoop || {};
 
 Glsoop.AdminPage = (function () {
+  const ADMIN_ACTIVE_TAB_KEY = 'gls-admin-active-tab';
+
   const postsState = {
     page: 1,
     limit: 48,
@@ -31,6 +33,7 @@ Glsoop.AdminPage = (function () {
   };
 
   const THEME_LABELS = {
+    default: '기본',
     spring: '봄',
     summer: '여름',
     autumn: '가을',
@@ -105,8 +108,8 @@ Glsoop.AdminPage = (function () {
     if (!radios.length) return;
 
     const themeApi = window.Glsoop?.Theme;
-    const allowed = themeApi?.ALLOWED_THEMES || ['spring', 'summer', 'autumn', 'winter'];
-    const defaultTheme = themeApi?.DEFAULT_THEME || 'winter';
+    const allowed = themeApi?.ALLOWED_THEMES || ['default', 'spring', 'summer', 'autumn', 'winter'];
+    const defaultTheme = themeApi?.DEFAULT_THEME || 'default';
 
     let appliedTheme = themeApi?.readTheme ? themeApi.readTheme() : readThemeLegacy();
     appliedTheme = allowed.includes(appliedTheme) ? appliedTheme : defaultTheme;
@@ -178,18 +181,87 @@ Glsoop.AdminPage = (function () {
     const panels = document.querySelectorAll('.tab-panel');
     if (!tabButtons.length || !panels.length) return;
 
+    const buttonById = new Map();
+    tabButtons.forEach((btn) => {
+      const targetId = btn.getAttribute('data-target');
+      if (targetId) buttonById.set(targetId, btn);
+    });
+
+    const activateTab = (targetId) => {
+      if (!targetId || !buttonById.has(targetId)) return;
+      tabButtons.forEach((btn) => {
+        const isActive = btn.getAttribute('data-target') === targetId;
+        btn.classList.toggle('active', isActive);
+      });
+      panels.forEach((panel) => {
+        panel.classList.toggle('gls-hidden', panel.id !== targetId);
+      });
+      persistActiveTab(targetId);
+    };
+
+    const savedTab = readActiveTab();
+    if (savedTab && buttonById.has(savedTab)) {
+      activateTab(savedTab);
+    } else {
+      const firstTarget = tabButtons[0].getAttribute('data-target');
+      if (firstTarget) activateTab(firstTarget);
+    }
+
     tabButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
         const targetId = btn.getAttribute('data-target');
-        if (!targetId) return;
-
-        tabButtons.forEach((b) => b.classList.toggle('active', b === btn));
-        panels.forEach((panel) => {
-          const isTarget = panel.id === targetId;
-          panel.classList.toggle('gls-hidden', !isTarget);
-        });
+        activateTab(targetId);
       });
     });
+  }
+
+  function persistActiveTab(targetId) {
+    try {
+      localStorage.setItem(ADMIN_ACTIVE_TAB_KEY, String(targetId || ''));
+    } catch (e) {
+      console.warn('활성 탭 저장에 실패했습니다.', e);
+    }
+  }
+
+  function readActiveTab() {
+    try {
+      return localStorage.getItem(ADMIN_ACTIVE_TAB_KEY) || '';
+    } catch (e) {
+      console.warn('활성 탭 복원에 실패했습니다.', e);
+      return '';
+    }
+  }
+
+  function setTabCount(targetId, value) {
+    const badge = document.querySelector(`.admin-tab-count[data-tab-count="${targetId}"]`);
+    if (!badge) return;
+
+    if (value === null || value === undefined || value === '') {
+      badge.textContent = '-';
+      return;
+    }
+
+    const num = Number(value);
+    if (Number.isFinite(num)) {
+      badge.textContent = num > 999 ? '999+' : String(Math.max(0, Math.floor(num)));
+      return;
+    }
+
+    badge.textContent = String(value);
+  }
+
+  function decreaseTabCount(targetId, amount = 1) {
+    const badge = document.querySelector(`.admin-tab-count[data-tab-count="${targetId}"]`);
+    if (!badge) return;
+    const current = Number.parseInt(String(badge.textContent || ''), 10);
+    if (!Number.isFinite(current)) return;
+    setTabCount(targetId, Math.max(0, current - Math.max(1, amount)));
+  }
+
+  function updateQuestTabCount() {
+    const templateCount = Array.isArray(questState.templates) ? questState.templates.length : 0;
+    const campaignCount = Array.isArray(questState.campaigns) ? questState.campaigns.length : 0;
+    setTabCount('questsTab', templateCount + campaignCount);
   }
 
   function setupModalEvents() {
@@ -356,6 +428,7 @@ Glsoop.AdminPage = (function () {
       }
 
       if (!response.ok || !payload.ok) {
+        setTabCount('shareSummaryTab', '-');
         const message =
           typeof payload.message === 'string'
             ? payload.message
@@ -364,9 +437,11 @@ Glsoop.AdminPage = (function () {
         return;
       }
 
+      setTabCount('shareSummaryTab', Number(payload?.summary?.total_count || 0));
       shareSummaryBox.innerHTML = renderShareSummaryHtml(payload);
     } catch (error) {
       console.error('share summary 로드 실패:', error);
+      setTabCount('shareSummaryTab', '-');
       shareSummaryBox.innerHTML =
         '<p class="text-danger">공유 이벤트 요약을 불러오는 중 오류가 발생했습니다.</p>';
     }
@@ -542,18 +617,21 @@ Glsoop.AdminPage = (function () {
     try {
       const res = await fetch('/api/admin/users');
       if (!res.ok) {
+        setTabCount('usersTab', '-');
         usersBox.innerHTML =
           '<p class="text-danger">회원 목록을 불러오는 중 오류가 발생했습니다.</p>';
         return;
       }
       const data = await res.json();
       if (!data.ok) {
+        setTabCount('usersTab', '-');
         usersBox.innerHTML = `<p class="text-danger">${
           data.message || '회원 목록을 불러오지 못했습니다.'
         }</p>`;
         return;
       }
       const users = data.users || [];
+      setTabCount('usersTab', users.length);
       if (!users.length) {
         usersBox.innerHTML = '<p class="gls-text-muted">현재 가입된 회원이 없습니다.</p>';
         return;
@@ -563,6 +641,7 @@ Glsoop.AdminPage = (function () {
       tbody?.addEventListener('click', (e) => handleUserTableClick(e, tbody, usersBox));
     } catch (e) {
       console.error(e);
+      setTabCount('usersTab', '-');
       usersBox.innerHTML =
         '<p class="text-danger">회원 목록을 불러오는 중 오류가 발생했습니다.</p>';
     }
@@ -641,6 +720,7 @@ Glsoop.AdminPage = (function () {
         return;
       }
       tr.remove();
+      decreaseTabCount('usersTab', 1);
       if (!tbody.children.length) {
         usersBox.innerHTML = '<p class="gls-text-muted">현재 가입된 회원이 없습니다.</p>';
       }
@@ -749,6 +829,10 @@ Glsoop.AdminPage = (function () {
       }
 
       const posts = data.items || data.posts || [];
+      setTabCount(
+        'postsTab',
+        Number.isFinite(Number(data.total)) ? Number(data.total) : posts.length
+      );
       if (!posts.length) {
         grid.innerHTML = '<p class="gls-text-muted">등록된 글이 없습니다.</p>';
       } else {
@@ -763,6 +847,7 @@ Glsoop.AdminPage = (function () {
       grid.onclick = (e) => handlePostGridClick(e, grid);
     } catch (e) {
       console.error('admin posts 로드 실패:', e);
+      setTabCount('postsTab', '-');
       const msg = typeof e?.message === 'string' ? e.message : '글 목록을 불러오는 중 오류가 발생했습니다.';
       grid.innerHTML = `<p class="text-danger">${escapeHtml(msg)}</p>`;
     }
@@ -917,6 +1002,7 @@ Glsoop.AdminPage = (function () {
         return;
       }
       if (card) card.remove();
+      decreaseTabCount('postsTab', 1);
       const grid = document.getElementById('adminPostsGrid');
       if (grid && !grid.querySelector('.admin-post-card')) {
         grid.innerHTML = '<p class="gls-text-muted">등록된 글이 없습니다.</p>';
@@ -949,16 +1035,19 @@ Glsoop.AdminPage = (function () {
         }
         const data = await res.json();
         if (!data.ok) {
+          setTabCount('questsTab', '-');
           box.innerHTML = `<p class="text-danger">${
             data?.message || '템플릿 조회에 실패했습니다.'
           }</p>`;
           return;
         }
         questState.templates = data.items || data.templates || [];
+        updateQuestTabCount();
         box.innerHTML = buildTemplateEditor();
         bindTemplateEvents();
       } catch (err) {
       console.error(err);
+      setTabCount('questsTab', '-');
       box.innerHTML = '<p class="text-danger">템플릿 조회 중 오류가 발생했습니다.</p>';
     }
   }
@@ -1206,6 +1295,7 @@ Glsoop.AdminPage = (function () {
       }
       const data = await res.json();
       if (!data.ok) {
+        setTabCount('questsTab', '-');
         box.innerHTML = `<p class="text-danger">${
           data?.message || '캠페인 조회에 실패했습니다.'
         }</p>`;
@@ -1213,10 +1303,12 @@ Glsoop.AdminPage = (function () {
       }
       questState.campaigns = data.items || data.campaigns || [];
       questState.campaignItems = data.campaign_items || [];
+      updateQuestTabCount();
       box.innerHTML = buildCampaignEditor();
       bindCampaignEvents();
       } catch (err) {
       console.error(err);
+      setTabCount('questsTab', '-');
       box.innerHTML = '<p class="text-danger">캠페인 조회 중 오류가 발생했습니다.</p>';
     }
   }
