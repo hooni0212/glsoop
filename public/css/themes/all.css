@@ -1,6 +1,7 @@
 /* themes/all.css
    - theme overrides (tokens/selectors)
 */
+@import url("./default-theme.css");
 @import url("./spring-theme.css");
 @import url("./summer-theme.css");
 @import url("./autumn-theme.css");

@@ -5,13 +5,25 @@
 
 (function initGlobalTheme() {
   const STORAGE_KEY = 'gls-admin-theme';
-  const DEFAULT_THEME = 'winter';
-  const ALLOWED = ['spring', 'summer', 'autumn', 'winter'];
+  const MIGRATION_KEY = 'gls-theme-default-migrated-v1';
+  const DEFAULT_THEME = 'default';
+  const ALLOWED = ['default', 'spring', 'summer', 'autumn', 'winter'];
 
   function readTheme() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored && ALLOWED.includes(stored)) return stored;
+      if (!stored) return DEFAULT_THEME;
+
+      // 2026-02: 과거 기본값(winter)에서 현재 기본값(default)으로 1회 전환
+      // - 이전에 저장된 winter 값이 있더라도 최초 1회는 default로 교체해 시작한다.
+      // - 이후 사용자가 다시 winter를 선택하면 그대로 유지된다.
+      if (stored === 'winter' && !localStorage.getItem(MIGRATION_KEY)) {
+        localStorage.setItem(STORAGE_KEY, DEFAULT_THEME);
+        localStorage.setItem(MIGRATION_KEY, '1');
+        return DEFAULT_THEME;
+      }
+
+      if (ALLOWED.includes(stored)) return stored;
     } catch (e) {
       console.warn('테마를 로컬스토리지에서 읽는 중 문제가 발생했습니다.', e);
     }
