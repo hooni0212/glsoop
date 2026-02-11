@@ -170,6 +170,18 @@
   - Response: `purchase`, `entitlements`
   - Error: 400 `INVALID_REQUEST`, 400/502 `VERIFICATION_FAILED`, 503/504 `VERIFICATION_UNAVAILABLE`, 404 `RESOURCE_NOT_FOUND`, 409 `CONFLICT`, 500 `INTERNAL_ERROR`
 
+- `POST /api/monetization/webhooks/apple` (**provider webhook**) — Apple 결제 상태 웹훅 인입
+  - Header: `x-monetization-webhook-secret` (또는 Bearer token)
+  - Secret: `MONETIZATION_APPLE_WEBHOOK_SECRET` 또는 `MONETIZATION_WEBHOOK_SECRET`
+  - 동작: 이벤트 원장(`monetization_webhook_events`) 저장 -> purchase 매칭 -> 상태 반영 -> entitlement 동기화
+  - 매칭 실패 시: `monetization_alerts`에 경고 생성 + 이벤트 `ignored`
+  - Error: 400 `INVALID_REQUEST`, 401 `AUTH_FORBIDDEN`, 503 `VERIFICATION_UNAVAILABLE`, 500 `INTERNAL_ERROR`
+
+- `POST /api/monetization/webhooks/google` (**provider webhook**) — Google 결제 상태 웹훅 인입
+  - Header/Secret 규칙은 Apple과 동일 (google 전용 secret 우선)
+  - Google Pub/Sub envelope(`message.data` base64 JSON) 파싱 지원
+  - Error: 400 `INVALID_REQUEST`, 401 `AUTH_FORBIDDEN`, 503 `VERIFICATION_UNAVAILABLE`, 500 `INTERNAL_ERROR`
+
 ---
 
 ## 9) Admin API (`/api/admin`)
@@ -210,5 +222,14 @@ Monetization / Cosmetics (Debug)
 - `POST /api/admin/monetization/reconcile` (**admin**) — 만료/상태 동기화 수동 실행
   - Body(optional): `user_id` (없으면 전체)
   - Response: `summary{expired_purchases, activated_entitlements, deactivated_entitlements}`
+- `GET /api/admin/monetization/webhook-events` (**admin**) — 유료화 웹훅 이벤트 조회
+  - Query(optional): `provider`(`apple|google|all`, default `all`)
+  - Query(optional): `process_state`(`received|processed|ignored|failed|all`, default `all`)
+  - Query(optional): `limit`(1~200, default 50)
+- `GET /api/admin/monetization/alerts` (**admin**) — 유료화 운영 알림 조회
+  - Query(optional): `status`(`open|resolved|all`, default `open`)
+  - Query(optional): `level`(`info|warn|error|all`, default `all`)
+  - Query(optional): `limit`(1~200, default 50)
+- `POST /api/admin/monetization/alerts/:id/resolve` (**admin**) — 운영 알림 해결 처리
 - `POST /api/admin/cosmetics/grant` (**admin**) — 사용자 코스메틱 지급(중복 요청 idempotent)
   - Body: `user_id`, `cosmetic_key`

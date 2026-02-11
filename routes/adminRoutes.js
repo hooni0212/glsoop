@@ -283,6 +283,69 @@ function mapAdminEntitlementRow(row) {
   };
 }
 
+function safeParseJson(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function parseEnum(raw, allowed = [], fallback = null) {
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  if (typeof raw !== 'string') return null;
+  const normalized = raw.trim().toLowerCase();
+  if (!normalized) return fallback;
+  return allowed.includes(normalized) ? normalized : null;
+}
+
+function parseMonetizationAlertsQuery(query = {}) {
+  const status = parseEnum(query.status, ['open', 'resolved', 'all'], 'open');
+  if (!status) {
+    return { error: 'status는 open, resolved, all 중 하나여야 합니다.' };
+  }
+
+  const level = parseEnum(query.level, ['info', 'warn', 'error', 'all'], 'all');
+  if (!level) {
+    return { error: 'level은 info, warn, error, all 중 하나여야 합니다.' };
+  }
+
+  const limit = parseBoundedInt(query.limit, 50, 1, 200);
+  if (limit === null) {
+    return { error: 'limit은 1~200 범위여야 합니다.' };
+  }
+
+  return { status, level, limit };
+}
+
+function parseMonetizationWebhookEventsQuery(query = {}) {
+  const provider = parseEnum(query.provider, ['apple', 'google', 'all'], 'all');
+  if (!provider) {
+    return { error: 'provider는 apple, google, all 중 하나여야 합니다.' };
+  }
+
+  const processState = parseEnum(
+    query.process_state,
+    ['received', 'processed', 'ignored', 'failed', 'all'],
+    'all'
+  );
+  if (!processState) {
+    return {
+      error:
+        'process_state는 received, processed, ignored, failed, all 중 하나여야 합니다.',
+    };
+  }
+
+  const limit = parseBoundedInt(query.limit, 50, 1, 200);
+  if (limit === null) {
+    return { error: 'limit은 1~200 범위여야 합니다.' };
+  }
+
+  return { provider, processState, limit };
+}
+
 function parseCosmeticGrantPayload(body = {}) {
   const userId = parsePositiveInt(body.user_id);
   const cosmeticKey =
@@ -597,6 +660,225 @@ router.post('/monetization/reconcile', async (req, res) => {
       500,
       'INTERNAL_ERROR',
       '유료화 상태 동기화 중 오류가 발생했습니다.'
+    );
+  }
+});
+
+router.get('/monetization/alerts', async (req, res) => {
+  const parsed = parseMonetizationAlertsQuery(req.query || {});
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  const where = [];
+  const params = [];
+
+  if (parsed.status !== 'all') {
+    where.push('status = ?');
+    params.push(parsed.status);
+  }
+  if (parsed.level !== 'all') {
+    where.push('level = ?');
+    params.push(parsed.level);
+  }
+
+  const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+  try {
+    const rows = await allAsync(
+      `
+      SELECT
+        id,
+        level,
+        code,
+        title,
+        message,
+        context_json,
+        status,
+        created_at,
+        resolved_at,
+        resolved_by_admin_id
+      FROM monetization_alerts
+      ${whereClause}
+      ORDER BY created_at DESC, id DESC
+      LIMIT ?
+      `,
+      [...params, parsed.limit]
+    );
+
+    return res.json({
+      ok: true,
+      message: '유료화 알림 목록을 불러왔습니다.',
+      alerts: (rows || []).map((row) => ({
+        id: row.id,
+        level: row.level,
+        code: row.code,
+        title: row.title,
+        message: row.message || null,
+        context: safeParseJson(row.context_json),
+        status: row.status,
+        created_at: row.created_at,
+        resolved_at: row.resolved_at || null,
+        resolved_by_admin_id: row.resolved_by_admin_id || null,
+      })),
+      filters: {
+        status: parsed.status,
+        level: parsed.level,
+        limit: parsed.limit,
+      },
+    });
+  } catch (error) {
+    console.error('[admin/monetization/alerts] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '유료화 알림 목록 조회 중 오류가 발생했습니다.'
+    );
+  }
+});
+
+router.post('/monetization/alerts/:id/resolve', async (req, res) => {
+  const alertId = parsePositiveInt(req.params.id);
+  if (!alertId) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', 'alert id가 올바르지 않습니다.');
+  }
+
+  try {
+    const updateResult = await runAsync(
+      `
+      UPDATE monetization_alerts
+      SET
+        status = 'resolved',
+        resolved_at = CURRENT_TIMESTAMP,
+        resolved_by_admin_id = ?
+      WHERE id = ? AND status <> 'resolved'
+      `,
+      [req.user?.id || null, alertId]
+    );
+
+    const alert = await getAsync(
+      `
+      SELECT
+        id,
+        level,
+        code,
+        title,
+        message,
+        context_json,
+        status,
+        created_at,
+        resolved_at,
+        resolved_by_admin_id
+      FROM monetization_alerts
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [alertId]
+    );
+
+    if (!alert) {
+      return sendAdminError(
+        res,
+        404,
+        'RESOURCE_NOT_FOUND',
+        '해당 알림을 찾을 수 없습니다.'
+      );
+    }
+
+    return res.json({
+      ok: true,
+      message:
+        Number(updateResult?.changes || 0) > 0
+          ? '알림을 해결 처리했습니다.'
+          : '이미 해결된 알림입니다.',
+      alert: {
+        id: alert.id,
+        level: alert.level,
+        code: alert.code,
+        title: alert.title,
+        message: alert.message || null,
+        context: safeParseJson(alert.context_json),
+        status: alert.status,
+        created_at: alert.created_at,
+        resolved_at: alert.resolved_at || null,
+        resolved_by_admin_id: alert.resolved_by_admin_id || null,
+      },
+    });
+  } catch (error) {
+    console.error('[admin/monetization/alerts/resolve] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '유료화 알림 해결 처리 중 오류가 발생했습니다.'
+    );
+  }
+});
+
+router.get('/monetization/webhook-events', async (req, res) => {
+  const parsed = parseMonetizationWebhookEventsQuery(req.query || {});
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  const where = [];
+  const params = [];
+
+  if (parsed.provider !== 'all') {
+    where.push('provider = ?');
+    params.push(parsed.provider);
+  }
+  if (parsed.processState !== 'all') {
+    where.push('process_state = ?');
+    params.push(parsed.processState);
+  }
+
+  const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+  try {
+    const rows = await allAsync(
+      `
+      SELECT
+        id,
+        provider,
+        event_id,
+        event_type,
+        transaction_id,
+        purchase_token,
+        purchase_status,
+        expires_at,
+        purchase_id,
+        user_id,
+        process_state,
+        process_message,
+        received_at,
+        processed_at
+      FROM monetization_webhook_events
+      ${whereClause}
+      ORDER BY received_at DESC, id DESC
+      LIMIT ?
+      `,
+      [...params, parsed.limit]
+    );
+
+    return res.json({
+      ok: true,
+      message: '유료화 웹훅 이벤트를 불러왔습니다.',
+      events: rows || [],
+      filters: {
+        provider: parsed.provider,
+        process_state: parsed.processState,
+        limit: parsed.limit,
+      },
+    });
+  } catch (error) {
+    console.error('[admin/monetization/webhook-events] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '유료화 웹훅 이벤트 조회 중 오류가 발생했습니다.'
     );
   }
 });

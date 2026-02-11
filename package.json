@@ -13,6 +13,7 @@
     "backfill:quests": "node scripts/backfill-permanent-quests.mjs",
     "phase3:seed-legacy-achievements": "node scripts/phase3-seed-legacy-achievements.mjs",
     "phase3:migrate-legacy-achievements": "node scripts/phase3-migrate-legacy-achievements.mjs",
+    "verify:monetization:preflight": "node scripts/monetization-live-verify-preflight.mjs",
     "sync:notion": "node tools/notion-sync/sync.mjs",
     "sync:notion:dry": "NOTION_SYNC_DRY_RUN=true node tools/notion-sync/sync.mjs"
   },

@@ -679,6 +679,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_purchases_google_token
 }
 ```
 
+### 10.3 `GET /api/admin/monetization/webhook-events` (Admin)
+
+- 웹훅 이벤트 처리 이력 조회
+- Query(optional): `provider`, `process_state`, `limit`
+- 운영 점검 시 `failed/ignored` 이벤트를 우선 확인
+
+### 10.4 `GET /api/admin/monetization/alerts` (Admin)
+
+- 유료화 운영 알림 조회
+- Query(optional): `status`, `level`, `limit`
+
+### 10.5 `POST /api/admin/monetization/alerts/:id/resolve` (Admin)
+
+- 운영 알림 해결 처리(acknowledge)
+
 ---
 
 ## 11) 모바일 통합 흐름
@@ -754,6 +769,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_purchases_google_token
 - [x] Apple/Google 실검증 코드 경로 반영
   - Apple: App Store Server API(`/inApps/v1/transactions/{transactionId}`)
   - Google: Android Publisher API(products/subscriptionsv2)
+- [x] 결제 웹훅/운영 알림 기반 운영 경로 추가
+  - `POST /api/monetization/webhooks/apple`
+  - `POST /api/monetization/webhooks/google`
+  - `GET /api/admin/monetization/webhook-events`
+  - `GET /api/admin/monetization/alerts`
+  - `POST /api/admin/monetization/alerts/:id/resolve`
+- [x] 운영 사전점검 스크립트 추가
+  - `npm run verify:monetization:preflight`
 - [ ] 운영 자격증명/웹훅 연계 및 실운영 검증 (후속)
   - 필수 env 미설정 시 `live_verify`는 fallback 또는 strict 실패로 동작
 
