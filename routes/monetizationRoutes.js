@@ -6,11 +6,21 @@ const {
   mergeMonetizationRawJson,
   reconcileMonetizationState,
 } = require('../utils/monetizationState');
-const { resolveVerifyDecision } = require('../utils/purchaseVerification');
+const {
+  PurchaseVerificationError,
+  resolveVerifyDecision,
+} = require('../utils/purchaseVerification');
 
 const router = express.Router();
 
 const ALLOWED_PLATFORMS = new Set(['apple', 'google', 'web']);
+const ALLOWED_PURCHASE_STATUSES = new Set([
+  'active',
+  'expired',
+  'refunded',
+  'canceled',
+  'pending',
+]);
 
 const dbGet = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -85,7 +95,7 @@ function parseVerifyPayload(body = {}) {
 
   const transactionId = normalizeString(body.transaction_id, 255);
   const purchaseTokenInput = normalizeString(body.purchase_token, 400);
-  const receiptData = normalizeString(body.receipt_data, 8000);
+  const receiptData = normalizeString(body.receipt_data, 120000);
 
   let purchaseToken = purchaseTokenInput;
   if (!purchaseToken && platform === 'google') {
@@ -272,7 +282,6 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
   }
 
   const userId = req.user.id;
-  const verifyDecision = resolveVerifyDecision(parsed);
 
   try {
     const product = await dbGet(
@@ -280,6 +289,7 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
       SELECT
         platform,
         store_sku,
+        product_type,
         entitlement_key
       FROM products
       WHERE platform = ? AND store_sku = ? AND is_active = 1
@@ -295,6 +305,18 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
         'RESOURCE_NOT_FOUND',
         '해당 스토어 상품을 찾을 수 없습니다.'
       );
+    }
+
+    const verifyDecision = await resolveVerifyDecision(parsed, {
+      product_type: product.product_type,
+      entitlement_key: product.entitlement_key,
+    });
+    if (!ALLOWED_PURCHASE_STATUSES.has(verifyDecision.purchase_status)) {
+      throw new PurchaseVerificationError({
+        code: 'VERIFICATION_FAILED',
+        status: 502,
+        message: '결제 검증 결과의 상태값이 유효하지 않습니다.',
+      });
     }
 
     const existingPurchase = await findPurchaseByIdentifier(
@@ -489,6 +511,22 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
       entitlements: entitlementRow ? [mapEntitlementRow(entitlementRow)] : [],
     });
   } catch (error) {
+    if (error instanceof PurchaseVerificationError) {
+      const safeStatus =
+        Number.isInteger(error.status) && error.status >= 400 && error.status <= 599
+          ? error.status
+          : 502;
+      const safeCode =
+        typeof error.code === 'string' && error.code.trim()
+          ? error.code.trim()
+          : 'VERIFICATION_FAILED';
+      return sendMonetizationError(
+        res,
+        safeStatus,
+        safeCode,
+        error.message || '결제 검증 중 오류가 발생했습니다.'
+      );
+    }
     if (error?.code === 'SQLITE_CONSTRAINT') {
       return sendMonetizationError(
         res,

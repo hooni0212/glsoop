@@ -12,6 +12,7 @@ const ALLOWED_VERIFY_MODES = new Set([
   'pending_only',
   'auto_active',
   'receipt_inspect',
+  'live_verify',
 ]);
 
 const EMPTY_RECONCILE_RESULT = {

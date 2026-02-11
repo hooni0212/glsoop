@@ -1,7 +1,8 @@
-# 글숲 유료화 API 계약서 초안 (v1.1)
+# 글숲 유료화 API 계약서 초안 (v1.2)
 
-- 상태: Draft v1.1
+- 상태: Draft v1.2
 - 작성일: 2026-02-10
+- 최종 업데이트: 2026-02-11
 - 목적: 글숲 유료화(시즌 패스/프리미엄 퀘스트) + 코스메틱(뱃지/스티커) + 프로필 꾸미기 기능을 서버/모바일에서 일관되게 구현하기 위한 API Contract 및 설계 규칙 정의
 
 ---
@@ -217,10 +218,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_purchases_google_token
 ## 6) 공통 에러 계약
 
 - `400`: `INVALID_REQUEST`
+- `400/502`: `VERIFICATION_FAILED`
 - `401`: `UNAUTHORIZED`
 - `403`: `FORBIDDEN` / `ENTITLEMENT_REQUIRED` / `NOT_OWNED`
 - `404`: `RESOURCE_NOT_FOUND`
 - `409`: `CONFLICT` / `ALREADY_CLAIMED`
+- `503/504`: `VERIFICATION_UNAVAILABLE`
 - `500`: `INTERNAL_ERROR`
 
 신규 API 실패 응답 (정책 확정):
@@ -346,6 +349,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_purchases_google_token
   - `MONETIZATION_VERIFY_MODE=pending_only` (기본)
   - `MONETIZATION_VERIFY_MODE=auto_active` (개발/스모크)
   - `MONETIZATION_VERIFY_MODE=receipt_inspect` (`receipt_data` JWS/JSON 기반 상태 추론)
+  - `MONETIZATION_VERIFY_MODE=live_verify` (Apple/Google API 실검증 + fallback/strict)
+    - strict: `MONETIZATION_VERIFY_LIVE_STRICT=true`면 실검증 실패 시 즉시 오류 반환
+    - fallback: strict가 아니면 `MONETIZATION_VERIFY_LIVE_FALLBACK_MODE`(`receipt_inspect|pending_only`) 적용
+    - Apple env: `MONETIZATION_APPLE_ISSUER_ID`, `MONETIZATION_APPLE_KEY_ID`, `MONETIZATION_APPLE_PRIVATE_KEY`
+    - Google env: `MONETIZATION_GOOGLE_PACKAGE_NAME`, `MONETIZATION_GOOGLE_SERVICE_ACCOUNT_*`
 
 ### 7.4 `verify` 활성화 규칙 (정책 확정)
 
@@ -728,6 +736,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_purchases_google_token
 - 환불/취소/만료 반영
 - admin 복구/지급 자동화
 
+### Phase C 서버 구현 상태 (2026-02-11)
+
+- [x] verify 모드 4종 반영
+  - `pending_only` (기본)
+  - `auto_active` (개발/스모크)
+  - `receipt_inspect` (`receipt_data` 기반 상태 추론)
+  - `live_verify` (Apple/Google API 실검증 + fallback/strict)
+- [x] 결제/권한 동기화 유틸 반영
+  - 만료 결제 자동 전환(`active -> expired`)
+  - `purchases` 기준 `user_entitlements(iap)` 활성/비활성 재계산
+- [x] 운영 복구 API 반영
+  - `POST /api/admin/purchases/reconcile`
+  - `POST /api/admin/monetization/reconcile`
+- [x] 서버 백그라운드 reconcile 잡 반영
+  - 시작 시 1회 + 30분 주기
+- [x] Apple/Google 실검증 코드 경로 반영
+  - Apple: App Store Server API(`/inApps/v1/transactions/{transactionId}`)
+  - Google: Android Publisher API(products/subscriptionsv2)
+- [ ] 운영 자격증명/웹훅 연계 및 실운영 검증 (후속)
+  - 필수 env 미설정 시 `live_verify`는 fallback 또는 strict 실패로 동작
+
 ---
 
 ## 13) Definition of Done
@@ -738,3 +767,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_purchases_google_token
 - 지급 코스메틱이 `/api/cosmetics/me` 인벤토리에 반영
 - 프로필 장착 후 `/api/users/:id/profile`에 공개 반영
 - 기존 API/화면 무중단 (기존 필드 불변, 신규 필드 추가만)
+
+---
+
+## 14) 구현 로그 (2026-02-11)
+
+- `15c8d95 feat(monetization): finalize phase c verify reconciliation`
+  - verify 후 entitlement 동기화 강화
+  - admin reconcile API 2종 + 백그라운드 reconcile 잡 반영
+- `31e8869 feat(monetization): add receipt inspect verify mode`
+  - `utils/purchaseVerification.js` 추가
+  - `receipt_data` 기반 상태 추론 및 `pending -> non-pending` 승격 반영
+- 2026-02-11 추가 반영 (WIP)
+  - `live_verify` 모드 추가 (Apple/Google 실검증 + strict/fallback)
+  - `VERIFICATION_FAILED` / `VERIFICATION_UNAVAILABLE` 오류 코드 추가

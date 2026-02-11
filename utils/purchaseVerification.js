@@ -1,13 +1,82 @@
+const crypto = require('node:crypto');
+
 const ALLOWED_VERIFY_MODES = new Set([
   'pending_only',
   'auto_active',
   'receipt_inspect',
+  'live_verify',
 ]);
+
+const ALLOWED_PURCHASE_STATUSES = new Set([
+  'active',
+  'expired',
+  'refunded',
+  'canceled',
+  'pending',
+]);
+
+const LIVE_VERIFY_FALLBACK_MODES = new Set(['pending_only', 'receipt_inspect']);
+
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const GOOGLE_ANDROID_PUBLISHER_BASE =
+  'https://androidpublisher.googleapis.com/androidpublisher/v3';
+const GOOGLE_ANDROID_PUBLISHER_SCOPE =
+  'https://www.googleapis.com/auth/androidpublisher';
+
+const APPLE_VERIFY_BASE = {
+  sandbox: 'https://api.storekit-sandbox.itunes.apple.com',
+  production: 'https://api.storekit.itunes.apple.com',
+};
+
+const googleAccessTokenCache = {
+  access_token: null,
+  expires_at_ms: 0,
+};
+
+class PurchaseVerificationError extends Error {
+  constructor({
+    code = 'VERIFICATION_FAILED',
+    message = '결제 검증 중 오류가 발생했습니다.',
+    status = 502,
+    details = null,
+  } = {}) {
+    super(message);
+    this.name = 'PurchaseVerificationError';
+    this.code = code;
+    this.status = status;
+    this.details = details || null;
+  }
+}
 
 function normalizeVerifyMode(raw) {
   if (typeof raw !== 'string') return 'pending_only';
   const normalized = raw.trim().toLowerCase();
   return ALLOWED_VERIFY_MODES.has(normalized) ? normalized : 'pending_only';
+}
+
+function normalizeLiveFallbackMode(raw) {
+  if (typeof raw !== 'string') return 'receipt_inspect';
+  const normalized = raw.trim().toLowerCase();
+  return LIVE_VERIFY_FALLBACK_MODES.has(normalized)
+    ? normalized
+    : 'receipt_inspect';
+}
+
+function readEnvBoolean(raw, fallback = false) {
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  if (typeof raw === 'boolean') return raw;
+  const normalized = String(raw).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
+function parseBoundedInt(raw, fallback, min, max) {
+  const parsed = Number.parseInt(String(raw ?? ''), 10);
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+    return fallback;
+  }
+  return parsed;
 }
 
 function toIsoDateTime(raw) {
@@ -91,6 +160,14 @@ function decodeBase64UrlUtf8(segment) {
   } catch (error) {
     return null;
   }
+}
+
+function encodeBase64UrlUtf8(raw) {
+  return Buffer.from(raw)
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
 }
 
 function tryDecodeJwtPayload(raw) {
@@ -319,9 +396,7 @@ function inspectWebReceipt(payload, nowIso) {
   )
     .trim()
     .toLowerCase();
-  const normalizedStatus = ['active', 'expired', 'refunded', 'canceled', 'pending'].includes(
-    statusCandidate
-  )
+  const normalizedStatus = ALLOWED_PURCHASE_STATUSES.has(statusCandidate)
     ? statusCandidate
     : 'pending';
 
@@ -351,7 +426,716 @@ function resolveSuccessMessage(purchaseStatus) {
   return '결제 검증 요청이 접수되었습니다.';
 }
 
-function resolveVerifyDecision(parsedPayload = {}) {
+function normalizePem(raw) {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/\\n/g, '\n');
+}
+
+function buildSignedJwt({ header, payload, privateKey, algorithm }) {
+  const encodedHeader = encodeBase64UrlUtf8(JSON.stringify(header));
+  const encodedPayload = encodeBase64UrlUtf8(JSON.stringify(payload));
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+
+  const signer = crypto.createSign('SHA256');
+  signer.update(signingInput);
+  signer.end();
+
+  const signOptions = {
+    key: privateKey,
+  };
+
+  if (algorithm === 'ES256') {
+    signOptions.dsaEncoding = 'ieee-p1363';
+  }
+
+  const signature = signer.sign(signOptions);
+  const encodedSignature = signature
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+
+  return `${signingInput}.${encodedSignature}`;
+}
+
+function ensureFetch() {
+  if (typeof fetch !== 'function') {
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_UNAVAILABLE',
+      status: 500,
+      message: '런타임에서 fetch를 사용할 수 없습니다.',
+    });
+  }
+}
+
+async function fetchJson(url, options = {}, timeoutMs = 8000) {
+  ensureFetch();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+    const json = safeParseJson(text);
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      text,
+      json,
+    };
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new PurchaseVerificationError({
+        code: 'VERIFICATION_UNAVAILABLE',
+        status: 504,
+        message: '결제 검증 요청이 시간 내에 완료되지 않았습니다.',
+      });
+    }
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_UNAVAILABLE',
+      status: 503,
+      message: '검증 서버에 연결할 수 없습니다.',
+      details: { cause: error?.message || 'unknown_error' },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function getAppleConfig() {
+  const issuerId = (process.env.MONETIZATION_APPLE_ISSUER_ID || '').trim();
+  const keyId = (process.env.MONETIZATION_APPLE_KEY_ID || '').trim();
+  const privateKey = normalizePem(process.env.MONETIZATION_APPLE_PRIVATE_KEY || '');
+  const bundleId = (process.env.MONETIZATION_APPLE_BUNDLE_ID || '').trim() || null;
+  const environment =
+    (process.env.MONETIZATION_APPLE_ENV || '').trim().toLowerCase() === 'production'
+      ? 'production'
+      : 'sandbox';
+  const timeoutMs = parseBoundedInt(
+    process.env.MONETIZATION_VERIFY_TIMEOUT_MS,
+    8000,
+    1000,
+    20000
+  );
+
+  const missing = [];
+  if (!issuerId) missing.push('MONETIZATION_APPLE_ISSUER_ID');
+  if (!keyId) missing.push('MONETIZATION_APPLE_KEY_ID');
+  if (!privateKey) missing.push('MONETIZATION_APPLE_PRIVATE_KEY');
+
+  return {
+    available: missing.length === 0,
+    missing,
+    issuerId,
+    keyId,
+    privateKey,
+    bundleId,
+    environment,
+    timeoutMs,
+    baseUrl: APPLE_VERIFY_BASE[environment],
+  };
+}
+
+function buildAppleVerifyToken(config) {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return buildSignedJwt({
+    header: {
+      alg: 'ES256',
+      kid: config.keyId,
+      typ: 'JWT',
+    },
+    payload: {
+      iss: config.issuerId,
+      iat: nowSeconds,
+      exp: nowSeconds + 300,
+      aud: 'appstoreconnect-v1',
+      ...(config.bundleId ? { bid: config.bundleId } : {}),
+    },
+    privateKey: config.privateKey,
+    algorithm: 'ES256',
+  });
+}
+
+function inspectAppleLivePayload(rawPayload, nowIso) {
+  const { payload, payload_source } = parseApplePayload(rawPayload);
+  if (!payload) {
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_FAILED',
+      status: 502,
+      message: 'Apple 검증 응답을 해석할 수 없습니다.',
+      details: { provider: 'apple', reason: 'INVALID_RESPONSE_PAYLOAD' },
+    });
+  }
+
+  const purchasedAtIso =
+    toIsoDateTime(
+      pickFirstValue(payload, [
+        'purchaseDate',
+        'purchaseDateMs',
+        'originalPurchaseDate',
+        'signedDate',
+      ])
+    ) || nowIso;
+
+  const expiresAtIso = toIsoDateTime(
+    pickFirstValue(payload, ['expiresDate', 'expiresDateMs', 'expires_at'])
+  );
+
+  const revokedAtIso = toIsoDateTime(
+    pickFirstValue(payload, ['revocationDate', 'revocationDateMs'])
+  );
+
+  const expiresMs = expiresAtIso ? new Date(expiresAtIso).getTime() : null;
+  const nowMs = Date.now();
+
+  let purchaseStatus = 'active';
+  if (revokedAtIso) {
+    purchaseStatus = 'refunded';
+  } else if (expiresMs !== null && Number.isFinite(expiresMs) && expiresMs <= nowMs) {
+    purchaseStatus = 'expired';
+  }
+
+  return {
+    purchase_status: purchaseStatus,
+    purchased_at: purchasedAtIso,
+    expires_at: expiresAtIso,
+    product_id: pickFirstValue(payload, ['productId', 'product_id']),
+    bundle_id: pickFirstValue(payload, ['bundleId', 'bundle_id']),
+    verification: {
+      source: 'live_verify',
+      provider: 'apple',
+      payload_source,
+      revoked_at: revokedAtIso,
+    },
+  };
+}
+
+async function verifyApplePurchase(parsedPayload = {}, nowIso) {
+  const config = getAppleConfig();
+  if (!config.available) {
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_UNAVAILABLE',
+      status: 503,
+      message: 'Apple 검증 설정이 누락되었습니다.',
+      details: { provider: 'apple', missing: config.missing },
+    });
+  }
+
+  if (!parsedPayload.transaction_id) {
+    throw new PurchaseVerificationError({
+      code: 'INVALID_REQUEST',
+      status: 400,
+      message: 'Apple 실검증에는 transaction_id가 필요합니다.',
+    });
+  }
+
+  const accessToken = buildAppleVerifyToken(config);
+  const endpoint = `${config.baseUrl}/inApps/v1/transactions/${encodeURIComponent(
+    parsedPayload.transaction_id
+  )}`;
+
+  const response = await fetchJson(
+    endpoint,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    config.timeoutMs
+  );
+
+  if (!response.ok) {
+    if (response.status === 404 || response.status === 400) {
+      throw new PurchaseVerificationError({
+        code: 'VERIFICATION_FAILED',
+        status: 400,
+        message: 'Apple 결제 정보를 찾을 수 없습니다.',
+        details: { provider: 'apple', http_status: response.status },
+      });
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      throw new PurchaseVerificationError({
+        code: 'VERIFICATION_UNAVAILABLE',
+        status: 503,
+        message: 'Apple 검증 인증에 실패했습니다.',
+        details: { provider: 'apple', http_status: response.status },
+      });
+    }
+
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_FAILED',
+      status: 502,
+      message: 'Apple 검증 요청에 실패했습니다.',
+      details: { provider: 'apple', http_status: response.status },
+    });
+  }
+
+  const inspected = inspectAppleLivePayload(response.json || {}, nowIso);
+
+  if (
+    parsedPayload.store_sku &&
+    inspected.product_id &&
+    parsedPayload.store_sku !== inspected.product_id
+  ) {
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_FAILED',
+      status: 400,
+      message: 'Apple 검증 결과의 상품 정보가 요청과 일치하지 않습니다.',
+      details: {
+        provider: 'apple',
+        requested_store_sku: parsedPayload.store_sku,
+        verified_product_id: inspected.product_id,
+      },
+    });
+  }
+
+  if (config.bundleId && inspected.bundle_id && config.bundleId !== inspected.bundle_id) {
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_FAILED',
+      status: 400,
+      message: 'Apple 검증 결과의 앱 번들 식별자가 일치하지 않습니다.',
+      details: {
+        provider: 'apple',
+        expected_bundle_id: config.bundleId,
+        verified_bundle_id: inspected.bundle_id,
+      },
+    });
+  }
+
+  return {
+    verify_mode: 'live_verify',
+    purchase_status: inspected.purchase_status,
+    purchased_at: inspected.purchased_at || nowIso,
+    expires_at: inspected.expires_at || null,
+    verification: {
+      ...inspected.verification,
+      environment: config.environment,
+      http_status: response.status,
+      product_id: inspected.product_id || null,
+      bundle_id: inspected.bundle_id || null,
+    },
+    success_message: resolveSuccessMessage(inspected.purchase_status),
+  };
+}
+
+function getGoogleConfig() {
+  const packageName = (process.env.MONETIZATION_GOOGLE_PACKAGE_NAME || '').trim();
+
+  let clientEmail = (process.env.MONETIZATION_GOOGLE_SERVICE_ACCOUNT_EMAIL || '').trim();
+  let privateKey = normalizePem(
+    process.env.MONETIZATION_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || ''
+  );
+
+  const serviceAccountJson = safeParseJson(
+    process.env.MONETIZATION_GOOGLE_SERVICE_ACCOUNT_JSON || ''
+  );
+  if (serviceAccountJson) {
+    clientEmail =
+      clientEmail ||
+      (typeof serviceAccountJson.client_email === 'string'
+        ? serviceAccountJson.client_email.trim()
+        : '');
+    privateKey =
+      privateKey ||
+      normalizePem(
+        typeof serviceAccountJson.private_key === 'string'
+          ? serviceAccountJson.private_key
+          : ''
+      );
+  }
+
+  const timeoutMs = parseBoundedInt(
+    process.env.MONETIZATION_VERIFY_TIMEOUT_MS,
+    8000,
+    1000,
+    20000
+  );
+
+  const missing = [];
+  if (!packageName) missing.push('MONETIZATION_GOOGLE_PACKAGE_NAME');
+  if (!clientEmail) missing.push('MONETIZATION_GOOGLE_SERVICE_ACCOUNT_EMAIL');
+  if (!privateKey) missing.push('MONETIZATION_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
+
+  return {
+    available: missing.length === 0,
+    missing,
+    packageName,
+    clientEmail,
+    privateKey,
+    timeoutMs,
+  };
+}
+
+async function fetchGoogleAccessToken(config) {
+  const nowMs = Date.now();
+  if (
+    googleAccessTokenCache.access_token &&
+    googleAccessTokenCache.expires_at_ms > nowMs + 60 * 1000
+  ) {
+    return googleAccessTokenCache.access_token;
+  }
+
+  const nowSeconds = Math.floor(nowMs / 1000);
+  const assertion = buildSignedJwt({
+    header: {
+      alg: 'RS256',
+      typ: 'JWT',
+    },
+    payload: {
+      iss: config.clientEmail,
+      scope: GOOGLE_ANDROID_PUBLISHER_SCOPE,
+      aud: GOOGLE_TOKEN_URL,
+      exp: nowSeconds + 3600,
+      iat: nowSeconds,
+    },
+    privateKey: config.privateKey,
+    algorithm: 'RS256',
+  });
+
+  const body = new URLSearchParams({
+    grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+    assertion,
+  }).toString();
+
+  const response = await fetchJson(
+    GOOGLE_TOKEN_URL,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body,
+    },
+    config.timeoutMs
+  );
+
+  if (!response.ok) {
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_UNAVAILABLE',
+      status: 503,
+      message: 'Google 검증 토큰 발급에 실패했습니다.',
+      details: {
+        provider: 'google',
+        http_status: response.status,
+      },
+    });
+  }
+
+  const accessToken =
+    response.json && typeof response.json.access_token === 'string'
+      ? response.json.access_token
+      : '';
+  const expiresInSeconds = Number.parseInt(
+    String(response.json?.expires_in ?? 3600),
+    10
+  );
+
+  if (!accessToken) {
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_UNAVAILABLE',
+      status: 503,
+      message: 'Google 검증 토큰 응답이 올바르지 않습니다.',
+      details: { provider: 'google', reason: 'INVALID_ACCESS_TOKEN_RESPONSE' },
+    });
+  }
+
+  const safeExpiresIn =
+    Number.isFinite(expiresInSeconds) && expiresInSeconds > 0
+      ? expiresInSeconds
+      : 3600;
+
+  googleAccessTokenCache.access_token = accessToken;
+  googleAccessTokenCache.expires_at_ms = Date.now() + safeExpiresIn * 1000;
+
+  return accessToken;
+}
+
+function inspectGoogleProductLivePayload(payload, nowIso) {
+  if (!payload || typeof payload !== 'object') {
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_FAILED',
+      status: 502,
+      message: 'Google 검증 응답을 해석할 수 없습니다.',
+      details: { provider: 'google', reason: 'INVALID_PRODUCT_RESPONSE' },
+    });
+  }
+
+  const purchaseState = Number.parseInt(String(payload.purchaseState ?? ''), 10);
+  const purchasedAtIso = toIsoDateTime(payload.purchaseTimeMillis) || nowIso;
+  const expiresAtIso = toIsoDateTime(
+    payload.expiryTimeMillis || payload.expiry_time_millis || payload.expiresAt
+  );
+
+  const expiresMs = expiresAtIso ? new Date(expiresAtIso).getTime() : null;
+  const nowMs = Date.now();
+
+  let purchaseStatus = 'active';
+  if (Number.isFinite(purchaseState) && purchaseState === 2) {
+    purchaseStatus = 'pending';
+  } else if (Number.isFinite(purchaseState) && purchaseState === 1) {
+    purchaseStatus = 'canceled';
+  } else if (expiresMs !== null && Number.isFinite(expiresMs) && expiresMs <= nowMs) {
+    purchaseStatus = 'expired';
+  }
+
+  return {
+    purchase_status: purchaseStatus,
+    purchased_at: purchasedAtIso,
+    expires_at: expiresAtIso,
+    verification: {
+      source: 'live_verify',
+      provider: 'google',
+      endpoint: 'products',
+      purchase_state: Number.isFinite(purchaseState) ? purchaseState : null,
+      acknowledgement_state: Number.parseInt(
+        String(payload.acknowledgementState ?? ''),
+        10
+      ),
+      consumption_state: Number.parseInt(String(payload.consumptionState ?? ''), 10),
+      order_id: typeof payload.orderId === 'string' ? payload.orderId : null,
+    },
+  };
+}
+
+function inspectGoogleSubscriptionLivePayload(payload, nowIso) {
+  if (!payload || typeof payload !== 'object') {
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_FAILED',
+      status: 502,
+      message: 'Google 구독 검증 응답을 해석할 수 없습니다.',
+      details: { provider: 'google', reason: 'INVALID_SUBSCRIPTION_RESPONSE' },
+    });
+  }
+
+  const subscriptionState = String(payload.subscriptionState || '')
+    .trim()
+    .toUpperCase();
+
+  const lineItems = Array.isArray(payload.lineItems) ? payload.lineItems : [];
+  const firstLineItem = lineItems[0] || null;
+  const purchasedAtIso =
+    toIsoDateTime(payload.startTime || firstLineItem?.startTime) || nowIso;
+  const expiresAtIso = toIsoDateTime(
+    pickFirstValue(payload, ['lineItems.0.expiryTime', 'lineItems.0.expiry_time'])
+  );
+
+  const expiresMs = expiresAtIso ? new Date(expiresAtIso).getTime() : null;
+  const nowMs = Date.now();
+
+  let purchaseStatus = 'active';
+  if (subscriptionState.includes('PENDING')) {
+    purchaseStatus = 'pending';
+  } else if (subscriptionState.includes('EXPIRED')) {
+    purchaseStatus = 'expired';
+  } else if (
+    subscriptionState.includes('CANCELED') ||
+    subscriptionState.includes('ON_HOLD') ||
+    subscriptionState.includes('PAUSED') ||
+    payload.canceledStateContext
+  ) {
+    purchaseStatus = 'canceled';
+  } else if (expiresMs !== null && Number.isFinite(expiresMs) && expiresMs <= nowMs) {
+    purchaseStatus = 'expired';
+  }
+
+  return {
+    purchase_status: purchaseStatus,
+    purchased_at: purchasedAtIso,
+    expires_at: expiresAtIso,
+    verification: {
+      source: 'live_verify',
+      provider: 'google',
+      endpoint: 'subscriptionsv2',
+      subscription_state: subscriptionState || null,
+      latest_order_id:
+        typeof firstLineItem?.latestSuccessfulOrderId === 'string'
+          ? firstLineItem.latestSuccessfulOrderId
+          : null,
+      line_item_count: lineItems.length,
+    },
+  };
+}
+
+async function verifyGooglePurchase(parsedPayload = {}, nowIso, options = {}) {
+  const config = getGoogleConfig();
+  if (!config.available) {
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_UNAVAILABLE',
+      status: 503,
+      message: 'Google 검증 설정이 누락되었습니다.',
+      details: { provider: 'google', missing: config.missing },
+    });
+  }
+
+  if (!parsedPayload.purchase_token) {
+    throw new PurchaseVerificationError({
+      code: 'INVALID_REQUEST',
+      status: 400,
+      message: 'Google 실검증에는 purchase_token이 필요합니다.',
+    });
+  }
+
+  const accessToken = await fetchGoogleAccessToken(config);
+  const isSubscription = String(options.product_type || '').toLowerCase() === 'subscription';
+
+  const endpoint = isSubscription
+    ? `${GOOGLE_ANDROID_PUBLISHER_BASE}/applications/${encodeURIComponent(
+        config.packageName
+      )}/purchases/subscriptionsv2/tokens/${encodeURIComponent(
+        parsedPayload.purchase_token
+      )}`
+    : `${GOOGLE_ANDROID_PUBLISHER_BASE}/applications/${encodeURIComponent(
+        config.packageName
+      )}/purchases/products/${encodeURIComponent(
+        parsedPayload.store_sku
+      )}/tokens/${encodeURIComponent(parsedPayload.purchase_token)}`;
+
+  const response = await fetchJson(
+    endpoint,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    config.timeoutMs
+  );
+
+  if (!response.ok) {
+    if (response.status === 404 || response.status === 400) {
+      throw new PurchaseVerificationError({
+        code: 'VERIFICATION_FAILED',
+        status: 400,
+        message: 'Google 결제 정보를 찾을 수 없습니다.',
+        details: { provider: 'google', http_status: response.status },
+      });
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      throw new PurchaseVerificationError({
+        code: 'VERIFICATION_UNAVAILABLE',
+        status: 503,
+        message: 'Google 검증 인증에 실패했습니다.',
+        details: { provider: 'google', http_status: response.status },
+      });
+    }
+
+    throw new PurchaseVerificationError({
+      code: 'VERIFICATION_FAILED',
+      status: 502,
+      message: 'Google 검증 요청에 실패했습니다.',
+      details: { provider: 'google', http_status: response.status },
+    });
+  }
+
+  const inspected = isSubscription
+    ? inspectGoogleSubscriptionLivePayload(response.json || {}, nowIso)
+    : inspectGoogleProductLivePayload(response.json || {}, nowIso);
+
+  return {
+    verify_mode: 'live_verify',
+    purchase_status: inspected.purchase_status,
+    purchased_at: inspected.purchased_at || nowIso,
+    expires_at: inspected.expires_at || null,
+    verification: {
+      ...inspected.verification,
+      http_status: response.status,
+      package_name: config.packageName,
+    },
+    success_message: resolveSuccessMessage(inspected.purchase_status),
+  };
+}
+
+function buildReceiptInspectDecision(parsedPayload = {}, nowIso, verifyMode) {
+  const receipt = parseReceiptPayload(parsedPayload.receipt_data);
+  let inspected = null;
+  if (parsedPayload.platform === 'apple') {
+    inspected = inspectAppleReceipt(receipt.payload, nowIso);
+  } else if (parsedPayload.platform === 'google') {
+    inspected = inspectGoogleReceipt(receipt.payload, nowIso);
+  } else {
+    inspected = inspectWebReceipt(receipt.payload, nowIso);
+  }
+
+  return {
+    verify_mode: verifyMode,
+    purchase_status: inspected.purchase_status,
+    purchased_at: inspected.purchased_at || nowIso,
+    expires_at: inspected.expires_at || null,
+    verification: {
+      ...inspected.verification,
+      receipt_source: receipt.source,
+    },
+    success_message: resolveSuccessMessage(inspected.purchase_status),
+  };
+}
+
+async function resolveLiveVerifyDecision(parsedPayload = {}, options = {}, nowIso) {
+  if (parsedPayload.platform === 'apple') {
+    return verifyApplePurchase(parsedPayload, nowIso);
+  }
+  if (parsedPayload.platform === 'google') {
+    return verifyGooglePurchase(parsedPayload, nowIso, options);
+  }
+
+  const inspected = inspectWebReceipt(parseReceiptPayload(parsedPayload.receipt_data).payload, nowIso);
+  return {
+    verify_mode: 'live_verify',
+    purchase_status: inspected.purchase_status,
+    purchased_at: inspected.purchased_at || nowIso,
+    expires_at: inspected.expires_at || null,
+    verification: {
+      ...inspected.verification,
+      source: 'live_verify',
+      provider: 'web',
+      reason: 'WEB_PLATFORM_USES_RECEIPT_INSPECT',
+    },
+    success_message: resolveSuccessMessage(inspected.purchase_status),
+  };
+}
+
+function applyLiveFallback(parsedPayload, nowIso, fallbackMode, verifyError) {
+  const fallbackDecision =
+    fallbackMode === 'pending_only'
+      ? {
+          verify_mode: 'live_verify',
+          purchase_status: 'pending',
+          purchased_at: nowIso,
+          expires_at: null,
+          verification: {
+            source: 'live_verify',
+            mode: 'fallback',
+            fallback_mode: 'pending_only',
+          },
+          success_message: '결제 검증 요청이 접수되었습니다.',
+        }
+      : buildReceiptInspectDecision(parsedPayload, nowIso, 'live_verify');
+
+  return {
+    ...fallbackDecision,
+    verification: {
+      ...(fallbackDecision.verification || {}),
+      fallback_mode: fallbackMode,
+      live_verify_error: {
+        code: verifyError.code || 'VERIFICATION_FAILED',
+        status: verifyError.status || 502,
+        message: verifyError.message || '결제 검증 실패',
+        details: verifyError.details || null,
+      },
+    },
+  };
+}
+
+async function resolveVerifyDecision(parsedPayload = {}, options = {}) {
   const verifyMode = normalizeVerifyMode(
     process.env.MONETIZATION_VERIFY_MODE || 'pending_only'
   );
@@ -372,27 +1156,35 @@ function resolveVerifyDecision(parsedPayload = {}) {
   }
 
   if (verifyMode === 'receipt_inspect') {
-    const receipt = parseReceiptPayload(parsedPayload.receipt_data);
-    let inspected = null;
-    if (parsedPayload.platform === 'apple') {
-      inspected = inspectAppleReceipt(receipt.payload, nowIso);
-    } else if (parsedPayload.platform === 'google') {
-      inspected = inspectGoogleReceipt(receipt.payload, nowIso);
-    } else {
-      inspected = inspectWebReceipt(receipt.payload, nowIso);
-    }
+    return buildReceiptInspectDecision(parsedPayload, nowIso, verifyMode);
+  }
 
-    return {
-      verify_mode: verifyMode,
-      purchase_status: inspected.purchase_status,
-      purchased_at: inspected.purchased_at || nowIso,
-      expires_at: inspected.expires_at || null,
-      verification: {
-        ...inspected.verification,
-        receipt_source: receipt.source,
-      },
-      success_message: resolveSuccessMessage(inspected.purchase_status),
-    };
+  if (verifyMode === 'live_verify') {
+    try {
+      return await resolveLiveVerifyDecision(parsedPayload, options, nowIso);
+    } catch (error) {
+      if (!(error instanceof PurchaseVerificationError)) {
+        throw new PurchaseVerificationError({
+          code: 'VERIFICATION_FAILED',
+          status: 502,
+          message: '실검증 처리 중 예기치 못한 오류가 발생했습니다.',
+          details: { cause: error?.message || 'unknown_error' },
+        });
+      }
+
+      const isStrict = readEnvBoolean(
+        process.env.MONETIZATION_VERIFY_LIVE_STRICT,
+        false
+      );
+      if (isStrict) {
+        throw error;
+      }
+
+      const fallbackMode = normalizeLiveFallbackMode(
+        process.env.MONETIZATION_VERIFY_LIVE_FALLBACK_MODE || 'receipt_inspect'
+      );
+      return applyLiveFallback(parsedPayload, nowIso, fallbackMode, error);
+    }
   }
 
   return {
@@ -409,5 +1201,7 @@ function resolveVerifyDecision(parsedPayload = {}) {
 }
 
 module.exports = {
+  PurchaseVerificationError,
+  normalizeVerifyMode,
   resolveVerifyDecision,
 };

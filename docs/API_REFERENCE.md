@@ -16,7 +16,7 @@
 > - 성공/실패 모두 `ok`, `message` 필드를 포함합니다.
 > - 실패 응답은 `code` 필드를 포함합니다.
 > - 복합 단어 키는 `snake_case`로 통일합니다.
-> - 공통 오류 코드(1차 표준화): `INVALID_REQUEST`(400), `AUTH_REQUIRED`(401), `AUTH_INVALID_TOKEN`(401), `AUTH_INVALID_SESSION`(401), `AUTH_FORBIDDEN`(403), `ENTITLEMENT_REQUIRED`(403), `NOT_OWNED`(403), `RESOURCE_NOT_FOUND`(404), `CONFLICT`(409), `ALREADY_CLAIMED`(409), `INTERNAL_ERROR`(500)
+> - 공통 오류 코드(1차 표준화): `INVALID_REQUEST`(400), `AUTH_REQUIRED`(401), `AUTH_INVALID_TOKEN`(401), `AUTH_INVALID_SESSION`(401), `AUTH_FORBIDDEN`(403), `ENTITLEMENT_REQUIRED`(403), `NOT_OWNED`(403), `RESOURCE_NOT_FOUND`(404), `CONFLICT`(409), `ALREADY_CLAIMED`(409), `VERIFICATION_FAILED`(400/502), `VERIFICATION_UNAVAILABLE`(503/504), `INTERNAL_ERROR`(500)
 > - 공유 정책(2026-02-10): Phase A/B는 클라이언트 시스템 ShareSheet만 사용하고 서버 API는 추가하지 않습니다. 공유 이벤트 로깅은 Phase C에서 필요 시 별도 API로 분리합니다.
 
 ---
@@ -157,13 +157,18 @@
   - Body(required): `platform`(`apple|google|web`), `store_sku`
   - Body(platform): `transaction_id`(apple), `purchase_token` 또는 `receipt_data`(google)
   - Body(optional): `receipt_data`, `client_meta`
-  - 모드: `MONETIZATION_VERIFY_MODE` (`pending_only` 기본, `auto_active`, `receipt_inspect`)
+  - 모드: `MONETIZATION_VERIFY_MODE` (`pending_only` 기본, `auto_active`, `receipt_inspect`, `live_verify`)
   - 동작(기본): `purchases` 원장에 `pending` 저장 + `user_entitlements` 기본 `inactive` 생성/유지
   - 동작(옵션): 서버 `MONETIZATION_VERIFY_MODE=auto_active`일 때 `active`로 즉시 반영
   - 동작(옵션): `receipt_inspect`일 때 `receipt_data`(JWS/JSON) 기반으로 `active|expired|refunded|canceled|pending` 추론 반영
+  - 동작(옵션): `live_verify`일 때 Apple/Google API 실검증 시도
+  - fallback: `MONETIZATION_VERIFY_LIVE_STRICT=false`(기본)에서는 실검증 실패 시 `MONETIZATION_VERIFY_LIVE_FALLBACK_MODE`(`receipt_inspect` 기본)로 안전 fallback
+  - strict: `MONETIZATION_VERIFY_LIVE_STRICT=true`에서는 실검증 실패를 `VERIFICATION_FAILED`/`VERIFICATION_UNAVAILABLE`로 즉시 반환
+  - Apple env: `MONETIZATION_APPLE_ISSUER_ID`, `MONETIZATION_APPLE_KEY_ID`, `MONETIZATION_APPLE_PRIVATE_KEY`, `MONETIZATION_APPLE_BUNDLE_ID`(optional), `MONETIZATION_APPLE_ENV`(`sandbox|production`)
+  - Google env: `MONETIZATION_GOOGLE_PACKAGE_NAME`, `MONETIZATION_GOOGLE_SERVICE_ACCOUNT_EMAIL`, `MONETIZATION_GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` (또는 `MONETIZATION_GOOGLE_SERVICE_ACCOUNT_JSON`)
   - 중복 처리: 같은 플랫폼 식별자 재요청 시 동일 사용자 기준 idempotent 응답
   - Response: `purchase`, `entitlements`
-  - Error: 400 `INVALID_REQUEST`, 404 `RESOURCE_NOT_FOUND`, 409 `CONFLICT`, 500 `INTERNAL_ERROR`
+  - Error: 400 `INVALID_REQUEST`, 400/502 `VERIFICATION_FAILED`, 503/504 `VERIFICATION_UNAVAILABLE`, 404 `RESOURCE_NOT_FOUND`, 409 `CONFLICT`, 500 `INTERNAL_ERROR`
 
 ---
 
