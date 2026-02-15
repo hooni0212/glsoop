@@ -12,6 +12,8 @@ window.Glsoop = window.Glsoop || {};
 Glsoop.FeedPage = (function () {
   // === 내부 상태(전역 대신 모듈 스코프에만 둠) ===
   const FEED_LIMIT = 10;     // 한 번에 가져올 글 개수
+  const FEED_SCROLL_PRELOAD_PX = 900; // 하단 도달 전에 미리 다음 배치를 요청
+  const FEED_LOADING_MARKER_ID = 'feedLoadingMarker';
   let feedOffset = 0;        // 서버에서 글을 가져올 때 시작 위치(offset)
   let feedLoading = false;   // 현재 글을 가져오는 중인지 여부
   let feedDone = false;      // 더 이상 가져올 글이 없는지 여부
@@ -204,10 +206,25 @@ Glsoop.FeedPage = (function () {
     const scrollHeight =
       document.documentElement.scrollHeight || document.body.scrollHeight;
 
-    // 맨 아래에서 200px 이내면 다음 글 로드
-    if (scrollTop + clientHeight >= scrollHeight - 200) {
+    // 맨 아래에 닿기 전에 미리 불러와 체감 끊김을 줄인다.
+    if (scrollTop + clientHeight >= scrollHeight - FEED_SCROLL_PRELOAD_PX) {
       loadMoreFeed();
     }
+  }
+
+  function showFeedLoadingMarker(feedBox) {
+    if (!feedBox || !feedBox.dataset.initialized) return;
+    if (feedBox.querySelector(`#${FEED_LOADING_MARKER_ID}`)) return;
+
+    feedBox.insertAdjacentHTML(
+      'beforeend',
+      `<p id="${FEED_LOADING_MARKER_ID}" class="gls-text-muted">다음 글을 불러오는 중입니다...</p>`
+    );
+  }
+
+  function hideFeedLoadingMarker(feedBox) {
+    const marker = feedBox?.querySelector(`#${FEED_LOADING_MARKER_ID}`);
+    if (marker) marker.remove();
   }
 
   // === 서버에서 글 목록 추가 로드 ===
@@ -228,6 +245,10 @@ Glsoop.FeedPage = (function () {
     const requestCategory = currentCategory;
     const requestTags = [...currentTags];
     const requestOffset = feedOffset;
+
+    if (requestOffset > 0) {
+      showFeedLoadingMarker(feedBox);
+    }
 
     try {
       const params = new URLSearchParams({
@@ -321,6 +342,7 @@ Glsoop.FeedPage = (function () {
       }
 
       // 실제 글 카드 렌더링
+      hideFeedLoadingMarker(feedBox);
       renderFeedPosts(posts);
 
       // offset 갱신
@@ -341,6 +363,7 @@ Glsoop.FeedPage = (function () {
           '<p class="text-danger">피드를 불러오는 중 오류가 발생했습니다。</p>';
       }
     } finally {
+      hideFeedLoadingMarker(feedBox);
       // 로딩 상태 해제
       feedLoading = false;
     }
@@ -379,11 +402,13 @@ function renderFeedPosts(posts) {
     if (!card) return;
 
     const quoteEl = card.querySelector('.quote-card');
+    const hasRenderedImage = !!card.querySelector('.feed-rendered-card-image');
 
-    if (quoteEl && typeof autoAdjustQuoteFont === 'function') {
+    if (quoteEl && !hasRenderedImage && typeof autoAdjustQuoteFont === 'function') {
       autoAdjustQuoteFont(quoteEl);
     }
 
+    bindFeedRenderedImageFallback(card);
     
     setupCardAuthorLink(card, post);  // 작성자 클릭 → 작가 페이지
     setupCardInteractions(card, post); // 좋아요/더보기/상세보기 등
@@ -411,6 +436,8 @@ function renderFeedPosts(posts) {
  */
 function setupCardInteractions(card, post) {
   if (!card || !post) return;
+
+  bindFeedRenderedImageFallback(card);
 
   // 1) 글 내용 폰트 자동 조절 (PostCard 모듈이 있다면 사용)
   const contentEl = card.querySelector('.gls-post-content');
@@ -510,6 +537,30 @@ function setupCardInteractions(card, post) {
       post.id
     )}`;
   });  
+}
+
+function bindFeedRenderedImageFallback(card) {
+  const imageEl = card?.querySelector('.feed-rendered-card-image');
+  const fallbackEl = card?.querySelector('[data-feed-render-fallback]');
+  if (!imageEl || !fallbackEl) return;
+  if (imageEl.dataset.fallbackBound === '1') return;
+  imageEl.dataset.fallbackBound = '1';
+
+  const activateFallback = () => {
+    imageEl.style.display = 'none';
+    fallbackEl.hidden = false;
+    fallbackEl.classList.add('is-active');
+    const quoteEl = card.querySelector('.quote-card');
+    if (quoteEl) quoteEl.classList.add('quote-card--fallback-active');
+    if (typeof autoAdjustQuoteFont === 'function') {
+      autoAdjustQuoteFont(fallbackEl);
+    }
+  };
+
+  imageEl.addEventListener('error', activateFallback, { once: true });
+  if (imageEl.complete && imageEl.naturalWidth === 0) {
+    activateFallback();
+  }
 }
 
 

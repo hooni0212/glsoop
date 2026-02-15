@@ -84,6 +84,57 @@ function renderCategoryBadge(post) {
   return `<span class="${cls}">${label}</span>`;
 }
 
+function isExplorePageContext() {
+  if (typeof document === 'undefined') return false;
+  if (document.body?.classList?.contains('page-explore')) return true;
+  const pathname = String(window.location?.pathname || '');
+  return pathname.endsWith('/explore') || pathname.endsWith('/explore/');
+}
+
+function buildFeedImageVersion(post) {
+  const seed = [
+    post?.id || '',
+    post?.title || '',
+    post?.content || '',
+    post?.created_at || '',
+  ].join('|');
+
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function buildFeedRenderedImageUrl(post, template = 'paper01') {
+  const postId = encodeURIComponent(post?.id || '');
+  const version = buildFeedImageVersion(post);
+  return `/api/feed-images/post/${postId}?template=${encodeURIComponent(
+    template
+  )}&scale=2&v=${encodeURIComponent(version)}`;
+}
+
+function buildRenderedImageCardHtml(post, fallbackHtml) {
+  const src = buildFeedRenderedImageUrl(post);
+
+  return `
+    <div class="feed-rendered-image-shell">
+      <img
+        class="feed-rendered-card-image"
+        data-feed-render-image
+        src="${src}"
+        alt=""
+        loading="lazy"
+        decoding="async"
+      />
+      <div class="feed-rendered-fallback" data-feed-render-fallback hidden>
+        ${fallbackHtml}
+      </div>
+    </div>
+  `;
+}
+
 /**
  * ⭐ 공통 카드 HTML 생성 함수
  * - 인덱스 피드 / 관련 글 / 마이페이지 등에서 모두 같은 구조를 쓰기 위해 사용
@@ -109,6 +160,7 @@ function buildStandardPostCardHTML(post, options = {}) {
   const categoryHtml = renderCategoryBadge(post);
   const { cleanHtml, quoteFontClass } = extractContentWithFont(post);
   const safeHtml = sanitizePostHtml(cleanHtml);
+  const useRenderedImage = isExplorePageContext();
   const bookmarkIcon = `
     <svg
       class="post-bookmark-icon"
@@ -146,9 +198,28 @@ function buildStandardPostCardHTML(post, options = {}) {
   // feed-post-content에 expanded 붙일지 여부
   // 피드 미리보기 페이드 기본값은 glass로 고정(white는 ui-kit 비교/테스트용)
   // - expanded 상태에서는 페이드가 보이지 않지만, 클래스는 유지해도 무방
-  const feedContentClass = contentExpanded
-    ? 'feed-post-content gls-fade-glass expanded'
-    : 'feed-post-content gls-fade-glass';
+  const feedContentClass = [
+    'feed-post-content',
+    'gls-fade-glass',
+    contentExpanded ? 'expanded' : '',
+    useRenderedImage ? 'feed-post-content--rendered-image' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const quoteCardClass = [
+    'quote-card',
+    quoteFontClass,
+    useRenderedImage ? 'quote-card--rendered-image' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const quoteBodyHtml = useRenderedImage
+    ? buildRenderedImageCardHtml(post, safeHtml)
+    : safeHtml;
+
+  const shouldShowMoreButton = showMoreButton && !useRenderedImage;
 
   return `
     <div class="card gls-mb-3 gls-post-card${extraClass}" data-post-id="${post.id}">
@@ -183,12 +254,12 @@ function buildStandardPostCardHTML(post, options = {}) {
         <!-- 본문 카드 영역 -->
         <div class="post-content gls-mt-2">
           <div class="${feedContentClass}">
-            <div class="quote-card ${quoteFontClass}">
-              ${safeHtml}
+            <div class="${quoteCardClass}">
+              ${quoteBodyHtml}
             </div>
 
             ${
-              showMoreButton
+              shouldShowMoreButton
                 ? `
             <!-- 더보기 버튼 (내용이 넘칠 때만 노출) : 카드 내부 오버레이 -->
             <button
@@ -233,9 +304,13 @@ function enhanceStandardPostCard(cardElement, post) {
   if (!cardElement) return;
 
   const quoteEl = cardElement.querySelector('.quote-card');
-  if (quoteEl) {
+  const isRenderedImageCard = !!cardElement.querySelector('.feed-rendered-card-image');
+
+  if (quoteEl && !isRenderedImageCard) {
     autoAdjustQuoteFont(quoteEl);
   }
+
+  bindRenderedImageFallback(cardElement);
 
   // 페이지별로 이미 존재하는 함수 재사용
   if (typeof setupCardAuthorLink === 'function') {
@@ -365,6 +440,8 @@ function setupCardAuthorLink(cardEl, post) {
 function setupCardInteractions(cardEl, post) {
   if (!cardEl || !post) return;
 
+  bindRenderedImageFallback(cardEl);
+
   // 1) 좋아요 버튼
   const likeBtn = cardEl.querySelector('.like-btn');
   if (likeBtn) {
@@ -449,4 +526,32 @@ function setupCardInteractions(cardEl, post) {
       post.id
     )}`;
   });
+}
+
+function bindRenderedImageFallback(cardEl) {
+  const imageEl = cardEl?.querySelector('.feed-rendered-card-image');
+  const fallbackEl = cardEl?.querySelector('[data-feed-render-fallback]');
+  if (!imageEl || !fallbackEl) return;
+  if (imageEl.dataset.fallbackBound === '1') return;
+  imageEl.dataset.fallbackBound = '1';
+
+  const activateFallback = () => {
+    imageEl.style.display = 'none';
+    fallbackEl.hidden = false;
+    fallbackEl.classList.add('is-active');
+
+    const quoteEl = cardEl.querySelector('.quote-card');
+    if (quoteEl) {
+      quoteEl.classList.add('quote-card--fallback-active');
+    }
+
+    if (typeof autoAdjustQuoteFont === 'function') {
+      autoAdjustQuoteFont(fallbackEl);
+    }
+  };
+
+  imageEl.addEventListener('error', activateFallback, { once: true });
+  if (imageEl.complete && imageEl.naturalWidth === 0) {
+    activateFallback();
+  }
 }
