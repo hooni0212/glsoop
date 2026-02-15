@@ -334,8 +334,15 @@ async function toggleLike(postId, likeBtn) {
 
     // 401 → 비로그인
     if (res.status === 401) {
-      alert('로그인 후 공감할 수 있습니다.');
-      window.location.href = '/html/login.html';
+      if (typeof redirectToLoginWithNext === 'function') {
+        redirectToLoginWithNext({
+          alertMessage: '로그인 후 공감할 수 있습니다.',
+          source: 'post-card-like',
+        });
+      } else {
+        alert('로그인 후 공감할 수 있습니다.');
+        window.location.href = '/html/login.html';
+      }
       return;
     }
 

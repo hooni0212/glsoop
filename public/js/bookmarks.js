@@ -17,6 +17,18 @@
 
   document.addEventListener('DOMContentLoaded', init);
 
+  function redirectToLoginForBookmarks(alertMessage = '로그인 후 이용할 수 있습니다.') {
+    if (typeof redirectToLoginWithNext === 'function') {
+      redirectToLoginWithNext({
+        alertMessage,
+        source: 'bookmarks-page',
+      });
+      return;
+    }
+    alert(alertMessage);
+    window.location.href = '/html/login.html';
+  }
+
   async function init() {
     await ensureLogin();
     await loadLists();
@@ -42,8 +54,7 @@
       const data = await res.json();
       if (!data.ok) throw new Error('login');
     } catch (e) {
-      alert('로그인 후 이용할 수 있습니다.');
-      window.location.href = '/html/login.html';
+      redirectToLoginForBookmarks('로그인 후 이용할 수 있습니다.');
       throw e;
     }
   }
@@ -54,8 +65,7 @@
     try {
       const res = await fetch('/api/bookmarks/lists');
       if (res.status === 401) {
-        alert('로그인 후 이용할 수 있습니다.');
-        window.location.href = '/html/login.html';
+        redirectToLoginForBookmarks('로그인 후 이용할 수 있습니다.');
         return;
       }
       const data = await res.json();
@@ -147,7 +157,7 @@
         body: JSON.stringify({ name, description: desc }),
       });
       if (res.status === 401) {
-        alert('로그인이 필요합니다.');
+        redirectToLoginForBookmarks('로그인이 필요합니다.');
         return;
       }
       const data = await res.json();
@@ -166,6 +176,10 @@
       const res = await fetch(`/api/bookmarks/lists/${encodeURIComponent(listId)}`, {
         method: 'DELETE',
       });
+      if (res.status === 401) {
+        redirectToLoginForBookmarks('로그인이 필요합니다.');
+        return;
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.message || '삭제에 실패했습니다.');
       await loadLists();
@@ -212,7 +226,7 @@
         `/api/bookmarks/lists/${encodeURIComponent(activeListId)}/items?limit=${LIMIT}&offset=${offset}`
       );
       if (res.status === 401) {
-        alert('로그인 후 이용해주세요.');
+        redirectToLoginForBookmarks('로그인 후 이용해주세요.');
         return;
       }
       const data = await res.json();

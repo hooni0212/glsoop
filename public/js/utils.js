@@ -309,6 +309,48 @@ function sanitizePostHtml(html) {
   });
 }
 
+/**
+ * 로그인 페이지 이동 URL 생성 (현재 경로를 next로 보존)
+ * @param {Object} options
+ * @param {string} options.source - 유입 출처 식별자
+ * @param {string} options.nextPath - 명시적 next 경로(선택)
+ * @returns {string}
+ */
+function buildLoginRedirectWithNext(options = {}) {
+  const source = typeof options.source === 'string' ? options.source.trim() : '';
+  const nextPathRaw =
+    typeof options.nextPath === 'string' ? options.nextPath : `${window.location.pathname}${window.location.search || ''}`;
+  const isSafeInternalPath =
+    typeof nextPathRaw === 'string' &&
+    nextPathRaw.startsWith('/') &&
+    !nextPathRaw.startsWith('//') &&
+    !nextPathRaw.startsWith('/\\');
+  const nextPath = isSafeInternalPath ? nextPathRaw : '/';
+
+  const query = new URLSearchParams();
+  query.set('next', nextPath);
+  if (source) {
+    query.set('from', source);
+  }
+  return `/html/login.html?${query.toString()}`;
+}
+
+/**
+ * 로그인 필요 시 안내 후 로그인 페이지로 이동
+ * @param {Object} options
+ * @param {string} options.alertMessage - 사용자 안내 문구(선택)
+ * @param {string} options.source - 유입 출처 식별자
+ * @param {string} options.nextPath - 명시적 next 경로(선택)
+ */
+function redirectToLoginWithNext(options = {}) {
+  const alertMessage =
+    typeof options.alertMessage === 'string' ? options.alertMessage : '';
+  if (alertMessage) {
+    alert(alertMessage);
+  }
+  window.location.href = buildLoginRedirectWithNext(options);
+}
+
 // =============================================================================
 // Modal helper (Bootstrap-first) — window.glsModal shim
 // -----------------------------------------------------------------------------
