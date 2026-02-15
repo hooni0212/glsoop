@@ -5,7 +5,7 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v4';
+const RENDER_VERSION = 'feed-image-poc-v5';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 
 const TEMPLATE_CONFIG = {
@@ -35,14 +35,15 @@ const TEMPLATE_CONFIG = {
 
 const LAYOUT_PRESETS = {
   short: {
-    topPct: 0.472,
-    leftPct: 0.373,
-    widthPct: 0.385,
-    bottomPct: 0.162,
+    topPct: 0.458,
+    leftPct: 0.34,
+    widthPct: 0.42,
+    bottomPct: 0.165,
     fontSizeRatio: 0.032,
-    lineHeightRatio: 1.13,
+    lineHeightRatio: 1.1,
     maxLines: 4,
-    centerIfShort: true,
+    textAlign: 'center',
+    verticalAlign: 'center',
   },
   medium: {
     topPct: 0.462,
@@ -52,7 +53,8 @@ const LAYOUT_PRESETS = {
     fontSizeRatio: 0.0295,
     lineHeightRatio: 1.12,
     maxLines: 8,
-    centerIfShort: false,
+    textAlign: 'left',
+    verticalAlign: 'top',
   },
   long: {
     topPct: 0.448,
@@ -62,7 +64,8 @@ const LAYOUT_PRESETS = {
     fontSizeRatio: 0.0275,
     lineHeightRatio: 1.11,
     maxLines: 12,
-    centerIfShort: false,
+    textAlign: 'left',
+    verticalAlign: 'top',
   },
   xlong: {
     topPct: 0.438,
@@ -72,7 +75,8 @@ const LAYOUT_PRESETS = {
     fontSizeRatio: 0.0255,
     lineHeightRatio: 1.1,
     maxLines: 15,
-    centerIfShort: false,
+    textAlign: 'left',
+    verticalAlign: 'top',
   },
 };
 
@@ -125,9 +129,9 @@ function normalizePostText(raw) {
 }
 
 function selectLengthPreset(textLength) {
-  if (textLength <= 30) return 'short';
-  if (textLength <= 90) return 'medium';
-  if (textLength <= 190) return 'long';
+  if (textLength <= 40) return 'short';
+  if (textLength <= 120) return 'medium';
+  if (textLength <= 230) return 'long';
   return 'xlong';
 }
 
@@ -332,8 +336,10 @@ function buildSvgTextOverlay({
   );
 
   const rawTextBlockHeight = lineHeightPx * Math.max(lines.length, 1);
-  const shouldCenter =
-    !!preset.centerIfShort && lines.filter(Boolean).length > 0 && lines.length <= 3;
+  const shouldCenter = preset.verticalAlign === 'center';
+  const isCenterText = preset.textAlign === 'center';
+  const textX = isCenterText ? boxX + boxWidth / 2 : boxX;
+  const textAnchor = isCenterText ? 'middle' : 'start';
 
   const topOffset = shouldCenter
     ? Math.max(0, (boxHeight - rawTextBlockHeight) / 2)
@@ -344,7 +350,7 @@ function buildSvgTextOverlay({
     .map((line, index) => {
       const y = firstBaselineY + index * lineHeightPx;
       const safeText = line ? escapeXml(line) : ' ';
-      return `<tspan x="${boxX}" y="${Math.round(y * 100) / 100}">${safeText}</tspan>`;
+      return `<tspan x="${Math.round(textX * 100) / 100}" y="${Math.round(y * 100) / 100}">${safeText}</tspan>`;
     })
     .join('');
 
@@ -361,6 +367,7 @@ function buildSvgTextOverlay({
       font-family="${SVG_FONT_FAMILY}"
       font-size="${Math.round(fontSizePx * 100) / 100}"
       font-weight="${TEXT_FONT_WEIGHT}"
+      text-anchor="${textAnchor}"
       letter-spacing="0"
       text-rendering="optimizeLegibility"
     >
