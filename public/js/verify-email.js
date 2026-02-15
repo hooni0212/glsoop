@@ -24,6 +24,39 @@ document.addEventListener('DOMContentLoaded', () => {
   let cooldownRemaining = cooldownSeconds;
   let cooldownTimer = null;
 
+  const buildPostVerifyRedirect = (rawRedirectUrl) => {
+    const fallback = '/html/login.html?next=%2Fhtml%2Feditor.html';
+    const base = rawRedirectUrl || '/html/login.html';
+    const isSafeInternalPath = (value) =>
+      typeof value === 'string' &&
+      value.startsWith('/') &&
+      !value.startsWith('//') &&
+      !value.startsWith('/\\');
+
+    try {
+      const target = new URL(base, window.location.origin);
+      const normalizedPath = target.pathname.replace(/\/+$/, '');
+      const isLoginPage = normalizedPath.endsWith('/html/login.html');
+
+      if (isLoginPage) {
+        const next = target.searchParams.get('next');
+        if (!isSafeInternalPath(next)) {
+          target.searchParams.set('next', '/html/editor.html');
+        }
+        if (email && !target.searchParams.get('email')) {
+          target.searchParams.set('email', email);
+        }
+        if (!target.searchParams.get('from')) {
+          target.searchParams.set('from', 'verify-email');
+        }
+      }
+
+      return target.toString();
+    } catch (error) {
+      return fallback;
+    }
+  };
+
   trackEvent('verify_email_view', {
     has_pending_id: Boolean(pendingId),
     has_email: Boolean(email),
@@ -149,8 +182,9 @@ document.addEventListener('DOMContentLoaded', () => {
         errorEl.textContent = '';
       }
       alert(data.message || '이메일 인증이 완료되었습니다.');
-      const redirectUrl =
+      const baseRedirectUrl =
         data.redirect_url || data.redirectUrl || '/html/login.html';
+      const redirectUrl = buildPostVerifyRedirect(baseRedirectUrl);
       trackEvent(
         'verify_email_success',
         {
