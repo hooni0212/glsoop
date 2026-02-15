@@ -361,12 +361,25 @@ function redirectToLoginWithNext(options = {}) {
 function ensureFormFeedbackElement(form, elementId) {
   if (!form || !elementId) return null;
   let el = document.getElementById(elementId);
-  if (el) return el;
+  if (el) {
+    if (!el.getAttribute('role')) {
+      el.setAttribute('role', 'status');
+    }
+    if (!el.getAttribute('aria-live')) {
+      el.setAttribute('aria-live', 'polite');
+    }
+    if (!el.getAttribute('aria-atomic')) {
+      el.setAttribute('aria-atomic', 'true');
+    }
+    return el;
+  }
 
   el = document.createElement('div');
   el.id = elementId;
   el.className = 'gls-feedback gls-feedback--info';
-  el.setAttribute('role', 'alert');
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.setAttribute('aria-atomic', 'true');
   el.setAttribute('tabindex', '-1');
   form.prepend(el);
   return el;
@@ -384,11 +397,15 @@ function setFeedbackMessage(targetEl, message, options = {}) {
   if (!targetEl) return;
   const type = typeof options.type === 'string' ? options.type : 'info';
   const focus = options.focus === true;
+  const isError = type === 'error';
 
   targetEl.textContent = message || '';
   targetEl.classList.remove('gls-feedback--info', 'gls-feedback--success', 'gls-feedback--error');
   targetEl.classList.add('gls-feedback', 'is-visible');
   targetEl.style.display = 'block';
+  targetEl.setAttribute('role', isError ? 'alert' : 'status');
+  targetEl.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+  targetEl.setAttribute('aria-atomic', 'true');
   if (type === 'success') {
     targetEl.classList.add('gls-feedback--success');
   } else if (type === 'error') {
@@ -408,6 +425,7 @@ function setFeedbackMessage(targetEl, message, options = {}) {
 function showPageNotice(message, options = {}) {
   if (!message) return;
   const type = typeof options.type === 'string' ? options.type : 'info';
+  const isError = type === 'error';
   const autoHideMs =
     typeof options.autoHideMs === 'number' && options.autoHideMs > 0
       ? options.autoHideMs
@@ -421,10 +439,13 @@ function showPageNotice(message, options = {}) {
     noticeEl.className = 'gls-page-notice';
     noticeEl.setAttribute('role', 'status');
     noticeEl.setAttribute('aria-live', 'polite');
+    noticeEl.setAttribute('aria-atomic', 'true');
     document.body.appendChild(noticeEl);
   }
 
   noticeEl.textContent = message;
+  noticeEl.setAttribute('role', isError ? 'alert' : 'status');
+  noticeEl.setAttribute('aria-live', isError ? 'assertive' : 'polite');
   noticeEl.classList.remove('gls-page-notice--info', 'gls-page-notice--success', 'gls-page-notice--error');
   if (type === 'success') {
     noticeEl.classList.add('gls-page-notice--success');

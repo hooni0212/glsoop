@@ -14,6 +14,10 @@
   let offset = 0;
   const LIMIT = 10;
   let hasMore = false;
+  const setPostsBusy = (busy) => {
+    if (!postsEl) return;
+    postsEl.setAttribute('aria-busy', busy ? 'true' : 'false');
+  };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -43,6 +47,7 @@
   }
 
   async function init() {
+    setPostsBusy(false);
     await ensureLogin();
     await loadLists();
     bindEvents();
@@ -105,6 +110,7 @@
       postsEl.innerHTML =
         '<div class="bookmark-empty-state"><span class="emoji" aria-hidden="true">📂</span><p class="gls-mb-1 fw-semibold">폴더를 만든 뒤 글을 저장해 보세요.</p><p class="gls-text-muted gls-text-small gls-mb-0">피드에서 마음에 드는 글을 북마크하면 여기서 모아볼 수 있습니다.</p></div>';
       loadMoreWrap.style.display = 'none';
+      setPostsBusy(false);
       const emptyCreateBtn = document.getElementById('bookmarkEmptyCreateListBtn');
       if (emptyCreateBtn) {
         emptyCreateBtn.addEventListener('click', () => openListModal());
@@ -113,23 +119,27 @@
     }
 
     lists.forEach((list) => {
-    const item = document.createElement('li');
-    item.className = 'bookmark-folder-item';
-    item.dataset.listId = list.id;
-    item.innerHTML = `
+      const item = document.createElement('li');
+      item.className = 'bookmark-folder-item';
+      item.dataset.listId = list.id;
+      item.setAttribute('tabindex', '0');
+      item.setAttribute('aria-current', 'false');
+      item.setAttribute('aria-label', `${list.name} 폴더 열기`);
+      item.innerHTML = `
         <div class="bookmark-folder-name">${escapeHtml(list.name)}</div>
         <div class="bookmark-folder-desc">${escapeHtml(list.description || '')}</div>
         <div class="bookmark-folder-meta">
           <span class="bookmark-folder-count">글 ${list.item_count || 0}개</span>
           <div class="bookmark-folder-actions">
-            <button class="gls-btn gls-btn-secondary gls-btn-xs" data-action="edit">수정</button>
-            <button class="gls-btn gls-btn-danger gls-btn-xs" data-action="delete">삭제</button>
+            <button type="button" class="gls-btn gls-btn-secondary gls-btn-xs" data-action="edit">수정</button>
+            <button type="button" class="gls-btn gls-btn-danger gls-btn-xs" data-action="delete">삭제</button>
           </div>
         </div>
       `;
 
       item.addEventListener('click', (e) => {
-        const action = e.target.getAttribute('data-action');
+        const actionButton = e.target.closest('[data-action]');
+        const action = actionButton ? actionButton.getAttribute('data-action') : '';
         if (action === 'edit') {
           e.stopPropagation();
           openListModal(list);
@@ -140,6 +150,13 @@
           confirmDelete(list.id);
           return;
         }
+        selectList(list.id);
+      });
+
+      item.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (e.target.closest('[data-action]')) return;
+        e.preventDefault();
         selectList(list.id);
       });
 
@@ -249,17 +266,16 @@
   function updateActiveListUI(listId) {
     const items = document.querySelectorAll('.bookmark-folder-item');
     items.forEach((el) => {
-      if (String(el.dataset.listId) === String(listId)) {
-        el.classList.add('is-active');
-      } else {
-        el.classList.remove('is-active');
-      }
+      const isActive = String(el.dataset.listId) === String(listId);
+      el.classList.toggle('is-active', isActive);
+      el.setAttribute('aria-current', isActive ? 'true' : 'false');
     });
   }
 
   async function loadItems() {
     if (!activeListId || loadingItems) return;
     loadingItems = true;
+    setPostsBusy(true);
     const originalLoadMoreText = loadMoreBtn ? loadMoreBtn.textContent : '';
     if (loadMoreBtn) {
       loadMoreBtn.disabled = true;
@@ -304,6 +320,7 @@
       showNotice(e.message || '북마크 글을 불러오지 못했습니다.', 'error');
     } finally {
       loadingItems = false;
+      setPostsBusy(false);
       if (loadMoreBtn) {
         loadMoreBtn.disabled = false;
         loadMoreBtn.textContent = originalLoadMoreText || '더 보기';

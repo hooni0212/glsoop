@@ -273,8 +273,45 @@ function setupMyPageTabs() {
  const tabLiked = document.getElementById('tabLikedPosts'); // "공감한 글" 탭 버튼
  const tabFollowings = document.getElementById('tabFollowings'); // "팔로잉" 탭 버튼
  const tabBookmarks = document.getElementById('tabBookmarks'); // "북마크" 탭 버튼 (bookmarks.html로 이동)
+ const mySection = document.getElementById('myPostsSection');
+ const likedSection = document.getElementById('likedPostsSection');
+ const followingsSection = document.getElementById('followingsSection');
 
- if (!tabMy || !tabLiked || !tabFollowings) return;
+ if (!tabMy || !tabLiked || !tabFollowings || !mySection || !likedSection || !followingsSection) return;
+
+ // 탭/패널 ARIA 속성 보정 (JS 렌더 환경에서도 접근성 상태를 일관되게 유지)
+ const tabConfigs = [
+  { tab: tabMy, panel: mySection, panelId: 'myPostsSection' },
+  { tab: tabLiked, panel: likedSection, panelId: 'likedPostsSection' },
+  { tab: tabFollowings, panel: followingsSection, panelId: 'followingsSection' },
+ ];
+ tabConfigs.forEach(({ tab, panel, panelId }, index) => {
+  tab.setAttribute('role', 'tab');
+  tab.setAttribute('aria-controls', panelId);
+  tab.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+  tab.setAttribute('tabindex', index === 0 ? '0' : '-1');
+  panel.setAttribute('role', 'tabpanel');
+  panel.setAttribute('aria-labelledby', tab.id);
+  panel.tabIndex = index === 0 ? 0 : -1;
+ });
+
+ const tabOrder = [tabMy, tabLiked, tabFollowings];
+ tabOrder.forEach((tab, index) => {
+  tab.addEventListener('keydown', (event) => {
+   let nextIndex = null;
+   if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabOrder.length;
+   if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabOrder.length) % tabOrder.length;
+   if (event.key === 'Home') nextIndex = 0;
+   if (event.key === 'End') nextIndex = tabOrder.length - 1;
+   if (nextIndex === null) return;
+
+   event.preventDefault();
+   const nextTab = tabOrder[nextIndex];
+   if (!nextTab) return;
+   nextTab.focus();
+   nextTab.click();
+  });
+ });
 
  // "내가 쓴 글" 탭 클릭 시
  tabMy.addEventListener('click', async () => {
@@ -309,6 +346,9 @@ function setupMyPageTabs() {
   });
   tabBookmarks.dataset.bound = 'true';
  }
+
+ // 초기 탭 상태를 명시적으로 동기화
+ switchMyPageTab('my');
 }
 
 /**
@@ -331,16 +371,22 @@ function switchMyPageTab(target) {
  const isLikedTab = target === 'liked';
  const isFollowingsTab = target === 'followings';
 
- tabMy.classList.toggle('is-active', isMyTab);
- tabLiked.classList.toggle('is-active', isLikedTab);
- tabFollowings.classList.toggle('is-active', isFollowingsTab);
+ const syncTabState = (tabEl, sectionEl, isActive) => {
+  if (!tabEl || !sectionEl) return;
+  tabEl.classList.toggle('is-active', isActive);
+  tabEl.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  tabEl.setAttribute('tabindex', isActive ? '0' : '-1');
+  sectionEl.classList.toggle('gls-hidden', !isActive);
+  sectionEl.hidden = !isActive;
+  sectionEl.tabIndex = isActive ? 0 : -1;
+ };
+
+ syncTabState(tabMy, mySection, isMyTab);
+ syncTabState(tabLiked, likedSection, isLikedTab);
+ syncTabState(tabFollowings, followingsSection, isFollowingsTab);
  if (tabBookmarks) {
   tabBookmarks.classList.remove('is-active');
  }
-
- mySection.classList.toggle('gls-hidden', !isMyTab);
- likedSection.classList.toggle('gls-hidden', !isLikedTab);
- followingsSection.classList.toggle('gls-hidden', !isFollowingsTab);
 }
 
 /* ======================

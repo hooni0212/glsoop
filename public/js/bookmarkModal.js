@@ -28,10 +28,12 @@
 
   function ensureModal() {
     let modalEl = document.getElementById(modalId);
-    if (modalEl) {      listContainer = modalEl.querySelector('.bookmark-modal-list');
+    if (modalEl) {
+      listContainer = modalEl.querySelector('.bookmark-modal-list');
       createInput = modalEl.querySelector('#bookmarkNewListInput');
       createBtn = modalEl.querySelector('#bookmarkNewListSubmit');
       statusText = modalEl.querySelector('.bookmark-modal-status');
+      setStatus('', { type: 'info' });
       bindCreateInputEnter();
       return;
     }
@@ -46,7 +48,7 @@
               <button type="button" class="gls-modal-close" data-gls-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <div class="bookmark-modal-status gls-text-muted gls-text-small gls-mb-2"></div>
+              <div class="bookmark-modal-status gls-text-muted gls-text-small gls-mb-2" role="status" aria-live="polite" aria-atomic="true"></div>
               <div class="bookmark-modal-list list-group gls-mb-3"></div>
               <div class="bookmark-modal-create gls-flex gls-gap-2 gls-items-center">
                 <input type="text" class="gls-input" id="bookmarkNewListInput" placeholder="새 폴더 이름" />
@@ -63,10 +65,12 @@
     `;
     document.body.appendChild(wrapper.firstElementChild);
 
-    modalEl = document.getElementById(modalId);    listContainer = modalEl.querySelector('.bookmark-modal-list');
+    modalEl = document.getElementById(modalId);
+    listContainer = modalEl.querySelector('.bookmark-modal-list');
     createInput = modalEl.querySelector('#bookmarkNewListInput');
     createBtn = modalEl.querySelector('#bookmarkNewListSubmit');
     statusText = modalEl.querySelector('.bookmark-modal-status');
+    setStatus('', { type: 'info' });
 
     createBtn.addEventListener('click', handleCreateList);
     bindCreateInputEnter();
@@ -148,7 +152,7 @@
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || '북마크 업데이트에 실패했습니다.');
       }
-      statusText.textContent = '북마크가 업데이트되었습니다.';
+      setStatus('북마크가 업데이트되었습니다.');
       showNotice(
         shouldContain ? '북마크에 추가했습니다.' : '북마크에서 제거했습니다.',
         shouldContain ? 'success' : 'info',
@@ -159,7 +163,7 @@
       if (inputEl) {
         inputEl.checked = !shouldContain;
       }
-      setStatus(e.message || '북마크 처리 중 오류가 발생했습니다.');
+      setStatus(e.message || '북마크 처리 중 오류가 발생했습니다.', { type: 'error' });
       showNotice(e.message || '북마크 처리 중 오류가 발생했습니다.', 'error');
     } finally {
       if (inputEl) inputEl.disabled = false;
@@ -169,7 +173,7 @@
   async function handleCreateList() {
     const name = (createInput && createInput.value.trim()) || '';
     if (!name) {
-      setStatus('폴더 이름을 입력하세요.');
+      setStatus('폴더 이름을 입력하세요.', { type: 'error' });
       showNotice('폴더 이름을 입력하세요.', 'error');
       if (createInput) createInput.focus();
       return;
@@ -178,6 +182,7 @@
     const originalBtnText = createBtn ? createBtn.textContent : '';
     if (createBtn) {
       createBtn.disabled = true;
+      createBtn.classList.add('is-loading');
       createBtn.textContent = '추가 중...';
     }
     try {
@@ -194,11 +199,12 @@
       showNotice('새 북마크 폴더를 만들었습니다.', 'success', 1500);
     } catch (e) {
       console.error(e);
-      setStatus(e.message || '폴더 생성 중 오류가 발생했습니다.');
+      setStatus(e.message || '폴더 생성 중 오류가 발생했습니다.', { type: 'error' });
       showNotice(e.message || '폴더 생성 중 오류가 발생했습니다.', 'error');
     } finally {
       if (createBtn) {
         createBtn.disabled = false;
+        createBtn.classList.remove('is-loading');
         createBtn.textContent = originalBtnText || '추가';
       }
     }
@@ -217,12 +223,17 @@
       setStatus('북마크 폴더를 선택해주세요.');
     } catch (e) {
       console.error(e);
-      setStatus('북마크 정보를 불러오지 못했습니다.');
+      setStatus('북마크 정보를 불러오지 못했습니다.', { type: 'error' });
     }
   }
 
-  function setStatus(msg) {
-    if (statusText) statusText.textContent = msg || '';
+  function setStatus(msg, options = {}) {
+    if (!statusText) return;
+    const type = options.type === 'error' ? 'error' : 'info';
+    statusText.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    statusText.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+    statusText.setAttribute('aria-atomic', 'true');
+    statusText.textContent = msg || '';
   }
 
   async function open(postId) {

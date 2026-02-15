@@ -152,17 +152,41 @@
           <h4 class="mypage-section-title gls-mb-0">내 글 관리</h4>
         </div>
 
-        <div class="mypage-tabs" role="tablist">
-          <button type="button" class="mypage-tab is-active" id="tabMyPosts">
+        <div class="mypage-tabs" role="tablist" aria-label="마이페이지 글 목록 탭">
+          <button
+            type="button"
+            class="mypage-tab is-active"
+            id="tabMyPosts"
+            role="tab"
+            aria-controls="myPostsSection"
+            aria-selected="true"
+            tabindex="0"
+          >
             <span class="tab-label">내가 쓴 글</span>
           </button>
-          <button type="button" class="mypage-tab" id="tabLikedPosts">
+          <button
+            type="button"
+            class="mypage-tab"
+            id="tabLikedPosts"
+            role="tab"
+            aria-controls="likedPostsSection"
+            aria-selected="false"
+            tabindex="-1"
+          >
             <span class="tab-label">내가 공감한 글</span>
           </button>
-          <button type="button" class="mypage-tab" id="tabFollowings">
+          <button
+            type="button"
+            class="mypage-tab"
+            id="tabFollowings"
+            role="tab"
+            aria-controls="followingsSection"
+            aria-selected="false"
+            tabindex="-1"
+          >
             <span class="tab-label">내가 팔로잉</span>
           </button>
-          <a class="mypage-tab" id="tabBookmarks" href="/html/bookmarks.html">
+          <a class="mypage-tab" id="tabBookmarks" href="/html/bookmarks.html" aria-label="북마크 페이지로 이동">
             <span class="tab-label">북마크</span>
           </a>
         </div>
@@ -170,7 +194,7 @@
         <div class="mypage-tab-panels">
           <!-- 내가 쓴 글 섹션 -->
           <!-- mypage.js → loadMyPosts() 결과가 #myPosts 안에 렌더링 -->
-          <div id="myPostsSection" class="mypage-tab-panel">
+          <div id="myPostsSection" class="mypage-tab-panel" role="tabpanel" aria-labelledby="tabMyPosts" tabindex="0">
             <div id="myPosts">
               <p class="gls-text-muted">글 목록을 불러오는 중입니다...</p>
             </div>
@@ -178,14 +202,28 @@
 
           <!-- 내가 공감한 글 섹션 (초기에는 gls-hidden으로 숨김) -->
           <!-- mypage.js → loadLikedPosts() 결과가 #likedPosts 안에 렌더링 -->
-          <div id="likedPostsSection" class="gls-hidden mypage-tab-panel">
+          <div
+            id="likedPostsSection"
+            class="gls-hidden mypage-tab-panel"
+            role="tabpanel"
+            aria-labelledby="tabLikedPosts"
+            tabindex="-1"
+            hidden
+          >
             <div id="likedPosts">
               <p class="gls-text-muted">공감한 글을 불러오는 중입니다...</p>
             </div>
           </div>
 
           <!-- 내가 팔로잉하는 사람들 섹션 (초기에는 gls-hidden) -->
-          <div id="followingsSection" class="gls-hidden mypage-tab-panel">
+          <div
+            id="followingsSection"
+            class="gls-hidden mypage-tab-panel"
+            role="tabpanel"
+            aria-labelledby="tabFollowings"
+            tabindex="-1"
+            hidden
+          >
             <div id="followingsList">
               <p class="gls-text-muted">팔로잉 목록을 불러오는 중입니다...</p>
             </div>

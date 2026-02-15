@@ -73,7 +73,7 @@
           <h2 class="gls-mt-2 gls-mb-1">북마크</h2>
           <p class="gls-mb-0 gls-text-muted">찜한 글들을 같은 유리 패널 톤으로 둘러볼 수 있게 정리했어요.</p>
         </div>
-        <button class="gls-btn gls-btn-primary" id="createListBtn">+ 새 폴더</button>
+        <button type="button" class="gls-btn gls-btn-primary" id="createListBtn">+ 새 폴더</button>
       </div>
 
       <div class="page-grid-split">
@@ -82,14 +82,14 @@
             <h5 class="gls-mb-0">폴더</h5>
             <span class="gls-text-muted gls-text-small">정렬된 북마크</span>
           </div>
-          <ul class="bookmark-folder-list" id="bookmarkLists"></ul>
+          <ul class="bookmark-folder-list" id="bookmarkLists" aria-label="북마크 폴더 목록"></ul>
         </div>
         <div class="page-panel gls-surface-veil" id="bookmarkContent">
           <div class="gls-spread gls-mb-3">
             <h5 class="gls-mb-0">저장한 글</h5>
             <span class="gls-text-muted gls-text-small">글을 선택해 감상하세요</span>
           </div>
-          <div id="bookmarkPosts">
+          <div id="bookmarkPosts" aria-live="polite" aria-busy="false">
             <p class="gls-text-muted gls-mb-0">폴더를 선택하면 저장된 글을 볼 수 있습니다.</p>
           </div>
           <div class="gls-grid gls-mt-3" id="bookmarkLoadMoreWrap" style="display:none;">
