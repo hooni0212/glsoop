@@ -25,8 +25,21 @@
       });
       return;
     }
-    alert(alertMessage);
+    if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+      window.glsoopUi.showPageNotice(alertMessage, { type: 'error' });
+    } else {
+      alert(alertMessage);
+    }
     window.location.href = '/html/login.html';
+  }
+
+  function showNotice(message, type = 'info', autoHideMs = 2200) {
+    if (!message) return;
+    if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+      window.glsoopUi.showPageNotice(message, { type, autoHideMs });
+      return;
+    }
+    alert(message);
   }
 
   async function init() {
@@ -74,6 +87,7 @@
     } catch (e) {
       console.error(e);
       listsEl.innerHTML = '<li class="text-danger">폴더를 불러오는 중 오류가 발생했습니다.</li>';
+      showNotice('북마크 폴더를 불러오는 중 오류가 발생했습니다.', 'error');
     }
   }
 
@@ -141,7 +155,8 @@
     const desc = descInput.value.trim();
     const editId = editIdInput.value;
     if (!name) {
-      alert('폴더 이름을 입력하세요.');
+      showNotice('폴더 이름을 입력하세요.', 'error');
+      if (nameInput) nameInput.focus();
       return;
     }
 
@@ -149,6 +164,12 @@
     const url = editId
       ? `/api/bookmarks/lists/${encodeURIComponent(editId)}`
       : '/api/bookmarks/lists';
+
+    const originalSaveText = saveListBtn ? saveListBtn.textContent : '';
+    if (saveListBtn) {
+      saveListBtn.disabled = true;
+      saveListBtn.textContent = '저장 중...';
+    }
 
     try {
       const res = await fetch(url, {
@@ -164,9 +185,15 @@
       if (!res.ok || !data.ok) throw new Error(data.message || '저장에 실패했습니다.');
       window.glsModal.close(listModalEl);
       await loadLists(editId || (data.list && data.list.id));
+      showNotice(editId ? '폴더를 수정했습니다.' : '새 폴더를 만들었습니다.', 'success', 1500);
     } catch (e) {
       console.error(e);
-      alert(e.message || '폴더 저장 중 오류가 발생했습니다.');
+      showNotice(e.message || '폴더 저장 중 오류가 발생했습니다.', 'error');
+    } finally {
+      if (saveListBtn) {
+        saveListBtn.disabled = false;
+        saveListBtn.textContent = originalSaveText || '저장';
+      }
     }
   }
 
@@ -183,9 +210,10 @@
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.message || '삭제에 실패했습니다.');
       await loadLists();
+      showNotice('북마크 폴더를 삭제했습니다.', 'info', 1500);
     } catch (e) {
       console.error(e);
-      alert(e.message || '폴더 삭제 중 오류가 발생했습니다.');
+      showNotice(e.message || '폴더 삭제 중 오류가 발생했습니다.', 'error');
     }
   }
 
@@ -221,6 +249,11 @@
   async function loadItems() {
     if (!activeListId || loadingItems) return;
     loadingItems = true;
+    const originalLoadMoreText = loadMoreBtn ? loadMoreBtn.textContent : '';
+    if (loadMoreBtn) {
+      loadMoreBtn.disabled = true;
+      loadMoreBtn.textContent = '불러오는 중...';
+    }
     try {
       const res = await fetch(
         `/api/bookmarks/lists/${encodeURIComponent(activeListId)}/items?limit=${LIMIT}&offset=${offset}`
@@ -257,8 +290,13 @@
       if (offset === 0) {
         postsEl.innerHTML = '<p class="text-danger">글을 불러오지 못했습니다.</p>';
       }
+      showNotice(e.message || '북마크 글을 불러오지 못했습니다.', 'error');
     } finally {
       loadingItems = false;
+      if (loadMoreBtn) {
+        loadMoreBtn.disabled = false;
+        loadMoreBtn.textContent = originalLoadMoreText || '더 보기';
+      }
     }
   }
 

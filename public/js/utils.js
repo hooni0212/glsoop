@@ -346,7 +346,14 @@ function redirectToLoginWithNext(options = {}) {
   const alertMessage =
     typeof options.alertMessage === 'string' ? options.alertMessage : '';
   if (alertMessage) {
-    alert(alertMessage);
+    if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+      window.glsoopUi.showPageNotice(alertMessage, {
+        type: 'error',
+        autoHideMs: 2600,
+      });
+    } else {
+      alert(alertMessage);
+    }
   }
   window.location.href = buildLoginRedirectWithNext(options);
 }

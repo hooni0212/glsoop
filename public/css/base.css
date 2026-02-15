@@ -143,6 +143,12 @@ select:focus-visible {
   color: #991b1b;
 }
 
+.gls-btn.is-loading {
+  opacity: 0.72;
+  cursor: progress;
+  pointer-events: none;
+}
+
 .gls-page-notice {
   position: fixed;
   top: calc(var(--gls-nav-height) + 10px);

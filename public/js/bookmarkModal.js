@@ -5,6 +5,14 @@
   let createInput = null;
   let createBtn = null;
   let statusText = null;
+  const showNotice = (message, type = 'info', autoHideMs = 2200) => {
+    if (!message) return;
+    if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+      window.glsoopUi.showPageNotice(message, { type, autoHideMs });
+      return;
+    }
+    alert(message);
+  };
 
   function bindCreateInputEnter() {
     if (!createInput) return;
@@ -72,7 +80,7 @@
           source: 'bookmark-modal',
         });
       } else {
-        alert('로그인 후 이용할 수 있습니다.');
+        showNotice('로그인 후 이용할 수 있습니다.', 'error');
         window.location.href = '/html/login.html';
       }
       return true;
@@ -111,7 +119,7 @@
       input.type = 'checkbox';
       input.className = 'gls-check-input';
       input.checked = selectedIds.has(list.id);
-      input.addEventListener('change', () => toggleMembership(list.id, input.checked));
+      input.addEventListener('change', () => toggleMembership(list.id, input.checked, input));
       item.appendChild(input);
       const span = document.createElement('span');
       span.textContent = list.name;
@@ -120,8 +128,10 @@
     });
   }
 
-  async function toggleMembership(listId, shouldContain) {
+  async function toggleMembership(listId, shouldContain, inputEl) {
     if (!currentPostId) return;
+    if (inputEl) inputEl.disabled = true;
+    setStatus('북마크를 업데이트하는 중...');
     try {
       const url = `/api/bookmarks/lists/${encodeURIComponent(listId)}/items${
         shouldContain ? '' : '/' + encodeURIComponent(currentPostId)
@@ -139,16 +149,37 @@
         throw new Error(data.message || '북마크 업데이트에 실패했습니다.');
       }
       statusText.textContent = '북마크가 업데이트되었습니다.';
+      showNotice(
+        shouldContain ? '북마크에 추가했습니다.' : '북마크에서 제거했습니다.',
+        shouldContain ? 'success' : 'info',
+        1400
+      );
     } catch (e) {
       console.error(e);
-      alert(e.message || '북마크 처리 중 오류가 발생했습니다.');
+      if (inputEl) {
+        inputEl.checked = !shouldContain;
+      }
+      setStatus(e.message || '북마크 처리 중 오류가 발생했습니다.');
+      showNotice(e.message || '북마크 처리 중 오류가 발생했습니다.', 'error');
+    } finally {
+      if (inputEl) inputEl.disabled = false;
     }
   }
 
   async function handleCreateList() {
     const name = (createInput && createInput.value.trim()) || '';
-    if (!name) return alert('폴더 이름을 입력하세요.');
+    if (!name) {
+      setStatus('폴더 이름을 입력하세요.');
+      showNotice('폴더 이름을 입력하세요.', 'error');
+      if (createInput) createInput.focus();
+      return;
+    }
 
+    const originalBtnText = createBtn ? createBtn.textContent : '';
+    if (createBtn) {
+      createBtn.disabled = true;
+      createBtn.textContent = '추가 중...';
+    }
     try {
       const res = await fetch('/api/bookmarks/lists', {
         method: 'POST',
@@ -160,9 +191,16 @@
       if (!res.ok || !data.ok) throw new Error(data.message || '폴더 생성에 실패했습니다.');
       createInput.value = '';
       await loadData();
+      showNotice('새 북마크 폴더를 만들었습니다.', 'success', 1500);
     } catch (e) {
       console.error(e);
-      alert(e.message || '폴더 생성 중 오류가 발생했습니다.');
+      setStatus(e.message || '폴더 생성 중 오류가 발생했습니다.');
+      showNotice(e.message || '폴더 생성 중 오류가 발생했습니다.', 'error');
+    } finally {
+      if (createBtn) {
+        createBtn.disabled = false;
+        createBtn.textContent = originalBtnText || '추가';
+      }
     }
   }
 
