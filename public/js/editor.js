@@ -21,35 +21,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.glsoopAnalytics.trackEvent(eventName, properties, options);
   };
 
-// 1. 로그인 상태 확인
-try {
-  // 브라우저 캐시 사용 금지: 304 방지
-  const res = await fetch('/api/me', { cache: 'no-store' });
+  const buildLoginRedirect = () => {
+    const nextPath = `${window.location.pathname}${window.location.search || ''}`;
+    const query = new URLSearchParams();
+    query.set('next', nextPath);
+    query.set('from', 'editor');
+    return `/html/login.html?${query.toString()}`;
+  };
 
-  // 진짜 로그아웃 상태
-  if (res.status === 401) {
-    alert('로그인이 필요한 기능입니다.');
-    window.location.href = '/html/login.html';
-    return;
-  }
+  const redirectToLogin = (reason) => {
+    trackEvent(
+      'editor_auth_redirect',
+      {
+        reason: reason || null,
+        next_path: `${window.location.pathname}${window.location.search || ''}`,
+      },
+      { useBeacon: true }
+    );
+    window.location.href = buildLoginRedirect();
+  };
 
-  // 그 외의 이상한 상태(500, 304 등)도 일단 에러로 처리
-  if (!res.ok) {
-    console.error('로그인 확인 실패:', res.status, res.statusText);
+  // 1. 로그인 상태 확인
+  try {
+    // 브라우저 캐시 사용 금지: 304 방지
+    const res = await fetch('/api/me', { cache: 'no-store' });
+
+    // 진짜 로그아웃 상태
+    if (res.status === 401) {
+      alert('로그인이 필요한 기능입니다.');
+      redirectToLogin('unauthorized');
+      return;
+    }
+
+    // 그 외의 이상한 상태(500, 304 등)도 일단 에러로 처리
+    if (!res.ok) {
+      console.error('로그인 확인 실패:', res.status, res.statusText);
+      alert('로그인 상태를 확인하는 중 오류가 발생했습니다.');
+      redirectToLogin(`status_${res.status}`);
+      return;
+    }
+
+    // 200이면 통과 (필요하면 여기서 사용자 정보 사용 가능)
+    // const me = await res.json();
+  } catch (e) {
+    console.error(e);
     alert('로그인 상태를 확인하는 중 오류가 발생했습니다.');
-    window.location.href = '/html/login.html';
+    redirectToLogin('network_error');
     return;
   }
-
-  // 200이면 통과 (필요하면 여기서 사용자 정보 사용 가능)
-  // const me = await res.json();
-
-} catch (e) {
-  console.error(e);
-  alert('로그인 상태를 확인하는 중 오류가 발생했습니다.');
-  window.location.href = '/html/login.html';
-  return;
-}
 
 
   // 2. Quill 에디터 초기화
@@ -551,8 +570,14 @@ try {
     updatePreview();
   });
 
+  let isSaving = false;
+
   // 4. 저장 버튼 클릭 시
   saveBtn.addEventListener('click', async () => {
+    if (isSaving) {
+      return;
+    }
+
     const title = titleInput.value.trim();         // 제목(텍스트)
     const contentHtml = quill.root.innerHTML.trim(); // 본문(HTML)
     const selectedFontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
@@ -598,6 +623,11 @@ try {
       content_length: length,
       hashtag_count: hashtagList.length,
     });
+
+    isSaving = true;
+    const originalSaveBtnText = saveBtn.textContent;
+    saveBtn.disabled = true;
+    saveBtn.textContent = isEditMode ? '수정 중...' : '저장 중...';
 
     try {
       let url = '/api/posts';
@@ -649,6 +679,10 @@ try {
         reason: 'network_error',
       });
       showEditorError('글 저장 중 오류가 발생했습니다.');
+    } finally {
+      isSaving = false;
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalSaveBtnText;
     }
   });
 

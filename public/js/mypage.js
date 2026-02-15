@@ -20,6 +20,46 @@ function trackUxEvent(eventName, properties = {}, options = {}) {
  window.glsoopAnalytics.trackEvent(eventName, properties, options);
 }
 
+function getCurrentPathWithSearch() {
+ return `${window.location.pathname}${window.location.search || ''}`;
+}
+
+function buildLoginRedirectUrl(source = 'mypage') {
+ const query = new URLSearchParams();
+ query.set('next', getCurrentPathWithSearch());
+ if (source) {
+  query.set('from', source);
+ }
+ return `/html/login.html?${query.toString()}`;
+}
+
+function renderMyPostsEmptyState(postsBox, reason = 'load') {
+ if (!postsBox) return;
+
+ trackUxEvent('mypage_my_posts_empty', {
+  reason,
+ });
+
+ postsBox.innerHTML = `
+  <div class="gls-flex gls-flex-col gls-items-start gls-gap-2">
+    <p class="gls-text-muted gls-mb-0">아직 작성한 글이 없습니다.</p>
+    <a class="gls-btn gls-btn-primary gls-btn-sm" href="/html/editor.html" id="mypageEmptyCreatePostCta">
+      첫 글 쓰러 가기
+    </a>
+  </div>
+ `;
+
+ const emptyCta = document.getElementById('mypageEmptyCreatePostCta');
+ if (emptyCta) {
+  emptyCta.addEventListener('click', () => {
+   trackUxEvent('mypage_empty_state_cta_click', {
+    target: '/html/editor.html',
+    reason,
+   }, { useBeacon: true });
+  });
+ }
+}
+
 // DOM이 완전히 로드되면 마이페이지 초기화
 document.addEventListener('DOMContentLoaded', () => {
  setupMyPageTabs();    // 탭 버튼(내가 쓴 글 / 공감한 글) 이벤트 설정
@@ -58,7 +98,7 @@ async function loadMyPage() {
    myPostsBox.innerHTML = '';
    likedBox.innerHTML = '';
    setTimeout(() => {
-    window.location.href = '/html/login.html';
+    window.location.href = buildLoginRedirectUrl('mypage');
    }, 1500);
    return;
   }
@@ -72,7 +112,7 @@ async function loadMyPage() {
    myPostsBox.innerHTML = '';
    likedBox.innerHTML = '';
    setTimeout(() => {
-    window.location.href = '/html/login.html';
+    window.location.href = buildLoginRedirectUrl('mypage');
    }, 1500);
    return;
   }
@@ -456,9 +496,7 @@ async function loadMyPosts() {
 
   // 작성한 글이 하나도 없는 경우
   if (!posts.length) {
-   trackUxEvent('mypage_my_posts_empty');
-   postsBox.innerHTML =
-    '<p class="gls-text-muted">아직 작성한 글이 없습니다.</p>';
+   renderMyPostsEmptyState(postsBox, 'load');
    myPostsLoaded = true;
    return;
   }
@@ -754,8 +792,7 @@ function setupMyPostCardEvents() {
 
     // 더 이상 카드가 없으면 "아직 작성한 글이 없습니다" 문구 출력
     if (!postsBox.querySelector('.mypage-post-card')) {
-     postsBox.innerHTML =
-      '<p class="gls-text-muted">아직 작성한 글이 없습니다.</p>';
+     renderMyPostsEmptyState(postsBox, 'after_delete');
     }
    } catch (err) {
     console.error(err);

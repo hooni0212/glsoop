@@ -7,6 +7,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // 로그인 폼 요소 가져오기
   const form = document.getElementById('loginForm');
   if (!form) return; // 폼이 없으면 아무 것도 하지 않음 (안전장치)
+  const params = new URLSearchParams(window.location.search);
+  const nextUrl = params.get('next');
+  const source = params.get('from');
+  const emailFromQuery = (params.get('email') || '').trim();
+  const isSafeInternalPath = (value) =>
+    typeof value === 'string' &&
+    value.startsWith('/') &&
+    !value.startsWith('//') &&
+    !value.startsWith('/\\');
+  const safeNextUrl = isSafeInternalPath(nextUrl) ? nextUrl : null;
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -17,14 +27,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   trackEvent('login_view');
 
+  if (emailFromQuery && form.email && !form.email.value) {
+    form.email.value = emailFromQuery;
+    const pwInput = form.querySelector('input[name="pw"]');
+    if (pwInput) {
+      pwInput.focus();
+    }
+    trackEvent('login_prefilled_from_query', {
+      source: source || null,
+    });
+  }
+
   // 폼 제출 이벤트 리스너 등록
   form.addEventListener('submit', async (e) => {
     e.preventDefault(); // 기본 폼 제출(페이지 새로고침) 막기
 
-    const params = new URLSearchParams(window.location.search);
-    const nextUrl = params.get('next');
     trackEvent('login_submit_clicked', {
-      has_next: Boolean(nextUrl && nextUrl.startsWith('/')),
+      has_next: Boolean(safeNextUrl),
+      source: source || null,
     });
 
     // 폼 안의 input name="email", name="pw"에서 값 읽기
@@ -60,24 +80,26 @@ document.addEventListener('DOMContentLoaded', () => {
 // 로그인 성공 후 이동
       if (res.ok && data.ok) {
         // 안전장치: 내부 경로만 허용
-        if (nextUrl && nextUrl.startsWith('/')) {
+        if (safeNextUrl) {
           trackEvent(
             'login_success',
             {
-              redirect_to: nextUrl,
+              redirect_to: safeNextUrl,
             },
             { useBeacon: true }
           );
-          window.location.href = nextUrl;
+          window.location.href = safeNextUrl;
         } else {
+          const fallbackRedirect =
+            source === 'verify-email' ? '/html/editor.html' : '/html/mypage.html';
           trackEvent(
             'login_success',
             {
-              redirect_to: '/html/mypage.html',
+              redirect_to: fallbackRedirect,
             },
             { useBeacon: true }
           );
-          window.location.href = '/html/mypage.html';
+          window.location.href = fallbackRedirect;
         }
       } else {
         trackEvent('login_error', {

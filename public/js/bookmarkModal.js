@@ -66,8 +66,15 @@
 
   async function requireLogin(res) {
     if (res && res.status === 401) {
-      alert('로그인 후 이용할 수 있습니다.');
-      window.location.href = '/html/login.html';
+      if (typeof redirectToLoginWithNext === 'function') {
+        redirectToLoginWithNext({
+          alertMessage: '로그인 후 이용할 수 있습니다.',
+          source: 'bookmark-modal',
+        });
+      } else {
+        alert('로그인 후 이용할 수 있습니다.');
+        window.location.href = '/html/login.html';
+      }
       return true;
     }
     return false;

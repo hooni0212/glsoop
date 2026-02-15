@@ -273,6 +273,20 @@ async function handleAuthorFollowToggle() {
     const res = await fetch(`/api/users/${currentAuthorId}/follow`, {
       method: 'POST',
     });
+
+    if (res.status === 401) {
+      if (typeof redirectToLoginWithNext === 'function') {
+        redirectToLoginWithNext({
+          alertMessage: '로그인 후 이용할 수 있습니다.',
+          source: 'author-follow',
+        });
+      } else {
+        alert('로그인 후 이용할 수 있습니다.');
+        window.location.href = '/html/login.html';
+      }
+      return;
+    }
+
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
@@ -507,8 +521,15 @@ function setupAuthorPostInteractions(card, post) {
 
         // 로그인 안 되어 있으면 로그인 페이지로
         if (res.status === 401) {
-          alert('로그인 후 공감할 수 있습니다.');
-          window.location.href = '/html/login.html';
+          if (typeof redirectToLoginWithNext === 'function') {
+            redirectToLoginWithNext({
+              alertMessage: '로그인 후 공감할 수 있습니다.',
+              source: 'author-like',
+            });
+          } else {
+            alert('로그인 후 공감할 수 있습니다.');
+            window.location.href = '/html/login.html';
+          }
           return;
         }
 
