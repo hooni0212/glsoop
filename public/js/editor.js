@@ -14,6 +14,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ex) ['힐링', '위로']
   let hashtagList = [];
 
+  const trackEvent = (eventName, properties = {}, options = {}) => {
+    if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+      return;
+    }
+    window.glsoopAnalytics.trackEvent(eventName, properties, options);
+  };
+
 // 1. 로그인 상태 확인
 try {
   // 브라우저 캐시 사용 금지: 304 방지
@@ -442,6 +449,11 @@ try {
   const postId = params.get('postId');      // 수정할 글 ID
   let isEditMode = !!postId;               // postId가 있으면 수정 모드
 
+  trackEvent('editor_open', {
+    is_edit_mode: isEditMode,
+    post_id: postId ? Number(postId) || null : null,
+  });
+
   if (isEditMode) {
     // 수정 모드 → 기존 글 내용 불러오기
     try {
@@ -581,6 +593,12 @@ try {
       return;
     }
 
+    trackEvent(isEditMode ? 'post_update_submit' : 'post_create_submit', {
+      category: selectedCategory,
+      content_length: length,
+      hashtag_count: hashtagList.length,
+    });
+
     try {
       let url = '/api/posts';
       let method = 'POST';
@@ -605,15 +623,31 @@ try {
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
+        trackEvent(isEditMode ? 'post_update_error' : 'post_create_error', {
+          status: res.status || null,
+          has_message: Boolean(data && data.message),
+        });
         showEditorError(data.message || '글 저장에 실패했습니다.');
         return;
       }
+
+      trackEvent(
+        isEditMode ? 'post_update_success' : 'post_create_success',
+        {
+          post_id: data.post_id || (postId ? Number(postId) || null : null),
+          category: selectedCategory,
+        },
+        { useBeacon: true }
+      );
 
       // 성공 알림 후 마이페이지로 이동
       alert(isEditMode ? '글이 수정되었습니다!' : '글이 저장되었습니다!');
       window.location.href = '/html/mypage.html';
     } catch (e) {
       console.error(e);
+      trackEvent(isEditMode ? 'post_update_error' : 'post_create_error', {
+        reason: 'network_error',
+      });
       showEditorError('글 저장 중 오류가 발생했습니다.');
     }
   });

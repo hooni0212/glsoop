@@ -9,6 +9,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // 회원가입 폼 요소 찾기
   const form = document.getElementById('signupForm');
   if (!form) return; // 폼이 없으면 아무 것도 하지 않고 종료
+
+  const trackEvent = (eventName, properties = {}, options = {}) => {
+    if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+      return;
+    }
+    window.glsoopAnalytics.trackEvent(eventName, properties, options);
+  };
+
+  trackEvent('signup_view');
     // ✅ 전체 동의(agreeAll) 체크박스 동작 (CSP 대응: 인라인 스크립트 제거)
   // - #agreeAll 체크 시: 필수/선택 항목을 모두 동일 상태로 맞춤
   // - 개별 체크 변경 시: 전체 동의 체크 여부를 자동 갱신
@@ -51,6 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    trackEvent('signup_submit_clicked');
+
     // --- 1) 입력 필드 찾기 ---
     // name 속성이든, id 속성이든 대응할 수 있도록 둘 다 검색
     const nameInput =
@@ -76,6 +87,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 이름 / 이메일 / 비밀번호 / (닉네임 필요하면 닉네임까지) 모두 확인
     if (!name || !email || !pw || (needNickname && !nickname)) {
+      trackEvent('signup_validation_error', {
+        reason: 'required_fields_missing',
+      });
       alert('이름, 닉네임, 이메일, 비밀번호를 모두 입력하세요.');
       return;
     }
@@ -126,6 +140,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // - data.ok 가 false라면 에러로 간주
       // (예: 이미 존재하는 이메일, 유효하지 않은 입력 등)
       if (!res.ok || !data.ok) {
+        trackEvent('signup_api_error', {
+          status: res.status || null,
+          has_message: Boolean(data && data.message),
+        });
         alert(data.message || '회원가입 중 오류가 발생했습니다.');
         return; // 여기서 종료 → 아래 성공 처리로 내려가지 않음
       }
@@ -135,6 +153,14 @@ document.addEventListener('DOMContentLoaded', () => {
       alert(data.message || '인증 번호를 이메일로 발송했습니다.');
 
       const pendingId = data.pending_id ? String(data.pending_id) : '';
+      trackEvent(
+        'signup_success_pending_created',
+        {
+          pending_id: pendingId || null,
+          resend_after: data.resend_after || null,
+        },
+        { useBeacon: true }
+      );
       const query = new URLSearchParams();
       if (pendingId) {
         query.set('pending_id', pendingId);
@@ -152,6 +178,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       // --- 8) 네트워크 오류 등 예외 상황 ---
       console.error(err);
+      trackEvent('signup_api_error', {
+        reason: 'network_error',
+      });
       alert('회원가입 중 오류가 발생했습니다.');
     } finally {
       // --- 9) 항상 실행되는 후처리 ---

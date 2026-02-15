@@ -5,6 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('verifyEmailForm');
   if (!form) return;
 
+  const trackEvent = (eventName, properties = {}, options = {}) => {
+    if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+      return;
+    }
+    window.glsoopAnalytics.trackEvent(eventName, properties, options);
+  };
+
   const params = new URLSearchParams(window.location.search);
   const pendingId = params.get('pending_id');
   const email = params.get('email');
@@ -16,6 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const cooldownSeconds = 60;
   let cooldownRemaining = cooldownSeconds;
   let cooldownTimer = null;
+
+  trackEvent('verify_email_view', {
+    has_pending_id: Boolean(pendingId),
+    has_email: Boolean(email),
+  });
 
   const formatEmailForDisplay = (address) => {
     if (!address || typeof address !== 'string') return '';
@@ -73,9 +85,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    trackEvent('verify_email_submit');
 
     if (!pendingId) {
       const message = '인증에 필요한 정보가 없습니다. 회원가입을 다시 진행해 주세요.';
+      trackEvent('verify_email_error', {
+        reason: 'missing_pending_id',
+      });
       if (errorEl) {
         errorEl.textContent = message;
       }
@@ -87,6 +103,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!verificationCode) {
       const message = '인증 번호를 입력해 주세요.';
+      trackEvent('verify_email_error', {
+        reason: 'missing_verification_code',
+      });
       if (errorEl) {
         errorEl.textContent = message;
       }
@@ -115,6 +134,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!res.ok || !data.ok) {
         const message = data.message || '인증에 실패했습니다.';
+        trackEvent('verify_email_error', {
+          status: res.status || null,
+          has_message: Boolean(data && data.message),
+        });
         if (errorEl) {
           errorEl.textContent = message;
         }
@@ -128,10 +151,21 @@ document.addEventListener('DOMContentLoaded', () => {
       alert(data.message || '이메일 인증이 완료되었습니다.');
       const redirectUrl =
         data.redirect_url || data.redirectUrl || '/html/login.html';
+      trackEvent(
+        'verify_email_success',
+        {
+          redirect_url: redirectUrl,
+          pending_id: Number(pendingId) || null,
+        },
+        { useBeacon: true }
+      );
       window.location.href = redirectUrl;
     } catch (err) {
       console.error(err);
       const message = '인증 중 오류가 발생했습니다.';
+      trackEvent('verify_email_error', {
+        reason: 'network_error',
+      });
       if (errorEl) {
         errorEl.textContent = message;
       }
@@ -143,6 +177,9 @@ document.addEventListener('DOMContentLoaded', () => {
     resendBtn.addEventListener('click', async () => {
       if (!pendingId && !email) {
         const message = '재발송에 필요한 정보가 없습니다. 회원가입을 다시 진행해 주세요.';
+        trackEvent('verify_email_resend_error', {
+          reason: 'missing_pending_context',
+        });
         if (errorEl) {
           errorEl.textContent = message;
         }
@@ -174,6 +211,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!res.ok || !data.ok) {
           const message = data.message || '재발송에 실패했습니다.';
+          trackEvent('verify_email_resend_error', {
+            status: res.status || null,
+            retry_after: data.retry_after || null,
+          });
           if (errorEl) {
             errorEl.textContent = message;
           }
@@ -187,12 +228,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (errorEl) {
           errorEl.textContent = '';
         }
+        trackEvent('verify_email_resend_success', {
+          retry_after: data.retry_after || cooldownSeconds,
+        });
         alert(data.message || '인증 번호를 다시 발송했습니다.');
         const retryAfter = data.retry_after ? Number(data.retry_after) : cooldownSeconds;
         startCooldown(retryAfter);
       } catch (err) {
         console.error(err);
         const message = '재발송 중 오류가 발생했습니다.';
+        trackEvent('verify_email_resend_error', {
+          reason: 'network_error',
+        });
         if (errorEl) {
           errorEl.textContent = message;
         }

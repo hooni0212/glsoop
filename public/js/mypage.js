@@ -13,6 +13,13 @@ let myPostsLoaded = false;
 let likedPostsLoaded = false;
 let followingsLoaded = false;
 
+function trackUxEvent(eventName, properties = {}, options = {}) {
+ if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+  return;
+ }
+ window.glsoopAnalytics.trackEvent(eventName, properties, options);
+}
+
 // DOM이 완전히 로드되면 마이페이지 초기화
 document.addEventListener('DOMContentLoaded', () => {
  setupMyPageTabs();    // 탭 버튼(내가 쓴 글 / 공감한 글) 이벤트 설정
@@ -79,6 +86,11 @@ async function loadMyPage() {
 
   const followerCount = Number(meData.follower_count) || 0;
   const followingCount = Number(meData.following_count) || 0;
+
+  trackUxEvent('mypage_view', {
+   follower_count: followerCount,
+   following_count: followingCount,
+  });
 
   // 한 줄 소개(bio)가 있는 경우에만 줄 추가
   const bioHtml = meData.bio
@@ -444,6 +456,7 @@ async function loadMyPosts() {
 
   // 작성한 글이 하나도 없는 경우
   if (!posts.length) {
+   trackUxEvent('mypage_my_posts_empty');
    postsBox.innerHTML =
     '<p class="gls-text-muted">아직 작성한 글이 없습니다.</p>';
    myPostsLoaded = true;

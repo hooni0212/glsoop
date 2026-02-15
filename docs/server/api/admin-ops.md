@@ -56,6 +56,7 @@ Base: `/api/admin`
 
 - `POST /cosmetics/grant`
 - `GET /share-events/summary`
+- `GET /ux-events/summary`
 
 ---
 

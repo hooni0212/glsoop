@@ -25,6 +25,7 @@ const db = require('../db');
 const { authRequired } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 const { handlePostCreated, handleLikeAdded } = require('../utils/growth');
+const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
 const { getViewerId } = require('../utils/requestUser');
 
@@ -91,6 +92,75 @@ function getOptionalUserId(req) {
   return getViewerId(req);
 }
 
+const dbGetAsync = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(row);
+    });
+  });
+
+async function logPostActivationEvents(userId, postId) {
+  await logUxEvent({
+    user_id: userId,
+    event_name: 'post_create_success',
+    source: 'server_post',
+    properties: { post_id: postId },
+  });
+
+  const firstPost = await dbGetAsync(
+    `
+      SELECT id, created_at
+      FROM posts
+      WHERE user_id = ?
+      ORDER BY datetime(created_at) ASC, id ASC
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  if (!firstPost || Number(firstPost.id) !== Number(postId)) {
+    return;
+  }
+
+  const verifyEvent = await dbGetAsync(
+    `
+      SELECT created_at
+      FROM ux_events
+      WHERE user_id = ? AND event_name = 'verify_email_success'
+      ORDER BY datetime(created_at) ASC, id ASC
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  if (!verifyEvent?.created_at || !firstPost.created_at) {
+    return;
+  }
+
+  const diff = await dbGetAsync(
+    `SELECT ((julianday(?) - julianday(?)) * 24.0) AS diff_hours`,
+    [firstPost.created_at, verifyEvent.created_at]
+  );
+
+  const hoursFromVerify = Number(diff?.diff_hours);
+  if (!Number.isFinite(hoursFromVerify)) return;
+  if (hoursFromVerify < 0 || hoursFromVerify > 24) return;
+
+  await logUxEvent({
+    user_id: userId,
+    event_name: 'first_post_created_24h',
+    source: 'server_post',
+    properties: {
+      post_id: postId,
+      hours_from_verify: Number(hoursFromVerify.toFixed(2)),
+    },
+  });
+}
+
 const router = express.Router();
 
 // 9-1) 글 작성
@@ -127,8 +197,9 @@ router.post('/posts', authRequired, (req, res) => {
         const finalize = async () => {
           try {
             await handlePostCreated(userId, newPostId);
+            await logPostActivationEvents(userId, newPostId);
           } catch (growthErr) {
-            console.error('post growth 처리 실패:', growthErr);
+            console.error('post growth/activation 처리 실패:', growthErr);
           }
 
           if (tagErr) {

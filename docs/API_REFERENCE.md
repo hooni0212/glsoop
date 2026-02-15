@@ -37,6 +37,7 @@
 - 코스메틱/프로필 꾸미기: `docs/server/api/cosmetics-profile.md`
 - 유료화(결제/권한/웹훅): `docs/server/api/monetization.md`
 - 공유 이벤트: `docs/server/api/share-events.md`
+- UX 이벤트: `docs/server/api/ux-events.md`
 - 관리자 운영: `docs/server/api/admin-ops.md`
 
 ---
@@ -121,7 +122,12 @@
 - `POST /api/share-events`
 - `GET /api/admin/share-events/summary`
 
-### 10) Admin
+### 10) UX Events
+
+- `POST /api/ux-events`
+- `GET /api/admin/ux-events/summary`
+
+### 11) Admin
 
 - `GET /api/admin/`
 - `GET /api/admin/users`
@@ -147,6 +153,7 @@
 - `POST /api/admin/monetization/alerts/:id/resolve`
 - `POST /api/admin/cosmetics/grant`
 - `GET /api/admin/share-events/summary`
+- `GET /api/admin/ux-events/summary`
 
 ---
 

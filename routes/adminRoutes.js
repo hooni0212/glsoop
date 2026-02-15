@@ -411,6 +411,59 @@ function parseShareSummaryQuery(query = {}) {
   };
 }
 
+function parseUxEventSummaryQuery(query = {}) {
+  const from = typeof query.from === 'string' ? query.from.trim() : '';
+  const to = typeof query.to === 'string' ? query.to.trim() : '';
+  const eventNameRaw =
+    typeof query.event_name === 'string' ? query.event_name.trim().toLowerCase() : '';
+  const sourceRaw = typeof query.source === 'string' ? query.source.trim().toLowerCase() : 'all';
+  const userType = parseEnum(query.user_type, ['all', 'authenticated', 'anonymous'], 'all');
+  const topLimit = parseBoundedInt(query.top_limit, 10, 1, 100);
+  const dailyLimit = parseBoundedInt(query.daily_limit, 30, 1, 120);
+
+  if (from && !isValidIsoDate(from)) {
+    return { error: 'from은 YYYY-MM-DD 형식이어야 합니다.' };
+  }
+  if (to && !isValidIsoDate(to)) {
+    return { error: 'to는 YYYY-MM-DD 형식이어야 합니다.' };
+  }
+  if (from && to && from > to) {
+    return { error: 'from은 to보다 이후일 수 없습니다.' };
+  }
+
+  if (eventNameRaw && !/^[a-z0-9_]{1,64}$/.test(eventNameRaw)) {
+    return { error: 'event_name은 영문 소문자/숫자/언더스코어 형식(최대 64자)이어야 합니다.' };
+  }
+
+  if (sourceRaw !== 'all') {
+    if (!/^[a-z0-9_:-]{1,40}$/.test(sourceRaw)) {
+      return { error: 'source는 영문 소문자/숫자/언더스코어/콜론/하이픈 형식(최대 40자)이어야 합니다.' };
+    }
+  }
+
+  if (!userType) {
+    return { error: 'user_type은 all, authenticated, anonymous 중 하나여야 합니다.' };
+  }
+
+  if (topLimit === null) {
+    return { error: 'top_limit은 1~100 범위여야 합니다.' };
+  }
+
+  if (dailyLimit === null) {
+    return { error: 'daily_limit은 1~120 범위여야 합니다.' };
+  }
+
+  return {
+    from: from || null,
+    to: to || null,
+    eventName: eventNameRaw || null,
+    source: sourceRaw || 'all',
+    userType,
+    topLimit,
+    dailyLimit,
+  };
+}
+
 router.post('/entitlements/grant', async (req, res) => {
   const parsed = parseEntitlementGrantPayload(req.body || {});
   if (parsed.error) {
@@ -1074,6 +1127,184 @@ router.get('/share-events/summary', async (req, res) => {
       500,
       'INTERNAL_ERROR',
       '공유 이벤트 요약 조회 중 오류가 발생했습니다.'
+    );
+  }
+});
+
+router.get('/ux-events/summary', async (req, res) => {
+  const parsed = parseUxEventSummaryQuery(req.query || {});
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  const { from, to, eventName, source, userType, topLimit, dailyLimit } = parsed;
+  const where = [];
+  const params = [];
+
+  if (from) {
+    where.push("ue.created_at >= datetime(?, 'start of day')");
+    params.push(from);
+  }
+  if (to) {
+    where.push("ue.created_at < datetime(?, '+1 day', 'start of day')");
+    params.push(to);
+  }
+  if (eventName) {
+    where.push('ue.event_name = ?');
+    params.push(eventName);
+  }
+  if (source !== 'all') {
+    where.push('ue.source = ?');
+    params.push(source);
+  }
+  if (userType === 'authenticated') {
+    where.push('ue.user_id IS NOT NULL');
+  } else if (userType === 'anonymous') {
+    where.push('ue.user_id IS NULL');
+  }
+
+  const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+  // funnel/p0 지표는 이벤트 종류 필터(event_name)를 제외한 동일 범위 조건으로 계산
+  const p0Where = [];
+  const p0Params = [];
+  if (from) {
+    p0Where.push("created_at >= datetime(?, 'start of day')");
+    p0Params.push(from);
+  }
+  if (to) {
+    p0Where.push("created_at < datetime(?, '+1 day', 'start of day')");
+    p0Params.push(to);
+  }
+  if (source !== 'all') {
+    p0Where.push('source = ?');
+    p0Params.push(source);
+  }
+  if (userType === 'authenticated') {
+    p0Where.push('user_id IS NOT NULL');
+  } else if (userType === 'anonymous') {
+    p0Where.push('user_id IS NULL');
+  }
+  const p0WhereClause = p0Where.length > 0 ? `WHERE ${p0Where.join(' AND ')}` : '';
+
+  try {
+    const [summaryRow, byEvent, bySource, byDay, p0Base] = await Promise.all([
+      getAsync(
+        `SELECT
+           COUNT(*) AS total_count,
+           COUNT(DISTINCT CASE WHEN ue.user_id IS NOT NULL THEN ue.user_id END) AS unique_user_count,
+           COUNT(DISTINCT CASE WHEN ue.session_id IS NOT NULL THEN ue.session_id END) AS unique_session_count,
+           SUM(CASE WHEN ue.user_id IS NULL THEN 1 ELSE 0 END) AS anonymous_count
+         FROM ux_events ue
+         ${whereClause}`,
+        params
+      ),
+      allAsync(
+        `SELECT ue.event_name, COUNT(*) AS event_count
+         FROM ux_events ue
+         ${whereClause}
+         GROUP BY ue.event_name
+         ORDER BY event_count DESC, ue.event_name ASC
+         LIMIT ?`,
+        [...params, topLimit]
+      ),
+      allAsync(
+        `SELECT ue.source, COUNT(*) AS event_count
+         FROM ux_events ue
+         ${whereClause}
+         GROUP BY ue.source
+         ORDER BY event_count DESC, ue.source ASC
+         LIMIT ?`,
+        [...params, topLimit]
+      ),
+      allAsync(
+        `SELECT
+           date(ue.created_at) AS day,
+           COUNT(*) AS total_count,
+           COUNT(DISTINCT CASE WHEN ue.user_id IS NOT NULL THEN ue.user_id END) AS unique_user_count
+         FROM ux_events ue
+         ${whereClause}
+         GROUP BY date(ue.created_at)
+         ORDER BY day DESC
+         LIMIT ?`,
+        [...params, dailyLimit]
+      ),
+      getAsync(
+        `SELECT
+           COUNT(DISTINCT CASE WHEN event_name = 'verify_email_success' AND user_id IS NOT NULL THEN user_id END) AS verify_success_user_count,
+           COUNT(DISTINCT CASE WHEN event_name = 'first_post_created_24h' AND user_id IS NOT NULL THEN user_id END) AS first_post_24h_user_count,
+           SUM(CASE WHEN event_name = 'verify_email_submit' THEN 1 ELSE 0 END) AS verify_submit_count,
+           SUM(CASE WHEN event_name = 'verify_email_error' THEN 1 ELSE 0 END) AS verify_error_count,
+           SUM(CASE WHEN event_name = 'post_create_submit' THEN 1 ELSE 0 END) AS post_submit_count,
+           SUM(CASE WHEN event_name = 'post_create_error' THEN 1 ELSE 0 END) AS post_error_count,
+           SUM(CASE WHEN event_name = 'signup_success_pending_created' THEN 1 ELSE 0 END) AS signup_pending_count,
+           SUM(CASE WHEN event_name = 'login_success' THEN 1 ELSE 0 END) AS login_success_count,
+           SUM(CASE WHEN event_name = 'post_create_success' THEN 1 ELSE 0 END) AS post_create_success_count
+         FROM ux_events
+         ${p0WhereClause}`,
+        p0Params
+      ),
+    ]);
+
+    const verifySuccessCount = Number(p0Base?.verify_success_user_count || 0);
+    const firstPost24hCount = Number(p0Base?.first_post_24h_user_count || 0);
+    const verifySubmitCount = Number(p0Base?.verify_submit_count || 0);
+    const verifyErrorCount = Number(p0Base?.verify_error_count || 0);
+    const postSubmitCount = Number(p0Base?.post_submit_count || 0);
+    const postErrorCount = Number(p0Base?.post_error_count || 0);
+
+    const firstPost24hRate =
+      verifySuccessCount > 0 ? Number(((firstPost24hCount * 100) / verifySuccessCount).toFixed(2)) : 0;
+    const verifyEmailFailureRate =
+      verifySubmitCount > 0 ? Number(((verifyErrorCount * 100) / verifySubmitCount).toFixed(2)) : 0;
+    const postCreateErrorRate =
+      postSubmitCount > 0 ? Number(((postErrorCount * 100) / postSubmitCount).toFixed(2)) : 0;
+
+    return res.json({
+      ok: true,
+      message: 'UX 이벤트 요약을 불러왔습니다.',
+      filters: {
+        from,
+        to,
+        event_name: eventName,
+        source,
+        user_type: userType,
+      },
+      summary: {
+        total_count: Number(summaryRow?.total_count || 0),
+        unique_user_count: Number(summaryRow?.unique_user_count || 0),
+        unique_session_count: Number(summaryRow?.unique_session_count || 0),
+        anonymous_count: Number(summaryRow?.anonymous_count || 0),
+      },
+      key_events: {
+        signup_success_pending_created_count: Number(p0Base?.signup_pending_count || 0),
+        verify_email_success_count: verifySuccessCount,
+        login_success_count: Number(p0Base?.login_success_count || 0),
+        post_create_success_count: Number(p0Base?.post_create_success_count || 0),
+        first_post_created_24h_count: firstPost24hCount,
+      },
+      p0_metrics: {
+        first_post_24h_rate: firstPost24hRate,
+        verify_email_failure_rate: verifyEmailFailureRate,
+        post_create_error_rate: postCreateErrorRate,
+        verified_users: verifySuccessCount,
+        first_post_24h_users: firstPost24hCount,
+        verify_submit_count: verifySubmitCount,
+        verify_error_count: verifyErrorCount,
+        post_submit_count: postSubmitCount,
+        post_error_count: postErrorCount,
+      },
+      by_event: byEvent || [],
+      by_source: bySource || [],
+      daily: byDay || [],
+    });
+  } catch (error) {
+    console.error('[admin/ux-events/summary] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      'UX 이벤트 요약 조회 중 오류가 발생했습니다.'
     );
   }
 });

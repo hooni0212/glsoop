@@ -17,6 +17,7 @@ const { sendPasswordResetEmail } = require('../services/mailer');
 const { authRequired } = require('../middleware/auth');
 const { getBaseUrl } = require('../utils/baseUrl');
 const { cleanupExpiredPending } = require('../utils/pendingSignup');
+const { logUxEvent } = require('../utils/uxEvents');
 const {
   loginLimiter,
   signupLimiter,
@@ -267,6 +268,14 @@ router.post('/signup', signupLimiter, async (req, res) => {
       resend_after: Math.ceil(OTP_COOLDOWN_MS / 1000),
     });
 
+    logUxEvent({
+      event_name: 'signup_success_pending_created',
+      source: 'server_auth',
+      properties: { pending_id: pendingId },
+    }).catch((eventErr) => {
+      console.error('signup ux event 기록 실패:', eventErr);
+    });
+
     transporter.sendMail(
       {
         from: `"글숲" <${process.env.GMAIL_USER}>`,
@@ -407,6 +416,14 @@ router.post('/verify-email', async (req, res) => {
     } catch (backfillError) {
       console.error('신규 유저 업적 backfill 실패:', backfillError);
     }
+    logUxEvent({
+      user_id: userId,
+      event_name: 'verify_email_success',
+      source: 'server_auth',
+      properties: { pending_id: Number(pendingId) || null },
+    }).catch((eventErr) => {
+      console.error('verify-email ux event 기록 실패:', eventErr);
+    });
 
     return res.json({
       ok: true,
@@ -779,6 +796,14 @@ router.post('/login', loginLimiter, (req, res) => {
         secure: process.env.NODE_ENV === 'production',
         path: '/',
         maxAge: tokenMaxAgeMs,
+      });
+
+      logUxEvent({
+        user_id: user.id,
+        event_name: 'login_success',
+        source: 'server_auth',
+      }).catch((eventErr) => {
+        console.error('login ux event 기록 실패:', eventErr);
       });
 
       return res.json({
