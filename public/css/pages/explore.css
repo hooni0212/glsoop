@@ -384,43 +384,67 @@ body.page-explore::after {
   content: "";
   position: absolute;
   inset: 0 0 auto 0;
-  height: 70px;
-  background: linear-gradient(140deg, rgba(226, 241, 233, 0.74), rgba(251, 238, 221, 0.78));
+  height: 42px;
+  background: linear-gradient(
+    140deg,
+    rgba(228, 240, 232, 0.36),
+    rgba(248, 236, 220, 0.34)
+  );
   pointer-events: none;
 }
 
 .page-explore #feedPosts .gls-post-card::after {
   content: "";
   position: absolute;
-  top: 18px;
-  right: 16px;
-  width: 30px;
-  height: 30px;
+  top: 12px;
+  right: 12px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.42);
   background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.14));
-  opacity: 0.62;
+  opacity: 0.26;
   pointer-events: none;
 }
 
 .page-explore #feedPosts .gls-post-card:nth-child(6n + 2)::before {
-  background: linear-gradient(145deg, rgba(218, 236, 248, 0.8), rgba(245, 233, 255, 0.72));
+  background: linear-gradient(
+    140deg,
+    rgba(228, 240, 232, 0.34),
+    rgba(248, 236, 220, 0.33)
+  );
 }
 
 .page-explore #feedPosts .gls-post-card:nth-child(6n + 3)::before {
-  background: linear-gradient(145deg, rgba(250, 230, 216, 0.78), rgba(245, 242, 218, 0.74));
+  background: linear-gradient(
+    140deg,
+    rgba(228, 240, 232, 0.34),
+    rgba(248, 236, 220, 0.33)
+  );
 }
 
 .page-explore #feedPosts .gls-post-card:nth-child(6n + 4)::before {
-  background: linear-gradient(145deg, rgba(229, 244, 222, 0.78), rgba(216, 237, 229, 0.76));
+  background: linear-gradient(
+    140deg,
+    rgba(228, 240, 232, 0.34),
+    rgba(248, 236, 220, 0.33)
+  );
 }
 
 .page-explore #feedPosts .gls-post-card:nth-child(6n + 5)::before {
-  background: linear-gradient(145deg, rgba(252, 233, 226, 0.8), rgba(236, 240, 252, 0.74));
+  background: linear-gradient(
+    140deg,
+    rgba(228, 240, 232, 0.34),
+    rgba(248, 236, 220, 0.33)
+  );
 }
 
 .page-explore #feedPosts .gls-post-card:nth-child(6n)::before {
-  background: linear-gradient(145deg, rgba(233, 231, 252, 0.8), rgba(225, 243, 236, 0.76));
+  background: linear-gradient(
+    140deg,
+    rgba(228, 240, 232, 0.34),
+    rgba(248, 236, 220, 0.33)
+  );
 }
 
 .page-explore #feedPosts .gls-post-card:hover {
