@@ -13,7 +13,9 @@ Glsoop.FeedPage = (function () {
   // === 내부 상태(전역 대신 모듈 스코프에만 둠) ===
   const FEED_LIMIT = 10;     // 한 번에 가져올 글 개수
   const FEED_SCROLL_PRELOAD_PX = 900; // 하단 도달 전에 미리 다음 배치를 요청
-  const FEED_LOADING_MARKER_ID = 'feedLoadingMarker';
+  const FEED_SKELETON_COUNT = 4;
+  const FEED_SKELETON_CLASS = 'feed-skeleton-card';
+  const FEED_SENTINEL_ID = 'feedScrollSentinel';
   let feedOffset = 0;        // 서버에서 글을 가져올 때 시작 위치(offset)
   let feedLoading = false;   // 현재 글을 가져오는 중인지 여부
   let feedDone = false;      // 더 이상 가져올 글이 없는지 여부
@@ -21,6 +23,8 @@ Glsoop.FeedPage = (function () {
   let currentFeedType = 'all'; // 현재 피드 유형 (all | following)
   let currentCategory = null; // 현재 카테고리 필터 (null | poem | essay | short)
   let feedSession = 0;       // 정렬/필터 전환 시 세션 토큰 (응답 혼선 방지)
+  let feedObserver = null;
+  let feedScrollFallbackBound = false;
 
   // 여러 태그 AND 조건용 필터 목록
   // 예: ['힐링', '위로'] → 이 두 태그를 모두 포함한 글만 보기
@@ -184,8 +188,7 @@ Glsoop.FeedPage = (function () {
       category: currentCategory,
     });
 
-    // 스크롤 끝 근처에서 추가 로드하도록 이벤트 등록
-    window.addEventListener('scroll', handleFeedScroll);
+    setupFeedLoadObserver(feedBox);
   }
 
   /**
@@ -212,19 +215,86 @@ Glsoop.FeedPage = (function () {
     }
   }
 
-  function showFeedLoadingMarker(feedBox) {
-    if (!feedBox || !feedBox.dataset.initialized) return;
-    if (feedBox.querySelector(`#${FEED_LOADING_MARKER_ID}`)) return;
+  function ensureFeedSentinel(feedBox) {
+    const host = feedBox?.parentElement;
+    if (!host) return null;
 
-    feedBox.insertAdjacentHTML(
-      'beforeend',
-      `<p id="${FEED_LOADING_MARKER_ID}" class="gls-text-muted">다음 글을 불러오는 중입니다...</p>`
-    );
+    let sentinel = document.getElementById(FEED_SENTINEL_ID);
+    if (!sentinel) {
+      sentinel = document.createElement('div');
+      sentinel.id = FEED_SENTINEL_ID;
+      sentinel.className = 'feed-scroll-sentinel';
+      sentinel.setAttribute('aria-hidden', 'true');
+    }
+
+    if (sentinel.parentElement !== host) {
+      host.appendChild(sentinel);
+    }
+
+    return sentinel;
   }
 
-  function hideFeedLoadingMarker(feedBox) {
-    const marker = feedBox?.querySelector(`#${FEED_LOADING_MARKER_ID}`);
-    if (marker) marker.remove();
+  function setupFeedLoadObserver(feedBox) {
+    const sentinel = ensureFeedSentinel(feedBox);
+    if (!sentinel) return;
+
+    if ('IntersectionObserver' in window) {
+      if (feedObserver) {
+        feedObserver.disconnect();
+      }
+
+      feedObserver = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            loadMoreFeed();
+          }
+        },
+        {
+          root: null,
+          rootMargin: `${FEED_SCROLL_PRELOAD_PX}px 0px ${FEED_SCROLL_PRELOAD_PX}px 0px`,
+          threshold: 0,
+        }
+      );
+      feedObserver.observe(sentinel);
+
+      if (feedScrollFallbackBound) {
+        window.removeEventListener('scroll', handleFeedScroll);
+        feedScrollFallbackBound = false;
+      }
+      return;
+    }
+
+    if (!feedScrollFallbackBound) {
+      window.addEventListener('scroll', handleFeedScroll, { passive: true });
+      feedScrollFallbackBound = true;
+    }
+  }
+
+  function showFeedSkeleton(feedBox) {
+    if (!feedBox || !feedBox.dataset.initialized) return;
+    if (feedBox.querySelector(`.${FEED_SKELETON_CLASS}`)) return;
+
+    const skeletonHtml = Array.from({ length: FEED_SKELETON_COUNT })
+      .map(
+        () => `
+          <article class="card gls-post-card ${FEED_SKELETON_CLASS}" aria-hidden="true">
+            <div class="card-body">
+              <div class="feed-skeleton-row feed-skeleton-row--meta"></div>
+              <div class="feed-skeleton-row feed-skeleton-row--title"></div>
+              <div class="feed-skeleton-media"></div>
+            </div>
+          </article>
+        `
+      )
+      .join('');
+
+    feedBox.insertAdjacentHTML('beforeend', skeletonHtml);
+  }
+
+  function hideFeedSkeleton(feedBox) {
+    const skeletons = feedBox?.querySelectorAll(`.${FEED_SKELETON_CLASS}`);
+    if (!skeletons || skeletons.length === 0) return;
+    skeletons.forEach((node) => node.remove());
   }
 
   // === 서버에서 글 목록 추가 로드 ===
@@ -246,9 +316,7 @@ Glsoop.FeedPage = (function () {
     const requestTags = [...currentTags];
     const requestOffset = feedOffset;
 
-    if (requestOffset > 0) {
-      showFeedLoadingMarker(feedBox);
-    }
+    if (requestOffset > 0) showFeedSkeleton(feedBox);
 
     try {
       const params = new URLSearchParams({
@@ -342,7 +410,7 @@ Glsoop.FeedPage = (function () {
       }
 
       // 실제 글 카드 렌더링
-      hideFeedLoadingMarker(feedBox);
+      hideFeedSkeleton(feedBox);
       renderFeedPosts(posts);
 
       // offset 갱신
@@ -363,7 +431,7 @@ Glsoop.FeedPage = (function () {
           '<p class="text-danger">피드를 불러오는 중 오류가 발생했습니다。</p>';
       }
     } finally {
-      hideFeedLoadingMarker(feedBox);
+      hideFeedSkeleton(feedBox);
       // 로딩 상태 해제
       feedLoading = false;
     }
