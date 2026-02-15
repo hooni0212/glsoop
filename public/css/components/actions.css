@@ -7,6 +7,25 @@
   align-items: center;
   gap: var(--gls-space-2, 8px);
   margin-left: auto;
+  flex-shrink: 0;
+}
+
+.post-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gls-space-2, 8px);
+  flex-wrap: nowrap;
+}
+
+.post-header-row .gls-author-badge {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .post-bookmark-toggle .post-bookmark-icon {

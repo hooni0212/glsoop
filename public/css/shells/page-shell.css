@@ -37,9 +37,11 @@ main.page-shell {
 .page-hero-card {
   padding: var(--gls-space-6, 24px);
   border-radius: var(--gls-radius-lg, 18px);
-  border: 1px solid var(--gls-sub-border);
-  background: var(--gls-sub-surface);
-  box-shadow: var(--gls-sub-shadow);
+  border: 1px solid var(--gls-surface-stroke, var(--gls-sub-border));
+  background:
+    var(--gls-surface-tint, linear-gradient(162deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.06))),
+    var(--gls-sub-surface);
+  box-shadow: var(--gls-surface-depth-shadow, var(--gls-sub-shadow));
   backdrop-filter: blur(var(--gls-blur));
   -webkit-backdrop-filter: blur(var(--gls-blur));
   position: relative;
@@ -73,8 +75,8 @@ main.page-shell {
 .page-hero-meta .pill {
   padding: 8px 12px;
   border-radius: var(--gls-radius-pill);
-  background: rgba(255, 255, 255, 0.35);
-  border: 1px solid var(--gls-sub-border);
+  background: color-mix(in srgb, var(--gls-glass-bg) 72%, rgba(255, 255, 255, 0.16));
+  border: 1px solid var(--gls-surface-stroke, var(--gls-sub-border));
   color: var(--gls-muted);
   font-weight: 600;
 }
@@ -96,12 +98,15 @@ main.page-shell {
 .page-panel {
   padding: var(--gls-space-5, 20px);
   border-radius: var(--gls-radius-lg, 18px);
-  border: 1px solid var(--gls-sub-border);
-  background: var(--gls-sub-surface-strong);
-  box-shadow: var(--gls-sub-shadow);
+  border: 1px solid var(--gls-surface-stroke, var(--gls-sub-border));
+  background:
+    var(--gls-surface-tint, linear-gradient(162deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.06))),
+    var(--gls-sub-surface-strong);
+  box-shadow: var(--gls-surface-depth-shadow, var(--gls-sub-shadow));
   backdrop-filter: blur(var(--gls-blur));
   -webkit-backdrop-filter: blur(var(--gls-blur));
   position: relative;
+  transition: var(--gls-transition-lift);
 }
 
 .page-panel::after {
@@ -111,6 +116,13 @@ main.page-shell {
   border-radius: inherit;
   box-shadow: var(--gls-glass-inset);
   pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .page-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--gls-shadow-md, 0 16px 34px rgba(20, 24, 32, 0.11));
+  }
 }
 
 .page-panel + .page-panel {

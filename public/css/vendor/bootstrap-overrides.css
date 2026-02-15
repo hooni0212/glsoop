@@ -11,14 +11,28 @@
   gap: 0.4rem;
   font: inherit;
   line-height: 1.15;
-  padding: 0.55rem 0.9rem;
+  min-height: 40px;
+  padding: 0.55rem 0.95rem;
   border-radius: var(--gls-btn-radius, 14px);
-  border: 1px solid transparent;
-  background: transparent;
-  color: inherit;
+  border: 1px solid var(--gls-btn-border-default, rgba(30, 42, 51, 0.14));
+  background: var(--gls-action-surface, rgba(255, 252, 246, 0.9));
+  color: var(--gls-color-text, inherit);
   cursor: pointer;
   text-decoration: none;
+  box-shadow: var(--gls-glass-inset), 0 6px 16px rgba(24, 28, 34, 0.07);
   transition: var(--gls-transition-lift-ui, transform 0.18s ease, box-shadow 0.18s ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover,
+  .btn:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: var(--gls-glass-inset), 0 10px 24px rgba(24, 28, 34, 0.09);
+  }
+}
+
+.btn:active {
+  transform: translateY(-1px);
 }
 
 .btn-sm {
@@ -37,17 +51,24 @@
 .btn-primary,
 .btn-success {
   border-radius: var(--gls-btn-radius);
-  padding: 0.55rem 1.4rem;
+  padding: 0.55rem 1.3rem;
   font-weight: var(--gls-btn-font-weight);
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--gls-color-primary, #1d6b52) 72%, rgba(255, 255, 255, 0.2));
+  color: #f7fff9;
+  background:
+    linear-gradient(128deg, color-mix(in srgb, var(--gls-color-primary, #1d6b52) 86%, #0f3328 14%), color-mix(in srgb, var(--gls-color-primary-strong, #145038) 76%, #0a2d23 24%));
+  box-shadow: 0 12px 28px rgba(17, 66, 50, 0.24), var(--gls-glass-inset);
 }
 
-.btn-success {
-  background-color: #2e8b57;
-}
-
-.btn-success:hover {
-  background-color: #267349;
+.btn-primary:hover,
+.btn-success:hover,
+.btn-primary:focus-visible,
+.btn-success:focus-visible {
+  color: #f8fff9;
+  border-color: color-mix(in srgb, var(--gls-color-primary, #1d6b52) 84%, rgba(255, 255, 255, 0.26));
+  background:
+    linear-gradient(128deg, color-mix(in srgb, var(--gls-color-primary, #1d6b52) 78%, #0f3328 22%), color-mix(in srgb, var(--gls-color-primary-strong, #145038) 68%, #0a2d23 32%));
+  box-shadow: 0 14px 32px rgba(17, 66, 50, 0.3), var(--gls-glass-inset);
 }
 
 /* 공통 버튼: 키보드 포커스 링 (접근성) */

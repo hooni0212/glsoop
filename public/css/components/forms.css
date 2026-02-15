@@ -1,19 +1,8 @@
-.gls-input,.gls-select{width:100%;border:1px solid var(--gls-control-border);border-radius:var(--gls-control-radius);background-color:var(--gls-control-bg);padding:0.55rem 0.75rem;line-height:1.4;transition:border-color .15s ease,box-shadow .15s ease;}
-.gls-select{appearance:none;}
-.gls-input:focus,.gls-select:focus{outline:none;border-color:var(--gls-control-border-focus);box-shadow:var(--gls-control-shadow-focus);} 
-.gls-input[disabled],.gls-select[disabled]{opacity:.65;cursor:not-allowed;}
-.gls-input-sm,.gls-select-sm{padding:0.35rem 0.6rem;font-size:.875rem;border-radius:10px;}
-.gls-label{display:block;margin-bottom:.35rem;font-weight:700;}
-.gls-check{display:flex;align-items:flex-start;gap:.5rem;}
-.gls-check-inline{display:inline-flex;}
-.gls-check-input{margin-top:.22rem;}
-.gls-check-input:focus-visible{outline:none;border-color:var(--gls-control-border-focus);box-shadow:var(--gls-control-shadow-focus);} 
-.gls-check-label{line-height:1.35;}
-
-/* range (legacy range replacement) */
-.gls-range {
-  width: 100%;
-  accent-color: var(--gls-color-primary);
+.gls-label {
+  display: block;
+  margin-bottom: 0.38rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .gls-input,
@@ -21,19 +10,84 @@
 textarea.gls-input,
 input.gls-input,
 select.gls-select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--gls-control-border);
   border-radius: var(--gls-control-radius);
   background-color: var(--gls-control-bg);
-  border-color: var(--gls-control-border);
+  color: var(--gls-color-text);
+  padding: 0.6rem 0.8rem;
+  line-height: 1.42;
+  transition: border-color var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    box-shadow var(--gls-duration-ui, 140ms) var(--gls-ease, ease),
+    background-color var(--gls-duration-ui, 140ms) var(--gls-ease, ease);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.46) inset;
+}
+
+.gls-select {
+  appearance: none;
+}
+
+textarea.gls-input {
+  min-height: 108px;
+  resize: vertical;
+}
+
+.gls-input::placeholder,
+.gls-select::placeholder,
+textarea.gls-input::placeholder {
+  color: color-mix(in srgb, var(--gls-color-muted, #5b5d57) 82%, rgba(255, 255, 255, 0.38));
 }
 
 .gls-input:focus,
-.gls-select:focus {
+.gls-select:focus,
+textarea.gls-input:focus {
+  outline: none;
   border-color: var(--gls-control-border-focus);
-  box-shadow: var(--gls-control-shadow-focus);
+  box-shadow: var(--gls-control-shadow-focus), 0 1px 0 rgba(255, 255, 255, 0.52) inset;
+  background-color: color-mix(in srgb, var(--gls-control-bg) 92%, rgba(255, 255, 255, 0.5));
 }
 
-/* 체크박스/라디오도 포커스 링 통일 */
-.gls-check-input:focus {
+.gls-input[disabled],
+.gls-select[disabled] {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.gls-input-sm,
+.gls-select-sm {
+  min-height: 36px;
+  padding: 0.42rem 0.68rem;
+  font-size: 0.875rem;
+  border-radius: 10px;
+}
+
+.gls-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.gls-check-inline {
+  display: inline-flex;
+}
+
+.gls-check-input {
+  margin-top: 0.22rem;
+}
+
+.gls-check-input:focus,
+.gls-check-input:focus-visible {
+  outline: none;
   box-shadow: var(--gls-control-shadow-focus);
   border-color: var(--gls-control-border-focus);
+}
+
+.gls-check-label {
+  line-height: 1.35;
+}
+
+.gls-range {
+  width: 100%;
+  accent-color: var(--gls-color-primary);
 }

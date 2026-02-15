@@ -198,6 +198,58 @@ body.page-post #postDetail .post-content-surface {
   padding-bottom: calc(var(--gls-space-5, 20px) + 16px);
 }
 
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-content {
+  margin-top: 0;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .feed-post-content.feed-post-content--detail-rendered {
+  display: block;
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  line-height: 1;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .quote-card.quote-card--rendered-image {
+  max-width: 100%;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .feed-rendered-image-shell {
+  width: min(680px, 100%);
+  margin: 0 auto;
+  aspect-ratio: 5 / 6;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(66, 53, 35, 0.14);
+  box-shadow: 0 18px 38px rgba(38, 28, 14, 0.18);
+  background: #e7dfd1;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .feed-rendered-card-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .feed-rendered-fallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 18px 16px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 252, 246, 0.95), rgba(241, 233, 221, 0.97));
+  font-size: 1.06rem;
+  line-height: 1.78;
+}
+
 @media (max-width: 768px) {
   body.page-post #postDetail .post-content-surface {
     min-height: 360px;
@@ -249,6 +301,14 @@ body.page-post .post-type-chip {
   white-space: nowrap;
   height: var(--gls-meta-chip-h);
   line-height: 1;
+}
+
+body.page-post .post-time-chip {
+  border: 1px solid rgba(66, 53, 35, 0.18);
+  background: rgba(255, 255, 255, 0.34);
+  color: rgba(30, 42, 51, 0.76);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 body.page-post .post-tag-chip {
@@ -869,6 +929,10 @@ body.page-post #postDetail .post-content-surface {
 
 body.page-post #postDetail .quote-card {
   max-width: 72ch;
+}
+
+body.page-post #postDetail .quote-card.quote-card--rendered-image {
+  max-width: 100%;
 }
 
 body.page-post .post-actions-grid .gls-action-tile {

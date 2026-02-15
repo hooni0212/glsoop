@@ -5,7 +5,7 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v5';
+const RENDER_VERSION = 'feed-image-poc-v7';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 
 const TEMPLATE_CONFIG = {
@@ -34,14 +34,25 @@ const TEMPLATE_CONFIG = {
 };
 
 const LAYOUT_PRESETS = {
-  short: {
-    topPct: 0.458,
-    leftPct: 0.34,
+  oneLine: {
+    topPct: 0.34,
+    leftPct: 0.29,
     widthPct: 0.42,
-    bottomPct: 0.165,
-    fontSizeRatio: 0.032,
-    lineHeightRatio: 1.1,
-    maxLines: 4,
+    bottomPct: 0.34,
+    fontSizeRatio: 0.041,
+    lineHeightRatio: 1.14,
+    maxLines: 2,
+    textAlign: 'center',
+    verticalAlign: 'center',
+  },
+  short: {
+    topPct: 0.364,
+    leftPct: 0.336,
+    widthPct: 0.424,
+    bottomPct: 0.29,
+    fontSizeRatio: 0.035,
+    lineHeightRatio: 1.15,
+    maxLines: 5,
     textAlign: 'center',
     verticalAlign: 'center',
   },
@@ -50,8 +61,8 @@ const LAYOUT_PRESETS = {
     leftPct: 0.354,
     widthPct: 0.41,
     bottomPct: 0.126,
-    fontSizeRatio: 0.0295,
-    lineHeightRatio: 1.12,
+    fontSizeRatio: 0.0325,
+    lineHeightRatio: 1.13,
     maxLines: 8,
     textAlign: 'left',
     verticalAlign: 'top',
@@ -61,8 +72,8 @@ const LAYOUT_PRESETS = {
     leftPct: 0.322,
     widthPct: 0.452,
     bottomPct: 0.102,
-    fontSizeRatio: 0.0275,
-    lineHeightRatio: 1.11,
+    fontSizeRatio: 0.03,
+    lineHeightRatio: 1.12,
     maxLines: 12,
     textAlign: 'left',
     verticalAlign: 'top',
@@ -72,8 +83,8 @@ const LAYOUT_PRESETS = {
     leftPct: 0.299,
     widthPct: 0.488,
     bottomPct: 0.088,
-    fontSizeRatio: 0.0255,
-    lineHeightRatio: 1.1,
+    fontSizeRatio: 0.0275,
+    lineHeightRatio: 1.11,
     maxLines: 15,
     textAlign: 'left',
     verticalAlign: 'top',
@@ -129,9 +140,10 @@ function normalizePostText(raw) {
 }
 
 function selectLengthPreset(textLength) {
-  if (textLength <= 40) return 'short';
-  if (textLength <= 120) return 'medium';
-  if (textLength <= 230) return 'long';
+  if (textLength <= 20) return 'oneLine';
+  if (textLength <= 70) return 'short';
+  if (textLength <= 170) return 'medium';
+  if (textLength <= 260) return 'long';
   return 'xlong';
 }
 
@@ -399,12 +411,25 @@ async function renderFeedImageBuffer({
   const lineHeightPx = fontSizePx * preset.lineHeightRatio;
   const maxTextWidthPx = Math.max(20, outputWidth * preset.widthPct);
   const lines = layoutTextLines(text, maxTextWidthPx, fontSizePx, preset.maxLines);
+  const nonEmptyLineCount = lines.filter((line) => String(line || '').trim().length > 0).length;
+  const effectivePreset =
+    nonEmptyLineCount <= 1
+      ? {
+          ...preset,
+          topPct: 0.34,
+          leftPct: 0.26,
+          widthPct: 0.48,
+          bottomPct: 0.34,
+          textAlign: 'center',
+          verticalAlign: 'center',
+        }
+      : preset;
 
   const svgOverlay = buildSvgTextOverlay({
     width: outputWidth,
     height: outputHeight,
     lines,
-    preset,
+    preset: effectivePreset,
     fontSizePx,
     lineHeightPx,
   });

@@ -1,5 +1,8 @@
 .card {
   border-radius: var(--gls-radius-card, 16px);
+  border-color: var(--gls-surface-stroke, rgba(30, 42, 51, 0.16));
+  box-shadow: var(--gls-shadow-sm, 0 9px 22px rgba(20, 24, 32, 0.08));
+  transition: var(--gls-transition-lift);
 }
 
 .card-title {
@@ -34,11 +37,14 @@
   transition: var(--gls-transition-lift);
   position: relative;
   overflow: hidden;
+  border: 1px solid var(--gls-surface-stroke, rgba(30, 42, 51, 0.16));
+  box-shadow: var(--gls-shadow-sm, 0 9px 22px rgba(20, 24, 32, 0.08));
 }
 
 @media (hover: hover) and (pointer: fine) {
   .gls-post-card:hover {
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: var(--gls-shadow-md, 0 16px 34px rgba(20, 24, 32, 0.11));
   }
 }
 
@@ -47,7 +53,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--gls-card-gap, var(--gls-space-5, 20px));
-  padding: clamp(22px, 2.1vw, var(--gls-card-padding, 28px));
+  padding: clamp(22px, 2.1vw, var(--gls-card-padding, 30px));
 }
 
 @media (max-width: 420px) {
@@ -114,7 +120,8 @@ margin-top: 0.25rem;
   line-height: 1.3;
   letter-spacing: -0.01em;
   margin-bottom: var(--gls-space-2, 8px);
-  font-weight: 750;
+  font-weight: 700;
+  font-family: var(--gls-font-serif, 'Hahmlet', 'Nanum Myeongjo', serif);
 
   /* 제목 길이에 따른 카드 높이 편차를 줄이기(최대 2줄) */
   display: -webkit-box;
@@ -129,6 +136,7 @@ margin-top: 0.25rem;
   margin-top: var(--gls-space-2, 8px);
   font-size: var(--gls-fs-md, 1rem);
   line-height: var(--gls-lh-relaxed, 1.7);
+  color: color-mix(in srgb, var(--gls-color-text, #1e2623) 92%, #ffffff 8%);
 }
 
 /* 메타(작성자/좋아요 등): 작게, 하지만 가독성 있게 */
@@ -144,7 +152,7 @@ margin-top: 0.25rem;
 /* 작성자 뱃지: 과하게 튀지 않게 크기/패딩 정리 */
 .gls-post-card .gls-author-badge {
   font-size: 0.88rem;
-  padding: 0.42em 0.72em;
+  padding: 0.42em 0.74em;
   gap: 0.42em;
 }
 
@@ -155,4 +163,3 @@ margin-top: 0.25rem;
 .gls-post-card .card-title + .post-content {
   margin-top: 2px;
 }
-

@@ -242,6 +242,7 @@ function renderPostDetail(container, post) {
 
   const cardHtml = buildStandardPostCardHTML(post, {
     showMoreButton: false,
+    forceRenderedImage: true,
   });
 
   // ✅ 레이아웃은 post.html(2컬럼)에서 담당
@@ -279,8 +280,15 @@ function renderPostDetail(container, post) {
     setupHashtagSearch(card);
 
     const feedContent = card.querySelector('.feed-post-content');
+    const hasRenderedImage = !!card.querySelector('.feed-rendered-card-image');
     if (feedContent) {
-      feedContent.classList.add('expanded', 'post-inner-surface', 'post-content-surface');
+      feedContent.classList.add('expanded');
+      if (hasRenderedImage) {
+        feedContent.classList.add('feed-post-content--detail-rendered');
+        card.classList.add('is-rendered-detail');
+      } else {
+        feedContent.classList.add('post-inner-surface', 'post-content-surface');
+      }
     }
 
     const moreBtn = card.querySelector('.more-toggle');
@@ -300,6 +308,16 @@ function renderPostDetail(container, post) {
   if (metaBar && metaCategory && metaTags) {
     metaCategory.innerHTML = '';
     metaTags.innerHTML = '';
+
+    const dateText = typeof formatKoreanDateTime === 'function'
+      ? formatKoreanDateTime(post.created_at)
+      : '';
+    if (dateText) {
+      const dateChip = document.createElement('span');
+      dateChip.className = 'post-time-chip post-chip-btn';
+      dateChip.textContent = dateText;
+      metaCategory.appendChild(dateChip);
+    }
 
     const legacyMeta = card?.querySelector('.post-bottom-meta');
     if (legacyMeta) {

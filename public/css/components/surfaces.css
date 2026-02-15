@@ -6,12 +6,15 @@
 
 /* 기본 프리셋: Glass */
 :where(.gls-surface-glass, .card, .gls-post-card, #userInfo, .glass-card) {
-  background: var(--gls-surface-glass-bg, var(--gls-glass-bg-subtle));
-  border: 1px solid var(--gls-surface-glass-border, var(--gls-ghost-border));
+  background:
+    var(--gls-surface-tint, linear-gradient(162deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.05))),
+    var(--gls-surface-glass-bg, var(--gls-glass-bg-subtle));
+  border: 1px solid var(--gls-surface-stroke, var(--gls-surface-glass-border, var(--gls-ghost-border)));
   box-shadow: var(--gls-surface-glass-shadow, var(--gls-glass-shadow));
   backdrop-filter: blur(var(--gls-surface-glass-blur, var(--gls-glass-blur)));
   -webkit-backdrop-filter: blur(var(--gls-surface-glass-blur, var(--gls-glass-blur)));
   position: relative;
+  transition: var(--gls-transition-lift);
 }
 
 :where(.gls-surface-glass, .card, .gls-post-card, #userInfo, .glass-card)::after {
@@ -29,7 +32,12 @@
     background: var(--gls-surface-glass-bg-hover, var(--gls-ghost-bg));
     border-color: var(--gls-surface-glass-border-hover, var(--gls-ghost-border-hover));
     box-shadow: var(--gls-surface-glass-shadow-hover, var(--gls-glass-shadow-hover));
+    transform: translateY(-2px);
   }
+}
+
+:where(.gls-surface-glass, .card, .gls-post-card, #userInfo, .glass-card):focus-within {
+  border-color: var(--gls-ghost-border-hover, rgba(46, 139, 87, 0.32));
 }
 
 /* =========================================================
@@ -39,13 +47,16 @@
 ========================================================= */
 
 .gls-surface-panel {
-  background: var(--gls-surface-panel-bg, var(--gls-glass-bg-subtle));
-  border: 1px solid var(--gls-surface-panel-border, var(--gls-glass-border));
+  background:
+    var(--gls-surface-tint, linear-gradient(162deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.05))),
+    var(--gls-surface-panel-bg, var(--gls-glass-bg-subtle));
+  border: 1px solid var(--gls-surface-stroke, var(--gls-surface-panel-border, var(--gls-glass-border)));
   border-radius: var(--gls-surface-panel-radius, var(--gls-radius-lg, 18px));
   box-shadow: var(--gls-surface-panel-shadow, var(--gls-glass-shadow));
   backdrop-filter: blur(var(--gls-surface-panel-blur, var(--gls-glass-blur)));
   -webkit-backdrop-filter: blur(var(--gls-surface-panel-blur, var(--gls-glass-blur)));
   position: relative;
+  transition: var(--gls-transition-lift);
 }
 
 .gls-surface-panel::after {

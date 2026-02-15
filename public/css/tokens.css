@@ -45,19 +45,19 @@
   --gls-lh-tight: 1.28;
 
   /* Colors (semantic) */
-  --gls-color-bg: #efe8db;
-  --gls-color-border: #cfc3ad;
-  --gls-color-highlight: #f6eddc;
-  --gls-color-muted: #5f5a4f;
-  --gls-color-overlay: rgba(255, 249, 241, 0.72);
-  --gls-color-overlay-strong: rgba(255, 249, 241, 0.9);
-  --gls-color-primary: #1f6b4b;
-  --gls-color-primary-fade: rgba(31, 107, 75, 0.12);
-  --gls-color-primary-strong: #145137;
-  --gls-color-surface: #fffdf8;
-  --gls-color-surface-strong: #f6efe3;
-  --gls-color-surface-subtle: #fbf5ea;
-  --gls-color-text: #1b2620;
+  --gls-color-bg: #ece8de;
+  --gls-color-border: #c8beab;
+  --gls-color-highlight: #f7f1e4;
+  --gls-color-muted: #5b5d57;
+  --gls-color-overlay: rgba(248, 244, 236, 0.68);
+  --gls-color-overlay-strong: rgba(248, 244, 236, 0.9);
+  --gls-color-primary: #1d6b52;
+  --gls-color-primary-fade: rgba(29, 107, 82, 0.12);
+  --gls-color-primary-strong: #145038;
+  --gls-color-surface: #fffcf5;
+  --gls-color-surface-strong: #f5efe3;
+  --gls-color-surface-subtle: #faf4e8;
+  --gls-color-text: #1e2623;
   --gls-color-hero-subtitle: #4f5c53;
   --gls-color-hero-cta-hover: #1a5d40;
   --gls-color-search-input: #fffdf8;
@@ -72,22 +72,22 @@
   --gls-shadow-accent: 0 16px 36px rgba(31, 107, 75, 0.24);
   --gls-shadow-card: var(--gls-shadow-sm);
   --gls-shadow-card-hover: var(--gls-shadow-hover);
-  --gls-shadow-hover: 0 22px 46px rgba(40, 29, 13, 0.17);
-  --gls-shadow-md: 0 14px 34px rgba(40, 29, 13, 0.12);
-  --gls-shadow-sm: 0 8px 24px rgba(40, 29, 13, 0.08);
+  --gls-shadow-hover: 0 26px 54px rgba(20, 24, 32, 0.16);
+  --gls-shadow-md: 0 16px 34px rgba(20, 24, 32, 0.11);
+  --gls-shadow-sm: 0 9px 22px rgba(20, 24, 32, 0.08);
   --gls-shadow-surface: var(--gls-shadow-md);
   /* Glass / Surface helpers */
   --gls-blur: var(--gls-glass-blur);
   --gls-border: var(--gls-glass-border);
-  --gls-glass-bg: rgba(255, 252, 245, 0.34);
-  --gls-glass-bg-strong: rgba(255, 252, 245, 0.56);
-  --gls-glass-bg-subtle: rgba(255, 252, 245, 0.22);
-  --gls-glass-blur: 14px;
+  --gls-glass-bg: rgba(255, 252, 246, 0.52);
+  --gls-glass-bg-strong: rgba(255, 252, 246, 0.76);
+  --gls-glass-bg-subtle: rgba(255, 252, 246, 0.34);
+  --gls-glass-blur: 16px;
   --gls-ui-blur: 10px;
-  --gls-glass-border: rgba(47, 39, 27, 0.14);
-  --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
-  --gls-glass-shadow: 0 14px 34px rgba(36, 26, 12, 0.1);
-  --gls-glass-shadow-hover: 0 24px 48px rgba(36, 26, 12, 0.14);
+  --gls-glass-border: rgba(44, 43, 34, 0.14);
+  --gls-glass-inset: 0 1px 0 rgba(255, 255, 255, 0.62) inset;
+  --gls-glass-shadow: 0 14px 32px rgba(23, 26, 31, 0.1);
+  --gls-glass-shadow-hover: 0 24px 48px rgba(23, 26, 31, 0.14);
 
   /* Glass Surface preset (중복 제거용) */
   --gls-surface-glass-bg: var(--gls-glass-bg-subtle);
@@ -103,20 +103,20 @@
   --gls-surface-overlay: rgba(255, 255, 255, 0.62);
   --gls-text: var(--gls-color-text);
   /* Ghost buttons */
-  --gls-ghost-bg: rgba(255, 250, 242, 0.24);
-  --gls-ghost-bg-active: rgba(255, 250, 242, 0.42);
-  --gls-ghost-bg-hover: rgba(255, 250, 242, 0.32);
-  --gls-ghost-border: rgba(44, 36, 26, 0.18);
-  --gls-ghost-border-hover: rgba(31, 107, 75, 0.34);
+  --gls-ghost-bg: rgba(255, 252, 246, 0.42);
+  --gls-ghost-bg-active: rgba(255, 252, 246, 0.58);
+  --gls-ghost-bg-hover: rgba(255, 252, 246, 0.5);
+  --gls-ghost-border: rgba(44, 43, 34, 0.2);
+  --gls-ghost-border-hover: rgba(29, 107, 82, 0.38);
   --gls-ghost-text: rgba(24, 34, 28, 0.9);
   /* Action / CTA */
   --gls-action-accent: var(--gls-color-primary, #2e8b57);
-  --gls-action-border: rgba(30, 42, 51, 0.16);
-  --gls-action-border-strong: rgba(31, 107, 75, 0.38);
-  --gls-action-glow: 0 12px 28px rgba(31, 107, 75, 0.2);
-  --gls-action-surface: rgba(255, 253, 247, 0.86);
-  --gls-action-surface-hover: rgba(255, 253, 247, 0.94);
-  --gls-action-surface-strong: rgba(31, 107, 75, 0.12);
+  --gls-action-border: rgba(29, 107, 82, 0.24);
+  --gls-action-border-strong: rgba(29, 107, 82, 0.42);
+  --gls-action-glow: 0 14px 30px rgba(29, 107, 82, 0.22);
+  --gls-action-surface: rgba(255, 252, 246, 0.9);
+  --gls-action-surface-hover: rgba(255, 252, 246, 0.96);
+  --gls-action-surface-strong: rgba(29, 107, 82, 0.13);
 
   /* Buttons/Chips (dedupe) */
   --gls-btn-border-default: rgba(30, 42, 51, 0.14);
@@ -158,14 +158,14 @@
   --gls-account-surface: var(--gls-glass-bg-subtle, rgba(255, 255, 255, 0.18));
   --gls-account-text: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 92%, rgba(0, 0, 0, 0.08));
   /* Controls (inputs) */
-  --gls-control-bg: var(--gls-glass-bg-strong);
-  --gls-control-border: rgba(30, 42, 51, 0.18);
-  --gls-control-border-focus: rgba(46, 139, 87, 0.55);
+  --gls-control-bg: rgba(255, 252, 246, 0.86);
+  --gls-control-border: rgba(30, 42, 51, 0.22);
+  --gls-control-border-focus: rgba(29, 107, 82, 0.58);
   --gls-control-radius: 12px;
-  --gls-control-shadow-focus: 0 0 0 3px rgba(46, 139, 87, 0.18);
+  --gls-control-shadow-focus: 0 0 0 3px rgba(29, 107, 82, 0.18);
   /* Focus rings */
   --gls-focus-offset: 3px;
-  --gls-focus-outline: 2px solid rgba(46, 139, 87, 0.35);
+  --gls-focus-outline: 2px solid rgba(29, 107, 82, 0.45);
 
   /* Motion */
   --gls-ease: cubic-bezier(0.2, 0.9, 0.2, 1);
@@ -205,6 +205,9 @@
   --gls-sub-surface-strong: var(--gls-glass-bg);
   --gls-sub-border: var(--gls-glass-border);
   --gls-sub-shadow: var(--gls-glass-shadow);
+  --gls-surface-stroke: color-mix(in srgb, var(--gls-sub-border) 74%, rgba(255, 255, 255, 0.32));
+  --gls-surface-tint: linear-gradient(162deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.05));
+  --gls-surface-depth-shadow: 0 16px 38px rgba(23, 26, 31, 0.12);
 }
 
 /* =========================

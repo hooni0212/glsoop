@@ -91,8 +91,66 @@ function isExplorePageContext() {
   return pathname.endsWith('/explore') || pathname.endsWith('/explore/');
 }
 
+function normalizeCardLengthVariant(raw) {
+  const value = String(raw || '').trim().toLowerCase();
+  if (
+    value === 'one-line' ||
+    value === 'short' ||
+    value === 'medium' ||
+    value === 'long'
+  ) {
+    return value;
+  }
+  return '';
+}
+
+function extractPlainPostText(rawHtml) {
+  const withBreaks = String(rawHtml || '')
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/\s*(p|div|h[1-6]|li)\s*>/gi, '\n')
+    .replace(/<\s*li[^>]*>/gi, '• ');
+
+  if (typeof document !== 'undefined' && document.createElement) {
+    const holder = document.createElement('div');
+    holder.innerHTML = withBreaks;
+    return String(holder.textContent || holder.innerText || '')
+      .replace(/\r\n?/g, '\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\u200b/g, '')
+      .trim();
+  }
+
+  return withBreaks
+    .replace(/<[^>]*>/g, '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\u200b/g, '')
+    .trim();
+}
+
+function detectCardLengthVariant(rawContent) {
+  const text = extractPlainPostText(rawContent);
+  if (!text) return 'short';
+
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const compactLength = text.replace(/\s+/g, '').length;
+
+  if (lines.length <= 1 && compactLength <= 20) return 'one-line';
+  if (compactLength <= 70) return 'short';
+  if (compactLength <= 170) return 'medium';
+  return 'long';
+}
+
 function buildFeedImageVersion(post) {
   const seed = [
+    'feed-render-v7',
     post?.id || '',
     post?.title || '',
     post?.content || '',
@@ -146,9 +204,10 @@ function buildStandardPostCardHTML(post, options = {}) {
     showMoreButton = true,     // 더보기 버튼 표시 여부 (피드는 true, 관련글/마이페이지는 false도 가능)
     cardExtraClass = '',       // .related-card 같은 추가 클래스
     contentExpanded = false,   // true면 feed-post-content에 expanded 클래스 추가 (잘리지 않게)
+    forceRenderedImage = false, // true면 explore가 아니어도 렌더 이미지 카드 사용
+    cardLengthVariant = '',    // 카드 길이 타입 강제 지정(one-line|short|medium|long)
   } = options;
 
-  const dateStr = formatKoreanDateTime(post.created_at);
   const author = buildAuthorDisplay(post);
 
   const likeCount =
@@ -160,7 +219,10 @@ function buildStandardPostCardHTML(post, options = {}) {
   const categoryHtml = renderCategoryBadge(post);
   const { cleanHtml, quoteFontClass } = extractContentWithFont(post);
   const safeHtml = sanitizePostHtml(cleanHtml);
-  const useRenderedImage = isExplorePageContext();
+  const normalizedVariant = normalizeCardLengthVariant(cardLengthVariant);
+  const resolvedLengthVariant =
+    normalizedVariant || detectCardLengthVariant(cleanHtml || post?.title || '');
+  const useRenderedImage = forceRenderedImage || isExplorePageContext();
   const bookmarkIcon = `
     <svg
       class="post-bookmark-icon"
@@ -194,6 +256,9 @@ function buildStandardPostCardHTML(post, options = {}) {
 
   // 카드에 붙일 추가 클래스
   const extraClass = cardExtraClass ? ` ${cardExtraClass}` : '';
+  const cardLengthClass = resolvedLengthVariant
+    ? ` gls-post-card--len-${resolvedLengthVariant}`
+    : '';
 
   // feed-post-content에 expanded 붙일지 여부
   // 피드 미리보기 페이드 기본값은 glass로 고정(white는 ui-kit 비교/테스트용)
@@ -222,16 +287,17 @@ function buildStandardPostCardHTML(post, options = {}) {
   const shouldShowMoreButton = showMoreButton && !useRenderedImage;
 
   return `
-    <div class="card gls-mb-3 gls-post-card${extraClass}" data-post-id="${post.id}">
+    <div
+      class="card gls-mb-3 gls-post-card${cardLengthClass}${extraClass}"
+      data-post-id="${post.id}"
+      data-length-variant="${resolvedLengthVariant}"
+    >
       <div class="card-body">
-        <!-- 상단 메타 영역: 작성자 / 날짜 / 공감 버튼 -->
-        <div class="gls-flex gls-justify-between gls-items-center gls-mb-2">
-          <div class="gls-flex gls-items-center gls-gap-3" >
-            <span class="gls-author-badge">
-              ${escapeHtml(author)}
-            </span>
-            <span class="gls-text-muted gls-text-small">${escapeHtml(dateStr)}</span>
-          </div>
+        <!-- 상단 메타 영역: 작성자 + 액션 (북마크/공감) -->
+        <div class="gls-flex gls-justify-between gls-items-center gls-mb-2 post-header-row">
+          <span class="gls-author-badge">
+            ${escapeHtml(author)}
+          </span>
           <div class="post-top-actions">
             ${bookmarkBtn}
             <button

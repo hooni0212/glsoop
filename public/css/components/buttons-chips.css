@@ -1,13 +1,15 @@
 .gls-btn {
   -webkit-appearance: none;
   appearance: none;
-  border: 1px solid var(--gls-ghost-border);
-  background: var(--gls-glass-bg-subtle);
+  border: 1px solid var(--gls-btn-border-default);
+  background: var(--gls-action-surface);
   color: var(--gls-color-text);
   border-radius: var(--gls-btn-radius);
-  padding: 10px 12px;
+  padding: 10px 14px;
+  min-height: 40px;
   font-size: 0.92rem;
-  font-weight: 700;
+  font-weight: var(--gls-btn-font-weight, 600);
+  letter-spacing: -0.005em;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -17,7 +19,7 @@
   text-decoration: none;
   backdrop-filter: blur(var(--gls-glass-blur));
   -webkit-backdrop-filter: blur(var(--gls-glass-blur));
-  box-shadow: var(--gls-glass-inset);
+  box-shadow: var(--gls-glass-inset), 0 6px 16px rgba(24, 28, 34, 0.07);
   transition: var(--gls-transition-lift-ui);
 }
 
@@ -37,27 +39,42 @@
 @media (hover: hover) and (pointer: fine) {
   .gls-btn:hover,
   .gls-btn:focus-visible {
-    transform: translateY(-1px);
-    background: var(--gls-ghost-bg);
+    transform: translateY(-2px);
+    background: var(--gls-action-surface-hover);
     border-color: var(--gls-btn-border-hover);
     box-shadow: var(--gls-glass-inset),
-      var(--gls-btn-shadow-hover);
+      var(--gls-btn-shadow-hover),
+      0 10px 24px rgba(18, 24, 31, 0.1);
   }
 }
 
 
 .gls-btn:active {
-  transform: translateY(0);
+  transform: translateY(-1px);
 }
 
 .gls-btn-primary {
-  background: var(--gls-ghost-bg);
-  border-color: var(--gls-btn-border-default);
+  color: #f7fff9;
+  border-color: color-mix(in srgb, var(--gls-color-primary, #1d6b52) 72%, rgba(255, 255, 255, 0.2));
+  background:
+    linear-gradient(128deg, color-mix(in srgb, var(--gls-color-primary, #1d6b52) 86%, #0f3328 14%), color-mix(in srgb, var(--gls-color-primary-strong, #145038) 76%, #0a2d23 24%));
+  box-shadow: 0 12px 28px rgba(17, 66, 50, 0.24), var(--gls-glass-inset);
 }
 
 .gls-btn-secondary {
-  background: var(--gls-btn-secondary-bg);
+  background: color-mix(in srgb, var(--gls-btn-secondary-bg) 82%, rgba(255, 255, 255, 0.18));
   border-color: var(--gls-btn-border-default);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gls-btn-primary:hover,
+  .gls-btn-primary:focus-visible {
+    color: #f8fff9;
+    border-color: color-mix(in srgb, var(--gls-color-primary, #1d6b52) 84%, rgba(255, 255, 255, 0.26));
+    background:
+      linear-gradient(128deg, color-mix(in srgb, var(--gls-color-primary, #1d6b52) 78%, #0f3328 22%), color-mix(in srgb, var(--gls-color-primary-strong, #145038) 68%, #0a2d23 32%));
+    box-shadow: 0 14px 32px rgba(17, 66, 50, 0.3), var(--gls-glass-inset);
+  }
 }
 
 
@@ -65,18 +82,21 @@
 .gls-btn.is-active {
   border-color: var(--gls-btn-active-border);
   background: var(--gls-btn-active-bg);
+  box-shadow: var(--gls-glass-inset), 0 8px 20px rgba(18, 24, 31, 0.1);
 }
 
 
 .gls-btn-sm {
-  padding: 8px 10px;
-  font-size: 0.92rem;
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 0.88rem;
   border-radius: var(--gls-btn-radius);
 }
 
 .gls-btn-xs {
-  padding: 6px 8px;
-  font-size: 0.82rem;
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 0.78rem;
   border-radius: var(--gls-btn-radius);
 }
 
@@ -151,7 +171,7 @@
 
 
 .gls-btn-danger {
-  background: color-mix(in srgb, rgba(220, 38, 38, 0.12) 70%, var(--gls-glass-bg-subtle));
+  background: color-mix(in srgb, rgba(220, 38, 38, 0.12) 70%, var(--gls-action-surface));
   border-color: rgba(220, 38, 38, 0.34);
   color: color-mix(in srgb, rgba(127, 29, 29, 1) 92%, rgba(0, 0, 0, 0.12));
 }
@@ -171,7 +191,7 @@
   border: 1px solid var(--gls-ghost-border);
   background: var(--gls-ghost-bg);
   color: var(--gls-color-text, #1f2a2b);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.58) inset, 0 6px 16px rgba(24, 28, 34, 0.07);
   backdrop-filter: blur(var(--gls-blur-ui, 10px));
   -webkit-backdrop-filter: blur(var(--gls-blur-ui, 10px));
 }
@@ -179,6 +199,7 @@
 .gls-btn-ghost:focus-visible {
   background: color-mix(in srgb, var(--gls-ghost-bg) 75%, rgba(255, 255, 255, 0.35));
   border-color: color-mix(in srgb, var(--gls-ghost-border) 85%, rgba(0, 0, 0, 0.06));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.58) inset, 0 10px 24px rgba(24, 28, 34, 0.09);
 }
 
 /* Bootstrap .btn-* 보정은 /css/vendor/bootstrap-overrides.css에서 관리 */

@@ -2,17 +2,20 @@
     width: 100%;
     margin: 0;
     padding: var(--gls-space-3, 12px) var(--gls-space-4, 16px);
-    background: var(--gls-ghost-bg);
+    background:
+        linear-gradient(160deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.08)),
+        var(--gls-ghost-bg);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--gls-ghost-border);
+    border: 1px solid var(--gls-surface-stroke, var(--gls-ghost-border));
     border-radius: var(--gls-radius-md, 14px);
-    box-shadow: none;
-    font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.54) inset, 0 6px 16px rgba(20, 24, 32, 0.07);
+    font-family: var(--gls-font-sans, 'IBM Plex Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif);
     font-size: var(--gls-fs-md, 1rem);
     line-height: var(--gls-lh-relaxed, 1.7);
     color: var(--gls-color-text, #1f2a2b);
     word-break: keep-all;
+    transition: var(--gls-transition-lift-ui);
 
     /* NOTE:
         - 미리보기(줄수/클램프)는 .feed-post-content가 담당
@@ -50,10 +53,12 @@ font-family: 'Nanum Pen Script', cursive;
 }
 
 .gls-post-card .feed-post-content .quote-card {
-  background: var(--gls-ghost-bg);
-  border: 1px solid var(--gls-ghost-border);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.08)),
+    var(--gls-ghost-bg);
+  border: 1px solid var(--gls-surface-stroke, var(--gls-ghost-border));
   border-radius: var(--gls-btn-radius);
-  box-shadow: none;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.54) inset, 0 6px 16px rgba(20, 24, 32, 0.07);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
