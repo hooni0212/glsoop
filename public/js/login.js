@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // 로그인 폼 요소 가져오기
   const form = document.getElementById('loginForm');
   if (!form) return; // 폼이 없으면 아무 것도 하지 않음 (안전장치)
+  const feedbackEl =
+    (window.glsoopUi &&
+      typeof window.glsoopUi.ensureFormFeedbackElement === 'function' &&
+      window.glsoopUi.ensureFormFeedbackElement(form, 'loginMessage')) ||
+    document.getElementById('loginMessage');
   const params = new URLSearchParams(window.location.search);
   const nextUrl = params.get('next');
   const source = params.get('from');
@@ -17,12 +22,31 @@ document.addEventListener('DOMContentLoaded', () => {
     !value.startsWith('//') &&
     !value.startsWith('/\\');
   const safeNextUrl = isSafeInternalPath(nextUrl) ? nextUrl : null;
+  let submitting = false;
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
       return;
     }
     window.glsoopAnalytics.trackEvent(eventName, properties, options);
+  };
+
+  const setFormMessage = (message, type = 'error', focus = false) => {
+    if (!feedbackEl) return;
+    if (window.glsoopUi && typeof window.glsoopUi.setFeedbackMessage === 'function') {
+      window.glsoopUi.setFeedbackMessage(feedbackEl, message, { type, focus });
+      return;
+    }
+    feedbackEl.textContent = message || '';
+  };
+
+  const clearFormMessage = () => {
+    if (!feedbackEl) return;
+    if (window.glsoopUi && typeof window.glsoopUi.clearFeedbackMessage === 'function') {
+      window.glsoopUi.clearFeedbackMessage(feedbackEl);
+      return;
+    }
+    feedbackEl.textContent = '';
   };
 
   trackEvent('login_view');
@@ -41,6 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // 폼 제출 이벤트 리스너 등록
   form.addEventListener('submit', async (e) => {
     e.preventDefault(); // 기본 폼 제출(페이지 새로고침) 막기
+    if (submitting) return;
+    clearFormMessage();
 
     trackEvent('login_submit_clicked', {
       has_next: Boolean(safeNextUrl),
@@ -56,8 +82,21 @@ document.addEventListener('DOMContentLoaded', () => {
       trackEvent('login_validation_error', {
         reason: 'required_fields_missing',
       });
-      alert('이메일과 비밀번호를 모두 입력하세요.');
+      setFormMessage('이메일과 비밀번호를 모두 입력하세요.', 'error', true);
+      if (!email && form.email) {
+        form.email.focus();
+      } else if (!pw && form.pw) {
+        form.pw.focus();
+      }
       return;
+    }
+
+    submitting = true;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.dataset.originalText = submitBtn.dataset.originalText || submitBtn.textContent;
+      submitBtn.textContent = '로그인 중...';
     }
 
     try {
@@ -73,12 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // 응답 JSON 파싱 (예: { ok: true/false, message: '...' })
       const data = await res.json();
 
-      // 서버에서 전달한 메시지(alert로 간단히 보여주기)
-      alert(data.message);
-
       // HTTP 응답도 OK이고, 응답 JSON의 ok도 true인 경우 "로그인 성공"으로 간주
-// 로그인 성공 후 이동
+      // 로그인 성공 후 이동
       if (res.ok && data.ok) {
+        setFormMessage(data.message || '로그인에 성공했습니다.', 'success');
         // 안전장치: 내부 경로만 허용
         if (safeNextUrl) {
           trackEvent(
@@ -106,6 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
           status: res.status || null,
           has_message: Boolean(data && data.message),
         });
+        setFormMessage(data.message || '로그인에 실패했습니다.', 'error', true);
       }
     } catch (err) {
       // 네트워크 에러 등 예외 처리
@@ -113,7 +151,14 @@ document.addEventListener('DOMContentLoaded', () => {
       trackEvent('login_error', {
         reason: 'network_error',
       });
-      alert('로그인 중 오류가 발생했습니다.');
+      setFormMessage('로그인 중 오류가 발생했습니다.', 'error', true);
+    } finally {
+      submitting = false;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitBtn.dataset.originalText || '로그인';
+      }
     }
   });
 });

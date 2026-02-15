@@ -57,6 +57,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const setInlineMessage = (message, type = 'error', focus = false) => {
+    if (!errorEl) return;
+    if (window.glsoopUi && typeof window.glsoopUi.setFeedbackMessage === 'function') {
+      window.glsoopUi.setFeedbackMessage(errorEl, message, { type, focus });
+      return;
+    }
+    errorEl.textContent = message || '';
+  };
+
+  const clearInlineMessage = () => {
+    if (!errorEl) return;
+    if (window.glsoopUi && typeof window.glsoopUi.clearFeedbackMessage === 'function') {
+      window.glsoopUi.clearFeedbackMessage(errorEl);
+      return;
+    }
+    errorEl.textContent = '';
+  };
+
+  const showNotice = (message, type = 'info') => {
+    if (!window.glsoopUi || typeof window.glsoopUi.showPageNotice !== 'function') {
+      return;
+    }
+    window.glsoopUi.showPageNotice(message, {
+      type,
+      autoHideMs: type === 'success' ? 2400 : 2800,
+    });
+  };
+
   trackEvent('verify_email_view', {
     has_pending_id: Boolean(pendingId),
     has_email: Boolean(email),
@@ -83,9 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     codeInput.focus();
     codeInput.addEventListener('input', () => {
       codeInput.value = codeInput.value.replace(/\D/g, '').slice(0, 6);
-      if (errorEl) {
-        errorEl.textContent = '';
-      }
+      clearInlineMessage();
     });
   }
 
@@ -125,10 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
       trackEvent('verify_email_error', {
         reason: 'missing_pending_id',
       });
-      if (errorEl) {
-        errorEl.textContent = message;
-      }
-      alert(message);
+      setInlineMessage(message, 'error', true);
       return;
     }
 
@@ -139,10 +162,8 @@ document.addEventListener('DOMContentLoaded', () => {
       trackEvent('verify_email_error', {
         reason: 'missing_verification_code',
       });
-      if (errorEl) {
-        errorEl.textContent = message;
-      }
-      alert(message);
+      setInlineMessage(message, 'error', true);
+      if (codeInput) codeInput.focus();
       return;
     }
 
@@ -171,17 +192,12 @@ document.addEventListener('DOMContentLoaded', () => {
           status: res.status || null,
           has_message: Boolean(data && data.message),
         });
-        if (errorEl) {
-          errorEl.textContent = message;
-        }
-        alert(message);
+        setInlineMessage(message, 'error', true);
         return;
       }
 
-      if (errorEl) {
-        errorEl.textContent = '';
-      }
-      alert(data.message || '이메일 인증이 완료되었습니다.');
+      clearInlineMessage();
+      showNotice(data.message || '이메일 인증이 완료되었습니다.', 'success');
       const baseRedirectUrl =
         data.redirect_url || data.redirectUrl || '/html/login.html';
       const redirectUrl = buildPostVerifyRedirect(baseRedirectUrl);
@@ -200,10 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
       trackEvent('verify_email_error', {
         reason: 'network_error',
       });
-      if (errorEl) {
-        errorEl.textContent = message;
-      }
-      alert(message);
+      setInlineMessage(message, 'error', true);
     }
   });
 
@@ -214,10 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
         trackEvent('verify_email_resend_error', {
           reason: 'missing_pending_context',
         });
-        if (errorEl) {
-          errorEl.textContent = message;
-        }
-        alert(message);
+        setInlineMessage(message, 'error', true);
         return;
       }
 
@@ -249,23 +259,18 @@ document.addEventListener('DOMContentLoaded', () => {
             status: res.status || null,
             retry_after: data.retry_after || null,
           });
-          if (errorEl) {
-            errorEl.textContent = message;
-          }
-          alert(message);
+          setInlineMessage(message, 'error', true);
           if (data.retry_after) {
             startCooldown(Number(data.retry_after));
           }
           return;
         }
 
-        if (errorEl) {
-          errorEl.textContent = '';
-        }
+        clearInlineMessage();
         trackEvent('verify_email_resend_success', {
           retry_after: data.retry_after || cooldownSeconds,
         });
-        alert(data.message || '인증 번호를 다시 발송했습니다.');
+        showNotice(data.message || '인증 번호를 다시 발송했습니다.', 'success');
         const retryAfter = data.retry_after ? Number(data.retry_after) : cooldownSeconds;
         startCooldown(retryAfter);
       } catch (err) {
@@ -274,10 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         trackEvent('verify_email_resend_error', {
           reason: 'network_error',
         });
-        if (errorEl) {
-          errorEl.textContent = message;
-        }
-        alert(message);
+        setInlineMessage(message, 'error', true);
       } finally {
         resendBtn.textContent = '인증 번호 재발송';
         resendBtn.disabled = cooldownRemaining > 0;

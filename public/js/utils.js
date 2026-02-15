@@ -351,6 +351,97 @@ function redirectToLoginWithNext(options = {}) {
   window.location.href = buildLoginRedirectWithNext(options);
 }
 
+function ensureFormFeedbackElement(form, elementId) {
+  if (!form || !elementId) return null;
+  let el = document.getElementById(elementId);
+  if (el) return el;
+
+  el = document.createElement('div');
+  el.id = elementId;
+  el.className = 'gls-feedback gls-feedback--info';
+  el.setAttribute('role', 'alert');
+  el.setAttribute('tabindex', '-1');
+  form.prepend(el);
+  return el;
+}
+
+function clearFeedbackMessage(targetEl) {
+  if (!targetEl) return;
+  targetEl.textContent = '';
+  targetEl.classList.remove('is-visible', 'gls-feedback--info', 'gls-feedback--success', 'gls-feedback--error');
+  targetEl.classList.add('gls-feedback');
+  targetEl.style.display = '';
+}
+
+function setFeedbackMessage(targetEl, message, options = {}) {
+  if (!targetEl) return;
+  const type = typeof options.type === 'string' ? options.type : 'info';
+  const focus = options.focus === true;
+
+  targetEl.textContent = message || '';
+  targetEl.classList.remove('gls-feedback--info', 'gls-feedback--success', 'gls-feedback--error');
+  targetEl.classList.add('gls-feedback', 'is-visible');
+  targetEl.style.display = 'block';
+  if (type === 'success') {
+    targetEl.classList.add('gls-feedback--success');
+  } else if (type === 'error') {
+    targetEl.classList.add('gls-feedback--error');
+  } else {
+    targetEl.classList.add('gls-feedback--info');
+  }
+
+  if (focus) {
+    targetEl.focus({ preventScroll: true });
+    if (typeof targetEl.scrollIntoView === 'function') {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+}
+
+function showPageNotice(message, options = {}) {
+  if (!message) return;
+  const type = typeof options.type === 'string' ? options.type : 'info';
+  const autoHideMs =
+    typeof options.autoHideMs === 'number' && options.autoHideMs > 0
+      ? options.autoHideMs
+      : 2600;
+  const noticeId = 'glsPageNotice';
+
+  let noticeEl = document.getElementById(noticeId);
+  if (!noticeEl) {
+    noticeEl = document.createElement('div');
+    noticeEl.id = noticeId;
+    noticeEl.className = 'gls-page-notice';
+    noticeEl.setAttribute('role', 'status');
+    noticeEl.setAttribute('aria-live', 'polite');
+    document.body.appendChild(noticeEl);
+  }
+
+  noticeEl.textContent = message;
+  noticeEl.classList.remove('gls-page-notice--info', 'gls-page-notice--success', 'gls-page-notice--error');
+  if (type === 'success') {
+    noticeEl.classList.add('gls-page-notice--success');
+  } else if (type === 'error') {
+    noticeEl.classList.add('gls-page-notice--error');
+  } else {
+    noticeEl.classList.add('gls-page-notice--info');
+  }
+
+  if (noticeEl.__hideTimer) {
+    clearTimeout(noticeEl.__hideTimer);
+  }
+  noticeEl.__hideTimer = setTimeout(() => {
+    if (!noticeEl || !noticeEl.parentNode) return;
+    noticeEl.parentNode.removeChild(noticeEl);
+  }, autoHideMs);
+}
+
+window.glsoopUi = window.glsoopUi || {};
+window.glsoopUi.ensureFormFeedbackElement = ensureFormFeedbackElement;
+window.glsoopUi.clearFeedbackMessage = clearFeedbackMessage;
+window.glsoopUi.setFeedbackMessage = setFeedbackMessage;
+window.glsoopUi.showPageNotice = showPageNotice;
+
 // =============================================================================
 // Modal helper (Bootstrap-first) — window.glsModal shim
 // -----------------------------------------------------------------------------
