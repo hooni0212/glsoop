@@ -94,10 +94,21 @@
   function renderListItems(lists, selectedId = null) {
     listsEl.innerHTML = '';
     if (!lists.length) {
-      listsEl.innerHTML = '<li class="gls-text-muted">아직 북마크 폴더가 없습니다. 상단의 + 버튼으로 새 폴더를 만들어 주세요.</li>';
+      listsEl.innerHTML = `
+        <li class="bookmark-empty-state">
+          <p class="gls-text-muted gls-mb-2">아직 북마크 폴더가 없습니다.</p>
+          <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" id="bookmarkEmptyCreateListBtn">
+            새 폴더 만들기
+          </button>
+        </li>
+      `;
       postsEl.innerHTML =
         '<div class="bookmark-empty-state"><span class="emoji" aria-hidden="true">📂</span><p class="gls-mb-1 fw-semibold">폴더를 만든 뒤 글을 저장해 보세요.</p><p class="gls-text-muted gls-text-small gls-mb-0">피드에서 마음에 드는 글을 북마크하면 여기서 모아볼 수 있습니다.</p></div>';
       loadMoreWrap.style.display = 'none';
+      const emptyCreateBtn = document.getElementById('bookmarkEmptyCreateListBtn');
+      if (emptyCreateBtn) {
+        emptyCreateBtn.addEventListener('click', () => openListModal());
+      }
       return;
     }
 
@@ -305,7 +316,8 @@
       <div class="bookmark-empty-state">
         <span class="emoji" aria-hidden="true">📁</span>
         <p class="gls-mb-1 fw-semibold">이 폴더에는 아직 저장된 글이 없습니다.</p>
-        <p class="gls-text-muted gls-text-small gls-mb-0">피드에서 마음에 드는 글을 북마크해 보세요.</p>
+        <p class="gls-text-muted gls-text-small gls-mb-2">피드에서 마음에 드는 글을 북마크해 보세요.</p>
+        <a class="gls-btn gls-btn-secondary gls-btn-sm" href="/explore">글 보러 가기</a>
       </div>
     `;
   }

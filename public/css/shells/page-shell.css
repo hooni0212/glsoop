@@ -127,6 +127,11 @@ main.page-shell {
   .page-grid-split {
     grid-template-columns: minmax(280px, 340px) 1fr;
   }
+
+  body.page-bookmarks .page-grid-split > .page-panel:first-child {
+    position: sticky;
+    top: calc(var(--gls-nav-height) + 22px);
+  }
 }
 
 /* =========================
@@ -157,6 +162,73 @@ body.page-bookmarks .bookmark-folder-list {
   margin: 0;
   display: grid;
   gap: 10px;
+}
+
+body.page-bookmarks .bookmark-folder-item {
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+}
+
+body.page-bookmarks .bookmark-folder-item:hover,
+body.page-bookmarks .bookmark-folder-item:focus-within {
+  border-color: rgba(99, 116, 137, 0.48);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+body.page-bookmarks .bookmark-folder-item.is-active {
+  border-color: rgba(14, 116, 144, 0.55);
+  background: rgba(236, 253, 255, 0.8);
+  box-shadow: 0 10px 24px rgba(14, 116, 144, 0.14);
+}
+
+body.page-bookmarks .bookmark-folder-name {
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+body.page-bookmarks .bookmark-folder-desc {
+  font-size: 0.88rem;
+  color: var(--gls-muted);
+  margin-bottom: 6px;
+}
+
+body.page-bookmarks .bookmark-folder-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+body.page-bookmarks .bookmark-folder-count {
+  font-size: 0.82rem;
+  color: var(--gls-muted);
+}
+
+body.page-bookmarks .bookmark-folder-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+body.page-bookmarks .bookmark-folder-actions .gls-btn {
+  min-height: 34px;
+}
+
+body.page-bookmarks .bookmark-empty-state {
+  border: 1px dashed rgba(148, 163, 184, 0.38);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+body.page-bookmarks #bookmarkLoadMore {
+  min-height: 44px;
 }
 
 body.page-bookmarks .bookmark-panel h5,
@@ -214,6 +286,34 @@ body.page-mypage .mypage-growth-mini {
   main.page-shell {
     padding-top: calc(var(--gls-nav-height) + var(--gls-space-4));
     padding-bottom: var(--gls-space-6);
+  }
+
+  body.page-bookmarks .page-hero-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  body.page-bookmarks .page-hero-card #createListBtn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  body.page-bookmarks .bookmark-folder-list {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 2px;
+    overscroll-behavior-x: contain;
+  }
+
+  body.page-bookmarks .bookmark-folder-item {
+    flex: 0 0 auto;
+    min-width: min(76vw, 280px);
+    scroll-snap-align: start;
+  }
+
+  body.page-bookmarks #bookmarkLoadMore {
+    width: 100%;
   }
 }
 

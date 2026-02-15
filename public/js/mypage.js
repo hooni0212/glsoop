@@ -41,9 +41,9 @@ function renderMyPostsEmptyState(postsBox, reason = 'load') {
  });
 
  postsBox.innerHTML = `
-  <div class="gls-flex gls-flex-col gls-items-start gls-gap-2">
+  <div class="mypage-empty-state gls-flex gls-flex-col gls-items-start gls-gap-2">
     <p class="gls-text-muted gls-mb-0">아직 작성한 글이 없습니다.</p>
-    <a class="gls-btn gls-btn-primary gls-btn-sm" href="/html/editor.html" id="mypageEmptyCreatePostCta">
+    <a class="gls-btn gls-btn-primary gls-btn-sm mypage-empty-state__cta" href="/html/editor.html" id="mypageEmptyCreatePostCta">
       첫 글 쓰러 가기
     </a>
   </div>
