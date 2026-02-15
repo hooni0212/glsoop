@@ -153,6 +153,14 @@
         </div>
       </div>
 
+      <div id="editorNoticeRegion" class="editor-notice-region gls-mb-3" aria-live="polite"></div>
+      <div
+        id="editorAlert"
+        class="editor-alert gls-hidden gls-mb-3"
+        role="alert"
+        tabindex="-1"
+      ></div>
+
       <!-- 에디터 + 미리보기 영역 -->
       <!-- row: 왼쪽(입력/설정) + 오른쪽(미리보기) 두 컬럼 구조 -->
       <!-- align-items-stretch: 좌우 카드 높이 얼추 맞춰주기 -->
@@ -270,6 +278,7 @@
               <button type="button" class="editor-preview-more" id="previewMoreBtn">
                 더보기
               </button>
+              <div id="previewMeta" class="preview-meta gls-text-small gls-text-muted gls-mt-3"></div>
             </div>
           </div>
         </div>
