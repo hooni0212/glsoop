@@ -9,12 +9,35 @@ document.addEventListener('DOMContentLoaded', () => {
   // 회원가입 폼 요소 찾기
   const form = document.getElementById('signupForm');
   if (!form) return; // 폼이 없으면 아무 것도 하지 않고 종료
+  const feedbackEl =
+    (window.glsoopUi &&
+      typeof window.glsoopUi.ensureFormFeedbackElement === 'function' &&
+      window.glsoopUi.ensureFormFeedbackElement(form, 'signupMessage')) ||
+    document.getElementById('signupMessage');
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
       return;
     }
     window.glsoopAnalytics.trackEvent(eventName, properties, options);
+  };
+
+  const setFormMessage = (message, type = 'error', focus = false) => {
+    if (!feedbackEl) return;
+    if (window.glsoopUi && typeof window.glsoopUi.setFeedbackMessage === 'function') {
+      window.glsoopUi.setFeedbackMessage(feedbackEl, message, { type, focus });
+      return;
+    }
+    feedbackEl.textContent = message || '';
+  };
+
+  const clearFormMessage = () => {
+    if (!feedbackEl) return;
+    if (window.glsoopUi && typeof window.glsoopUi.clearFeedbackMessage === 'function') {
+      window.glsoopUi.clearFeedbackMessage(feedbackEl);
+      return;
+    }
+    feedbackEl.textContent = '';
   };
 
   trackEvent('signup_view');
@@ -59,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (submitting) {
       return;
     }
+    clearFormMessage();
 
     trackEvent('signup_submit_clicked');
 
@@ -90,7 +114,16 @@ document.addEventListener('DOMContentLoaded', () => {
       trackEvent('signup_validation_error', {
         reason: 'required_fields_missing',
       });
-      alert('이름, 닉네임, 이메일, 비밀번호를 모두 입력하세요.');
+      setFormMessage('이름, 닉네임, 이메일, 비밀번호를 모두 입력하세요.', 'error', true);
+      if (!name && nameInput) {
+        nameInput.focus();
+      } else if (needNickname && !nickname && nicknameInput) {
+        nicknameInput.focus();
+      } else if (!email && emailInput) {
+        emailInput.focus();
+      } else if (!pw && pwInput) {
+        pwInput.focus();
+      }
       return;
     }
 
@@ -144,13 +177,19 @@ document.addEventListener('DOMContentLoaded', () => {
           status: res.status || null,
           has_message: Boolean(data && data.message),
         });
-        alert(data.message || '회원가입 중 오류가 발생했습니다.');
+        setFormMessage(data.message || '회원가입 중 오류가 발생했습니다.', 'error', true);
         return; // 여기서 종료 → 아래 성공 처리로 내려가지 않음
       }
 
       // --- 7) 성공 처리 ---
       // 백엔드에서 message를 내려주면 그걸 우선 사용
-      alert(data.message || '인증 번호를 이메일로 발송했습니다.');
+      setFormMessage(data.message || '인증 번호를 이메일로 발송했습니다.', 'success');
+      if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+        window.glsoopUi.showPageNotice('인증 번호를 이메일로 보냈습니다.', {
+          type: 'success',
+          autoHideMs: 2200,
+        });
+      }
 
       const pendingId = data.pending_id ? String(data.pending_id) : '';
       trackEvent(
@@ -172,16 +211,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const queryString = query.toString();
 
       // 가입 성공 후 인증 번호 입력 페이지로 이동
-      window.location.href = queryString
-        ? `/html/verify-email.html?${queryString}`
-        : '/html/verify-email.html';
+      setTimeout(() => {
+        window.location.href = queryString
+          ? `/html/verify-email.html?${queryString}`
+          : '/html/verify-email.html';
+      }, 250);
     } catch (err) {
       // --- 8) 네트워크 오류 등 예외 상황 ---
       console.error(err);
       trackEvent('signup_api_error', {
         reason: 'network_error',
       });
-      alert('회원가입 중 오류가 발생했습니다.');
+      setFormMessage('회원가입 중 오류가 발생했습니다.', 'error', true);
     } finally {
       // --- 9) 항상 실행되는 후처리 ---
       submitting = false; // 다음 제출을 허용하도록 플래그 해제

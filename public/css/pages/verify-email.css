@@ -93,9 +93,9 @@
 }
 
 .page-verify .verify-error {
-  color: #c0392b;
   font-size: 0.9rem;
   min-height: 1.25rem;
+  margin-bottom: 0;
 }
 
 .page-verify .verify-actions .gls-btn {

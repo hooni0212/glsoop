@@ -26,6 +26,44 @@
   -webkit-backdrop-filter: blur(var(--gls-surface-glass-blur, var(--gls-glass-blur)));
 }
 
+.editor-notice-region {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-notice {
+  border: 1px solid var(--gls-ghost-border, rgba(34, 44, 68, 0.15));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 12px 14px;
+  box-shadow: 0 6px 18px rgba(18, 24, 42, 0.06);
+}
+
+.editor-notice__title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.editor-notice__desc {
+  margin-bottom: 10px;
+  color: var(--gls-text-muted, #5f6778);
+}
+
+.editor-notice__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.editor-alert {
+  border: 1px solid rgba(185, 28, 28, 0.22);
+  background: rgba(254, 242, 242, 0.92);
+  color: #991b1b;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
 /* 본문 2컬럼 그리드(데스크탑) / 세로 스택(모바일) */
 .editor-main-grid {
   display: grid;

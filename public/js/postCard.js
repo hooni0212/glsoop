@@ -326,6 +326,11 @@ function enhanceStandardPostCard(cardElement, post) {
 // ==============================
 async function toggleLike(postId, likeBtn) {
   if (!postId || !likeBtn) return;
+  if (likeBtn.dataset.busy === '1') return;
+
+  likeBtn.dataset.busy = '1';
+  likeBtn.disabled = true;
+  likeBtn.classList.add('is-loading');
 
   try {
     const res = await fetch(`/api/posts/${encodeURIComponent(postId)}/toggle-like`, {
@@ -340,7 +345,11 @@ async function toggleLike(postId, likeBtn) {
           source: 'post-card-like',
         });
       } else {
-        alert('로그인 후 공감할 수 있습니다.');
+        if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+          window.glsoopUi.showPageNotice('로그인 후 공감할 수 있습니다.', { type: 'error' });
+        } else {
+          alert('로그인 후 공감할 수 있습니다.');
+        }
         window.location.href = '/html/login.html';
       }
       return;
@@ -349,7 +358,13 @@ async function toggleLike(postId, likeBtn) {
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
-      alert(data.message || '공감 처리 중 오류가 발생했습니다.');
+      if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+        window.glsoopUi.showPageNotice(data.message || '공감 처리 중 오류가 발생했습니다.', {
+          type: 'error',
+        });
+      } else {
+        alert(data.message || '공감 처리 중 오류가 발생했습니다.');
+      }
       return;
     }
 
@@ -371,6 +386,13 @@ async function toggleLike(postId, likeBtn) {
     }
 
     likeBtn.classList.toggle('liked', liked);
+
+    if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+      window.glsoopUi.showPageNotice(
+        liked ? '공감을 남겼습니다.' : '공감을 취소했습니다.',
+        { type: liked ? 'success' : 'info', autoHideMs: 1400 }
+      );
+    }
 
     // ON일 때만 살짝 "톡" 애니메이션
     if (heartEl && liked) {
@@ -399,7 +421,15 @@ async function toggleLike(postId, likeBtn) {
     }
   } catch (e) {
     console.error(e);
-    alert('공감 처리 중 오류가 발생했습니다.');
+    if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+      window.glsoopUi.showPageNotice('공감 처리 중 오류가 발생했습니다.', { type: 'error' });
+    } else {
+      alert('공감 처리 중 오류가 발생했습니다.');
+    }
+  } finally {
+    likeBtn.dataset.busy = '0';
+    likeBtn.disabled = false;
+    likeBtn.classList.remove('is-loading');
   }
 }
 

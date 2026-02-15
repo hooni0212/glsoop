@@ -16,6 +16,15 @@ let currentSort = 'newest';
 let currentAuthorNickname = '';
 const authorPostCache = new Map();
 
+function showUiNotice(message, type = 'info', autoHideMs = 2200) {
+  if (!message) return;
+  if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+    window.glsoopUi.showPageNotice(message, { type, autoHideMs });
+    return;
+  }
+  alert(message);
+}
+
 // 페이지가 완전히 로드되면 작가 페이지 초기화 + 프로필 카드 스티키 처리 설정
 document.addEventListener('DOMContentLoaded', () => {
   initAuthorPage();
@@ -281,7 +290,7 @@ async function handleAuthorFollowToggle() {
           source: 'author-follow',
         });
       } else {
-        alert('로그인 후 이용할 수 있습니다.');
+        showUiNotice('로그인 후 이용할 수 있습니다.', 'error');
         window.location.href = '/html/login.html';
       }
       return;
@@ -296,11 +305,17 @@ async function handleAuthorFollowToggle() {
     authorFollowState.isFollowing = !!data.following;
     if (followerCountEl) followerCountEl.textContent = data.follower_count ?? 0;
     updateAuthorFollowUI();
+    showUiNotice(
+      authorFollowState.isFollowing ? '팔로우했습니다.' : '언팔로우했습니다.',
+      authorFollowState.isFollowing ? 'success' : 'info',
+      1500
+    );
   } catch (error) {
     console.error(error);
-    alert(error.message || '팔로우 요청 중 문제가 발생했습니다.');
+    showUiNotice(error.message || '팔로우 요청 중 문제가 발생했습니다.', 'error');
   } finally {
     authorFollowProcessing = false;
+    updateAuthorFollowUI();
   }
 }
 
@@ -511,8 +526,12 @@ function setupAuthorPostInteractions(card, post) {
   if (likeBtn) {
     likeBtn.addEventListener('click', async (event) => {
       event.stopPropagation();
+      if (likeBtn.dataset.busy === '1') return;
       const likePostId = likeBtn.getAttribute('data-post-id');
       if (!likePostId) return;
+      likeBtn.dataset.busy = '1';
+      likeBtn.disabled = true;
+      likeBtn.classList.add('is-loading');
 
       try {
         const res = await fetch(`/api/posts/${likePostId}/toggle-like`, {
@@ -527,7 +546,7 @@ function setupAuthorPostInteractions(card, post) {
               source: 'author-like',
             });
           } else {
-            alert('로그인 후 공감할 수 있습니다.');
+            showUiNotice('로그인 후 공감할 수 있습니다.', 'error');
             window.location.href = '/html/login.html';
           }
           return;
@@ -535,7 +554,7 @@ function setupAuthorPostInteractions(card, post) {
 
         const data = await res.json();
         if (!res.ok || !data.ok) {
-          alert(data.message || '공감 처리 중 오류가 발생했습니다.');
+          showUiNotice(data.message || '공감 처리 중 오류가 발생했습니다.', 'error');
           return;
         }
 
@@ -559,6 +578,7 @@ function setupAuthorPostInteractions(card, post) {
 
         // liked 클래스 토글
         likeBtn.classList.toggle('liked', liked);
+        showUiNotice(liked ? '공감을 남겼습니다.' : '공감을 취소했습니다.', liked ? 'success' : 'info', 1400);
 
         // 좋아요 애니메이션 (ON일 때만)
         if (heartEl && liked) {
@@ -573,7 +593,11 @@ function setupAuthorPostInteractions(card, post) {
         }
       } catch (e) {
         console.error(e);
-        alert('공감 처리 중 오류가 발생했습니다.');
+        showUiNotice('공감 처리 중 오류가 발생했습니다.', 'error');
+      } finally {
+        likeBtn.dataset.busy = '0';
+        likeBtn.disabled = false;
+        likeBtn.classList.remove('is-loading');
       }
     });
   }

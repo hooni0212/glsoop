@@ -9,10 +9,18 @@
 document.addEventListener('DOMContentLoaded', async () => {
   // 🔢 본문 최대 글자 수
   const MAX_CONTENT_LENGTH = 200;
+  const DRAFT_KEY_PREFIX = 'glsoop:editor:draft:v1';
+  const DRAFT_SAVE_DEBOUNCE_MS = 900;
 
   // 해시태그 칩용 내부 리스트
   // ex) ['힐링', '위로']
   let hashtagList = [];
+  let draftSaveTimer = null;
+  let hasUnsavedChanges = false;
+  let baselineStateSignature = '';
+  let isProgrammaticUpdate = false;
+  let isNavigatingAfterSave = false;
+  let isSaving = false;
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -40,6 +48,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
     window.location.href = buildLoginRedirect();
   };
+
+  const pageParams = new URLSearchParams(window.location.search);
+  const postId = pageParams.get('postId');
+  let isEditMode = Boolean(postId);
+  const draftStorageKey = isEditMode
+    ? `${DRAFT_KEY_PREFIX}:edit:${postId}`
+    : `${DRAFT_KEY_PREFIX}:new`;
 
   // 1. 로그인 상태 확인
   try {
@@ -172,6 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (fontSelectEl) {
     fontSelectEl.addEventListener('change', (e) => {
       applyEditorFont(e.target.value);
+      onEditorUserMutation('font_change');
     });
 
     // 페이지 처음 열릴 때 select의 기본값대로 폰트 적용
@@ -277,6 +293,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           syncHashtagInputFromList();
           renderHashtagChips();
           updatePreviewMeta();
+          onEditorUserMutation('hashtag_remove');
         });
       });
   }
@@ -286,7 +303,7 @@ document.addEventListener('DOMContentLoaded', async () => {
    * - 정규화하고, 중복 아니면 리스트에 push
    * - 인풋 및 칩 UI 동기화
    */
-  function addTag(raw, { requireHash = true } = {}) {
+  function addTag(raw, { requireHash = true, markDirty = true } = {}) {
     const t = normalizeTag(raw, requireHash);
     if (!t) return false;
     if (hashtagList.includes(t)) return false; // 중복 태그 방지
@@ -294,6 +311,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     syncHashtagInputFromList();
     renderHashtagChips();
     updatePreviewMeta();
+    if (markDirty) {
+      onEditorUserMutation('hashtag_add');
+    }
     return true;
   }
 
@@ -462,11 +482,194 @@ document.addEventListener('DOMContentLoaded', async () => {
     updatePreviewMeta();
   }
 
+  function buildEditorStateSnapshot() {
+    const title = titleInput ? titleInput.value.trim() : '';
+    const contentHtml = quill && quill.root ? quill.root.innerHTML.trim() : '';
+    const category = categorySelectEl ? categorySelectEl.value || '' : '';
+    const fontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
+    const hashtags = Array.isArray(hashtagList) ? [...hashtagList] : [];
+    return {
+      title,
+      content_html: contentHtml,
+      category,
+      font_key: fontKey,
+      hashtags,
+    };
+  }
+
+  function buildEditorStateSignature(state) {
+    if (!state || typeof state !== 'object') return '';
+    return JSON.stringify({
+      title: state.title || '',
+      content_html: state.content_html || '',
+      category: state.category || '',
+      font_key: state.font_key || 'serif',
+      hashtags: Array.isArray(state.hashtags) ? state.hashtags : [],
+    });
+  }
+
+  function isMeaningfulDraftState(state) {
+    if (!state || typeof state !== 'object') return false;
+    if (typeof state.title === 'string' && state.title.trim().length > 0) return true;
+    if (typeof state.content_html === 'string') {
+      const plain = state.content_html.replace(/<[^>]+>/g, ' ').trim();
+      if (plain.length > 0) return true;
+    }
+    if (Array.isArray(state.hashtags) && state.hashtags.length > 0) return true;
+    if (typeof state.category === 'string' && state.category.trim().length > 0) return true;
+    return false;
+  }
+
+  function dismissEditorNotice() {
+    const noticeRegion = document.getElementById('editorNoticeRegion');
+    if (!noticeRegion) return;
+    noticeRegion.innerHTML = '';
+  }
+
+  function renderDraftRestoreNotice(draftPayload) {
+    const noticeRegion = document.getElementById('editorNoticeRegion');
+    if (!noticeRegion) return;
+
+    const savedAtLabel = draftPayload.saved_at
+      ? (typeof formatKoreanDateTime === 'function'
+          ? formatKoreanDateTime(draftPayload.saved_at)
+          : String(draftPayload.saved_at))
+      : '방금 전';
+
+    noticeRegion.innerHTML = `
+      <div class="editor-notice" role="status">
+        <div class="editor-notice__title">저장된 임시 초안이 있습니다.</div>
+        <div class="editor-notice__desc">
+          마지막 임시 저장: <strong>${escapeHtml(savedAtLabel)}</strong>
+        </div>
+        <div class="editor-notice__actions">
+          <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" id="restoreEditorDraftBtn">
+            초안 복구
+          </button>
+          <button type="button" class="gls-btn gls-btn-secondary gls-btn-sm" id="discardEditorDraftBtn">
+            초안 삭제
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function clearEditorDraft() {
+    try {
+      localStorage.removeItem(draftStorageKey);
+    } catch (error) {
+      // storage 접근 제한 환경은 무시
+    }
+  }
+
+  function readEditorDraftPayload() {
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      if (!parsed.state || typeof parsed.state !== 'object') return null;
+      return parsed;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function applyEditorDraftState(state) {
+    if (!state || typeof state !== 'object') return;
+
+    isProgrammaticUpdate = true;
+    try {
+      if (titleInput) {
+        titleInput.value = state.title || '';
+      }
+
+      const nextFontKey = state.font_key || 'serif';
+      if (fontSelectEl && FONT_MAP[nextFontKey]) {
+        fontSelectEl.value = nextFontKey;
+      }
+      applyEditorFont(nextFontKey);
+
+      if (categorySelectEl) {
+        const nextCategory = state.category || '';
+        categorySelectEl.value = nextCategory;
+      }
+
+      if (quill && quill.root) {
+        quill.root.innerHTML = sanitizePostHtml(state.content_html || '');
+      }
+
+      hashtagList = [];
+      if (Array.isArray(state.hashtags)) {
+        state.hashtags.forEach((tag) => addTag(tag, { requireHash: false, markDirty: false }));
+      } else {
+        renderHashtagChips();
+      }
+
+      const plainText = quill.getText().trim();
+      updateCharCounter(plainText.length);
+      updatePreview();
+    } finally {
+      isProgrammaticUpdate = false;
+    }
+  }
+
+  function saveEditorDraftNow() {
+    if (isProgrammaticUpdate || isNavigatingAfterSave || isSaving) {
+      return;
+    }
+
+    const snapshot = buildEditorStateSnapshot();
+    const signature = buildEditorStateSignature(snapshot);
+    hasUnsavedChanges = signature !== baselineStateSignature;
+
+    if (!hasUnsavedChanges || !isMeaningfulDraftState(snapshot)) {
+      clearEditorDraft();
+      return;
+    }
+
+    try {
+      localStorage.setItem(
+        draftStorageKey,
+        JSON.stringify({
+          version: 1,
+          mode: isEditMode ? 'edit' : 'create',
+          post_id: postId ? Number(postId) || null : null,
+          saved_at: new Date().toISOString(),
+          state: snapshot,
+        })
+      );
+    } catch (error) {
+      // storage 접근 제한 환경은 무시
+    }
+  }
+
+  function scheduleEditorDraftSave() {
+    if (draftSaveTimer) {
+      clearTimeout(draftSaveTimer);
+    }
+    draftSaveTimer = window.setTimeout(saveEditorDraftNow, DRAFT_SAVE_DEBOUNCE_MS);
+  }
+
+  function onEditorUserMutation(reason) {
+    if (isProgrammaticUpdate || isSaving || isNavigatingAfterSave) {
+      return;
+    }
+    const currentSignature = buildEditorStateSignature(buildEditorStateSnapshot());
+    hasUnsavedChanges = currentSignature !== baselineStateSignature;
+    if (!hasUnsavedChanges) {
+      if (draftSaveTimer) {
+        clearTimeout(draftSaveTimer);
+        draftSaveTimer = null;
+      }
+      clearEditorDraft();
+      return;
+    }
+    scheduleEditorDraftSave();
+  }
+
 
   // 3. 수정 모드인지 확인 (URL ?postId=...)
-  const params = new URLSearchParams(window.location.search);
-  const postId = params.get('postId');      // 수정할 글 ID
-  let isEditMode = !!postId;               // postId가 있으면 수정 모드
 
   trackEvent('editor_open', {
     is_edit_mode: isEditMode,
@@ -507,7 +710,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (Array.isArray(post.hashtags)) {
             // 배열이면 그대로 normalize해서 리스트에 넣기
             hashtagList = [];
-            post.hashtags.forEach((tag) => addTag(tag, { requireHash: false }));
+            post.hashtags.forEach((tag) => addTag(tag, { requireHash: false, markDirty: false }));
           } else if (post.hashtags) {
             // 문자열이면 인풋에 넣고, 파싱해서 칩 생성
             hashtagsInput.value = post.hashtags;
@@ -531,8 +734,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     updatePreview();
   }
 
+  baselineStateSignature = buildEditorStateSignature(buildEditorStateSnapshot());
+  hasUnsavedChanges = false;
+
+  const draftPayload = readEditorDraftPayload();
+  if (draftPayload && isMeaningfulDraftState(draftPayload.state)) {
+    const draftSignature = buildEditorStateSignature(draftPayload.state);
+    if (draftSignature && draftSignature !== baselineStateSignature) {
+      renderDraftRestoreNotice(draftPayload);
+
+      const restoreBtn = document.getElementById('restoreEditorDraftBtn');
+      const discardBtn = document.getElementById('discardEditorDraftBtn');
+
+      if (restoreBtn) {
+        restoreBtn.addEventListener('click', () => {
+          applyEditorDraftState(draftPayload.state);
+          hasUnsavedChanges = true;
+          scheduleEditorDraftSave();
+          dismissEditorNotice();
+          trackEvent('editor_draft_restored', {
+            is_edit_mode: isEditMode,
+            post_id: postId ? Number(postId) || null : null,
+          });
+        });
+      }
+
+      if (discardBtn) {
+        discardBtn.addEventListener('click', () => {
+          clearEditorDraft();
+          dismissEditorNotice();
+          trackEvent('editor_draft_discarded', {
+            is_edit_mode: isEditMode,
+            post_id: postId ? Number(postId) || null : null,
+          });
+        });
+      }
+    }
+  }
+
   // ✅ 제목 입력 시마다 미리보기 갱신
-  titleInput.addEventListener('input', updatePreview);
+  titleInput.addEventListener('input', () => {
+    updatePreview();
+    onEditorUserMutation('title_input');
+  });
+
+  if (categorySelectEl) {
+    categorySelectEl.addEventListener('change', () => {
+      updatePreview();
+      onEditorUserMutation('category_change');
+    });
+  }
 
   // ✅ 본문 입력 제한 + 미리보기/글자 수 갱신
   let isAdjusting = false; // 프로그램적 수정 중인지 플래그
@@ -568,9 +819,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 정상 범위면 그냥 카운터/미리보기 갱신
     updateCharCounter(length);
     updatePreview();
+    onEditorUserMutation('content_change');
   });
 
-  let isSaving = false;
+  window.addEventListener('beforeunload', (event) => {
+    if (!hasUnsavedChanges || isSaving || isNavigatingAfterSave) {
+      return;
+    }
+    event.preventDefault();
+    event.returnValue = '';
+  });
 
   // 4. 저장 버튼 클릭 시
   saveBtn.addEventListener('click', async () => {
@@ -669,6 +927,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         },
         { useBeacon: true }
       );
+
+      if (draftSaveTimer) {
+        clearTimeout(draftSaveTimer);
+        draftSaveTimer = null;
+      }
+      clearEditorDraft();
+      baselineStateSignature = buildEditorStateSignature(buildEditorStateSnapshot());
+      hasUnsavedChanges = false;
+      isNavigatingAfterSave = true;
 
       // 성공 알림 후 마이페이지로 이동
       alert(isEditMode ? '글이 수정되었습니다!' : '글이 저장되었습니다!');

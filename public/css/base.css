@@ -111,6 +111,76 @@ select:focus-visible {
   outline-offset: var(--gls-focus-offset);
 }
 
+.gls-feedback {
+  display: none;
+  width: 100%;
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.gls-feedback.is-visible {
+  display: block;
+}
+
+.gls-feedback--info {
+  border-color: rgba(37, 99, 235, 0.24);
+  background: rgba(239, 246, 255, 0.92);
+  color: #1e40af;
+}
+
+.gls-feedback--success {
+  border-color: rgba(22, 163, 74, 0.24);
+  background: rgba(240, 253, 244, 0.94);
+  color: #166534;
+}
+
+.gls-feedback--error {
+  border-color: rgba(220, 38, 38, 0.22);
+  background: rgba(254, 242, 242, 0.94);
+  color: #991b1b;
+}
+
+.gls-btn.is-loading {
+  opacity: 0.72;
+  cursor: progress;
+  pointer-events: none;
+}
+
+.gls-page-notice {
+  position: fixed;
+  top: calc(var(--gls-nav-height) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 24px));
+  z-index: 1080;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  padding: 12px 14px;
+  box-shadow: 0 16px 36px rgba(12, 20, 36, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.gls-page-notice--info {
+  border-color: rgba(37, 99, 235, 0.24);
+  background: rgba(239, 246, 255, 0.95);
+  color: #1e40af;
+}
+
+.gls-page-notice--success {
+  border-color: rgba(22, 163, 74, 0.24);
+  background: rgba(240, 253, 244, 0.95);
+  color: #166534;
+}
+
+.gls-page-notice--error {
+  border-color: rgba(220, 38, 38, 0.24);
+  background: rgba(254, 242, 242, 0.95);
+  color: #991b1b;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
