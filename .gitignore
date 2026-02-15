@@ -53,9 +53,9 @@ data/**
 # =========================
 # ui-kit 파일 커밋 방지
 # =========================
-/public/html/ui-kit.html
-/public/css/ui-kit.css
-/public/js/ui-kit.js
+/public/ui-kit*.html
+/public/css/pages/ui-kit*.css
+/public/js/uikit*.js
 
 # =========================
 # Playwright artifacts
