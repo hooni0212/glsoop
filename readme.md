@@ -55,36 +55,40 @@ MAIL_FAIL_SEND=0
 
 문서 허브:
 
-- `docs/README.md`
-- `docs/server/README.md`
+- `docs/문서-허브.md`
 
 API 인덱스:
 
-- `docs/API_REFERENCE.md`
+- `docs/참고/API-레퍼런스.md`
 
 기능별 API 문서:
 
-- `docs/server/api/auth-account.md`
-- `docs/server/api/users-follow.md`
-- `docs/server/api/posts-feed-likes.md`
-- `docs/server/api/bookmarks.md`
-- `docs/server/api/search.md`
-- `docs/server/api/growth-quests.md`
-- `docs/server/api/cosmetics-profile.md`
-- `docs/server/api/monetization.md`
-- `docs/server/api/share-events.md`
-- `docs/server/api/admin-ops.md`
+- `docs/서버/API/인증-계정.md`
+- `docs/서버/API/사용자-팔로우.md`
+- `docs/서버/API/게시글-피드-좋아요.md`
+- `docs/서버/API/북마크.md`
+- `docs/서버/API/검색.md`
+- `docs/서버/API/성장-퀘스트.md`
+- `docs/서버/API/코스메틱-프로필.md`
+- `docs/서버/API/수익화.md`
+- `docs/서버/API/공유-이벤트.md`
+- `docs/서버/API/관리자-운영.md`
 
 아키텍처/DB:
 
-- `docs/server/architecture/runtime-overview.md`
-- `docs/server/architecture/database.md`
-- `docs/DB_SCHEMA.md`
+- `docs/서버/아키텍처/런타임-개요.md`
+- `docs/서버/아키텍처/데이터베이스-개요.md`
+- `docs/참고/DB-스키마.md`
+- `docs/마이그레이션/3단계-레거시-업적-마이그레이션.md`
 
 유료화:
 
-- `docs/MONETIZATION_API_CONTRACT_V1.md`
-- `docs/MONETIZATION_PHASEC_RUNBOOK.md`
+- `docs/수익화/API-계약서-v1.md`
+- `docs/수익화/3단계-운영-런북.md`
+
+아카이브:
+
+- `docs/아카이브/프로젝트-히스토리.md`
 
 ---
 
