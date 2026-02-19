@@ -361,6 +361,11 @@ body.page-explore::after {
   margin-top: 2px;
 }
 
+.page-explore #feedPosts.is-masonry-active {
+  grid-auto-flow: row dense;
+  grid-auto-rows: 10px;
+}
+
 .page-explore #feedPosts > p {
   grid-column: 1 / -1;
   margin: 0;
@@ -388,6 +393,10 @@ body.page-explore::after {
   box-shadow: var(--gls-explore-shadow-soft);
   transform: translateY(0);
   transition: var(--gls-transition-lift);
+}
+
+.page-explore #feedPosts.is-masonry-active .gls-post-card {
+  grid-row-end: span var(--gls-masonry-span, 1);
 }
 
 .page-explore #feedPosts .gls-post-card.feed-skeleton-card {

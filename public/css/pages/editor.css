@@ -220,31 +220,63 @@
 /* 미리보기 카드: 짧은 글은 고정 높이 + 중앙 정렬, 긴 글은 부드럽게 확장 */
 #previewContent {
   --gls-preview-min-lines: 4;
+  --gls-preview-bg-image: url('/img/feed-templates-v2/paper-source-01.jpg');
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: var(--gls-space-2, 8px);
   text-align: center;
+  padding: clamp(22px, 2.6vw, 34px);
   min-height: calc(
     (var(--gls-preview-min-lines) * 1em * var(--gls-lh-relaxed, 1.7)) + var(--gls-space-3, 12px)
   );
-  max-height: clamp(12rem, 28vh, 18rem);
+  max-height: clamp(14rem, 36vh, 24rem);
   overflow: auto;
+  border-radius: clamp(16px, 2.2vw, 22px);
+  border: 1px solid rgba(74, 58, 35, 0.18);
+  color: rgba(38, 34, 28, 0.86);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 243, 0.2), rgba(255, 250, 243, 0.28)),
+    var(--gls-preview-bg-image) center 22% / cover no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4),
+    0 12px 26px rgba(35, 27, 18, 0.15);
+}
+
+#previewContent > * {
+  position: relative;
+  z-index: 1;
+  max-width: min(32ch, 100%);
+}
+
+#previewContent p + p {
+  margin-top: 0.55em;
 }
 
 /* 글자 수가 적을 때도 카드다운 여백 확보 */
 #previewContent::after {
   content: '';
   position: absolute;
-  inset: var(--gls-space-3, 12px);
-  border-radius: calc(var(--gls-radius-md, 14px) - var(--gls-space-3, 12px));
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.44), transparent 36%),
+    linear-gradient(180deg, rgba(34, 25, 14, 0.07), rgba(34, 25, 14, 0));
   pointer-events: none;
+  z-index: 0;
 }
 
 .editor-preview-more {
   display: none !important;
+}
+
+@media (max-width: 768px) {
+  #previewContent {
+    max-height: clamp(16rem, 52vh, 26rem);
+  }
 }
 
 /* =========================

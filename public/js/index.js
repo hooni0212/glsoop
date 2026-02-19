@@ -16,6 +16,8 @@ Glsoop.FeedPage = (function () {
   const FEED_SKELETON_COUNT = 4;
   const FEED_SKELETON_CLASS = 'feed-skeleton-card';
   const FEED_SENTINEL_ID = 'feedScrollSentinel';
+  const FEED_MASONRY_CLASS = 'is-masonry-active';
+  const FEED_MASONRY_ROW_HEIGHT = 10;
   let feedOffset = 0;        // 서버에서 글을 가져올 때 시작 위치(offset)
   let feedLoading = false;   // 현재 글을 가져오는 중인지 여부
   let feedDone = false;      // 더 이상 가져올 글이 없는지 여부
@@ -25,6 +27,104 @@ Glsoop.FeedPage = (function () {
   let feedSession = 0;       // 정렬/필터 전환 시 세션 토큰 (응답 혼선 방지)
   let feedObserver = null;
   let feedScrollFallbackBound = false;
+  let feedMasonryRaf = 0;
+  let feedMasonryResizeBound = false;
+  let feedMasonryObserver = null;
+
+  function getGridColumnCount(computedStyle) {
+    const template = computedStyle?.gridTemplateColumns || '';
+    if (!template) return 0;
+    return template
+      .split(' ')
+      .map((value) => value.trim())
+      .filter(Boolean).length;
+  }
+
+  function resetFeedMasonry(feedBox) {
+    if (!feedBox) return;
+    feedBox.classList.remove(FEED_MASONRY_CLASS);
+    const cards = feedBox.querySelectorAll('.gls-post-card');
+    cards.forEach((card) => {
+      card.style.removeProperty('--gls-masonry-span');
+    });
+  }
+
+  function bindCardMediaForMasonry(card, feedBox) {
+    const mediaEls = card.querySelectorAll('img');
+    mediaEls.forEach((media) => {
+      if (media.dataset.masonryBound === '1') return;
+      media.dataset.masonryBound = '1';
+      const rerender = () => scheduleFeedMasonry(feedBox);
+      media.addEventListener('load', rerender, { passive: true });
+      media.addEventListener('error', rerender, { passive: true });
+    });
+  }
+
+  function applyFeedMasonry(feedBox) {
+    if (!feedBox) return;
+    if (!document.body.classList.contains('page-explore')) return;
+
+    const computed = window.getComputedStyle(feedBox);
+    if (computed.display !== 'grid') {
+      resetFeedMasonry(feedBox);
+      return;
+    }
+
+    const cards = feedBox.querySelectorAll('.gls-post-card:not(.feed-skeleton-card)');
+    if (!cards.length) {
+      resetFeedMasonry(feedBox);
+      return;
+    }
+
+    const columnCount = getGridColumnCount(computed);
+    if (columnCount <= 1) {
+      resetFeedMasonry(feedBox);
+      return;
+    }
+
+    feedBox.classList.add(FEED_MASONRY_CLASS);
+    const rowGap = parseFloat(computed.rowGap || computed.gap) || 0;
+
+    cards.forEach((card) => {
+      bindCardMediaForMasonry(card, feedBox);
+      const cardHeight = card.getBoundingClientRect().height;
+      const span = Math.max(
+        1,
+        Math.ceil((cardHeight + rowGap) / (FEED_MASONRY_ROW_HEIGHT + rowGap))
+      );
+      card.style.setProperty('--gls-masonry-span', String(span));
+    });
+  }
+
+  function scheduleFeedMasonry(feedBox = document.getElementById('feedPosts')) {
+    if (!feedBox) return;
+    if (feedMasonryRaf) {
+      window.cancelAnimationFrame(feedMasonryRaf);
+    }
+    feedMasonryRaf = window.requestAnimationFrame(() => {
+      feedMasonryRaf = 0;
+      applyFeedMasonry(feedBox);
+    });
+  }
+
+  function setupFeedMasonry(feedBox) {
+    if (!feedBox) return;
+
+    scheduleFeedMasonry(feedBox);
+
+    if (!feedMasonryResizeBound) {
+      feedMasonryResizeBound = true;
+      window.addEventListener('resize', () => scheduleFeedMasonry(feedBox), { passive: true });
+    }
+
+    if ('MutationObserver' in window && !feedMasonryObserver) {
+      feedMasonryObserver = new MutationObserver(() => scheduleFeedMasonry(feedBox));
+      feedMasonryObserver.observe(feedBox, {
+        childList: true,
+        subtree: true,
+      });
+    }
+  }
 
   // 여러 태그 AND 조건용 필터 목록
   // 예: ['힐링', '위로'] → 이 두 태그를 모두 포함한 글만 보기
@@ -164,6 +264,7 @@ Glsoop.FeedPage = (function () {
           ? '팔로잉 피드를 불러오는 중입니다...'
           : '피드를 불러오는 중입니다...';
       feedBox.innerHTML = `<p class="gls-text-muted">${loadingLabel}</p>`;
+      scheduleFeedMasonry(feedBox);
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -189,6 +290,7 @@ Glsoop.FeedPage = (function () {
     });
 
     setupFeedLoadObserver(feedBox);
+    setupFeedMasonry(feedBox);
   }
 
   /**
@@ -432,6 +534,7 @@ Glsoop.FeedPage = (function () {
       }
     } finally {
       hideFeedSkeleton(feedBox);
+      scheduleFeedMasonry(feedBox);
       // 로딩 상태 해제
       feedLoading = false;
     }
@@ -485,6 +588,8 @@ function renderFeedPosts(posts) {
       });
     }
   });
+
+  scheduleFeedMasonry(feedBox);
 }
 
 
@@ -773,6 +878,7 @@ function bindFeedRenderedImageFallback(card) {
       feedBox.dataset.initialized = '';
       const label = currentTags.map((t) => `#${escapeHtml(t)}`).join(', ');
       feedBox.innerHTML = `<p class="gls-text-muted">${label} 태그를 포함한 글을 불러오는 중입니다...</p>`;
+      scheduleFeedMasonry(feedBox);
     }
 
     // 상단 필터 바 갱신
@@ -875,6 +981,7 @@ function bindFeedRenderedImageFallback(card) {
       feedBox.dataset.initialized = '';
       feedBox.innerHTML =
         '<p class="gls-text-muted">전체 글을 불러오는 중입니다...</p>';
+      scheduleFeedMasonry(feedBox);
     }
 
     // 필터 바 갱신(숨기기)
@@ -907,6 +1014,7 @@ function bindFeedRenderedImageFallback(card) {
       feedBox.dataset.initialized = '';
       const label = currentTags.map((t) => `#${escapeHtml(t)}`).join(', ');
       feedBox.innerHTML = `<p class="gls-text-muted">${label} 태그를 포함한 글을 불러오는 중입니다...</p>`;
+      scheduleFeedMasonry(feedBox);
     }
 
     renderTagFilterBar();
