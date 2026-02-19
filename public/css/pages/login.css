@@ -123,10 +123,40 @@
   margin-bottom: 1.4rem;
 }
 
+.page-login .auth-card__header h4 {
+  font-size: clamp(1.55rem, 2.6vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.page-login .auth-switch-link {
+  border-radius: 999px;
+  border-color: rgba(47, 108, 138, 0.22);
+  background: rgba(255, 255, 255, 0.8);
+  color: #315f74;
+  font-weight: 700;
+  min-height: 36px;
+  padding-inline: 0.85rem;
+}
+
+.page-login .auth-switch-link:hover,
+.page-login .auth-switch-link:focus-visible {
+  border-color: rgba(47, 108, 138, 0.38);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.page-login .auth-card .gls-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: rgba(30, 42, 51, 0.9);
+  margin-bottom: 0.45rem;
+}
+
 .page-login .auth-card .gls-input {
   border-radius: 12px;
   border-color: rgba(47, 108, 138, 0.28);
   background-color: rgba(255, 255, 255, 0.9);
+  min-height: 50px;
 }
 
 .page-login .auth-card .gls-input:focus {
@@ -134,8 +164,39 @@
   border-color: #2f6c8a;
 }
 
+.page-login .auth-card .gls-input::placeholder {
+  color: rgba(96, 111, 128, 0.62);
+}
+
 .page-login .auth-card .gls-btn-primary {
+  min-height: 52px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.page-login .auth-support-row {
+  align-items: center;
+  gap: 12px;
+}
+
+.page-login .auth-support-copy {
+  font-size: 0.84rem;
+}
+
+.page-login .auth-link-inline {
+  color: #2d6075;
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(47, 108, 138, 0.28);
+  padding-bottom: 1px;
+}
+
+.page-login .auth-link-inline:hover,
+.page-login .auth-link-inline:focus-visible {
+  color: #224f62;
+  border-bottom-color: rgba(47, 108, 138, 0.48);
 }
 
 /* 터치 디바이스에서 :hover가 '고정'되는 느낌을 줄이기 위해
@@ -237,6 +298,15 @@
   }
 
   .page-login .auth-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page-login .auth-switch-link {
+    align-self: flex-start;
+  }
+
+  .page-login .auth-support-row {
     flex-direction: column;
     align-items: flex-start;
   }

@@ -160,7 +160,7 @@
               <p class="auth-eyebrow gls-uppercase gls-mb-1">Sign in</p>
               <h4 class="gls-mb-0">계정으로 돌아오기</h4>
             </div>
-            <a class="gls-btn gls-btn-sm gls-btn-secondary" href="/html/signup.html">회원가입</a>
+            <a class="gls-btn gls-btn-sm gls-btn-secondary auth-switch-link" href="/html/signup.html">회원가입</a>
           </div>
           <div
             id="loginMessage"
@@ -178,7 +178,9 @@
               name="email"
               class="gls-input"
               required
+              autocomplete="email"
               autofocus
+              placeholder="name@example.com"
             >
           </div>
 
@@ -191,6 +193,7 @@
               class="gls-input"
               required
               autocomplete="current-password"
+              placeholder="비밀번호를 입력하세요"
             >
           </div>
 
@@ -204,9 +207,9 @@
           </button>
 
           <!-- 비밀번호 찾기 링크: forgot-password.html로 이동 -->
-          <div class="gls-spread gls-mt-3 gls-text-small">
-            <span class="gls-text-muted">안전한 접속을 위해 HTTPS를 사용해요.</span>
-            <a href="/html/forgot-password.html" class="gls-text-muted">
+          <div class="gls-spread gls-mt-3 gls-text-small auth-support-row">
+            <span class="gls-text-muted auth-support-copy">안전한 접속을 위해 HTTPS를 사용해요.</span>
+            <a href="/html/forgot-password.html" class="auth-link-inline">
               비밀번호를 잊으셨나요?
             </a>
           </div>
