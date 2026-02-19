@@ -30,6 +30,10 @@
   --auth-rotate-y: 0deg;
   --auth-shift-x: 0px;
   --auth-shift-y: 0px;
+  --auth-wind-angle: 0deg;
+  --auth-wind-soft: 0deg;
+  --auth-wind-strong: 0deg;
+  --auth-wind-trunk: 0deg;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.8rem;
@@ -158,30 +162,6 @@
   transition: transform 260ms cubic-bezier(.2,.8,.2,1);
 }
 
-.page-login .auth-tree-stars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.page-login .auth-tree-star {
-  position: absolute;
-  width: 3px;
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(236, 252, 245, 0.8);
-  box-shadow: 0 0 0 3px rgba(236, 252, 245, 0.1);
-  animation: loginTreeTwinkle 6.2s ease-in-out infinite;
-  transform: translate3d(calc(var(--auth-shift-x, 0px) * 0.3), calc(var(--auth-shift-y, 0px) * 0.3), 0);
-  transition: transform 260ms cubic-bezier(.2,.8,.2,1);
-}
-
-.page-login .auth-tree-star--1 { top: 20%; left: 16%; animation-delay: -1.1s; }
-.page-login .auth-tree-star--2 { top: 14%; right: 22%; animation-delay: -3.4s; }
-.page-login .auth-tree-star--3 { top: 34%; right: 14%; animation-delay: -2.2s; }
-.page-login .auth-tree-star--4 { top: 46%; left: 22%; animation-delay: -4.2s; }
-.page-login .auth-tree-star--5 { top: 30%; left: 54%; animation-delay: -0.4s; }
-
 .page-login .auth-tree-wordmark {
   position: absolute;
   left: 16px;
@@ -206,62 +186,69 @@
   position: absolute;
   left: 50%;
   bottom: 14px;
-  transform: translateX(-50%);
-  width: min(72%, 240px);
+  transform: translateX(-50%) rotate(var(--auth-wind-angle));
+  transform-origin: 50% calc(100% + 10px);
+  width: min(70%, 228px);
   height: 84%;
   transform-style: preserve-3d;
   transition: transform 260ms cubic-bezier(.2,.8,.2,1);
 }
 
 .page-login .auth-shell[data-auth-shell-active="1"] .auth-tree {
-  transform: translateX(-50%) translate3d(calc(var(--auth-shift-x, 0px) * 0.52), calc(var(--auth-shift-y, 0px) * 0.48), 20px);
+  transform:
+    translateX(-50%)
+    translate3d(calc(var(--auth-shift-x, 0px) * 0.45), calc(var(--auth-shift-y, 0px) * 0.32), 20px)
+    rotate(var(--auth-wind-angle));
 }
 
 .page-login .auth-tree-canopy {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
-  border-radius: 999px;
+  transform-origin: 50% 100%;
+  border-radius: 0 0 16px 16px;
   border: 1px solid rgba(218, 246, 232, 0.34);
   background:
     radial-gradient(circle at 35% 28%, rgba(233, 251, 242, 0.46), rgba(233, 251, 242, 0)),
     linear-gradient(180deg, rgba(35, 128, 93, 0.9), rgba(21, 92, 66, 0.92));
-  box-shadow: inset 0 1px 0 rgba(246, 255, 250, 0.3), 0 10px 18px rgba(12, 47, 33, 0.22);
-  animation: loginTreeBreathe 8.8s ease-in-out infinite;
+  box-shadow: inset 0 1px 0 rgba(246, 255, 250, 0.26), 0 9px 16px rgba(12, 47, 33, 0.2);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  transition: transform 240ms cubic-bezier(.2,.8,.2,1);
 }
 
 .page-login .auth-tree-canopy--one {
   top: 10%;
-  width: 56%;
+  width: 42%;
   height: 23%;
-  animation-delay: -1.8s;
+  transform: translateX(-50%) rotate(var(--auth-wind-strong));
 }
 
 .page-login .auth-tree-canopy--two {
-  top: 26%;
-  width: 74%;
+  top: 29%;
+  width: 62%;
   height: 25%;
-  animation-delay: -3.2s;
+  transform: translateX(-50%) rotate(var(--auth-wind-angle));
 }
 
 .page-login .auth-tree-canopy--three {
-  top: 45%;
-  width: 94%;
-  height: 28%;
-  animation-delay: -0.9s;
+  top: 50%;
+  width: 84%;
+  height: 30%;
+  transform: translateX(-50%) rotate(var(--auth-wind-soft));
 }
 
 .page-login .auth-tree-trunk {
   position: absolute;
   left: 50%;
   bottom: 10%;
-  width: 12%;
-  height: 26%;
-  transform: translateX(-50%);
+  width: 11%;
+  height: 24%;
+  transform: translateX(-50%) rotate(var(--auth-wind-trunk));
+  transform-origin: 50% 100%;
   border-radius: 10px;
   border: 1px solid rgba(107, 71, 38, 0.48);
   background: linear-gradient(180deg, rgba(136, 95, 58, 0.92), rgba(88, 59, 33, 0.96));
   box-shadow: 0 8px 14px rgba(15, 15, 15, 0.2);
+  transition: transform 240ms cubic-bezier(.2,.8,.2,1);
 }
 
 .page-login .auth-tree-ground {
@@ -432,12 +419,8 @@
 }
 
 .page-login .auth-support-row {
-  align-items: center;
-  gap: 12px;
-}
-
-.page-login .auth-support-copy {
-  font-size: 0.84rem;
+  width: 100%;
+  justify-content: flex-end;
 }
 
 .page-login .auth-link-inline {
@@ -555,29 +538,6 @@
   }
 }
 
-@keyframes loginTreeBreathe {
-  0% {
-    transform: translateX(-50%) scale(1);
-  }
-  50% {
-    transform: translateX(-50%) scale(1.02);
-  }
-  100% {
-    transform: translateX(-50%) scale(1);
-  }
-}
-
-@keyframes loginTreeTwinkle {
-  0%, 100% {
-    opacity: 0.38;
-    transform: scale(0.9);
-  }
-  45% {
-    opacity: 0.9;
-    transform: scale(1.2);
-  }
-}
-
 @keyframes loginBtnSweep {
   0% {
     left: -44%;
@@ -647,8 +607,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .page-login .auth-tree-glow,
-  .page-login .auth-tree-star,
-  .page-login .auth-tree-canopy,
   .page-login .auth-ui-form.is-submitting .gls-btn-primary::after {
     animation: none !important;
   }
@@ -669,5 +627,9 @@
     --auth-rotate-y: 0deg;
     --auth-shift-x: 0px;
     --auth-shift-y: 0px;
+    --auth-wind-angle: 0deg;
+    --auth-wind-soft: 0deg;
+    --auth-wind-strong: 0deg;
+    --auth-wind-trunk: 0deg;
   }
 }

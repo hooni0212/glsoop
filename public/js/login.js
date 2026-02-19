@@ -60,10 +60,15 @@ document.addEventListener('DOMContentLoaded', () => {
     authShell.style.setProperty('--auth-mouse-y', `${Math.round(y * 100)}%`);
     const rotateY = (x - 0.5) * 4.2;
     const rotateX = (0.5 - y) * 3.4;
+    const wind = (x - 0.5) * 8.2;
     authShell.style.setProperty('--auth-rotate-y', `${rotateY.toFixed(2)}deg`);
     authShell.style.setProperty('--auth-rotate-x', `${rotateX.toFixed(2)}deg`);
     authShell.style.setProperty('--auth-shift-x', `${((x - 0.5) * 16).toFixed(1)}px`);
     authShell.style.setProperty('--auth-shift-y', `${((y - 0.5) * 12).toFixed(1)}px`);
+    authShell.style.setProperty('--auth-wind-angle', `${wind.toFixed(2)}deg`);
+    authShell.style.setProperty('--auth-wind-soft', `${(wind * 0.72).toFixed(2)}deg`);
+    authShell.style.setProperty('--auth-wind-strong', `${(wind * 1.04).toFixed(2)}deg`);
+    authShell.style.setProperty('--auth-wind-trunk', `${(wind * 0.38).toFixed(2)}deg`);
   };
 
   const bindAuthShellParallax = () => {
