@@ -12,7 +12,7 @@
 
 /* post.html에만 적용: 기본 섹션 패딩을 줄여서 "읽기" 톤으로 */
 body.page-post .page-section.post-page {
-  padding: var(--gls-space-7, 32px) 0 var(--gls-space-8, 40px);
+  padding: var(--gls-section-gap, 28px) 0 calc(var(--gls-section-gap, 28px) + var(--gls-space-4, 16px));
 }
 
 body.page-post .post-veil {
@@ -61,7 +61,7 @@ body.page-post {
 
 body.page-post .post-shell {
   /* gls-container가 좌우 padding을 담당 → 여기서는 세로 리듬만 */
-  padding-block: var(--gls-space-4, 16px);
+  padding-block: calc(var(--gls-section-gap, 24px) * 0.52);
 }
 
 body.page-post .post-layout {
@@ -480,6 +480,11 @@ body.page-post .post-actions-panel {
   padding: var(--gls-space-4, 16px);
 }
 
+body.page-post .post-action-dock {
+  position: relative;
+  z-index: 2;
+}
+
 body.page-post .post-toolbar {
   background: var(--post-glass-bg);
   border: 1px solid var(--post-glass-border);
@@ -492,7 +497,7 @@ body.page-post .post-toolbar {
 
 body.page-post .post-actions-grid {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
   justify-content: flex-start;
 }
@@ -510,6 +515,11 @@ body.page-post .post-side-btn {
 }
 
 body.page-post .post-actions-grid .gls-action-tile {
+  --gls-action-radius: 14px;
+  --gls-action-bg: rgba(255, 251, 243, 0.88);
+  --gls-action-border: rgba(66, 53, 35, 0.16);
+  --gls-action-shadow: 0 8px 20px rgba(36, 29, 18, 0.1);
+  --gls-action-hover-bg: rgba(255, 252, 246, 0.96);
   flex: 1 1 0;
 }
 
@@ -531,6 +541,10 @@ body.page-post .post-side-like-label {
   opacity: 0.9;
 }
 
+body.page-post.has-mobile-action-dock .post-shell {
+  padding-bottom: calc(var(--gls-mobile-action-dock-offset, 88px) + 20px);
+}
+
 /* 모바일에서는 액션을 조금 더 편하게 */
 @media (max-width: 420px) {
   body.page-post .post-actions-grid {
@@ -539,6 +553,54 @@ body.page-post .post-side-like-label {
 
   body.page-post .post-side-like {
     flex-basis: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  body.page-post.has-mobile-action-dock .post-action-dock {
+    position: fixed;
+    left: max(var(--gls-gutter, 12px), env(safe-area-inset-left, 0px));
+    right: max(var(--gls-gutter, 12px), env(safe-area-inset-right, 0px));
+    bottom: calc(var(--gls-mobile-action-dock-safe, env(safe-area-inset-bottom, 0px)) + 10px);
+    z-index: 380;
+    pointer-events: none;
+  }
+
+  body.page-post.has-mobile-action-dock .post-action-dock .post-actions-panel {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 18px;
+    background: rgba(255, 250, 242, 0.9);
+    border-color: rgba(66, 53, 35, 0.18);
+    box-shadow: 0 18px 34px rgba(28, 22, 14, 0.26);
+    pointer-events: auto;
+  }
+
+  body.page-post.has-mobile-action-dock .post-action-dock .post-actions-grid {
+    gap: 8px;
+  }
+
+  body.page-post.has-mobile-action-dock .post-action-dock .post-actions-grid .gls-action-tile {
+    min-height: 54px;
+    font-size: 0.84rem;
+  }
+
+  body.page-post.has-mobile-action-dock .post-action-dock .post-side-like-label {
+    font-size: 0.76rem;
+  }
+
+  body.page-post.has-mobile-action-dock .post-side-inner {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  body.page-post.has-mobile-action-dock .post-action-dock .post-actions-grid {
+    flex-wrap: nowrap;
+  }
+
+  body.page-post.has-mobile-action-dock .post-action-dock .post-side-like {
+    flex-basis: auto;
   }
 }
 
@@ -928,7 +990,7 @@ body.page-post #postDetail .post-content-surface {
 }
 
 body.page-post #postDetail .quote-card {
-  max-width: 72ch;
+  max-width: min(72ch, 720px);
 }
 
 body.page-post #postDetail .quote-card.quote-card--rendered-image {

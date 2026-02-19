@@ -32,6 +32,8 @@ tokens → base → vendor → shells → components(all) → pages → themes
 - Cards / Feed / Quote → components/card.css (+ feed-preview.css, quote-card.css)
 - Modals → components/modals.css
 - Actions → components/actions.css
+- Site chrome (navbar/footer/account menu) → components/site-chrome.css
+- Visibility state primitives (`.is-hidden`, `.is-visible`, etc.) → components/state-visibility.css
 
 ### Pages
 - public/css/pages/*.css

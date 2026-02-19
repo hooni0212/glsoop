@@ -36,7 +36,7 @@ const guestPages = [
   { key: 'verify-email', path: '/html/verify-email.html?pending_id=1&email=test@glsoop.com' },
   { key: 'forgot-password', path: '/html/forgot-password.html' },
   { key: 'reset-password', path: '/html/reset-password.html?token=dummy' },
-  { key: 'ui-kit', path: '/html/ui-kit.html', optional: true },
+  { key: 'ui-kit', path: '/ui-kit.html', optional: true },
 ];
 
 const authedPages = [
@@ -208,6 +208,14 @@ const installLoggers = (page, entries, baseURL) => {
       return null;
     }
   })();
+  const getPathname = (url) => {
+    try {
+      return new URL(url).pathname;
+    } catch (error) {
+      return '';
+    }
+  };
+  const isExpectedAuthProbe = (url) => getPathname(url) === '/api/me';
   const isRelevantRequest = (url, resourceType) => {
     if (!['document', 'xhr', 'fetch'].includes(resourceType)) return false;
     if (!url) return false;
@@ -217,6 +225,10 @@ const installLoggers = (page, entries, baseURL) => {
 
   const onConsole = (msg) => {
     if (msg.type() === 'error') {
+      const text = msg.text();
+      if (text.includes('status of 401 (Unauthorized)')) {
+        return;
+      }
       entries.push(`[console.error] ${msg.text()}`);
     }
   };
@@ -228,6 +240,9 @@ const installLoggers = (page, entries, baseURL) => {
     const request = response.request();
     const resourceType = request.resourceType();
     const url = response.url();
+    if (response.status() === 401 && isExpectedAuthProbe(url)) {
+      return;
+    }
     if (!isRelevantRequest(url, resourceType)) return;
     entries.push(`[response ${response.status()}] ${url}`);
   };
@@ -236,6 +251,9 @@ const installLoggers = (page, entries, baseURL) => {
     const resourceType = request.resourceType();
     if (!isRelevantRequest(url, resourceType)) return;
     const failure = request.failure();
+    if (isExpectedAuthProbe(url) && /ERR_ABORTED/i.test(failure?.errorText || '')) {
+      return;
+    }
     entries.push(
       `[requestfailed] ${url} (${resourceType}) ${failure?.errorText || 'unknown error'}`
     );

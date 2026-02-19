@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ✅ 토큰이 없으면: 잘못된/만료된 링크로 간주 → 폼 숨기고 에러 표시
   if (!token) {
     setFormMessage('유효하지 않은 링크입니다.', 'error', true); // 사용자에게 안내 메시지
-    form.style.display = 'none';                      // 폼은 숨기기
+    form.classList.add('is-hidden');                  // 폼은 숨기기
     return;                                           // 더 이상 진행하지 않음
   }
 

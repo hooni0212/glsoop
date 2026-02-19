@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="/css/app.css">
 
 </head>
-<body>
+<body class="page-signup">
   <!-- 헤더(네비게이션 바) 영역 -->
   <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
     <div class="gls-container">
@@ -66,7 +66,7 @@
         </ul>
 
         <!-- 로그인 후 메뉴 (기본 숨김, header.js에서 토글) -->
-        <ul class="navbar-nav gls-ms-auto after-login" style="display: none;">
+        <ul class="navbar-nav gls-ms-auto after-login is-hidden">
           <!-- 로그인한 사용자 이름 -->
           <li class="nav-item">
             <span class="nav-link" id="navUserName"></span>
@@ -107,13 +107,16 @@
   </nav>
 
   <!-- 회원가입 섹션: 상단 여백(gls-py-5) + fixed-top 네비게이션 높이만큼 gls-mt-5 -->
-  <section class="gls-py-5 gls-mt-5">
+  <section class="auth-lite-hero gls-py-5 gls-mt-5">
     <div class="gls-container">
-      <!-- 페이지 제목 -->
-      <h2 class="gls-text-center gls-mb-4">회원가입</h2>
+      <div class="auth-lite-head">
+        <p class="auth-lite-eyebrow">SIGN UP</p>
+        <h2 class="auth-lite-title">회원가입</h2>
+        <p class="auth-lite-copy">글숲에서 문장과 기록을 이어가기 위한 계정을 만들어보세요.</p>
+      </div>
 
       <!-- 회원가입 폼 -->
-      <form id="signupForm" class="mx-auto" style="max-width: 420px;">
+      <form id="signupForm" class="auth-form-shell">
         <div
           id="signupMessage"
           class="gls-feedback gls-feedback--info gls-mb-3"
@@ -123,7 +126,7 @@
         ></div>
 
         <!-- ✅ 약관 / 개인정보 동의 영역 (제목 바로 아래에 위치) -->
-        <div class="gls-mb-4 gls-p-3 border rounded bg-white">
+        <div class="auth-agreement-box gls-mb-4 gls-p-3">
           <!-- 전체 동의 체크박스: 모든 하위 항목을 한 번에 토글 -->
           <div class="gls-check gls-mb-2">
             <input class="gls-check-input" type="checkbox" id="agreeAll">

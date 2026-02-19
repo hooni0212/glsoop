@@ -134,10 +134,10 @@ async function loadAuthorProfile(authorId) {
     if (aboutEl) {
       if (about) {
         aboutEl.textContent = about; // 줄바꿈 유지 ⇒ CSS에서 pre-line이면 됨
-        aboutEl.style.display = 'block';
+        aboutEl.classList.remove('is-hidden');
       } else {
         aboutEl.textContent = '';
-        aboutEl.style.display = 'none';
+        aboutEl.classList.add('is-hidden');
       }
     }
 
@@ -361,7 +361,7 @@ async function loadMoreAuthorPosts() {
   if (authorLoading || authorDone) return; // 이미 로딩 중이거나 끝났으면 종료
 
   authorLoading = true;
-  if (loadingEl) loadingEl.style.display = 'block';
+  if (loadingEl) loadingEl.classList.remove('is-hidden');
 
   try {
     const params = new URLSearchParams({
@@ -384,7 +384,7 @@ async function loadMoreAuthorPosts() {
 
     // 첫 로드인데 글이 아예 없는 경우
     if (authorOffset === 0 && posts.length === 0) {
-      if (emptyEl) emptyEl.style.display = 'block';
+      if (emptyEl) emptyEl.classList.remove('is-hidden');
       authorDone = true;
       return;
     }
@@ -392,7 +392,7 @@ async function loadMoreAuthorPosts() {
     // 더 이상 가져올 글이 없는 경우
     if (posts.length === 0) {
       authorDone = true;
-      if (endEl) endEl.style.display = 'block';
+      if (endEl) endEl.classList.remove('is-hidden');
       return;
     }
 
@@ -405,14 +405,14 @@ async function loadMoreAuthorPosts() {
     // 이번에 가져온 개수가 limit보다 적으면 → 이 페이지가 마지막
     if (posts.length < AUTHOR_LIMIT) {
       authorDone = true;
-      if (endEl) endEl.style.display = 'block';
+      if (endEl) endEl.classList.remove('is-hidden');
     }
   } catch (e) {
     console.error(e);
     alert('작가 글을 불러오는 중 오류가 발생했습니다.');
   } finally {
     authorLoading = false;
-    if (loadingEl) loadingEl.style.display = 'none';
+    if (loadingEl) loadingEl.classList.add('is-hidden');
   }
 }
 
@@ -799,8 +799,8 @@ function resetAuthorPosts() {
   authorPostCache.clear();
 
   if (listBox) listBox.innerHTML = '';
-  if (emptyEl) emptyEl.style.display = 'none';
-  if (endEl) endEl.style.display = 'none';
+  if (emptyEl) emptyEl.classList.add('is-hidden');
+  if (endEl) endEl.classList.add('is-hidden');
 }
 
 /**

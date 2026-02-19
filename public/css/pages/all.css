@@ -8,6 +8,9 @@
 @import url("./author.css");
 @import url("./mypage.css");
 @import url("./login.css");
+@import url("./signup.css");
+@import url("./forgot-password.css");
+@import url("./reset-password.css");
 @import url("./editor.css");
 @import url("./admin.css");
 @import url("./ig-export.css");

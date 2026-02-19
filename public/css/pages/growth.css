@@ -25,12 +25,29 @@ body.page-growth .growth-shell {
   max-width: 1100px;
 }
 
+body.page-growth main {
+  padding-bottom: var(--gls-section-padding-y);
+}
+
 body.page-growth .growth-header {
-  padding: var(--gls-space-5);
+  padding: clamp(16px, 2.3vw, 26px);
+  border-radius: var(--gls-radius-lg, 20px);
+  border: 1px solid color-mix(in srgb, var(--gls-glass-border) 86%, rgba(255, 255, 255, 0.32));
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.08)),
+    color-mix(in srgb, var(--gls-glass-bg-strong) 86%, rgba(255, 255, 255, 0.32));
+  box-shadow: var(--gls-shadow-md);
 }
 
 body.page-growth .growth-header h2 {
   font-size: clamp(1.4rem, 2.2vw, 2rem);
+  letter-spacing: -0.014em;
+  font-family: var(--gls-font-serif, "Hahmlet", serif);
+}
+
+body.page-growth .growth-header .gls-text-small {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 body.page-growth .growth-section {
@@ -136,6 +153,19 @@ body.page-growth .growth-hero-grid {
 
 body.page-growth .growth-level-card {
   overflow: hidden;
+}
+
+body.page-growth .growth-level-card .card-body,
+body.page-growth .growth-stat-card .card-body,
+body.page-growth .growth-achievement-list .card-body,
+body.page-growth .growth-quest-board .card-body {
+  padding: clamp(14px, 2.1vw, 22px);
+}
+
+body.page-growth .growth-section-title {
+  font-family: var(--gls-font-serif, "Hahmlet", serif);
+  font-size: clamp(1.08rem, 1.8vw, 1.34rem);
+  letter-spacing: -0.012em;
 }
 
 body.page-growth .growth-level-ring {
@@ -300,6 +330,13 @@ body.page-growth .campaign-stack {
 body.page-growth .quest-columns {
   display: grid;
   gap: var(--gls-space-4);
+}
+
+body.page-growth .quest-column {
+  border: 1px solid color-mix(in srgb, var(--gls-glass-border) 72%, rgba(255, 255, 255, 0.24));
+  border-radius: var(--gls-radius-md);
+  padding: var(--gls-space-3);
+  background: color-mix(in srgb, var(--gls-glass-bg-subtle) 92%, rgba(255, 255, 255, 0.3));
 }
 
 @media (min-width: 992px) {
@@ -815,5 +852,45 @@ body.page-growth .skeleton-line.skeleton-line-sm {
 @media (min-width: 1200px) {
   body.page-growth .achievement-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  body.page-growth .growth-header {
+    align-items: flex-start;
+  }
+
+  body.page-growth .growth-header .gls-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  body.page-growth .growth-level-card .card-body {
+    gap: 14px;
+  }
+
+  body.page-growth .growth-level-ring {
+    width: 112px;
+    height: 112px;
+  }
+
+  body.page-growth .growth-today-pill {
+    width: 100%;
+    min-width: 0;
+  }
+
+  body.page-growth .growth-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body.page-growth .achievement-filters {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+  }
+
+  body.page-growth .achievement-filter-btn {
+    flex: 0 0 auto;
   }
 }

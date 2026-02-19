@@ -30,7 +30,7 @@
           <li class="nav-item"><a class="nav-link" href="/html/login.html">로그인</a></li>
           <li class="nav-item"><a class="nav-link" href="/html/signup.html">회원가입</a></li>
         </ul>
-        <ul class="navbar-nav gls-ms-auto after-login" style="display:none;">
+        <ul class="navbar-nav gls-ms-auto after-login is-hidden">
           <li class="nav-item"><span class="nav-link" id="navUserName"></span></li>
           <li class="nav-item"><a class="nav-link" href="/html/mypage.html">마이페이지</a></li>
           <li class="nav-item"><a class="nav-link" href="/html/editor.html">글쓰기</a></li>
@@ -92,13 +92,28 @@
           <div id="bookmarkPosts" aria-live="polite" aria-busy="false">
             <p class="gls-text-muted gls-mb-0">폴더를 선택하면 저장된 글을 볼 수 있습니다.</p>
           </div>
-          <div class="gls-grid gls-mt-3" id="bookmarkLoadMoreWrap" style="display:none;">
+          <div class="gls-grid gls-mt-3 is-hidden" id="bookmarkLoadMoreWrap">
             <button class="gls-btn gls-btn-secondary" id="bookmarkLoadMore">더 보기</button>
           </div>
         </div>
       </div>
     </div>
   </main>
+
+  <footer class="custom-footer">
+    <div class="gls-container">
+      <div class="gls-flex gls-flex-col gls-gap-2 gls-md-flex-row gls-justify-between gls-items-center">
+        <div class="gls-text-center gls-text-md-start">
+          <div class="footer-brand">글숲</div>
+          <p class="footer-subtitle gls-mb-0">마음을 나누는 작은 숲</p>
+        </div>
+        <div class="gls-text-center gls-text-md-end footer-meta">
+          <p class="footer-copy gls-mb-1">조용히 머물다 가는 공간을 함께 가꿔요.</p>
+          <p class="footer-small gls-mb-0">&copy; 2025 글숲</p>
+        </div>
+      </div>
+    </div>
+  </footer>
 
   <div class="modal fade" id="listFormModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">

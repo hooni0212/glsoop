@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
   setupMobileNavCloseBehavior();
 });
 
+function setNodeGroupVisibility(nodes, visible) {
+  nodes.forEach((node) => {
+    node.classList.toggle('is-hidden', !visible);
+  });
+}
+
 /**
  * 헤더 영역에 로그인 상태 반영
  * - /api/me로 사용자 정보를 요청
@@ -30,8 +36,8 @@ async function updateHeader() {
     // HTTP 레벨에서 실패하면 "로그인 안 된 상태"로 처리
     if (!res.ok) {
       // 로그인 안 된 상태: before-login 보이기, after-login 숨기기
-      beforeEls.forEach((el) => (el.style.display = 'flex'));
-      afterEls.forEach((el) => (el.style.display = 'none'));
+      setNodeGroupVisibility(beforeEls, true);
+      setNodeGroupVisibility(afterEls, false);
       applyAccountName(null);
       closeAccountMenu();
       return;
@@ -43,23 +49,22 @@ async function updateHeader() {
       // 로그인 상태
       // - 로그인 전 메뉴 숨기고
       // - 로그인 후 메뉴 보이기
-      beforeEls.forEach((el) => (el.style.display = 'none'));
-      afterEls.forEach((el) => (el.style.display = 'flex'));
+      setNodeGroupVisibility(beforeEls, false);
+      setNodeGroupVisibility(afterEls, true);
 
       // 상단 계정 UI에 사용자 이름 표시 (예: "홍길동님")
       applyAccountName(data);
     } else {
       // 응답은 200이지만 data.ok가 false → 로그인 실패로 간주
-      beforeEls.forEach((el) => (el.style.display = 'flex'));
-      afterEls.forEach((el) => (el.style.display = 'none'));
+      setNodeGroupVisibility(beforeEls, true);
+      setNodeGroupVisibility(afterEls, false);
       applyAccountName(null);
       closeAccountMenu();
     }
   } catch (e) {
     // 네트워크 에러 등 예외 발생 시에도 안전하게 "비로그인" 상태로 표시
-    console.error(e);
-    beforeEls.forEach((el) => (el.style.display = 'flex'));
-    afterEls.forEach((el) => (el.style.display = 'none'));
+    setNodeGroupVisibility(beforeEls, true);
+    setNodeGroupVisibility(afterEls, false);
     applyAccountName(null);
     closeAccountMenu();
   }
@@ -509,10 +514,8 @@ async function handleLogout() {
     }
 
     document.body.classList.add('gls-modal-open');
-    modalEl.style.display = 'flex';
-    modalEl.style.visibility = 'visible';
-    modalEl.style.opacity = '1';
-    modalEl.classList.add('is-open', 'show');
+    modalEl.removeAttribute('hidden');
+    modalEl.classList.add('is-open', 'show', 'is-flex-visible');
     setAria(modalEl, true);
 
     // focus management
@@ -521,10 +524,8 @@ async function handleLogout() {
 
   function close(modalEl) {
     if (!modalEl) return;
-    modalEl.classList.remove('is-open', 'show');
-    modalEl.style.display = '';
-    modalEl.style.visibility = '';
-    modalEl.style.opacity = '';
+    modalEl.classList.remove('is-open', 'show', 'is-flex-visible');
+    modalEl.setAttribute('hidden', '');
     setAria(modalEl, false);
 
     if (backdropEl) {

@@ -107,7 +107,7 @@
         <!-- 로그인 후: 유저 이름 + 마이페이지 / 글쓰기 / 로그아웃 버튼
              - header.js의 updateHeader()에서 /api/me를 보고
                .before-login / .after-login display를 토글 -->
-        <ul class="navbar-nav ms-auto after-login" style="display: none;">
+        <ul class="navbar-nav ms-auto after-login is-hidden">
           <!-- 로그인된 사용자 이름 텍스트 (예: "재원님") -->
           <li class="nav-item">
             <span class="nav-link" id="navUserName"></span>
@@ -167,8 +167,8 @@
               "짧은 글 하나가 하루의 결을 바꿀 수 있으니까."
             </p>
             <div class="home-hero-actions">
-              <a class="gls-btn gls-btn-primary" href="/explore">숲 탐색 시작</a>
-              <a class="gls-btn gls-btn-secondary" href="/explore">전체 글</a>
+              <a class="gls-btn gls-btn-primary home-cta-primary" href="/explore">숲 탐색 시작</a>
+              <a class="gls-btn gls-btn-secondary home-cta-secondary" href="/explore">전체 글</a>
             </div>
             <div class="home-hero-meta" aria-hidden="true">
               <span class="home-hero-chip">큐레이션 기반 홈</span>
@@ -223,14 +223,21 @@
             </a>
           </section>
 
-          <section class="home-side-block">
-            <h4>Quick Actions</h4>
-            <div class="home-side-actions">
-              <a class="gls-btn gls-btn-secondary" href="/explore">읽기 시작</a>
-              <button class="gls-btn gls-btn-secondary" id="randomPostBtn" type="button">
-                랜덤
+          <section class="home-side-block home-side-quick">
+            <h4>조용한 동선</h4>
+            <div class="home-side-links">
+              <a class="home-side-link-card" href="/explore">
+                <span class="home-side-link-title">오늘의 글 읽기</span>
+                <span class="home-side-link-arrow" aria-hidden="true">→</span>
+              </a>
+              <button class="home-side-link-card" id="randomPostBtn" type="button">
+                <span class="home-side-link-title">랜덤으로 만나기</span>
+                <span class="home-side-link-arrow" aria-hidden="true">→</span>
               </button>
-              <a class="gls-btn gls-btn-secondary" href="/explore">전체 글</a>
+              <a class="home-side-link-card" href="/explore">
+                <span class="home-side-link-title">전체 글로 이동</span>
+                <span class="home-side-link-arrow" aria-hidden="true">→</span>
+              </a>
             </div>
           </section>
         </aside>

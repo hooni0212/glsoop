@@ -1,0 +1,39 @@
+/* UI state visibility primitives
+   - Use classes/attributes instead of inline style toggles.
+*/
+
+.is-hidden {
+  display: none !important;
+}
+
+.is-visible {
+  display: block !important;
+}
+
+.is-inline-visible {
+  display: inline !important;
+}
+
+.is-inline-flex-visible {
+  display: inline-flex !important;
+}
+
+.is-flex-visible {
+  display: flex !important;
+}
+
+.is-grid-visible {
+  display: grid !important;
+}
+
+.is-collapsed {
+  visibility: hidden;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+[hidden] {
+  display: none !important;
+}

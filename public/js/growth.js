@@ -647,7 +647,7 @@ function renderAchievementDetail(achievement) {
         </div>
       </div>
       <div class="forest-map-detail-progress" role="progressbar" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100">
-        <div class="forest-map-detail-progress-bar" style="width: ${progressPercent}%"></div>
+        <div class="forest-map-detail-progress-bar" data-progress="${progressPercent}"></div>
       </div>
       <div class="gls-flex gls-justify-between gls-items-center gls-mt-2 gls-text-small gls-text-muted">
         <span>${achievement.progress || 0} / ${achievement.target || 0}</span>
@@ -743,7 +743,7 @@ function renderAchievementGrid(filter = selectedAchievementFilter) {
       <h5>${achievement.name}</h5>
       <p class="gls-text-muted">${achievement.description || ''}</p>
       <div class="achievement-progress">
-        <div class="achievement-progress-bar" style="width: ${progressPercent}%"></div>
+        <div class="achievement-progress-bar" data-progress="${progressPercent}"></div>
       </div>
       <div class="achievement-progress-label">${achievement.progress || 0} / ${achievement.target || 0}</div>
     `;
@@ -833,7 +833,7 @@ function renderQuestGroups(campaigns = []) {
         ${quest.reward_xp ? `<span>보상 ${quest.reward_xp} XP</span>` : ''}
         ${quest.description ? `<span class="gls-text-muted">${quest.description}</span>` : ''}
       </div>
-      <div class="quest-card-progress"><div class="quest-card-progress-bar" style="width: ${progressPercent}%"></div></div>
+      <div class="quest-card-progress"><div class="quest-card-progress-bar" data-progress="${progressPercent}"></div></div>
     `;
 
     parent.appendChild(card);
@@ -866,7 +866,7 @@ function renderQuestGroups(campaigns = []) {
       </div>
       <p class="gls-text-muted gls-mb-2">${quest.description || ''}</p>
       <div class="achievement-quest-progress">
-        <div class="achievement-quest-progress-bar" style="width:${progressPercent}%"></div>
+        <div class="achievement-quest-progress-bar" data-progress="${progressPercent}"></div>
       </div>
       <div class="achievement-quest-meta">
         <span>${quest.progress || 0} / ${quest.target || 0}</span>

@@ -25,7 +25,7 @@ body.page-author {
   --author-accent: var(--gls-color-primary);
   --author-page-max: clamp(1200px, 92vw, 1320px);
   --author-page-padding: clamp(16px, 2.6vw, 32px);
-  --author-card-padding: clamp(22px, 2.1vw, var(--gls-card-padding, 28px));
+  --author-card-padding: clamp(20px, 2.2vw, var(--gls-card-padding, 28px));
   --author-glass-bg: rgba(255, 255, 255, 0.45);
   --author-glass-border: rgba(255, 255, 255, 0.6);
   --author-glass-blur: 20px;
@@ -68,7 +68,7 @@ body.page-author {
   backdrop-filter: blur(var(--author-glass-blur));
   -webkit-backdrop-filter: blur(var(--author-glass-blur));
   padding: var(--author-card-padding);
-  margin-bottom: clamp(20px, 2vw, 28px);
+  margin-bottom: var(--gls-section-gap, clamp(20px, 2vw, 28px));
 }
 
 /* 메인 레이아웃: 두 컬럼(row) 상단 정렬 */
@@ -77,7 +77,7 @@ body.page-author {
   align-items: start;
   display: grid;
   grid-template-columns: minmax(320px, 360px) minmax(720px, 1fr);
-  gap: clamp(36px, 4vw, 44px);
+  gap: var(--gls-section-gap, clamp(32px, 3.4vw, 42px));
   justify-content: center;
 }
 

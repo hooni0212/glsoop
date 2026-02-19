@@ -90,7 +90,7 @@ Glsoop.AdminPage = (function () {
         회원과 게시글, 퀘스트를 이 페이지에서 관리할 수 있습니다.
       </p>
     `;
-    contentBox.style.display = 'block';
+    contentBox.classList.remove('is-hidden');
 
     await loadUsers(usersBox);
     setupPostsUi(postsBox);
@@ -664,12 +664,12 @@ Glsoop.AdminPage = (function () {
         const maskedEmail = maskEmail(u.email);
         return `
           <tr data-user-id="${u.id}">
-            <td>${u.id}</td>
-            <td>${escapeHtml(u.name)}${isAdminBadge}</td>
-            <td>${nicknameText}</td>
-            <td>${escapeHtml(maskedEmail || u.email || '')}</td>
-            <td>${isVerifiedBadge}</td>
-            <td>
+            <td data-label="ID">${u.id}</td>
+            <td data-label="이름">${escapeHtml(u.name)}${isAdminBadge}</td>
+            <td data-label="닉네임">${nicknameText}</td>
+            <td data-label="이메일">${escapeHtml(maskedEmail || u.email || '')}</td>
+            <td data-label="인증 상태">${isVerifiedBadge}</td>
+            <td data-label="관리">
               <button
                 type="button"
                 class="gls-btn gls-btn-danger gls-btn-xs admin-delete-user-btn"
@@ -684,15 +684,15 @@ Glsoop.AdminPage = (function () {
 
     return `
       <div class="table-responsive">
-        <table class="table align-middle">
+        <table class="table align-middle admin-users-table">
           <thead>
             <tr>
-              <th style="width: 60px;">ID</th>
-              <th style="width: 160px;">이름</th>
-              <th style="width: 160px;">닉네임</th>
+              <th class="admin-col-id">ID</th>
+              <th class="admin-col-name">이름</th>
+              <th class="admin-col-nickname">닉네임</th>
               <th>이메일</th>
-              <th style="width: 120px;">인증 상태</th>
-              <th style="width: 80px;">관리</th>
+              <th class="admin-col-status">인증 상태</th>
+              <th class="admin-col-actions">관리</th>
             </tr>
           </thead>
           <tbody>
@@ -1332,7 +1332,7 @@ Glsoop.AdminPage = (function () {
           found ? 'checked' : ''
         } />
             <label class="gls-check-label" for="campaignTpl${t.id}">${escapeHtml(t.name)}</label>
-            <input type="number" class="gls-input gls-input-sm gls-ms-2" style="width:80px" placeholder="순서" data-template-order="${t.id}" value="${
+            <input type="number" class="gls-input gls-input-sm gls-ms-2 admin-template-order-input" placeholder="순서" data-template-order="${t.id}" value="${
           found ? found.sort_order || 0 : ''
         }" />
           </div>`;

@@ -1,0 +1,81 @@
+body.page-signup {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-signup .auth-lite-hero {
+  position: relative;
+  padding-bottom: clamp(56px, 8vw, 92px);
+  flex: 1;
+}
+
+.page-signup .auth-lite-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 16% 22%, rgba(255, 255, 255, 0.3), transparent 44%),
+    radial-gradient(circle at 80% 12%, rgba(226, 242, 236, 0.34), transparent 44%),
+    linear-gradient(170deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+}
+
+.page-signup .auth-lite-hero > .gls-container {
+  position: relative;
+  z-index: 1;
+}
+
+.page-signup .auth-lite-head {
+  text-align: center;
+  margin-bottom: clamp(20px, 3vw, 30px);
+}
+
+.page-signup .auth-lite-eyebrow {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  color: color-mix(in srgb, var(--gls-color-primary) 64%, #1f2937 36%);
+  font-weight: 700;
+}
+
+.page-signup .auth-lite-title {
+  margin: 0;
+  font-size: clamp(1.72rem, 3.6vw, 2.4rem);
+}
+
+.page-signup .auth-lite-copy {
+  margin: 8px auto 0;
+  max-width: 56ch;
+  color: var(--gls-muted);
+}
+
+.page-signup .auth-form-shell {
+  width: min(520px, 100%);
+  margin-inline: auto;
+  padding: clamp(20px, 3vw, 30px);
+  border-radius: clamp(18px, 2.2vw, 22px);
+  border: 1px solid color-mix(in srgb, var(--gls-action-border) 92%, rgba(255, 255, 255, 0.4));
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.75)),
+    color-mix(in srgb, var(--gls-action-surface) 88%, rgba(255, 255, 255, 0.48));
+  box-shadow: 0 22px 42px rgba(23, 36, 33, 0.12);
+  backdrop-filter: blur(var(--gls-blur-ui));
+  -webkit-backdrop-filter: blur(var(--gls-blur-ui));
+}
+
+.page-signup .auth-agreement-box {
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--gls-action-border) 78%, rgba(31, 41, 55, 0.1));
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: var(--gls-shadow-sm);
+}
+
+.page-signup .auth-agreement-box .gls-check-label {
+  color: color-mix(in srgb, var(--gls-color-text) 82%, rgba(255, 255, 255, 0.12));
+}
+
+.page-signup .auth-agreement-box a {
+  color: var(--gls-color-primary-strong);
+}

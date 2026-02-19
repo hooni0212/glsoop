@@ -20,6 +20,9 @@
   --gls-space-6: 24px;
   --gls-space-7: 32px;
   --gls-space-8: 40px;
+  --gls-section-gap: clamp(20px, 3vw, 34px);
+  --gls-section-padding-y: clamp(48px, 8vw, 92px);
+  --gls-hero-padding: clamp(24px, 3.4vw, 40px);
   /* Radius */
   --gls-btn-radius: 14px;
   --gls-card-gap: var(--gls-space-5, 20px);
@@ -29,6 +32,7 @@
   --gls-radius-md: 14px;
   --gls-radius-pill: 999px;
   --gls-radius-sm: 10px;
+  --gls-radius-xl: 28px;
   /* Typography */
   --gls-font-sans: 'IBM Plex Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --gls-font-hand: 'Gaegu', cursive;
@@ -75,6 +79,7 @@
   --gls-shadow-hover: 0 26px 54px rgba(20, 24, 32, 0.16);
   --gls-shadow-md: 0 16px 34px rgba(20, 24, 32, 0.11);
   --gls-shadow-sm: 0 9px 22px rgba(20, 24, 32, 0.08);
+  --gls-shadow-xl: 0 30px 62px rgba(20, 24, 32, 0.18);
   --gls-shadow-surface: var(--gls-shadow-md);
   /* Glass / Surface helpers */
   --gls-blur: var(--gls-glass-blur);
@@ -117,6 +122,17 @@
   --gls-action-surface: rgba(255, 252, 246, 0.9);
   --gls-action-surface-hover: rgba(255, 252, 246, 0.96);
   --gls-action-surface-strong: rgba(29, 107, 82, 0.13);
+  --gls-hero-cta-primary-shadow: 0 14px 34px rgba(10, 38, 27, 0.34);
+  --gls-hero-cta-secondary-bg: rgba(246, 253, 248, 0.14);
+  --gls-hero-cta-secondary-border: rgba(237, 251, 243, 0.38);
+  --gls-card-hover-lift: -3px;
+  --gls-card-hover-border: rgba(47, 109, 93, 0.3);
+  --gls-card-hover-shadow: 0 24px 40px rgba(33, 27, 19, 0.16);
+  --gls-mobile-action-dock-height: 76px;
+  --gls-mobile-action-dock-safe: env(safe-area-inset-bottom, 0px);
+  --gls-mobile-action-dock-offset: calc(
+    var(--gls-mobile-action-dock-height) + var(--gls-mobile-action-dock-safe) + var(--gls-space-4, 16px)
+  );
 
   /* Buttons/Chips (dedupe) */
   --gls-btn-border-default: rgba(30, 42, 51, 0.14);
@@ -173,6 +189,7 @@
   --gls-duration-ui: 140ms;
   --gls-duration: 180ms;
   --gls-duration-slow: 260ms;
+  --gls-duration-page-enter: 320ms;
 
   /* Common transitions (reuse in components) */
   --gls-transition-surface: background var(--gls-duration, 180ms) var(--gls-ease, ease),

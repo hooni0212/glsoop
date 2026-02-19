@@ -202,6 +202,23 @@ body.page-admin .table-responsive {
   background: rgba(255, 255, 255, 0.72);
 }
 
+body.page-admin .admin-col-id {
+  width: 60px;
+}
+
+body.page-admin .admin-col-name,
+body.page-admin .admin-col-nickname {
+  width: 160px;
+}
+
+body.page-admin .admin-col-status {
+  width: 120px;
+}
+
+body.page-admin .admin-col-actions {
+  width: 80px;
+}
+
 body.page-admin .admin-posts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -279,6 +296,10 @@ body.page-admin .quest-template-select .gls-check {
   gap: 8px;
 }
 
+body.page-admin .admin-template-order-input {
+  width: 80px;
+}
+
 body.page-admin .admin-modal__dialog {
   border: 1px solid rgba(61, 52, 36, 0.16);
   border-radius: 18px;
@@ -338,5 +359,48 @@ body.page-admin .admin-modal__body {
 
   body.page-admin .admin-share-toolbar__actions .gls-btn {
     flex: 1 1 0;
+  }
+
+  body.page-admin .admin-users-table thead {
+    display: none;
+  }
+
+  body.page-admin .admin-users-table tbody {
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  body.page-admin .admin-users-table tbody tr {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(61, 52, 36, 0.12);
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: 0 8px 20px rgba(39, 28, 14, 0.08);
+  }
+
+  body.page-admin .admin-users-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+  }
+
+  body.page-admin .admin-users-table tbody td::before {
+    content: attr(data-label);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--gls-admin-muted) 84%, #ffffff 16%);
+  }
+
+  body.page-admin .admin-users-table tbody td[data-label='관리'] .gls-btn {
+    min-height: 32px;
+    padding-inline: 10px;
   }
 }

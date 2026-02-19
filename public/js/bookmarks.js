@@ -109,7 +109,7 @@
       `;
       postsEl.innerHTML =
         '<div class="bookmark-empty-state"><span class="emoji" aria-hidden="true">📂</span><p class="gls-mb-1 fw-semibold">폴더를 만든 뒤 글을 저장해 보세요.</p><p class="gls-text-muted gls-text-small gls-mb-0">피드에서 마음에 드는 글을 북마크하면 여기서 모아볼 수 있습니다.</p></div>';
-      loadMoreWrap.style.display = 'none';
+      if (loadMoreWrap) loadMoreWrap.classList.add('is-hidden');
       setPostsBusy(false);
       const emptyCreateBtn = document.getElementById('bookmarkEmptyCreateListBtn');
       if (emptyCreateBtn) {
@@ -249,7 +249,7 @@
     offset = 0;
     hasMore = false;
     postsEl.innerHTML = '';
-    if (loadMoreWrap) loadMoreWrap.style.display = 'none';
+    if (loadMoreWrap) loadMoreWrap.classList.add('is-hidden');
   }
 
   async function selectList(listId) {
@@ -295,7 +295,7 @@
       if (offset === 0 && !posts.length) {
         renderEmptyState();
         hasMore = false;
-        loadMoreWrap.style.display = 'none';
+        if (loadMoreWrap) loadMoreWrap.classList.add('is-hidden');
         return;
       }
 
@@ -311,7 +311,9 @@
       offset += posts.length;
       hasMore = data.has_more;
       const hasCards = Boolean(postsEl.querySelector('.gls-post-card'));
-      loadMoreWrap.style.display = hasCards && hasMore ? 'block' : 'none';
+      if (loadMoreWrap) {
+        loadMoreWrap.classList.toggle('is-hidden', !(hasCards && hasMore));
+      }
     } catch (e) {
       console.error(e);
       if (offset === 0) {

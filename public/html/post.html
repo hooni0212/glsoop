@@ -58,7 +58,7 @@
           <li class="nav-item"><a class="nav-link" href="/html/signup.html">회원가입</a></li>
         </ul>
 
-        <ul class="navbar-nav gls-ms-auto after-login" style="display: none;">
+        <ul class="navbar-nav gls-ms-auto after-login is-hidden">
           <li class="nav-item"><span class="nav-link" id="navUserName"></span></li>
           <li class="nav-item"><a class="nav-link" href="/html/mypage.html">마이페이지</a></li>
           <li class="nav-item"><a class="nav-link" href="/html/editor.html">글쓰기</a></li>
@@ -140,17 +140,19 @@
         <!-- 우측: 액션 + 관련 글(시안 A) -->
         <aside class="post-side" aria-label="상세 도구 및 관련 글">
           <div class="post-side-inner">
-            <div class="post-actions-panel gls-surface-panel post-toolbar">
-              <div class="post-actions-grid">
-                <button id="sideLikeBtn" type="button" class="post-side-btn post-side-like gls-action-tile" aria-label="좋아요">
-                  <span class="gls-action-tile__content">
-                    <span class="post-side-like-heart gls-action-tile__icon" aria-hidden="true">♡</span>
-                    <span class="post-side-like-count" id="sideLikeCount">0</span>
-                    <span class="post-side-like-label">좋아요</span>
-                  </span>
-                </button>
-                <button id="sideBookmarkBtn" type="button" class="post-side-btn gls-action-tile" aria-label="북마크">북마크</button>
-                <button id="sideShareBtn" type="button" class="post-side-btn gls-action-tile" aria-label="공유">공유</button>
+            <div class="post-action-dock" data-post-action-dock="1">
+              <div class="post-actions-panel gls-surface-panel post-toolbar">
+                <div class="post-actions-grid">
+                  <button id="sideLikeBtn" type="button" class="post-side-btn post-side-like gls-action-tile" aria-label="좋아요">
+                    <span class="gls-action-tile__content">
+                      <span class="post-side-like-heart gls-action-tile__icon" aria-hidden="true">♡</span>
+                      <span class="post-side-like-count" id="sideLikeCount">0</span>
+                      <span class="post-side-like-label">좋아요</span>
+                    </span>
+                  </button>
+                  <button id="sideBookmarkBtn" type="button" class="post-side-btn gls-action-tile" aria-label="북마크">북마크</button>
+                  <button id="sideShareBtn" type="button" class="post-side-btn gls-action-tile" aria-label="공유">공유</button>
+                </div>
               </div>
             </div>
 

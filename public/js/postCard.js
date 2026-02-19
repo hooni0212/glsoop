@@ -206,6 +206,7 @@ function buildStandardPostCardHTML(post, options = {}) {
     contentExpanded = false,   // true면 feed-post-content에 expanded 클래스 추가 (잘리지 않게)
     forceRenderedImage = false, // true면 explore가 아니어도 렌더 이미지 카드 사용
     cardLengthVariant = '',    // 카드 길이 타입 강제 지정(one-line|short|medium|long)
+    cardClickable = true,      // 카드 전체 클릭 가능 여부
   } = options;
 
   const author = buildAuthorDisplay(post);
@@ -291,6 +292,7 @@ function buildStandardPostCardHTML(post, options = {}) {
       class="card gls-mb-3 gls-post-card${cardLengthClass}${extraClass}"
       data-post-id="${post.id}"
       data-length-variant="${resolvedLengthVariant}"
+      data-card-clickable="${cardClickable ? 'true' : 'false'}"
     >
       <div class="card-body">
         <!-- 상단 메타 영역: 작성자 + 액션 (북마크/공감) -->
@@ -329,9 +331,8 @@ function buildStandardPostCardHTML(post, options = {}) {
                 ? `
             <!-- 더보기 버튼 (내용이 넘칠 때만 노출) : 카드 내부 오버레이 -->
             <button
-              class="more-toggle gls-more-overlay"
+              class="more-toggle gls-more-overlay is-hidden"
               type="button"
-              style="display:none;"
             >
               더보기...
             </button>`
@@ -366,7 +367,7 @@ function buildStandardPostCardHTML(post, options = {}) {
  *
  * render할 때마다 이걸 호출해주면 됨.
  */
-function enhanceStandardPostCard(cardElement, post) {
+function enhanceStandardPostCard(cardElement, post, options = {}) {
   if (!cardElement) return;
 
   const quoteEl = cardElement.querySelector('.quote-card');
@@ -383,7 +384,7 @@ function enhanceStandardPostCard(cardElement, post) {
     setupCardAuthorLink(cardElement, post);
   }
   if (typeof setupCardInteractions === 'function') {
-    setupCardInteractions(cardElement, post);
+    setupCardInteractions(cardElement, post, options);
   }
 }
 
@@ -520,7 +521,6 @@ function setupCardAuthorLink(cardEl, post) {
   badge.setAttribute('role', 'link');
   badge.setAttribute('tabindex', '0');
   badge.classList.add('gls-user-badge--link');
-  badge.style.cursor = 'pointer';
   const navigateToAuthor = (e) => {
     e.stopPropagation(); // 카드 클릭(상세 이동)과 분리
     window.location.href = `/html/author.html?userId=${encodeURIComponent(
@@ -537,17 +537,94 @@ function setupCardAuthorLink(cardEl, post) {
   });
 }
 
+const CARD_NAV_IGNORE_SELECTOR = [
+  'a',
+  'button',
+  'input',
+  'textarea',
+  'select',
+  'label',
+  '[role="button"]',
+  '[data-card-stop-nav="1"]',
+  '.like-btn',
+  '.post-bookmark-toggle',
+  '.more-toggle',
+  '.gls-tag-btn',
+  '.hashtag-pill',
+  '.gls-hashtag-chip',
+  '.gls-user-badge--link',
+  '.gls-author-badge[role="link"]',
+  '.edit-post-btn',
+  '.delete-post-btn',
+].join(',');
+
+function isCardClickable(cardEl) {
+  return cardEl?.dataset?.cardClickable !== 'false';
+}
+
+function shouldIgnoreCardNavigation(target) {
+  if (!target || typeof target.closest !== 'function') return false;
+  return !!target.closest(CARD_NAV_IGNORE_SELECTOR);
+}
+
+function cacheDetailData(post, cardEl) {
+  if (!post) return;
+
+  let likeCount = post.like_count != null ? post.like_count : 0;
+  let userLiked = post.user_liked != null ? post.user_liked : 0;
+  const likeBtn = cardEl?.querySelector?.('.like-btn');
+  if (likeBtn) {
+    const countEl = likeBtn.querySelector('.like-count');
+    if (countEl) {
+      const parsed = parseInt(countEl.textContent, 10);
+      likeCount = Number.isNaN(parsed) ? 0 : parsed;
+    }
+    userLiked = likeBtn.getAttribute('data-liked') === '1' ? 1 : 0;
+  }
+
+  try {
+    const detailData = {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      created_at: post.created_at,
+      hashtags: post.hashtags,
+      category: post.category || null,
+      author_id: post.author_id || post.user_id || null,
+      author_name: post.author_name || null,
+      author_nickname:
+        (post.author_nickname && String(post.author_nickname).trim()) ||
+        (post.author_name && String(post.author_name).trim()) ||
+        null,
+      author_email: post.author_email || null,
+      like_count: likeCount,
+      user_liked: userLiked,
+    };
+    localStorage.setItem('glsoop_lastPost', JSON.stringify(detailData));
+  } catch (err) {
+    console.error('failed to cache detail post', err);
+  }
+}
+
+function navigateToPostDetail(post, cardEl) {
+  if (!post) return;
+  cacheDetailData(post, cardEl);
+  window.location.href = `/html/post.html?postId=${encodeURIComponent(post.id)}`;
+}
+
 // ==============================
 // 공통: 카드 상호작용(♥, 더보기, 상세 페이지 이동)
 // ==============================
-function setupCardInteractions(cardEl, post) {
+function setupCardInteractions(cardEl, post, options = {}) {
   if (!cardEl || !post) return;
+  const { onTagClick } = options;
 
   bindRenderedImageFallback(cardEl);
 
   // 1) 좋아요 버튼
   const likeBtn = cardEl.querySelector('.like-btn');
-  if (likeBtn) {
+  if (likeBtn && likeBtn.dataset.likeBound !== '1') {
+    likeBtn.dataset.likeBound = '1';
     likeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const pid = likeBtn.getAttribute('data-post-id') || post.id;
@@ -559,7 +636,8 @@ function setupCardInteractions(cardEl, post) {
   const feedContent = cardEl.querySelector('.feed-post-content');
   const moreBtn = cardEl.querySelector('.more-toggle');
 
-  if (feedContent && moreBtn) {
+  if (feedContent && moreBtn && moreBtn.dataset.moreBound !== '1') {
+    moreBtn.dataset.moreBound = '1';
     // 처음 렌더링 직후 높이 비교해서 넘치면 버튼 노출
     const checkOverflow = () => {
       const isOverflow = feedContent.scrollHeight > feedContent.clientHeight + 4;
@@ -568,10 +646,12 @@ function setupCardInteractions(cardEl, post) {
       feedContent.classList.toggle('has-overflow', isOverflow);
 
       if (isOverflow) {
-        moreBtn.style.display = 'inline-flex';
+        moreBtn.classList.remove('is-hidden');
+        moreBtn.classList.add('is-inline-flex-visible');
         moreBtn.textContent = '더보기...';
       } else {
-        moreBtn.style.display = 'none';
+        moreBtn.classList.add('is-hidden');
+        moreBtn.classList.remove('is-inline-flex-visible');
       }
     };
 
@@ -590,45 +670,55 @@ function setupCardInteractions(cardEl, post) {
     });
   }
 
-  // 3) 카드 전체 클릭 → 상세 페이지로 이동
-  cardEl.addEventListener('click', (e) => {
-    // 카드 안의 다른 버튼 클릭은 무시
-    if (e.target.closest('.like-btn')) return;
-    if (e.target.closest('.gls-tag-btn')) return;
-    if (e.target.closest('.post-bookmark-toggle')) return;
-    if (e.target.closest('.edit-post-btn')) return;
-    if (e.target.closest('.delete-post-btn')) return;
-
-    try {
-      const detailData = {
-        id: post.id,
-        title: post.title,
-        content: post.content,
-        created_at: post.created_at,
-        hashtags: post.hashtags,
-        author_nickname:
-          (post.author_nickname &&
-            String(post.author_nickname).trim()) ||
-          (post.author_name && String(post.author_name).trim()) ||
-          null,
-        author_email: post.author_email || null,
-        like_count:
-          post.like_count != null ? post.like_count : 0,
-        user_liked:
-          post.user_liked != null ? post.user_liked : 0,
-      };
-      localStorage.setItem(
-        'glsoop_lastPost',
-        JSON.stringify(detailData)
-      );
-    } catch (err) {
-      console.error('failed to cache detail post', err);
-    }
-
-    window.location.href = `/html/post.html?postId=${encodeURIComponent(
-      post.id
-    )}`;
+  // 3) 태그 클릭: 페이지별 처리 콜백 우선, 없으면 /explore?tag=... 이동
+  const hashtagChips = cardEl.querySelectorAll('.hashtag-pill, .gls-tag-btn, .gls-hashtag-chip');
+  hashtagChips.forEach((chip) => {
+    if (chip.dataset.tagNavBound === '1') return;
+    const tag = chip.getAttribute('data-tag') || chip.dataset.tag;
+    if (!tag) return;
+    chip.dataset.tagNavBound = '1';
+    chip.style.cursor = 'pointer';
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof onTagClick === 'function') {
+        onTagClick(tag, chip, post);
+        return;
+      }
+      window.location.href = `/explore?tag=${encodeURIComponent(tag)}`;
+    });
   });
+
+  if (isCardClickable(cardEl)) {
+    cardEl.classList.add('gls-post-card--clickable');
+    cardEl.setAttribute('role', 'link');
+    cardEl.setAttribute('tabindex', '0');
+    if (!cardEl.getAttribute('aria-label')) {
+      cardEl.setAttribute('aria-label', `${post.title || '글'} 상세 보기`);
+    }
+  } else {
+    cardEl.classList.remove('gls-post-card--clickable');
+    cardEl.removeAttribute('role');
+    cardEl.removeAttribute('tabindex');
+  }
+
+  // 4) 카드 전체 클릭/키보드 → 상세 페이지 이동
+  if (cardEl.dataset.cardNavBound !== '1') {
+    cardEl.dataset.cardNavBound = '1';
+
+    cardEl.addEventListener('click', (e) => {
+      if (!isCardClickable(cardEl)) return;
+      if (shouldIgnoreCardNavigation(e.target)) return;
+      navigateToPostDetail(post, cardEl);
+    });
+
+    cardEl.addEventListener('keydown', (e) => {
+      if (!isCardClickable(cardEl)) return;
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      if (shouldIgnoreCardNavigation(e.target)) return;
+      e.preventDefault();
+      navigateToPostDetail(post, cardEl);
+    });
+  }
 }
 
 function bindRenderedImageFallback(cardEl) {
@@ -639,7 +729,8 @@ function bindRenderedImageFallback(cardEl) {
   imageEl.dataset.fallbackBound = '1';
 
   const activateFallback = () => {
-    imageEl.style.display = 'none';
+    imageEl.classList.add('is-hidden');
+    imageEl.setAttribute('hidden', '');
     fallbackEl.hidden = false;
     fallbackEl.classList.add('is-active');
 

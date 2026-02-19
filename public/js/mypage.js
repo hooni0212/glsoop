@@ -142,7 +142,7 @@ async function loadMyPage() {
   // 자기소개(about)가 있는 경우에만 줄 추가
   // - white-space: pre-line; → 줄바꿈(\n)을 실제 줄바꿈으로 보여줌
   const aboutHtml = meData.about
-   ? `<p class="gls-mb-0 gls-text-small" style="white-space: pre-line;">${escapeHtml(
+   ? `<p class="gls-mb-0 gls-text-small mypage-preserve-lines">${escapeHtml(
      meData.about
     )}</p>`
    : '';
@@ -183,10 +183,9 @@ async function loadMyPage() {
     if (window.glsModal) {
      window.glsModal.open(modalEl, editBtn);
     } else {
-     modalEl.classList.add('is-open', 'show');
-     modalEl.style.display = 'flex';
-     modalEl.style.visibility = 'visible';
-     modalEl.style.opacity = '1';
+     modalEl.classList.add('is-open', 'show', 'is-flex-visible');
+     modalEl.removeAttribute('hidden');
+     modalEl.setAttribute('aria-hidden', 'false');
     }
    });
   }
@@ -457,7 +456,7 @@ function renderFollowingCard(user) {
   ? `<p class="gls-mb-1 gls-text-muted gls-text-small">${escapeHtml(user.bio)}</p>`
   : '';
  const aboutHtml = user.about
-  ? `<p class="gls-mb-1 gls-text-small" style="white-space: pre-line;">${escapeHtml(
+  ? `<p class="gls-mb-1 gls-text-small mypage-preserve-lines">${escapeHtml(
     user.about
    )}</p>`
   : '';
@@ -569,7 +568,6 @@ async function loadMyPosts() {
     }
  
     // 카드 전체 클릭 → 상세 페이지로 이동
-    wrapper.style.cursor = 'pointer';
     wrapper.addEventListener('click', (e) => {
      // 수정/삭제 버튼 클릭은 상세 페이지로 안 가게 예외 처리
      if (e.target.closest('.edit-post-btn') || e.target.closest('.delete-post-btn')) {
@@ -654,7 +652,6 @@ async function loadLikedPosts() {
      enhanceStandardPostCard(card, post);
     }
  
-    wrapper.style.cursor = 'pointer';
     wrapper.addEventListener('click', (e) => {
      // (여긴 수정/삭제 버튼이 없으니까 바로 이동)
      window.location.href = `/html/post.html?postId=${encodeURIComponent(

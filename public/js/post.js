@@ -5,7 +5,38 @@ document.addEventListener('DOMContentLoaded', () => {
   initPostDetailPage();
 });
 
+const POST_MOBILE_DOCK_MEDIA = '(max-width: 768px)';
+
+function syncPostMobileDockClass() {
+  const body = document.body;
+  if (!body || !body.classList.contains('page-post')) return;
+  const isMobile = window.matchMedia
+    ? window.matchMedia(POST_MOBILE_DOCK_MEDIA).matches
+    : window.innerWidth <= 768;
+  body.classList.toggle('has-mobile-action-dock', isMobile);
+}
+
+function bindPostMobileDockClass() {
+  if (window.__glsoopPostDockBound) return;
+  window.__glsoopPostDockBound = true;
+  syncPostMobileDockClass();
+
+  if (window.matchMedia) {
+    const mq = window.matchMedia(POST_MOBILE_DOCK_MEDIA);
+    const onChange = () => syncPostMobileDockClass();
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', onChange);
+    } else if (typeof mq.addListener === 'function') {
+      mq.addListener(onChange);
+    }
+  } else {
+    window.addEventListener('resize', syncPostMobileDockClass, { passive: true });
+  }
+}
+
 async function initPostDetailPage() {
+  bindPostMobileDockClass();
+
   const params = new URLSearchParams(window.location.search);
   const postId = params.get('postId');
   const container = document.getElementById('postDetail');
@@ -243,6 +274,7 @@ function renderPostDetail(container, post) {
   const cardHtml = buildStandardPostCardHTML(post, {
     showMoreButton: false,
     forceRenderedImage: true,
+    cardClickable: false,
   });
 
   // ✅ 레이아웃은 post.html(2컬럼)에서 담당
@@ -292,7 +324,10 @@ function renderPostDetail(container, post) {
     }
 
     const moreBtn = card.querySelector('.more-toggle');
-    if (moreBtn) moreBtn.style.display = 'none';
+    if (moreBtn) {
+      moreBtn.classList.add('is-hidden');
+      moreBtn.classList.remove('is-inline-visible', 'is-inline-flex-visible');
+    }
 
 
     // ✅ 우측 스티키 패널(액션) 버튼과 카드 액션을 연결
@@ -388,17 +423,21 @@ function bindSideActions(card, post) {
   syncLikeState();
 
   // 좋아요: 사이드 → 카드 클릭
-  sideLikeBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (!likeBtn) return;
-    likeBtn.click();
-    // toggle는 비동기일 수 있어 두 번 동기화
-    setTimeout(syncLikeState, 0);
-    setTimeout(syncLikeState, 350);
-  });
+  if (sideLikeBtn.dataset.boundSideLike !== '1') {
+    sideLikeBtn.dataset.boundSideLike = '1';
+    sideLikeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!likeBtn) return;
+      likeBtn.click();
+      // toggle는 비동기일 수 있어 두 번 동기화
+      setTimeout(syncLikeState, 0);
+      setTimeout(syncLikeState, 350);
+    });
+  }
 
   // 카드 좋아요 클릭 시에도 사이드 동기화
-  if (likeBtn) {
+  if (likeBtn && likeBtn.dataset.boundSideLikeSync !== '1') {
+    likeBtn.dataset.boundSideLikeSync = '1';
     likeBtn.addEventListener('click', () => {
       setTimeout(syncLikeState, 0);
       setTimeout(syncLikeState, 350);
@@ -406,25 +445,31 @@ function bindSideActions(card, post) {
   }
 
   // 북마크: 사이드 → 카드 북마크(모달) 클릭
-  sideBookmarkBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    if (!bookmarkBtn) return;
-    bookmarkBtn.click();
-  });
+  if (sideBookmarkBtn.dataset.boundSideBookmark !== '1') {
+    sideBookmarkBtn.dataset.boundSideBookmark = '1';
+    sideBookmarkBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!bookmarkBtn) return;
+      bookmarkBtn.click();
+    });
+  }
 
   // 공유: 사이드 → 인스타 내보내기 모달 열기
-  sideShareBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    try {
-      ensureIgExportModal();
-      window.__igExportTargetPost = post;
-      const modalEl = document.getElementById('igExportModal');
-      if (window.glsModal) window.glsModal.open(modalEl);
-    } catch (err) {
-      console.error(err);
-      alert('공유 모달을 열지 못했습니다. 콘솔을 확인해주세요.');
-    }
-  });
+  if (sideShareBtn.dataset.boundSideShare !== '1') {
+    sideShareBtn.dataset.boundSideShare = '1';
+    sideShareBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      try {
+        ensureIgExportModal();
+        window.__igExportTargetPost = post;
+        const modalEl = document.getElementById('igExportModal');
+        if (window.glsModal) window.glsModal.open(modalEl);
+      } catch (err) {
+        console.error(err);
+        alert('공유 모달을 열지 못했습니다. 콘솔을 확인해주세요.');
+      }
+    });
+  }
 }
 
 /**
@@ -670,7 +715,8 @@ function renderRelatedSidebar(posts, currentPost) {
     // more btn
     if (moreBtn) {
       const shouldShow = list.length > 1 + 6;
-      moreBtn.style.display = shouldShow ? 'inline-block' : 'none';
+      moreBtn.classList.toggle('is-hidden', !shouldShow);
+      moreBtn.classList.toggle('is-inline-visible', shouldShow);
       moreBtn.textContent = expanded ? '접기' : '더 보기';
       moreBtn.dataset.expanded = expanded ? '1' : '0';
     }

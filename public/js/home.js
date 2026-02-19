@@ -5,6 +5,7 @@ const HomeCuration = (() => {
   const FEATURED_LIMIT = 12;
   const RECENT_DAYS = 30;
   const SECTION_LIMIT = 6;
+  const SIDEBAR_EXCERPT_MAX = 62;
 
   const state = {
     popular: [],
@@ -139,7 +140,7 @@ const HomeCuration = (() => {
 
     const pick = pool[Math.floor(Math.random() * pool.length)];
     titleEl.textContent = pick.title || '제목 없는 글';
-    excerptEl.textContent = buildExcerpt(pick.content || '', 90);
+    excerptEl.textContent = buildExcerpt(pick.content || '', SIDEBAR_EXCERPT_MAX);
     linkEl.href = `/html/post.html?postId=${encodeURIComponent(pick.id)}`;
   }
 

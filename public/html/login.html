@@ -80,7 +80,7 @@
 
         <!-- 로그인 후: 유저 이름 / 마이페이지 / 글쓰기 / 로그아웃 메뉴 표시 -->
         <!-- header.js에서 /api/me 결과에 따라 before-login / after-login 토글 -->
-        <ul class="navbar-nav gls-ms-auto after-login" style="display: none;">
+        <ul class="navbar-nav gls-ms-auto after-login is-hidden">
           <li class="nav-item">
             <!-- 로그인한 유저 이름 표시 (예: 홍길동님) -->
             <span class="nav-link" id="navUserName"></span>
@@ -154,7 +154,7 @@
         </div>
 
         <!-- 로그인 폼: 가운데 정렬 + 최대 너비 440px -->
-        <form id="loginForm" class="auth-card" style="max-width: 480px;">
+        <form id="loginForm" class="auth-card auth-form-shell">
           <div class="auth-card__header">
             <div>
               <p class="auth-eyebrow gls-uppercase gls-mb-1">Sign in</p>

@@ -112,6 +112,10 @@
   margin: 0 auto;
 }
 
+.editor-page-container {
+  max-width: 1100px;
+}
+
 /* Quill 에디터 전체 박스 */
 #editor-container {
   height: 500px;
@@ -255,6 +259,10 @@
 /* Quill 에디터 박스 살짝 배경 */
 .editor-box {
   background-color: #ffffff;
+}
+
+.editor-box-fixed {
+  min-height: 260px;
 }
 
 /* 글자 수 표시: 에디터 오른쪽 아래 */

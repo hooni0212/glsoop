@@ -41,11 +41,23 @@
   box-shadow: var(--gls-shadow-sm, 0 9px 22px rgba(20, 24, 32, 0.08));
 }
 
+.gls-post-card[data-card-clickable="true"],
+.gls-post-card.gls-post-card--clickable {
+  cursor: pointer;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .gls-post-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--gls-shadow-md, 0 16px 34px rgba(20, 24, 32, 0.11));
+    transform: translateY(var(--gls-card-hover-lift, -3px));
+    border-color: var(--gls-card-hover-border, rgba(47, 109, 93, 0.3));
+    box-shadow: var(--gls-card-hover-shadow, 0 24px 40px rgba(33, 27, 19, 0.16));
   }
+}
+
+.gls-post-card[data-card-clickable="true"]:focus-visible,
+.gls-post-card.gls-post-card--clickable:focus-visible {
+  outline: var(--gls-focus-outline);
+  outline-offset: var(--gls-focus-offset);
 }
 
 

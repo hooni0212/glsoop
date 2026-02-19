@@ -468,18 +468,22 @@ function renderFeedPosts(posts) {
   posts.forEach((post) => {
     const card = feedBox.querySelector(`.card[data-post-id="${post.id}"]`);
     if (!card) return;
-
-    const quoteEl = card.querySelector('.quote-card');
-    const hasRenderedImage = !!card.querySelector('.feed-rendered-card-image');
-
-    if (quoteEl && !hasRenderedImage && typeof autoAdjustQuoteFont === 'function') {
-      autoAdjustQuoteFont(quoteEl);
+    if (typeof window.enhanceStandardPostCard === 'function') {
+      window.enhanceStandardPostCard(card, post, {
+        onTagClick: (tag) => applyTagFilter(tag),
+      });
+      return;
     }
 
-    bindFeedRenderedImageFallback(card);
-    
-    setupCardAuthorLink(card, post);  // 작성자 클릭 → 작가 페이지
-    setupCardInteractions(card, post); // 좋아요/더보기/상세보기 등
+    // fallback: 공통 모듈이 없는 환경에서는 기존 흐름 유지
+    if (typeof setupCardAuthorLink === 'function') {
+      setupCardAuthorLink(card, post);
+    }
+    if (typeof window.setupCardInteractions === 'function') {
+      window.setupCardInteractions(card, post, {
+        onTagClick: (tag) => applyTagFilter(tag),
+      });
+    }
   });
 }
 
@@ -615,7 +619,8 @@ function bindFeedRenderedImageFallback(card) {
   imageEl.dataset.fallbackBound = '1';
 
   const activateFallback = () => {
-    imageEl.style.display = 'none';
+    imageEl.classList.add('is-hidden');
+    imageEl.setAttribute('hidden', '');
     fallbackEl.hidden = false;
     fallbackEl.classList.add('is-active');
     const quoteEl = card.querySelector('.quote-card');
@@ -791,7 +796,7 @@ function bindFeedRenderedImageFallback(card) {
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'tagFilterBar';
-      bar.className = 'gls-flex gls-flex-wrap gls-items-center gls-gap-2 gls-mb-3';
+      bar.className = 'gls-flex gls-flex-wrap gls-items-center gls-gap-2 gls-mb-3 is-hidden';
 
       // feedBox 바로 위에 삽입
       if (feedBox.parentNode) {
@@ -802,12 +807,14 @@ function bindFeedRenderedImageFallback(card) {
     // 적용 중인 태그가 없으면 바 숨기기
     if (!currentTags.length) {
       bar.innerHTML = '';
-      bar.style.display = 'none';
+      bar.classList.add('is-hidden');
+      bar.classList.remove('is-flex-visible');
       return;
     }
 
     // 태그가 있으면 바 표시
-    bar.style.display = 'flex';
+    bar.classList.remove('is-hidden');
+    bar.classList.add('is-flex-visible');
 
     // 태그 칩 HTML (UI Kit 버튼 시스템)
     const tagsHtml = currentTags

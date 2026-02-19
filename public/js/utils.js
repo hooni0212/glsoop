@@ -390,7 +390,6 @@ function clearFeedbackMessage(targetEl) {
   targetEl.textContent = '';
   targetEl.classList.remove('is-visible', 'gls-feedback--info', 'gls-feedback--success', 'gls-feedback--error');
   targetEl.classList.add('gls-feedback');
-  targetEl.style.display = '';
 }
 
 function setFeedbackMessage(targetEl, message, options = {}) {
@@ -402,7 +401,6 @@ function setFeedbackMessage(targetEl, message, options = {}) {
   targetEl.textContent = message || '';
   targetEl.classList.remove('gls-feedback--info', 'gls-feedback--success', 'gls-feedback--error');
   targetEl.classList.add('gls-feedback', 'is-visible');
-  targetEl.style.display = 'block';
   targetEl.setAttribute('role', isError ? 'alert' : 'status');
   targetEl.setAttribute('aria-live', isError ? 'assertive' : 'polite');
   targetEl.setAttribute('aria-atomic', 'true');
@@ -501,7 +499,8 @@ window.glsoopUi.showPageNotice = showPageNotice;
 
     // Fallback (Bootstrap JS가 없을 때): 완벽하진 않지만 "안 보이는" 문제는 방지
     modalEl.classList.add('show');
-    modalEl.style.display = 'block';
+    modalEl.classList.add('is-flex-visible');
+    modalEl.removeAttribute('hidden');
     modalEl.removeAttribute('aria-hidden');
     modalEl.setAttribute('aria-modal', 'true');
     document.body.classList.add('modal-open');
@@ -517,7 +516,8 @@ window.glsoopUi.showPageNotice = showPageNotice;
     }
 
     modalEl.classList.remove('show');
-    modalEl.style.display = 'none';
+    modalEl.classList.remove('is-flex-visible');
+    modalEl.setAttribute('hidden', '');
     modalEl.setAttribute('aria-hidden', 'true');
     modalEl.removeAttribute('aria-modal');
     document.body.classList.remove('modal-open');
