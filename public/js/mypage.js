@@ -12,6 +12,7 @@
 let myPostsLoaded = false;
 let likedPostsLoaded = false;
 let followingsLoaded = false;
+let rememberLoginEnabledInitial = false;
 
 function trackUxEvent(eventName, properties = {}, options = {}) {
  if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -195,6 +196,7 @@ async function loadMyPage() {
   const nicknameInput = document.getElementById('nicknameInput');
   const bioInput = document.getElementById('bioInput');
   const aboutInput = document.getElementById('aboutInput');
+  const rememberLoginEnabledInput = document.getElementById('rememberLoginEnabledInput');
 
   if (nicknameInput) {
    // 기존 닉네임이 있으면 그대로, 없으면 빈 문자열
@@ -205,6 +207,11 @@ async function loadMyPage() {
   }
   if (aboutInput) {
    aboutInput.value = meData.about || '';
+  }
+  if (rememberLoginEnabledInput) {
+   const rememberEnabled = Boolean(meData.remember_login_enabled);
+   rememberLoginEnabledInput.checked = rememberEnabled;
+   rememberLoginEnabledInitial = rememberEnabled;
   }
 
   await loadGrowthMiniWidget();
@@ -986,6 +993,7 @@ function setupUserEditForm() {
  const currentPwInput = document.getElementById('currentPwInput');
  const newPwInput = document.getElementById('newPwInput');
  const newPwConfirmInput = document.getElementById('newPwConfirmInput');
+ const rememberLoginEnabledInput = document.getElementById('rememberLoginEnabledInput');
  const logoutAllBtn = document.getElementById('logoutAllSessionsBtn');
 
  // 결과/에러 메시지 출력용 span
@@ -1015,6 +1023,12 @@ function setupUserEditForm() {
   const currentPw = currentPwInput ? currentPwInput.value : '';
   const newPw = newPwInput ? newPwInput.value : '';
   const newPwConfirm = newPwConfirmInput ? newPwConfirmInput.value : '';
+  const rememberLoginEnabled = rememberLoginEnabledInput
+   ? !!rememberLoginEnabledInput.checked
+   : false;
+  const rememberPolicyChanged = rememberLoginEnabledInput
+   ? rememberLoginEnabled !== rememberLoginEnabledInitial
+   : false;
 
   // 메시지 영역 초기화
   if (messageSpan) {
@@ -1066,7 +1080,7 @@ function setupUserEditForm() {
 
   // ===== 변경할 내용이 하나도 없는 경우 막기 =====
   // 닉네임, 한 줄 소개, 자기소개, 새 비밀번호 중 아무 것도 입력되지 않았으면 제출 X
-  if (!nickname && !bio && !about && !newPw) {
+  if (!nickname && !bio && !about && !newPw && !rememberPolicyChanged) {
    if (messageSpan) {
     messageSpan.classList.add('text-danger');
     messageSpan.textContent = '변경할 내용을 입력해주세요.';
@@ -1075,17 +1089,22 @@ function setupUserEditForm() {
   }
 
   try {
+   const payload = {
+    nickname: nickname || null, // 닉네임을 비우면 null로 보내서 서버에서 이름 사용
+    currentPw: currentPw || null,
+    newPw: newPw || null,
+    bio: bio,
+    about: about,
+   };
+   if (rememberPolicyChanged) {
+    payload.remember_login_enabled = rememberLoginEnabled;
+   }
+
    // /api/me에 PUT으로 수정 요청
    const res = await fetch('/api/me', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-     nickname: nickname || null, // 닉네임을 비우면 null로 보내서 서버에서 이름 사용
-     currentPw: currentPw || null,
-     newPw: newPw || null,
-     bio: bio,
-     about: about,
-    }),
+    body: JSON.stringify(payload),
    });
 
    // 응답 JSON 파싱 (실패하면 {}로 대체)
@@ -1112,6 +1131,9 @@ function setupUserEditForm() {
    if (currentPwInput) currentPwInput.value = '';
    if (newPwInput) newPwInput.value = '';
    if (newPwConfirmInput) newPwConfirmInput.value = '';
+   if (rememberPolicyChanged) {
+    rememberLoginEnabledInitial = rememberLoginEnabled;
+   }
 
    // ✅ 모달 닫기 (GLS Modal)
    const modalEl = document.getElementById('userEditModal');

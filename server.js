@@ -48,8 +48,22 @@ const PENDING_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
 const MONETIZATION_RECONCILE_INTERVAL_MS = 30 * 60 * 1000;
 const AUTH_SESSION_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
 
-// 프록시/로드밸런서 뒤에서도 올바른 프로토콜 정보를 사용하기 위함
-app.set('trust proxy', 1);
+const trustProxyCidrs = String(process.env.TRUST_PROXY_CIDRS || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+if (process.env.NODE_ENV === 'production' && trustProxyCidrs.length === 0) {
+  throw new Error(
+    '[FATAL] 운영 환경에서는 TRUST_PROXY_CIDRS가 필요합니다. 신뢰 프록시 CIDR/별칭을 설정하세요.'
+  );
+}
+
+if (trustProxyCidrs.length > 0) {
+  app.set('trust proxy', trustProxyCidrs);
+} else {
+  app.set('trust proxy', ['loopback']);
+}
 
 // 2. 공통 미들웨어
 // - 보안 헤더 및 CORS 설정을 먼저 적용

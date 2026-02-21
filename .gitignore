@@ -56,6 +56,9 @@ data/**
 /public/ui-kit*.html
 /public/css/pages/ui-kit*.css
 /public/js/uikit*.js
+/public/css/ui-kit/
+/public/js/ui-kit/
+/public/ui-kit/
 
 # =========================
 # Playwright artifacts

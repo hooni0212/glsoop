@@ -175,13 +175,6 @@
             >
           </div>
 
-          <div class="gls-mb-3">
-            <label class="gls-check-label">
-              <input type="checkbox" name="remember" class="gls-check-input" />
-              자동 로그인 유지 (30일)
-            </label>
-          </div>
-
           <!-- 로그인 버튼 -->
           <!-- login.js에서 submit 이벤트를 잡아 /api/login 호출 -->
           <button
@@ -218,6 +211,40 @@
       </div>
     </div>
   </footer>
+
+  <div
+    class="modal fade login-remember-modal"
+    id="rememberLoginModal"
+    tabindex="-1"
+    aria-labelledby="rememberLoginModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content gls-antique-paper gls-antique-paper--mix">
+        <div class="modal-header">
+          <h5 class="modal-title" id="rememberLoginModalLabel">자동 로그인 안내</h5>
+        </div>
+        <div class="modal-body">
+          <p class="gls-mb-2">
+            이 기기에서 <strong>30일 자동 로그인 유지</strong>가 설정되었습니다.
+          </p>
+          <p class="gls-text-muted gls-text-small gls-mb-0">
+            공용 기기에서는 사용 후 반드시 로그아웃해주세요.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="gls-btn gls-btn-primary"
+            id="rememberLoginConfirmBtn"
+            data-gls-autofocus
+          >
+            확인하고 이동
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- JS -->
 

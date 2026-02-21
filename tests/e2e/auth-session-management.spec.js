@@ -4,11 +4,13 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const E2E_JWT_SECRET = 'devsecret';
 const E2E_JWT_ALGORITHM = 'HS256';
 const E2E_JWT_ISSUER = 'glsoop';
 const E2E_JWT_AUDIENCE = 'glsoop-client';
+const E2E_RESET_HMAC_SECRET = 'devsecret';
 
 const USER_ID = 9851;
 const USER_EMAIL = 'auth-session-user@glsoop.test';
@@ -41,6 +43,20 @@ const dbGet = (db, sql, params = []) =>
     });
   });
 
+const setRememberPreference = async (enabled) => {
+  const db = new sqlite3.Database(DB_PATH);
+  await dbRun(db, 'UPDATE users SET remember_login_enabled = ? WHERE id = ?', [enabled ? 1 : 0, USER_ID]);
+  await new Promise((resolve) => db.close(resolve));
+};
+
+const extractTokenFromSetCookie = (response) => {
+  const setCookieHeader = response.headers()['set-cookie'];
+  expect(typeof setCookieHeader).toBe('string');
+  const matched = /token=([^;]+)/.exec(setCookieHeader);
+  expect(matched).toBeTruthy();
+  return decodeURIComponent(matched[1]);
+};
+
 const waitForFile = async (filePath, timeoutMs = 10000) => {
   const start = Date.now();
   while (!fs.existsSync(filePath)) {
@@ -72,26 +88,31 @@ const resetSessionState = async () => {
   await dbRun(db, 'DELETE FROM auth_sessions WHERE user_id = ?', [USER_ID]);
   await dbRun(db, 'DELETE FROM auth_login_state WHERE user_id = ?', [USER_ID]);
   await dbRun(db, 'DELETE FROM auth_login_events WHERE user_id = ? OR email = ?', [USER_ID, USER_EMAIL]);
-  await dbRun(db, 'UPDATE users SET pw = ?, reset_token = NULL, reset_expires = NULL WHERE id = ?', [
-    passwordHash,
-    USER_ID,
-  ]);
+  await dbRun(db, 'DELETE FROM password_reset_tokens WHERE user_id = ?', [USER_ID]);
+  await dbRun(
+    db,
+    'UPDATE users SET pw = ?, reset_token = NULL, reset_expires = NULL, remember_login_enabled = 0 WHERE id = ?',
+    [passwordHash, USER_ID]
+  );
   await new Promise((resolve) => db.close(resolve));
 };
 
-const login = async (request, { remember = false, ip }) => {
+const login = async (request, { remember = null, ip }) => {
+  if (typeof remember === 'boolean') {
+    await setRememberPreference(remember);
+  }
   const response = await request.post('/api/login', {
     headers: { 'x-forwarded-for': ip },
     data: {
       email: USER_EMAIL,
       pw: USER_PASSWORD,
-      remember,
     },
   });
   expect(response.status()).toBe(200);
   const payload = await response.json();
   expect(payload.ok).toBe(true);
-  return payload.token;
+  expect(payload.token).toBeUndefined();
+  return extractTokenFromSetCookie(response);
 };
 
 test.describe('Auth session management', () => {
@@ -147,6 +168,40 @@ test.describe('Auth session management', () => {
     expect(currentSession.sid).toBe(decodedB.sid);
   });
 
+  test('applies remember_login_enabled preference from /api/me on next login', async ({ request }) => {
+    const initialToken = await login(request, { remember: false, ip: '203.0.113.15' });
+
+    const updateRes = await request.put('/api/me', {
+      headers: {
+        Authorization: `Bearer ${initialToken}`,
+      },
+      data: {
+        remember_login_enabled: true,
+      },
+    });
+    expect(updateRes.status()).toBe(200);
+    const updateBody = await updateRes.json();
+    expect(updateBody.ok).toBe(true);
+
+    const rememberToken = await login(request, { remember: null, ip: '203.0.113.16' });
+    const rememberDecoded = jwt.verify(rememberToken, E2E_JWT_SECRET, {
+      algorithms: [E2E_JWT_ALGORITHM],
+      issuer: E2E_JWT_ISSUER,
+      audience: E2E_JWT_AUDIENCE,
+    });
+
+    const db = new sqlite3.Database(DB_PATH);
+    const rememberSession = await dbGet(
+      db,
+      'SELECT remember_me FROM auth_sessions WHERE sid = ?',
+      [rememberDecoded.sid]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(rememberSession).toBeTruthy();
+    expect(Number(rememberSession.remember_me)).toBe(1);
+  });
+
   test('logout-all revokes every active session', async ({ request }) => {
     const tokenA = await login(request, { remember: false, ip: '203.0.113.21' });
     const tokenB = await login(request, { remember: false, ip: '203.0.113.22' });
@@ -185,10 +240,14 @@ test.describe('Auth session management', () => {
 
     const db = new sqlite3.Database(DB_PATH);
     const futureExpires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const tokenHash = crypto
+      .createHmac('sha256', E2E_RESET_HMAC_SECRET)
+      .update(resetToken)
+      .digest('hex');
     await dbRun(
       db,
-      'UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?',
-      [resetToken, futureExpires, USER_ID]
+      'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+      [USER_ID, tokenHash, futureExpires]
     );
     await new Promise((resolve) => db.close(resolve));
 
@@ -208,6 +267,13 @@ test.describe('Auth session management', () => {
     expect(resetRes.status()).toBe(200);
     const resetBody = await resetRes.json();
     expect(resetBody.ok).toBe(true);
+
+    const reusedValidateRes = await request.post('/api/password-reset/validate', {
+      data: { token: resetToken },
+    });
+    expect(reusedValidateRes.status()).toBe(400);
+    const reusedValidateBody = await reusedValidateRes.json();
+    expect(reusedValidateBody.code).toBe('AUTH_RESET_TOKEN_USED');
 
     const meRes = await request.get('/api/me', {
       headers: {

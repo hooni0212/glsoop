@@ -55,11 +55,6 @@ function normalizeIp(rawIp) {
 }
 
 function getClientIp(req) {
-  const forwardedFor = req?.headers?.['x-forwarded-for'];
-  if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
-    const first = forwardedFor.split(',')[0].trim();
-    if (first) return normalizeIp(first);
-  }
   return normalizeIp(req?.ip || req?.socket?.remoteAddress || '');
 }
 

@@ -7,6 +7,7 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 const { JWT_SECRET, JWT_ALGORITHM, JWT_ISSUER, JWT_AUDIENCE } = require('../config');
+const { clearAuthCookie } = require('../utils/authCookie');
 
 function adminPageRequired(req, res, next) {
   const token = req.cookies?.token;
@@ -29,11 +30,7 @@ function adminPageRequired(req, res, next) {
     (err, decoded) => {
       if (err || !decoded?.id) {
         // 토큰이 깨졌거나 만료됐으면 쿠키 지우고 로그인으로
-        res.clearCookie('token', {
-          path: '/',
-          sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production',
-        });
+        clearAuthCookie(res);
         return res.redirect(`/html/login.html?next=${nextUrl}`);
       }
 

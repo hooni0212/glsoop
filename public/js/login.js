@@ -17,7 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const nextUrl = params.get('next');
   const source = params.get('from');
   const emailFromQuery = (params.get('email') || '').trim();
-  const rememberInput = form.querySelector('input[name="remember"]');
+  const rememberLoginModalEl = document.getElementById('rememberLoginModal');
+  const rememberLoginConfirmBtn = document.getElementById('rememberLoginConfirmBtn');
   const authShell = document.querySelector('[data-auth-shell="1"]');
   const authSceneStage = document.getElementById('authSceneStage');
   const authSceneFamily = document.getElementById('authSceneFamily');
@@ -63,6 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let ambientRaf = 0;
   let authEventTimer = 0;
   let stopRetryCountdown = null;
+  let pendingRememberRedirect = null;
+  let rememberModalFallbackTimer = 0;
+  const REMEMBER_NOTICE_ONCE_PER_DAY_KEY = 'glsoop.remember_notice_shown_date';
   const AUTH_SCENES = [
     {
       key: 'wind-tree',
@@ -581,8 +585,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 700);
   };
 
-  const transitionToPostLogin = (redirectTo, submitTrigger) => {
+  const transitionToPostLogin = (redirectTo, submitTrigger, options = {}) => {
     if (!redirectTo) return false;
+    const pauseBeforeRedirect = Boolean(options.pauseBeforeRedirect);
+    const onPaused = typeof options.onPaused === 'function' ? options.onPaused : null;
 
     if (successSignalTimer) {
       window.clearTimeout(successSignalTimer);
@@ -595,6 +601,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (reducedMotion || !authShell || !pageBody) {
+      if (pauseBeforeRedirect && onPaused) {
+        onPaused(() => {
+          window.location.href = redirectTo;
+        });
+        return true;
+      }
       window.location.href = redirectTo;
       return false;
     }
@@ -606,12 +618,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const sourceAside = authShell.querySelector('.auth-aside');
     if (!sourceAside || typeof sourceAside.getBoundingClientRect !== 'function') {
+      if (pauseBeforeRedirect && onPaused) {
+        onPaused(() => {
+          window.location.href = redirectTo;
+        });
+        return true;
+      }
       window.location.href = redirectTo;
       return false;
     }
 
     const rect = sourceAside.getBoundingClientRect();
     if (!rect.width || !rect.height) {
+      if (pauseBeforeRedirect && onPaused) {
+        onPaused(() => {
+          window.location.href = redirectTo;
+        });
+        return true;
+      }
       window.location.href = redirectTo;
       return false;
     }
@@ -703,10 +727,12 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.href = redirectTo;
     };
 
-    successTransitionTimer = window.setTimeout(
-      finalizeRedirect,
-      LOGIN_HOME_SIGNAL_MS + LOGIN_SUCCESS_TRANSITION_MS + 460
-    );
+    if (!pauseBeforeRedirect) {
+      successTransitionTimer = window.setTimeout(
+        finalizeRedirect,
+        LOGIN_HOME_SIGNAL_MS + LOGIN_SUCCESS_TRANSITION_MS + 460
+      );
+    }
 
     const runPortalTransition = () => {
       if (didRedirect) return;
@@ -724,6 +750,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }, toSuccessDuration(120));
 
       if (typeof portal.animate !== 'function') {
+        if (pauseBeforeRedirect && onPaused) {
+          onPaused(finalizeRedirect);
+          return;
+        }
         finalizeRedirect();
         return;
       }
@@ -904,7 +934,7 @@ document.addEventListener('DOMContentLoaded', () => {
         collapseAnimation.oncancel = finalizeRedirect;
       };
 
-      const playHold = () => {
+      const playHold = (afterHold) => {
         const holdAnimation = portal.animate(
           [
             {
@@ -926,11 +956,28 @@ document.addEventListener('DOMContentLoaded', () => {
             fill: 'forwards',
           }
         );
-        holdAnimation.onfinish = playCollapse;
-        holdAnimation.oncancel = playCollapse;
+        holdAnimation.onfinish = afterHold;
+        holdAnimation.oncancel = afterHold;
       };
 
-      expandAnimation.onfinish = playHold;
+      const pauseAndAwaitConfirm = () => {
+        if (didRedirect) return;
+        portal.style.transform = coverTransform;
+        portal.style.borderRadius = '0px';
+        portal.style.opacity = '1';
+        portal.style.filter = 'blur(0px) saturate(1) brightness(1)';
+        if (onPaused) {
+          onPaused(finalizeRedirect);
+        }
+      };
+
+      expandAnimation.onfinish = () => {
+        if (pauseBeforeRedirect) {
+          playHold(pauseAndAwaitConfirm);
+          return;
+        }
+        playHold(playCollapse);
+      };
       expandAnimation.oncancel = finalizeRedirect;
     };
 
@@ -945,6 +992,97 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return true;
   };
+
+  const startPostLoginRedirect = (redirectTo, submitTrigger, options = {}) => {
+    redirectingAfterSuccess = transitionToPostLogin(redirectTo, submitTrigger, options);
+  };
+
+  const getLocalDateKey = () => {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      return formatter.format(new Date());
+    } catch (error) {
+      const now = new Date();
+      const yyyy = String(now.getFullYear());
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  };
+
+  const hasRememberNoticeShownToday = () => {
+    try {
+      return window.localStorage.getItem(REMEMBER_NOTICE_ONCE_PER_DAY_KEY) === getLocalDateKey();
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const markRememberNoticeShownToday = () => {
+    try {
+      window.localStorage.setItem(REMEMBER_NOTICE_ONCE_PER_DAY_KEY, getLocalDateKey());
+    } catch (error) {
+      // localStorage 사용 불가 환경에서도 로그인 흐름은 계속 진행
+    }
+  };
+
+  const clearRememberFallbackTimer = () => {
+    if (!rememberModalFallbackTimer) return;
+    window.clearTimeout(rememberModalFallbackTimer);
+    rememberModalFallbackTimer = 0;
+  };
+
+  const closeRememberLoginModal = () => {
+    clearRememberFallbackTimer();
+    if (!rememberLoginModalEl) return;
+    rememberLoginModalEl.classList.remove('show', 'is-open', 'is-flex-visible');
+    rememberLoginModalEl.setAttribute('aria-hidden', 'true');
+    rememberLoginModalEl.removeAttribute('aria-modal');
+    rememberLoginModalEl.setAttribute('hidden', '');
+    document.body.classList.remove('gls-modal-open');
+  };
+
+  const openRememberLoginModal = (onConfirm) => {
+    if (!rememberLoginModalEl || !rememberLoginConfirmBtn || typeof onConfirm !== 'function') return false;
+    pendingRememberRedirect = () => {
+      markRememberNoticeShownToday();
+      onConfirm();
+    };
+    rememberLoginModalEl.removeAttribute('hidden');
+    rememberLoginModalEl.classList.add('show', 'is-open', 'is-flex-visible');
+    rememberLoginModalEl.setAttribute('aria-hidden', 'false');
+    rememberLoginModalEl.setAttribute('aria-modal', 'true');
+    document.body.classList.add('gls-modal-open');
+    window.setTimeout(() => {
+      rememberLoginConfirmBtn.focus();
+    }, 0);
+
+    rememberModalFallbackTimer = window.setTimeout(() => {
+      if (typeof pendingRememberRedirect !== 'function') return;
+      closeRememberLoginModal();
+      const runRedirect = pendingRememberRedirect;
+      pendingRememberRedirect = null;
+      runRedirect();
+    }, 700);
+
+    return true;
+  };
+
+  if (rememberLoginConfirmBtn) {
+    rememberLoginConfirmBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      if (typeof pendingRememberRedirect !== 'function') return;
+      closeRememberLoginModal();
+      const runRedirect = pendingRememberRedirect;
+      pendingRememberRedirect = null;
+      runRedirect();
+    });
+  }
 
   const selectedScene = renderRandomAuthScene();
   setAuthShellMotion(motionState.pointerX, motionState.pointerY);
@@ -968,6 +1106,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.clearTimeout(successTransitionTimer);
       successTransitionTimer = 0;
     }
+    clearRememberFallbackTimer();
   });
 
   if (emailFromQuery && form.email && !form.email.value) {
@@ -996,7 +1135,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 폼 안의 input name="email", name="pw"에서 값 읽기
     const email = form.email.value.trim();
     const pw = form.pw.value.trim();
-    const rememberMe = Boolean(rememberInput && rememberInput.checked);
 
     // 이메일 또는 비밀번호가 비어 있으면 경고
     if (!email || !pw) {
@@ -1041,7 +1179,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, pw, remember: rememberMe }),
+        body: JSON.stringify({ email, pw }),
       });
 
       // 응답 JSON 파싱 (예: { ok: true/false, message: '...' })
@@ -1064,7 +1202,31 @@ document.addEventListener('DOMContentLoaded', () => {
           },
           { useBeacon: true }
         );
-        redirectingAfterSuccess = transitionToPostLogin(redirectTo, submitBtn);
+        const rememberEnabled = Boolean(data && data.remember_me);
+        const rememberNoticeRequired = Boolean(data && data.remember_notice_required);
+        const isDefaultMypageRedirect = /^\/html\/mypage(?:\.html)?(?:$|\?)/.test(redirectTo);
+        const shouldShowRememberNotice =
+          rememberEnabled &&
+          rememberNoticeRequired &&
+          isDefaultMypageRedirect &&
+          !hasRememberNoticeShownToday();
+
+        if (shouldShowRememberNotice) {
+          trackEvent('login_remember_notice_shown', {
+            redirect_to: redirectTo,
+            remember_me: rememberEnabled,
+          });
+          startPostLoginRedirect(redirectTo, submitBtn, {
+            pauseBeforeRedirect: true,
+            onPaused: (continueRedirect) => {
+              if (!openRememberLoginModal(continueRedirect)) {
+                continueRedirect();
+              }
+            },
+          });
+          return;
+        }
+        startPostLoginRedirect(redirectTo, submitBtn);
         return;
       } else {
         triggerFormState('is-login-error');

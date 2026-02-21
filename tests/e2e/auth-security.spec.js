@@ -72,11 +72,23 @@ const resetSecurityState = async () => {
   await dbRun(db, 'DELETE FROM auth_login_state WHERE user_id = ?', [USER_ID]);
   await dbRun(db, 'DELETE FROM auth_login_events WHERE user_id = ? OR email = ?', [USER_ID, USER_EMAIL]);
   await dbRun(db, 'DELETE FROM auth_sessions WHERE user_id = ?', [USER_ID]);
-  await dbRun(db, 'UPDATE users SET pw = ?, reset_token = NULL, reset_expires = NULL WHERE id = ?', [
-    passwordHash,
-    USER_ID,
-  ]);
+  await dbRun(db, 'DELETE FROM password_reset_tokens WHERE user_id = ?', [USER_ID]);
+  await dbRun(
+    db,
+    'UPDATE users SET pw = ?, reset_token = NULL, reset_expires = NULL, remember_login_enabled = 0 WHERE id = ?',
+    [passwordHash, USER_ID]
+  );
   await new Promise((resolve) => db.close(resolve));
+};
+
+const getSeoulDateKey = () => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return formatter.format(new Date());
 };
 
 const loginRequest = async (request, { pw, remember = false, ip = '198.51.100.10' }) => {
@@ -88,6 +100,20 @@ const loginRequest = async (request, { pw, remember = false, ip = '198.51.100.10
       remember,
     },
   });
+};
+
+const setRememberPreference = async (enabled) => {
+  const db = new sqlite3.Database(DB_PATH);
+  await dbRun(db, 'UPDATE users SET remember_login_enabled = ? WHERE id = ?', [enabled ? 1 : 0, USER_ID]);
+  await new Promise((resolve) => db.close(resolve));
+};
+
+const extractTokenFromSetCookie = (response) => {
+  const setCookieHeader = response.headers()['set-cookie'];
+  expect(typeof setCookieHeader).toBe('string');
+  const matched = /token=([^;]+)/.exec(setCookieHeader);
+  expect(matched).toBeTruthy();
+  return decodeURIComponent(matched[1]);
 };
 
 test.describe('Auth security policy', () => {
@@ -158,9 +184,9 @@ test.describe('Auth security policy', () => {
   });
 
   test('creates short session and sid token for default login', async ({ request }) => {
+    await setRememberPreference(false);
     const loginRes = await loginRequest(request, {
       pw: USER_PASSWORD,
-      remember: false,
       ip: '198.51.100.41',
     });
     expect(loginRes.status()).toBe(200);
@@ -168,10 +194,22 @@ test.describe('Auth security policy', () => {
     const body = await loginRes.json();
     expect(body.ok).toBe(true);
     expect(body.remember_me).toBe(false);
+    expect(body.remember_notice_required).toBe(false);
     expect(typeof body.session_expires_at).toBe('string');
-    expect(typeof body.token).toBe('string');
+    expect(body.token).toBeUndefined();
 
-    const decoded = jwt.verify(body.token, E2E_JWT_SECRET, {
+    const setCookieHeader = loginRes.headers()['set-cookie'] || '';
+    expect(setCookieHeader).toContain('HttpOnly');
+    expect(setCookieHeader).toContain('SameSite=Lax');
+    expect(setCookieHeader).toContain('Path=/');
+
+    const maxAgeMatch = /Max-Age=(\d+)/.exec(setCookieHeader);
+    expect(maxAgeMatch).toBeTruthy();
+    const maxAge = Number(maxAgeMatch[1]);
+    expect(maxAge).toBeGreaterThan(100 * 60);
+    expect(maxAge).toBeLessThan(130 * 60);
+
+    const decoded = jwt.verify(extractTokenFromSetCookie(loginRes), E2E_JWT_SECRET, {
       algorithms: [E2E_JWT_ALGORITHM],
       issuer: E2E_JWT_ISSUER,
       audience: E2E_JWT_AUDIENCE,
@@ -195,18 +233,20 @@ test.describe('Auth security policy', () => {
     expect(diffMs).toBeLessThan(130 * 60 * 1000);
   });
 
-  test('creates remember-me long session when remember flag is true', async ({ request }) => {
+  test('creates remember-me long session when remember preference is enabled', async ({ request }) => {
+    await setRememberPreference(true);
     const loginRes = await loginRequest(request, {
       pw: USER_PASSWORD,
-      remember: true,
       ip: '198.51.100.51',
     });
     expect(loginRes.status()).toBe(200);
     const body = await loginRes.json();
     expect(body.ok).toBe(true);
     expect(body.remember_me).toBe(true);
+    expect(body.remember_notice_required).toBe(true);
+    expect(body.token).toBeUndefined();
 
-    const decoded = jwt.verify(body.token, E2E_JWT_SECRET, {
+    const decoded = jwt.verify(extractTokenFromSetCookie(loginRes), E2E_JWT_SECRET, {
       algorithms: [E2E_JWT_ALGORITHM],
       issuer: E2E_JWT_ISSUER,
       audience: E2E_JWT_AUDIENCE,
@@ -226,5 +266,77 @@ test.describe('Auth security policy', () => {
     const diffMs = new Date(sessionRow.expires_at).getTime() - Date.now();
     expect(diffMs).toBeGreaterThan(28 * 24 * 60 * 60 * 1000);
     expect(diffMs).toBeLessThan(31 * 24 * 60 * 60 * 1000);
+  });
+
+  test('clear cookie keeps required auth-cookie options on logout', async ({ request }) => {
+    await setRememberPreference(false);
+    const loginRes = await loginRequest(request, {
+      pw: USER_PASSWORD,
+      ip: '198.51.100.61',
+    });
+    expect(loginRes.status()).toBe(200);
+    const token = extractTokenFromSetCookie(loginRes);
+
+    const logoutRes = await request.post('/api/logout', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    expect(logoutRes.status()).toBe(200);
+
+    const clearCookieHeader = logoutRes.headers()['set-cookie'] || '';
+    expect(clearCookieHeader).toContain('token=');
+    expect(clearCookieHeader).toContain('Path=/');
+    expect(clearCookieHeader).toContain('SameSite=Lax');
+    expect(clearCookieHeader).toContain('HttpOnly');
+  });
+
+  test('shows remember modal once when remember is enabled and mypage redirect is used', async ({ page }) => {
+    await setRememberPreference(true);
+
+    await page.goto('/html/login.html');
+    await page.fill('input[name="email"]', USER_EMAIL);
+    await page.fill('input[name="pw"]', USER_PASSWORD);
+    await page.click('button[type="submit"]');
+
+    const modal = page.locator('#rememberLoginModal');
+    await expect(modal).toBeVisible({ timeout: 8000 });
+    await page.click('#rememberLoginConfirmBtn', { timeout: 2000 });
+    await page.waitForURL('**/html/mypage.html', { timeout: 10000 });
+
+    const rememberedDate = await page.evaluate(
+      () => window.localStorage.getItem('glsoop.remember_notice_shown_date')
+    );
+    expect(rememberedDate).toBe(getSeoulDateKey());
+  });
+
+  test('does not mark remember modal notice when remember is disabled', async ({ page }) => {
+    await setRememberPreference(false);
+
+    await page.goto('/html/login.html');
+    await page.fill('input[name="email"]', USER_EMAIL);
+    await page.fill('input[name="pw"]', USER_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL('**/html/mypage.html', { timeout: 10000 });
+
+    const rememberedDate = await page.evaluate(
+      () => window.localStorage.getItem('glsoop.remember_notice_shown_date')
+    );
+    expect(rememberedDate).toBeNull();
+  });
+
+  test('does not show remember modal for non-mypage redirect target', async ({ page }) => {
+    await setRememberPreference(true);
+
+    await page.goto('/html/login.html?next=/html/editor.html');
+    await page.fill('input[name="email"]', USER_EMAIL);
+    await page.fill('input[name="pw"]', USER_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL('**/html/editor.html', { timeout: 10000 });
+
+    const rememberedDate = await page.evaluate(
+      () => window.localStorage.getItem('glsoop.remember_notice_shown_date')
+    );
+    expect(rememberedDate).toBeNull();
   });
 });

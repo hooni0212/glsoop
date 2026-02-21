@@ -3,8 +3,7 @@
 const express = require('express');
 
 const db = require('../db');
-const { authRequired } = require('../middleware/auth');
-const { getViewerId } = require('../utils/requestUser');
+const { authRequired, authOptional } = require('../middleware/auth');
 const {
   parseStoredProfileCosmetics,
   extractProfileCosmeticKeys,
@@ -213,13 +212,13 @@ async function ensureUserExists(targetUserId, res) {
 }
 
 // 8-1) 작가 공개 프로필 조회
-router.get('/users/:id/profile', async (req, res) => {
+router.get('/users/:id/profile', authOptional, async (req, res) => {
   const authorId = parseId(req.params.id);
   if (!authorId) {
     return res.status(400).json({ ok: false, message: '잘못된 작가 ID입니다.' });
   }
 
-  const viewerId = getViewerId(req);
+  const viewerId = req.user?.id || null;
 
   try {
     const profile = await buildAuthorProfile(authorId);
@@ -302,7 +301,7 @@ router.post('/users/:id/follow', authRequired, async (req, res) => {
 });
 
 // 8-2) 특정 작가의 글 목록 (무한스크롤용)
-router.get('/users/:id/posts', async (req, res) => {
+router.get('/users/:id/posts', authOptional, async (req, res) => {
   const authorId = parseId(req.params.id);
   if (!authorId) {
     return res
@@ -310,7 +309,7 @@ router.get('/users/:id/posts', async (req, res) => {
       .json({ ok: false, message: '잘못된 작가 ID입니다.' });
   }
 
-  const userId = getViewerId(req);
+  const userId = req.user?.id || null;
   const { limit, offset } = parseListPagination(req.query);
   const sortKey = typeof req.query.sort === 'string' ? req.query.sort : 'newest';
   let orderBy = 'p.created_at DESC';

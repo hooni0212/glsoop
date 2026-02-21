@@ -12,6 +12,7 @@ const {
   JWT_ALGORITHM,
   JWT_ISSUER,
   JWT_AUDIENCE,
+  RESET_TOKEN_HMAC_SECRET,
 } = require('../config');
 const { sendPasswordResetEmail } = require('../services/mailer');
 const { authRequired } = require('../middleware/auth');
@@ -34,6 +35,7 @@ const {
   listActiveSessionsForUser,
 } = require('../utils/authSession');
 const { extractToken } = require('../utils/token');
+const { setAuthCookie, clearAuthCookie } = require('../utils/authCookie');
 
 const router = express.Router();
 
@@ -41,6 +43,7 @@ const OTP_TTL_MINUTES = 10;
 const OTP_COOLDOWN_MS = 1000 * 60;
 const PENDING_TTL_HOURS = 24;
 const MAX_OTP_ATTEMPTS = 5;
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 const LOGIN_FAIL_LIMIT = 5;
 const LOGIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
@@ -162,6 +165,71 @@ function calculateLockRetrySeconds(lockedUntil, nowMs = Date.now()) {
   const diff = lockedMs - nowMs;
   if (diff <= 0) return 0;
   return Math.ceil(diff / 1000);
+}
+
+function hashPasswordResetToken(rawToken) {
+  if (!rawToken || typeof rawToken !== 'string') return null;
+  return crypto
+    .createHmac('sha256', RESET_TOKEN_HMAC_SECRET)
+    .update(rawToken)
+    .digest('hex');
+}
+
+function timingSafeEqualHex(leftHex, rightHex) {
+  if (
+    typeof leftHex !== 'string' ||
+    typeof rightHex !== 'string' ||
+    leftHex.length !== rightHex.length
+  ) {
+    return false;
+  }
+  try {
+    const left = Buffer.from(leftHex, 'hex');
+    const right = Buffer.from(rightHex, 'hex');
+    if (left.length !== right.length || left.length === 0) {
+      return false;
+    }
+    return crypto.timingSafeEqual(left, right);
+  } catch (error) {
+    return false;
+  }
+}
+
+async function findPasswordResetTokenRow(rawToken) {
+  const tokenHash = hashPasswordResetToken(rawToken);
+  if (!tokenHash) return null;
+
+  const row = await dbGet(
+    `
+    SELECT
+      id,
+      user_id,
+      token_hash,
+      expires_at,
+      used_at,
+      revoked_at
+    FROM password_reset_tokens
+    WHERE token_hash = ?
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+    [tokenHash]
+  );
+
+  if (!row) return null;
+  if (!timingSafeEqualHex(tokenHash, row.token_hash)) {
+    return null;
+  }
+  return row;
+}
+
+function classifyPasswordResetToken(row, nowMs = Date.now()) {
+  if (!row) return 'invalid';
+  if (row.revoked_at) return 'invalid';
+  if (row.used_at) return 'used';
+  const expiresMs = toMs(row.expires_at);
+  if (!expiresMs || expiresMs <= nowMs) return 'expired';
+  return 'valid';
 }
 
 async function getLoginState(userId) {
@@ -809,7 +877,7 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
 });
 
 // 6-3) 비밀번호 재설정 메일 요청
-router.post('/password-reset-request', passwordLimiter, (req, res) => {
+router.post('/password-reset-request', passwordLimiter, async (req, res) => {
   const { email } = req.body || {};
   const normalizedEmail = normalizeEmail(email);
 
@@ -822,77 +890,76 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
   const responseMessage =
     '입력하신 이메일이 등록되어 있다면, 비밀번호 재설정 메일이 발송됩니다.';
 
-  db.get(
-    'SELECT id, name FROM users WHERE email = ? AND is_verified = 1',
-    [normalizedEmail],
-    (err, user) => {
-      if (err) {
-        console.error(err);
-        return sendAuthError(res, 500, 'AUTH_RESET_REQUEST_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
+  try {
+    const user = await dbGet(
+      'SELECT id, name FROM users WHERE email = ? AND is_verified = 1',
+      [normalizedEmail]
+    );
+
+    if (!user) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[password-reset-request] user not found or unverified');
       }
+      return res.json({ ok: true, message: responseMessage });
+    }
 
-      if (!user) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn('[password-reset-request] user not found or unverified');
-        }
-        return res.json({ ok: true, message: responseMessage });
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashPasswordResetToken(token);
+    const nowIso = toIso(Date.now());
+    const expiresAtIso = toIso(Date.now() + RESET_TOKEN_TTL_MS);
+
+    await dbRun(
+      `
+      UPDATE password_reset_tokens
+      SET revoked_at = ?
+      WHERE user_id = ?
+        AND used_at IS NULL
+        AND revoked_at IS NULL
+        AND expires_at > ?
+      `,
+      [nowIso, user.id, nowIso]
+    );
+
+    const insertResult = await dbRun(
+      `
+      INSERT INTO password_reset_tokens (
+        user_id,
+        token_hash,
+        expires_at
+      )
+      VALUES (?, ?, ?)
+      `,
+      [user.id, tokenHash, expiresAtIso]
+    );
+
+    const resetUrl = `${getBaseUrl(req)}/html/reset-password.html?token=${token}`;
+
+    try {
+      const info = await sendPasswordResetEmail({
+        to: normalizedEmail,
+        name: user.name,
+        resetUrl,
+      });
+      if (info?.messageId) {
+        console.log('reset mail sent:', info.messageId);
       }
-
-      const token = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
-
-      db.run(
+      return res.json({ ok: true, message: responseMessage });
+    } catch (mailErr) {
+      console.error('비밀번호 재설정 메일 전송 오류:', mailErr);
+      await dbRun(
         `
-        UPDATE users
-        SET reset_token = ?, reset_expires = ?
+        UPDATE password_reset_tokens
+        SET revoked_at = ?
         WHERE id = ?
         `,
-        [token, expiresAt.toISOString(), user.id],
-        (updateErr) => {
-          if (updateErr) {
-            console.error(updateErr);
-            return sendAuthError(
-              res,
-              500,
-              'AUTH_RESET_REQUEST_INTERNAL_ERROR',
-              '서버 오류가 발생했습니다.'
-            );
-          }
-
-          const resetUrl = `${getBaseUrl(req)}/html/reset-password.html?token=${token}`;
-
-          sendPasswordResetEmail({
-            to: normalizedEmail,
-            name: user.name,
-            resetUrl,
-          })
-            .then((info) => {
-              if (info?.messageId) {
-                console.log('reset mail sent:', info.messageId);
-              }
-              return res.json({ ok: true, message: responseMessage });
-            })
-            .catch((mailErr) => {
-              console.error('비밀번호 재설정 메일 전송 오류:', mailErr);
-              db.run(
-                `
-                UPDATE users
-                SET reset_token = NULL, reset_expires = NULL
-                WHERE id = ?
-                `,
-                [user.id],
-                (cleanupErr) => {
-                  if (cleanupErr && process.env.NODE_ENV !== 'production') {
-                    console.warn('[password-reset-request] failed to clear reset token:', cleanupErr);
-                  }
-                }
-              );
-              return res.json({ ok: true, message: responseMessage });
-            });
-        }
+        [toIso(Date.now()), insertResult.lastID]
       );
+      return res.json({ ok: true, message: responseMessage });
     }
-  );
+  } catch (error) {
+    console.error('[password-reset-request] error:', error);
+    return sendAuthError(res, 500, 'AUTH_RESET_REQUEST_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
+  }
 });
 
 router.post('/password-reset/validate', passwordLimiter, async (req, res) => {
@@ -904,17 +971,21 @@ router.post('/password-reset/validate', passwordLimiter, async (req, res) => {
   }
 
   try {
-    const user = await dbGet(
-      'SELECT id, reset_expires FROM users WHERE reset_token = ?',
-      [trimmedToken]
-    );
+    const tokenRow = await findPasswordResetTokenRow(trimmedToken);
+    const state = classifyPasswordResetToken(tokenRow);
 
-    if (!user || !user.reset_expires) {
+    if (state === 'invalid') {
       return sendAuthError(res, 400, 'AUTH_RESET_TOKEN_INVALID', '유효하지 않은 링크입니다.');
     }
-
-    const expiresTime = toMs(user.reset_expires);
-    if (!expiresTime || expiresTime < Date.now()) {
+    if (state === 'used') {
+      return sendAuthError(
+        res,
+        400,
+        'AUTH_RESET_TOKEN_USED',
+        '이미 사용된 링크입니다. 다시 요청해주세요.'
+      );
+    }
+    if (state === 'expired') {
       return sendAuthError(
         res,
         400,
@@ -961,75 +1032,108 @@ router.post('/password-reset', passwordLimiter, async (req, res) => {
     );
   }
 
-  db.get(
-    'SELECT id, reset_expires FROM users WHERE reset_token = ?',
-    [trimmedToken],
-    async (err, user) => {
-      if (err) {
-        console.error(err);
-        return sendAuthError(res, 500, 'AUTH_RESET_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
-      }
+  try {
+    const tokenRow = await findPasswordResetTokenRow(trimmedToken);
+    const state = classifyPasswordResetToken(tokenRow);
 
-      if (!user || !user.reset_expires) {
-        return sendAuthError(res, 400, 'AUTH_RESET_TOKEN_INVALID', '유효하지 않은 링크입니다.');
-      }
+    if (state === 'invalid') {
+      return sendAuthError(res, 400, 'AUTH_RESET_TOKEN_INVALID', '유효하지 않은 링크입니다.');
+    }
+    if (state === 'used') {
+      return sendAuthError(
+        res,
+        400,
+        'AUTH_RESET_TOKEN_USED',
+        '이미 사용된 링크입니다. 다시 요청해주세요.'
+      );
+    }
+    if (state === 'expired') {
+      return sendAuthError(
+        res,
+        400,
+        'AUTH_RESET_TOKEN_EXPIRED',
+        '비밀번호 재설정 링크가 만료되었습니다. 다시 요청해주세요.'
+      );
+    }
 
-      const expiresTime = toMs(user.reset_expires);
-      if (!expiresTime || expiresTime < Date.now()) {
+    const nowIso = toIso(Date.now());
+    const hashedPw = await bcrypt.hash(passwordValidation.normalized, 10);
+
+    try {
+      await dbRun('BEGIN IMMEDIATE');
+      const consumeResult = await dbRun(
+        `
+        UPDATE password_reset_tokens
+        SET used_at = ?
+        WHERE id = ?
+          AND used_at IS NULL
+          AND revoked_at IS NULL
+          AND expires_at > ?
+        `,
+        [nowIso, tokenRow.id, nowIso]
+      );
+
+      if (!consumeResult?.changes) {
+        await dbRun('ROLLBACK');
         return sendAuthError(
           res,
           400,
-          'AUTH_RESET_TOKEN_EXPIRED',
-          '비밀번호 재설정 링크가 만료되었습니다. 다시 요청해주세요.'
+          'AUTH_RESET_TOKEN_USED',
+          '이미 사용된 링크입니다. 다시 요청해주세요.'
         );
       }
 
+      await dbRun(
+        `
+        UPDATE users
+        SET pw = ?, reset_token = NULL, reset_expires = NULL
+        WHERE id = ?
+        `,
+        [hashedPw, tokenRow.user_id]
+      );
+
+      await dbRun(
+        `
+        UPDATE password_reset_tokens
+        SET revoked_at = ?
+        WHERE user_id = ?
+          AND id != ?
+          AND used_at IS NULL
+          AND revoked_at IS NULL
+        `,
+        [nowIso, tokenRow.user_id, tokenRow.id]
+      );
+
+      await dbRun('COMMIT');
+    } catch (txError) {
       try {
-        const hashedPw = await bcrypt.hash(passwordValidation.normalized, 10);
-
-        db.run(
-          `
-          UPDATE users
-          SET pw = ?, reset_token = NULL, reset_expires = NULL
-          WHERE id = ?
-          `,
-          [hashedPw, user.id],
-          async (updateErr) => {
-            if (updateErr) {
-              console.error(updateErr);
-              return sendAuthError(
-                res,
-                500,
-                'AUTH_RESET_UPDATE_FAILED',
-                '비밀번호 변경 중 오류가 발생했습니다.'
-              );
-            }
-
-            try {
-              await revokeAllAuthSessionsForUser(user.id, 'password_reset');
-            } catch (revokeErr) {
-              console.error('[password-reset] revoke sessions failed:', revokeErr);
-            }
-
-            return res.json({
-              ok: true,
-              message: '비밀번호가 변경되었습니다. 다시 로그인해주세요.',
-            });
-          }
-        );
-      } catch (hashErr) {
-        console.error(hashErr);
-        return sendAuthError(res, 500, 'AUTH_RESET_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
+        await dbRun('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('[password-reset] rollback failed:', rollbackError);
       }
+      throw txError;
     }
-  );
+
+    try {
+      await revokeAllAuthSessionsForUser(tokenRow.user_id, 'password_reset');
+    } catch (revokeErr) {
+      console.error('[password-reset] revoke sessions failed:', revokeErr);
+    }
+
+    return res.json({
+      ok: true,
+      message: '비밀번호가 변경되었습니다. 다시 로그인해주세요.',
+    });
+  } catch (error) {
+    console.error('[password-reset] error:', error);
+    return sendAuthError(res, 500, 'AUTH_RESET_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
+  }
 });
 
 // 6-5) 로그인
 router.post('/login', loginLimiter, async (req, res) => {
-  const { email, pw, remember } = req.body || {};
+  const { email, pw } = req.body || {};
   const normalizedEmail = normalizeEmail(email);
-  const rememberMe = normalizeBoolean(remember);
 
   if (!normalizedEmail || !pw) {
     return sendAuthError(
@@ -1048,6 +1152,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
   try {
     const user = await dbGet('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
+    const rememberMe = Boolean(user && Number(user.remember_login_enabled) === 1);
 
     if (user) {
       const loginState = await getLoginState(user.id);
@@ -1065,7 +1170,7 @@ router.post('/login', loginLimiter, async (req, res) => {
           res,
           423,
           'AUTH_ACCOUNT_LOCKED',
-          '로그인 시도가 제한되었습니다. 잠시 후 다시 시도해주세요.',
+          '요청이 많습니다. 잠시 후 다시 시도해주세요.',
           { retry_after: retryAfter }
         );
       }
@@ -1087,7 +1192,7 @@ router.post('/login', loginLimiter, async (req, res) => {
             res,
             423,
             'AUTH_ACCOUNT_LOCKED',
-            '로그인 시도가 제한되었습니다. 잠시 후 다시 시도해주세요.',
+            '요청이 많습니다. 잠시 후 다시 시도해주세요.',
             { retry_after: result.retry_after }
           );
         }
@@ -1148,13 +1253,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     );
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: tokenTtlMs,
-    });
+    setAuthCookie(res, token, tokenTtlMs);
 
     await logLoginEvent({
       userId: user.id,
@@ -1178,9 +1277,9 @@ router.post('/login', loginLimiter, async (req, res) => {
       message: `환영합니다, ${user.name}님!`,
       name: user.name,
       nickname: user.nickname || null,
-      token,
       remember_me: rememberMe,
       session_expires_at: session.expiresAt,
+      remember_notice_required: rememberMe,
     });
   } catch (error) {
     console.error('[login] error:', error);
@@ -1202,11 +1301,7 @@ router.post('/logout', async (req, res) => {
     }
   }
 
-  res.clearCookie('token', {
-    path: '/',
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-  });
+  clearAuthCookie(res);
   return res.json({ ok: true, message: '로그아웃되었습니다.' });
 });
 
@@ -1218,11 +1313,7 @@ router.post('/logout-all', authRequired, async (req, res) => {
     return sendAuthError(res, 500, 'AUTH_LOGOUT_ALL_FAILED', '전체 로그아웃 처리 중 오류가 발생했습니다.');
   }
 
-  res.clearCookie('token', {
-    path: '/',
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-  });
+  clearAuthCookie(res);
 
   return res.json({ ok: true, message: '모든 기기에서 로그아웃되었습니다.' });
 });
@@ -1253,6 +1344,7 @@ router.get('/me', authRequired, (req, res) => {
       email,
       is_admin,
       is_verified,
+      COALESCE(remember_login_enabled, 0) AS remember_login_enabled,
       COALESCE(level, 1) AS level,
       COALESCE(xp, 0) AS xp,
       COALESCE(streak_days, 0) AS streak_days,
@@ -1284,6 +1376,7 @@ router.get('/me', authRequired, (req, res) => {
         email: row.email,
         is_admin: !!row.is_admin,
         is_verified: !!row.is_verified,
+        remember_login_enabled: Number(row.remember_login_enabled) === 1,
         level: row.level || 1,
         xp: row.xp || 0,
         streak_days: row.streak_days || 0,
@@ -1348,7 +1441,7 @@ router.get('/me/followings', authRequired, (req, res) => {
 // 7-2) 내 정보 수정
 router.put('/me', authRequired, (req, res) => {
   const userId = req.user.id;
-  const { nickname, currentPw, newPw, bio, about } = req.body || {};
+  const { nickname, currentPw, newPw, bio, about, remember_login_enabled } = req.body || {};
 
   const fields = [];
   const params = [];
@@ -1366,6 +1459,23 @@ router.put('/me', authRequired, (req, res) => {
   if (about !== undefined) {
     fields.push('about = ?');
     params.push(about);
+  }
+
+  if (remember_login_enabled !== undefined) {
+    if (
+      typeof remember_login_enabled !== 'boolean' &&
+      typeof remember_login_enabled !== 'string' &&
+      typeof remember_login_enabled !== 'number'
+    ) {
+      return sendAuthError(
+        res,
+        400,
+        'AUTH_PROFILE_INVALID_REMEMBER_POLICY',
+        'remember_login_enabled 값이 올바르지 않습니다.'
+      );
+    }
+    fields.push('remember_login_enabled = ?');
+    params.push(normalizeBoolean(remember_login_enabled) ? 1 : 0);
   }
 
   const wantsPwChange = !!newPw;

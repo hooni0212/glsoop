@@ -56,6 +56,59 @@ const corsOptions = {
   credentials: true, // 쿠키(JWT) 같이 보내려면 필수
 };
 
+const baseCspDirectives = {
+  // 기본: 같은 origin만
+  defaultSrc: ["'self'"],
+
+  // JS
+  scriptSrc: [
+    "'self'",
+    'https://cdn.jsdelivr.net', // Bootstrap JS / Rive runtime
+    'https://cdn.quilljs.com', // Quill
+    'https://static.cloudflareinsights.com', // Cloudflare beacon
+  ],
+
+  // CSS
+  styleSrc: [
+    "'self'",
+    "'unsafe-inline'", // Bootstrap, Quill, 우리가 쓰는 인라인 스타일
+    'https://cdn.jsdelivr.net',
+    'https://cdn.quilljs.com',
+    'https://fonts.googleapis.com', // Google Fonts CSS
+  ],
+
+  // 폰트
+  fontSrc: [
+    "'self'", // /fonts/* 같이 우리 서버에서 서빙하는 폰트
+    'https://fonts.gstatic.com', // Google Fonts 폰트 파일
+    'data:', // data: URL 폰트도 허용
+  ],
+
+  // 이미지
+  imgSrc: [
+    "'self'",
+    'data:',
+    'https://cdn.quilljs.com',
+  ],
+
+  // XHR / fetch / 웹소켓
+  connectSrc: [
+    "'self'",
+    'https://cdn.jsdelivr.net',
+    'https://static.cloudflareinsights.com',
+    'https://fonts.googleapis.com',
+    'https://fonts.gstatic.com',
+  ],
+
+  frameSrc: ["'self'"],
+};
+
+const uiKitRiveCspDirectives = {
+  ...baseCspDirectives,
+  // UI-kit Rive 데모 페이지에서만 WASM 실행 허용
+  scriptSrc: [...baseCspDirectives.scriptSrc, "'wasm-unsafe-eval'"],
+};
+
 function applySecurity(app) {
   // 1) 기본 helmet (XSS, clickjacking 등 기본 보안 헤더)
   app.use(
@@ -70,52 +123,15 @@ function applySecurity(app) {
   app.use(
     helmet.contentSecurityPolicy({
       // useDefaults: true 빼고, 우리가 쓰는 것만 명시적으로 작성
-      directives: {
-        // 기본: 같은 origin만
-        defaultSrc: ["'self'"],
+      directives: baseCspDirectives,
+    })
+  );
 
-        // JS
-        scriptSrc: [
-          "'self'",
-          'https://cdn.jsdelivr.net',             // Bootstrap JS
-          'https://cdn.quilljs.com',             // Quill
-          'https://static.cloudflareinsights.com', // Cloudflare beacon
-        ],
-
-        // CSS
-        styleSrc: [
-          "'self'",
-          "'unsafe-inline'",                      // Bootstrap, Quill, 우리가 쓰는 인라인 스타일
-          'https://cdn.jsdelivr.net',
-          'https://cdn.quilljs.com',
-          'https://fonts.googleapis.com',         // Google Fonts CSS
-        ],
-
-        // 폰트
-        fontSrc: [
-          "'self'",                               // /fonts/* 같이 우리 서버에서 서빙하는 폰트
-          'https://fonts.gstatic.com',            // Google Fonts 폰트 파일
-          'data:',                               // data: URL 폰트도 허용
-        ],
-
-        // 이미지
-        imgSrc: [
-          "'self'",
-          'data:',
-          'https://cdn.quilljs.com',
-        ],
-
-        // XHR / fetch / 웹소켓
-        connectSrc: [
-          "'self'",
-          'https://cdn.jsdelivr.net',
-          'https://static.cloudflareinsights.com',
-          'https://fonts.googleapis.com',
-          'https://fonts.gstatic.com',
-        ],
-
-        frameSrc: ["'self'"],
-      },
+  // 2-1) UI-kit Rive 데모 경로 전용 CSP (WASM 허용 범위를 최소화)
+  app.use(
+    '/ui-kit-animated-signin-rive.html',
+    helmet.contentSecurityPolicy({
+      directives: uiKitRiveCspDirectives,
     })
   );
 

@@ -1,0 +1,140 @@
+/* =========================================================
+   Antique Paper Surface
+   - 종이 질감 + 모눈 그리드를 은은하게 올리는 공통 유틸
+   - 로그인/인증/카드류에서 재사용
+========================================================= */
+
+:where(.gls-antique-paper) {
+  --gls-antique-grid-size: 22px;
+  --gls-antique-grid-major-size: 88px;
+  --gls-antique-grid-line: rgba(112, 101, 80, 0.11);
+  --gls-antique-grid-major-line: rgba(96, 84, 66, 0.14);
+  --gls-antique-paper-fiber: rgba(102, 92, 72, 0.05);
+  --gls-antique-paper-fiber-dot: rgba(96, 86, 67, 0.045);
+  --gls-antique-paper-tint: linear-gradient(
+    160deg,
+    rgba(250, 246, 237, 0.36),
+    rgba(240, 234, 221, 0.2)
+  );
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+:where(.gls-antique-paper)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    var(--gls-antique-paper-tint),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent calc(var(--gls-antique-grid-size) - 1px),
+      var(--gls-antique-grid-line) calc(var(--gls-antique-grid-size) - 1px),
+      var(--gls-antique-grid-line) var(--gls-antique-grid-size)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--gls-antique-grid-size) - 1px),
+      var(--gls-antique-grid-line) calc(var(--gls-antique-grid-size) - 1px),
+      var(--gls-antique-grid-line) var(--gls-antique-grid-size)
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent calc(var(--gls-antique-grid-major-size) - 1px),
+      var(--gls-antique-grid-major-line) calc(var(--gls-antique-grid-major-size) - 1px),
+      var(--gls-antique-grid-major-line) var(--gls-antique-grid-major-size)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--gls-antique-grid-major-size) - 1px),
+      var(--gls-antique-grid-major-line) calc(var(--gls-antique-grid-major-size) - 1px),
+      var(--gls-antique-grid-major-line) var(--gls-antique-grid-major-size)
+    );
+  opacity: 0.58;
+}
+
+:where(.gls-antique-paper)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 1px 1px, var(--gls-antique-paper-fiber-dot) 1px, transparent 1.2px),
+    repeating-linear-gradient(
+      22deg,
+      transparent 0,
+      transparent 3px,
+      var(--gls-antique-paper-fiber) 3px,
+      var(--gls-antique-paper-fiber) 4px,
+      transparent 4px,
+      transparent 8px
+    );
+  background-size: 8px 8px, auto;
+  opacity: 0.54;
+}
+
+:where(.gls-antique-paper) > * {
+  position: relative;
+  z-index: 1;
+}
+
+.gls-antique-paper--moss {
+  --gls-antique-grid-line: rgba(87, 101, 82, 0.115);
+  --gls-antique-grid-major-line: rgba(75, 90, 73, 0.16);
+  --gls-antique-paper-tint: linear-gradient(
+    162deg,
+    rgba(244, 247, 236, 0.4),
+    rgba(231, 238, 223, 0.24)
+  );
+}
+
+.gls-antique-paper--ash {
+  --gls-antique-grid-line: rgba(95, 96, 88, 0.11);
+  --gls-antique-grid-major-line: rgba(82, 84, 76, 0.15);
+  --gls-antique-paper-tint: linear-gradient(
+    162deg,
+    rgba(246, 244, 236, 0.38),
+    rgba(230, 229, 222, 0.22)
+  );
+}
+
+.gls-antique-paper--fern {
+  --gls-antique-grid-line: rgba(79, 102, 86, 0.11);
+  --gls-antique-grid-major-line: rgba(63, 86, 69, 0.16);
+  --gls-antique-paper-tint: linear-gradient(
+    162deg,
+    rgba(239, 247, 234, 0.4),
+    rgba(223, 235, 220, 0.24)
+  );
+}
+
+.gls-antique-paper--stone {
+  --gls-antique-grid-line: rgba(101, 101, 94, 0.11);
+  --gls-antique-grid-major-line: rgba(88, 88, 82, 0.16);
+  --gls-antique-paper-tint: linear-gradient(
+    162deg,
+    rgba(246, 245, 238, 0.38),
+    rgba(231, 231, 224, 0.24)
+  );
+}
+
+.gls-antique-paper--mix {
+  --gls-antique-grid-line: rgba(90, 96, 82, 0.115);
+  --gls-antique-grid-major-line: rgba(77, 84, 70, 0.162);
+  --gls-antique-paper-tint: linear-gradient(
+    162deg,
+    rgba(247, 246, 236, 0.4),
+    rgba(236, 238, 227, 0.24) 52%,
+    rgba(229, 233, 225, 0.22)
+  );
+}

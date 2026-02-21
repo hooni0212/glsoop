@@ -22,12 +22,11 @@
 const express = require('express');
 
 const db = require('../db');
-const { authRequired } = require('../middleware/auth');
+const { authRequired, authOptional } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 const { handlePostCreated, handleLikeAdded } = require('../utils/growth');
 const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
-const { getViewerId } = require('../utils/requestUser');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
 const CATEGORY_SQL =
@@ -88,8 +87,7 @@ function extractTagsFromQuery(query = {}) {
 }
 
 function getOptionalUserId(req) {
-  if (req.user && req.user.id) return req.user.id;
-  return getViewerId(req);
+  return req.user?.id || null;
 }
 
 const dbGetAsync = (sql, params = []) =>
@@ -556,11 +554,11 @@ function handleFeedRequest(req, res) {
 }
 
 // 9-5) 피드 조회 (전체 + 해시태그 필터 + 좋아요 여부)
-router.get('/posts/feed', handleFeedRequest);
-router.get('/posts', handleFeedRequest);
+router.get('/posts/feed', authOptional, handleFeedRequest);
+router.get('/posts', authOptional, handleFeedRequest);
 
 // 9-6) 관련 글 추천
-router.get('/posts/:id/related', (req, res) => {
+router.get('/posts/:id/related', authOptional, (req, res) => {
   const postId = parseInt(req.params.id, 10);
   if (!postId) {
     return res
@@ -1046,6 +1044,6 @@ function handlePublicPostDetail(req, res) {
 
 
 // ✅ 표준 공개 상세
-router.get('/posts/:id', handlePublicPostDetail);
+router.get('/posts/:id', authOptional, handlePublicPostDetail);
 
 module.exports = router;

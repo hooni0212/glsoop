@@ -1,9 +1,26 @@
 // middleware/auth.js
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET, JWT_ALGORITHM, JWT_ISSUER, JWT_AUDIENCE } = require('../config');
+const {
+  JWT_SECRET,
+  JWT_ALGORITHM,
+  JWT_ISSUER,
+  JWT_AUDIENCE,
+  LEGACY_TOKEN_SUNSET_AT,
+  LEGACY_TOKEN_SUNSET_AT_MS,
+} = require('../config');
 const db = require('../db');
 const { extractToken } = require('../utils/token');
-const { getActiveSessionBySid, touchAuthSession } = require('../utils/authSession');
+const {
+  getActiveSessionBySid,
+  touchAuthSession,
+  getIpHashFromRequest,
+  getUserAgent,
+} = require('../utils/authSession');
+
+const LEGACY_DEPRECATION_DOC_LINK = `</${encodeURI(
+  'docs/서버/API/인증-계정.md'
+)}>; rel="deprecation"`;
 
 function sendAuthError(res, status, code, message) {
   return res.status(status).json({ ok: false, code, message });
@@ -30,7 +47,82 @@ async function decodeTokenOrError(token) {
   });
 }
 
-async function attachUserFromToken(req, { required }) {
+function hashUserAgentForLog(userAgent) {
+  const normalizedUserAgent = typeof userAgent === 'string' ? userAgent.trim() : '';
+  if (!normalizedUserAgent) return null;
+  return crypto
+    .createHash('sha256')
+    .update(`${JWT_SECRET}:ua:${normalizedUserAgent}`)
+    .digest('hex');
+}
+
+function getRequestId(req) {
+  const requestId = req?.headers?.['x-request-id'];
+  if (typeof requestId !== 'string') return null;
+  const trimmed = requestId.trim();
+  return trimmed || null;
+}
+
+function logLegacyTokenEvent(req, { action, status, userId = null, sidPresent = false }) {
+  const payload = {
+    event: 'auth_legacy_token',
+    action,
+    ts: new Date().toISOString(),
+    user_id: userId || null,
+    method: req.method,
+    path: req.originalUrl || req.url || null,
+    status,
+    ip_hash: getIpHashFromRequest(req),
+    ua_hash: hashUserAgentForLog(getUserAgent(req)),
+    sid_present: Boolean(sidPresent),
+    sunset_at: LEGACY_TOKEN_SUNSET_AT,
+    request_id: getRequestId(req),
+  };
+  console.log(JSON.stringify(payload));
+}
+
+function applyLegacyDeprecationHeaders(res) {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Sunset', new Date(LEGACY_TOKEN_SUNSET_AT_MS).toUTCString());
+  res.setHeader('Link', LEGACY_DEPRECATION_DOC_LINK);
+}
+
+function bindLegacyAllowLog(req, res, decoded) {
+  if (res.locals?.legacyTokenAllowLogged) return;
+  res.locals = res.locals || {};
+  res.locals.legacyTokenAllowLogged = true;
+  res.on('finish', () => {
+    logLegacyTokenEvent(req, {
+      action: 'allow',
+      status: res.statusCode,
+      userId: decoded?.id || null,
+      sidPresent: false,
+    });
+  });
+}
+
+function isLegacyTokenBlocked(nowMs = Date.now()) {
+  return nowMs >= LEGACY_TOKEN_SUNSET_AT_MS;
+}
+
+function getLegacyPolicyNowMs(req) {
+  if (process.env.NODE_ENV === 'production') {
+    return Date.now();
+  }
+  const override = req?.headers?.['x-auth-legacy-now'];
+  if (typeof override !== 'string' || !override.trim()) {
+    return Date.now();
+  }
+  const trimmed = override.trim();
+  const numeric = Number(trimmed);
+  if (Number.isFinite(numeric)) {
+    return numeric;
+  }
+  const parsed = new Date(trimmed).getTime();
+  return Number.isNaN(parsed) ? Date.now() : parsed;
+}
+
+async function attachUserFromToken(req, res, { required }) {
   const token = extractToken(req);
   if (!token) {
     if (required) {
@@ -67,7 +159,7 @@ async function attachUserFromToken(req, { required }) {
     return;
   }
 
-  // sid 없는 기존 토큰은 1차 릴리스에서 호환 허용
+  // sid 없는 레거시 토큰은 유예 기간 내에서만 허용
   if (decoded.sid) {
     const session = await getActiveSessionBySid(decoded.sid);
     if (!session || Number(session.user_id) !== Number(decoded.id)) {
@@ -89,6 +181,21 @@ async function attachUserFromToken(req, { required }) {
       }
     });
   } else {
+    applyLegacyDeprecationHeaders(res);
+    if (isLegacyTokenBlocked(getLegacyPolicyNowMs(req))) {
+      logLegacyTokenEvent(req, {
+        action: 'block',
+        status: 401,
+        userId: decoded.id,
+        sidPresent: false,
+      });
+      throw {
+        status: 401,
+        code: 'AUTH_LEGACY_TOKEN_DEPRECATED',
+        message: '기존 토큰 형식 지원이 종료되었습니다. 다시 로그인해주세요.',
+      };
+    }
+    bindLegacyAllowLog(req, res, decoded);
     req.authSession = null;
   }
 
@@ -97,7 +204,7 @@ async function attachUserFromToken(req, { required }) {
 
 // 로그인 필수 라우트용 미들웨어
 function authRequired(req, res, next) {
-  attachUserFromToken(req, { required: true })
+  attachUserFromToken(req, res, { required: true })
     .then(() => next())
     .catch((error) => {
       if (error && error.code && error.status) {
@@ -110,9 +217,12 @@ function authRequired(req, res, next) {
 
 // 선택 인증 라우트용 미들웨어
 function authOptional(req, res, next) {
-  attachUserFromToken(req, { required: false })
+  attachUserFromToken(req, res, { required: false })
     .then(() => next())
     .catch((error) => {
+      if (error && error.code && error.status) {
+        return sendAuthError(res, error.status, error.code, error.message);
+      }
       console.error('[authOptional] unexpected error:', error);
       req.user = null;
       req.authSession = null;

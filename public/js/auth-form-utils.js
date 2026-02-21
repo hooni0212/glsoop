@@ -1,7 +1,7 @@
 (function attachAuthFormUtils(global) {
   const CODE_MESSAGE_MAP = {
     AUTH_RATE_LIMITED: '요청이 많습니다. 잠시 후 다시 시도해주세요.',
-    AUTH_ACCOUNT_LOCKED: '로그인 시도가 제한되었습니다. 잠시 후 다시 시도해주세요.',
+    AUTH_ACCOUNT_LOCKED: '요청이 많습니다. 잠시 후 다시 시도해주세요.',
     AUTH_INVALID_CREDENTIALS: '이메일 또는 비밀번호가 올바르지 않습니다.',
     AUTH_LOGIN_REQUIRED_FIELDS: '이메일과 비밀번호를 입력하세요.',
     AUTH_SIGNUP_REQUIRED_FIELDS: '필수 입력값을 확인해주세요.',
@@ -11,6 +11,8 @@
     AUTH_PASSWORD_WEAK: '비밀번호는 영문과 숫자를 모두 포함해야 합니다.',
     AUTH_RESET_TOKEN_INVALID: '유효하지 않은 링크입니다.',
     AUTH_RESET_TOKEN_EXPIRED: '비밀번호 재설정 링크가 만료되었습니다. 다시 요청해주세요.',
+    AUTH_RESET_TOKEN_USED: '이미 사용된 링크입니다. 다시 요청해주세요.',
+    AUTH_LEGACY_TOKEN_DEPRECATED: '기존 로그인 정보가 만료되었습니다. 다시 로그인해주세요.',
     AUTH_RESET_REQUIRED_FIELDS: '토큰과 새 비밀번호를 모두 입력해주세요.',
     AUTH_RESET_EMAIL_REQUIRED: '이메일을 입력해주세요.',
     AUTH_VERIFY_REQUIRED_FIELDS: '인증에 필요한 정보가 누락되었습니다.',

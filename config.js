@@ -10,6 +10,15 @@ const rawJwtAlgorithm = process.env.JWT_ALGORITHM
   : '';
 const rawJwtIssuer = process.env.JWT_ISSUER ? process.env.JWT_ISSUER.trim() : '';
 const rawJwtAudience = process.env.JWT_AUDIENCE ? process.env.JWT_AUDIENCE.trim() : '';
+const rawResetTokenHmacSecret = process.env.RESET_TOKEN_HMAC_SECRET
+  ? process.env.RESET_TOKEN_HMAC_SECRET.trim()
+  : '';
+const rawAuthCookieDomain = process.env.AUTH_COOKIE_DOMAIN
+  ? process.env.AUTH_COOKIE_DOMAIN.trim()
+  : '';
+const rawLegacyTokenSunsetAt = process.env.LEGACY_TOKEN_SUNSET_AT
+  ? process.env.LEGACY_TOKEN_SUNSET_AT.trim()
+  : '2026-03-07T00:00:00+09:00';
 
 const rawJwtSecret = process.env.JWT_SECRET ? process.env.JWT_SECRET.trim() : '';
 
@@ -61,6 +70,8 @@ const transporter = nodemailer.createTransport({
 // 서버 전역에서 공유하는 JWT 비밀키
 const JWT_SECRET = rawJwtSecret || 'DEV_ONLY_FALLBACK_SECRET';
 const JWT_ALGORITHM = rawJwtAlgorithm || 'HS256';
+const RESET_TOKEN_HMAC_SECRET = rawResetTokenHmacSecret || JWT_SECRET;
+const AUTH_COOKIE_DOMAIN = rawAuthCookieDomain || '';
 
 const parseJwtAudience = (value) => {
   if (!value) return null;
@@ -88,6 +99,12 @@ if (!JWT_ISSUER) {
 }
 
 const JWT_AUDIENCE = parseJwtAudience(rawJwtAudience) || 'glsoop-client';
+const LEGACY_TOKEN_SUNSET_AT = rawLegacyTokenSunsetAt;
+const LEGACY_TOKEN_SUNSET_AT_MS = new Date(LEGACY_TOKEN_SUNSET_AT).getTime();
+
+if (Number.isNaN(LEGACY_TOKEN_SUNSET_AT_MS)) {
+  throw new Error('[FATAL] LEGACY_TOKEN_SUNSET_AT 형식이 올바르지 않습니다. ISO datetime을 사용하세요.');
+}
 
 if (isProduction) {
   if (!rawJwtIssuer) {
@@ -95,6 +112,11 @@ if (isProduction) {
   }
   if (!rawJwtAudience) {
     console.warn('[warn] 운영 환경에 JWT_AUDIENCE가 설정되지 않았습니다. 기본값으로 동작합니다.');
+  }
+  if (!rawResetTokenHmacSecret) {
+    throw new Error(
+      '[FATAL] 운영 환경에 RESET_TOKEN_HMAC_SECRET이 없습니다. 안전한 랜덤 문자열을 설정하세요.'
+    );
   }
 }
 
@@ -104,4 +126,8 @@ module.exports = {
   JWT_ALGORITHM,
   JWT_ISSUER,
   JWT_AUDIENCE,
+  RESET_TOKEN_HMAC_SECRET,
+  LEGACY_TOKEN_SUNSET_AT,
+  LEGACY_TOKEN_SUNSET_AT_MS,
+  AUTH_COOKIE_DOMAIN,
 };

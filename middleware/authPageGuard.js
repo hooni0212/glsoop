@@ -4,6 +4,7 @@
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET, JWT_ALGORITHM, JWT_ISSUER, JWT_AUDIENCE } = require('../config');
 const { getActiveSessionBySid } = require('../utils/authSession');
+const { clearAuthCookie } = require('../utils/authCookie');
 
 function isSafeInternalPath(value) {
   return (
@@ -43,11 +44,7 @@ function redirectAuthenticatedFromLogin(req, res, next) {
     },
     async (err, decoded) => {
       if (err || !decoded?.id) {
-        res.clearCookie('token', {
-          path: '/',
-          sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production',
-        });
+        clearAuthCookie(res);
         return next();
       }
 
@@ -55,11 +52,7 @@ function redirectAuthenticatedFromLogin(req, res, next) {
         try {
           const session = await getActiveSessionBySid(decoded.sid);
           if (!session || Number(session.user_id) !== Number(decoded.id)) {
-            res.clearCookie('token', {
-              path: '/',
-              sameSite: 'lax',
-              secure: process.env.NODE_ENV === 'production',
-            });
+            clearAuthCookie(res);
             return next();
           }
         } catch (sessionError) {
