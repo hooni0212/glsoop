@@ -24,6 +24,16 @@ const {
   passwordLimiter,
   otpResendLimiter,
 } = require('../middleware/rateLimiters');
+const {
+  createAuthSession,
+  getSessionTtlMs,
+  getIpHashFromRequest,
+  getUserAgent,
+  revokeAuthSession,
+  revokeAllAuthSessionsForUser,
+  listActiveSessionsForUser,
+} = require('../utils/authSession');
+const { extractToken } = require('../utils/token');
 
 const router = express.Router();
 
@@ -31,6 +41,9 @@ const OTP_TTL_MINUTES = 10;
 const OTP_COOLDOWN_MS = 1000 * 60;
 const PENDING_TTL_HOURS = 24;
 const MAX_OTP_ATTEMPTS = 5;
+
+const LOGIN_FAIL_LIMIT = 5;
+const LOGIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
 
 const dbGet = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -40,28 +53,76 @@ const dbGet = (sql, params = []) =>
     });
   });
 
+const dbAll = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows || []);
+    });
+  });
+
 const dbRun = (sql, params = []) =>
   new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
+    db.run(sql, params, function onRun(err) {
       if (err) return reject(err);
       resolve(this);
     });
   });
 
-async function backfillUserAchievementStates(userId) {
-  const campaign = await dbGet(
-    "SELECT id FROM quest_campaigns WHERE campaign_type = 'permanent' AND name = '업적' LIMIT 1"
-  );
-  if (!campaign?.id) return;
-  await dbRun(
-    `INSERT OR IGNORE INTO user_quest_state
-      (user_id, campaign_id, template_id, progress, reset_key)
-     SELECT ?, qci.campaign_id, qci.template_id, 0, 'permanent'
-     FROM quest_campaign_items qci
-     JOIN quest_templates qt ON qt.id = qci.template_id
-     WHERE qci.campaign_id = ? AND qt.template_kind = 'achievement' AND qt.is_active = 1`,
-    [userId, campaign.id]
-  );
+function sendAuthError(res, status, code, message, extras = {}) {
+  return res.status(status).json({ ok: false, code, message, ...extras });
+}
+
+function normalizeEmail(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim().toLowerCase();
+}
+
+function normalizeBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+  }
+  if (typeof value === 'number') return value === 1;
+  return false;
+}
+
+function isStrongPassword(password) {
+  if (typeof password !== 'string') {
+    return {
+      ok: false,
+      fieldErrors: { pw: '비밀번호를 입력해주세요.' },
+      message: '비밀번호를 입력해주세요.',
+      code: 'AUTH_PASSWORD_REQUIRED',
+    };
+  }
+
+  const raw = password.trim();
+  if (raw.length < 8) {
+    return {
+      ok: false,
+      fieldErrors: { pw: '비밀번호는 8자 이상이어야 합니다.' },
+      message: '비밀번호는 8자 이상이어야 합니다.',
+      code: 'AUTH_PASSWORD_TOO_SHORT',
+    };
+  }
+
+  const hasLetter = /[a-zA-Z]/.test(raw);
+  const hasNumber = /\d/.test(raw);
+  if (!hasLetter || !hasNumber) {
+    return {
+      ok: false,
+      fieldErrors: { pw: '비밀번호는 영문과 숫자를 모두 포함해야 합니다.' },
+      message: '비밀번호는 영문과 숫자를 모두 포함해야 합니다.',
+      code: 'AUTH_PASSWORD_WEAK',
+    };
+  }
+
+  return {
+    ok: true,
+    normalized: raw,
+  };
 }
 
 function maskEmail(address) {
@@ -83,6 +144,136 @@ function calculateRetryAfterSeconds(createdAt) {
   const elapsedMs = Date.now() - createdAtMs;
   if (elapsedMs >= OTP_COOLDOWN_MS) return 0;
   return Math.ceil((OTP_COOLDOWN_MS - elapsedMs) / 1000);
+}
+
+function toIso(ms) {
+  return new Date(ms).toISOString();
+}
+
+function toMs(value) {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function calculateLockRetrySeconds(lockedUntil, nowMs = Date.now()) {
+  const lockedMs = toMs(lockedUntil);
+  if (!lockedMs) return 0;
+  const diff = lockedMs - nowMs;
+  if (diff <= 0) return 0;
+  return Math.ceil(diff / 1000);
+}
+
+async function getLoginState(userId) {
+  if (!userId) return null;
+  return dbGet(
+    `
+    SELECT user_id, failed_count, window_started_at, locked_until
+    FROM auth_login_state
+    WHERE user_id = ?
+    `,
+    [userId]
+  );
+}
+
+async function clearLoginState(userId) {
+  if (!userId) return;
+  await dbRun(
+    `
+    INSERT INTO auth_login_state (user_id, failed_count, window_started_at, locked_until, updated_at)
+    VALUES (?, 0, NULL, NULL, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      failed_count = 0,
+      window_started_at = NULL,
+      locked_until = NULL,
+      updated_at = excluded.updated_at
+    `,
+    [userId, toIso(Date.now())]
+  );
+}
+
+async function registerLoginFailure(userId) {
+  const nowMs = Date.now();
+  const nowIso = toIso(nowMs);
+  const existing = await getLoginState(userId);
+
+  let failedCount = 1;
+  let windowStartedAt = nowIso;
+  let lockedUntil = null;
+
+  if (existing) {
+    const existingWindowMs = toMs(existing.window_started_at);
+    const existingLockedMs = toMs(existing.locked_until);
+
+    if (existingLockedMs && existingLockedMs > nowMs) {
+      return {
+        locked: true,
+        failed_count: Number(existing.failed_count) || LOGIN_FAIL_LIMIT,
+        retry_after: calculateLockRetrySeconds(existing.locked_until, nowMs),
+      };
+    }
+
+    if (existingWindowMs && nowMs - existingWindowMs <= LOGIN_LOCK_WINDOW_MS) {
+      failedCount = (Number(existing.failed_count) || 0) + 1;
+      windowStartedAt = existing.window_started_at || nowIso;
+    }
+  }
+
+  if (failedCount >= LOGIN_FAIL_LIMIT) {
+    lockedUntil = toIso(nowMs + LOGIN_LOCK_WINDOW_MS);
+  }
+
+  await dbRun(
+    `
+    INSERT INTO auth_login_state (user_id, failed_count, window_started_at, locked_until, updated_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      failed_count = excluded.failed_count,
+      window_started_at = excluded.window_started_at,
+      locked_until = excluded.locked_until,
+      updated_at = excluded.updated_at
+    `,
+    [userId, failedCount, windowStartedAt, lockedUntil, nowIso]
+  );
+
+  return {
+    locked: Boolean(lockedUntil),
+    failed_count: failedCount,
+    retry_after: lockedUntil ? calculateLockRetrySeconds(lockedUntil, nowMs) : 0,
+  };
+}
+
+async function logLoginEvent({ userId = null, email = '', req, outcome, failureCode = null, rememberMe = false }) {
+  const normalizedEmail = normalizeEmail(email) || null;
+  try {
+    await dbRun(
+      `
+      INSERT INTO auth_login_events (
+        user_id,
+        email,
+        ip_hash,
+        user_agent,
+        outcome,
+        failure_code,
+        remember_me
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        userId || null,
+        normalizedEmail,
+        getIpHashFromRequest(req),
+        getUserAgent(req),
+        outcome,
+        failureCode,
+        rememberMe ? 1 : 0,
+      ]
+    );
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[auth/login-event] failed to record:', error);
+    }
+  }
 }
 
 function seedDefaultCosmeticsForSignup(userId, done) {
@@ -121,6 +312,22 @@ function seedDefaultCosmeticsForSignup(userId, done) {
   );
 }
 
+async function backfillUserAchievementStates(userId) {
+  const campaign = await dbGet(
+    "SELECT id FROM quest_campaigns WHERE campaign_type = 'permanent' AND name = '업적' LIMIT 1"
+  );
+  if (!campaign?.id) return;
+  await dbRun(
+    `INSERT OR IGNORE INTO user_quest_state
+      (user_id, campaign_id, template_id, progress, reset_key)
+     SELECT ?, qci.campaign_id, qci.template_id, 0, 'permanent'
+     FROM quest_campaign_items qci
+     JOIN quest_templates qt ON qt.id = qci.template_id
+     WHERE qci.campaign_id = ? AND qt.template_kind = 'achievement' AND qt.is_active = 1`,
+    [userId, campaign.id]
+  );
+}
+
 async function commitPendingSignup(pending) {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
@@ -142,7 +349,7 @@ async function commitPendingSignup(pending) {
           VALUES (?, ?, ?, ?, 0, 1, NULL, NULL)
           `,
           [pending.name, pending.nickname, pending.email, pending.pw_hash],
-          function (insertErr) {
+          function onInsert(insertErr) {
             if (insertErr) {
               return db.run('ROLLBACK', () => reject(insertErr));
             }
@@ -176,31 +383,73 @@ async function commitPendingSignup(pending) {
   });
 }
 
+async function verifyJwtOrNull(token) {
+  if (!token) return null;
+  return new Promise((resolve) => {
+    jwt.verify(
+      token,
+      JWT_SECRET,
+      {
+        algorithms: [JWT_ALGORITHM],
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+      },
+      (err, decoded) => {
+        if (err || !decoded) {
+          resolve(null);
+          return;
+        }
+        resolve(decoded);
+      }
+    );
+  });
+}
+
 // 6-1) 회원가입 + 이메일 OTP 발송
 router.post('/signup', signupLimiter, async (req, res) => {
-  const { name, nickname, email, pw } = req.body;
+  const { name, nickname, email, pw } = req.body || {};
 
-  if (!name || !nickname || !email || !pw) {
-    return res.status(400).json({
-      ok: false,
-      message: '이름, 닉네임, 이메일, 비밀번호를 모두 입력하세요.',
-    });
+  const trimmedName = typeof name === 'string' ? name.trim() : '';
+  const trimmedNickname = typeof nickname === 'string' ? nickname.trim() : '';
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!trimmedName || !trimmedNickname || !normalizedEmail || !pw) {
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_SIGNUP_REQUIRED_FIELDS',
+      '이름, 닉네임, 이메일, 비밀번호를 모두 입력하세요.',
+      {
+        field_errors: {
+          ...(trimmedName ? {} : { name: '이름을 입력해주세요.' }),
+          ...(trimmedNickname ? {} : { nickname: '닉네임을 입력해주세요.' }),
+          ...(normalizedEmail ? {} : { email: '이메일을 입력해주세요.' }),
+          ...(pw ? {} : { pw: '비밀번호를 입력해주세요.' }),
+        },
+      }
+    );
+  }
+
+  const passwordValidation = isStrongPassword(pw);
+  if (!passwordValidation.ok) {
+    return sendAuthError(
+      res,
+      400,
+      passwordValidation.code,
+      passwordValidation.message,
+      { field_errors: passwordValidation.fieldErrors }
+    );
   }
 
   try {
     await cleanupExpiredPending();
 
-    // 1) 비밀번호 해시 + 이메일 소문자 정규화
-    const hashed = await bcrypt.hash(pw, 10);
-    const normalizedEmail = email.trim().toLowerCase();
+    const hashed = await bcrypt.hash(passwordValidation.normalized, 10);
 
-    const existingUser = await dbGet('SELECT id FROM users WHERE email = ?', [
-      normalizedEmail,
-    ]);
+    const existingUser = await dbGet('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
     if (existingUser) {
-      return res.status(409).json({
-        ok: false,
-        message: '이미 가입된 이메일입니다.',
+      return sendAuthError(res, 409, 'AUTH_EMAIL_ALREADY_REGISTERED', '이미 가입된 이메일입니다.', {
+        field_errors: { email: '이미 가입된 이메일입니다.' },
       });
     }
 
@@ -231,22 +480,17 @@ router.post('/signup', signupLimiter, async (req, res) => {
       });
     }
 
-    // 2) 이메일 OTP 생성 (10분 유효)
     const otpCode = String(crypto.randomInt(100000, 1000000));
     const otpHash = await bcrypt.hash(otpCode, 10);
-    const otpExpiresAt = new Date(
-      Date.now() + 1000 * 60 * OTP_TTL_MINUTES
-    ).toISOString();
-    const pendingExpiresAt = new Date(
-      Date.now() + 1000 * 60 * 60 * PENDING_TTL_HOURS
-    ).toISOString();
+    const otpExpiresAt = toIso(Date.now() + 1000 * 60 * OTP_TTL_MINUTES);
+    const pendingExpiresAt = toIso(Date.now() + 1000 * 60 * 60 * PENDING_TTL_HOURS);
 
     const pendingResult = await dbRun(
       `
       INSERT INTO pending_signups (name, nickname, email, pw_hash, expires_at)
       VALUES (?, ?, ?, ?, ?)
       `,
-      [name, nickname, normalizedEmail, hashed, pendingExpiresAt]
+      [trimmedName, trimmedNickname, normalizedEmail, hashed, pendingExpiresAt]
     );
 
     const pendingId = pendingResult.lastID;
@@ -283,7 +527,7 @@ router.post('/signup', signupLimiter, async (req, res) => {
         subject: '[글숲] 이메일 인증 번호를 확인해주세요',
         html: `
           <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-            <p><strong>${nickname || name}님, 안녕하세요.</strong></p>
+            <p><strong>${trimmedNickname || trimmedName}님, 안녕하세요.</strong></p>
             <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
             <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
               ${otpCode}
@@ -300,29 +544,32 @@ router.post('/signup', signupLimiter, async (req, res) => {
         }
       }
     );
-  } catch (e) {
-    if (e && e.code === 'SQLITE_CONSTRAINT') {
-      return res
-        .status(409)
-        .json({ ok: false, message: '이미 가입 진행 중인 이메일입니다.' });
+  } catch (error) {
+    if (error && error.code === 'SQLITE_CONSTRAINT') {
+      return sendAuthError(
+        res,
+        409,
+        'AUTH_PENDING_EMAIL_EXISTS',
+        '이미 가입 진행 중인 이메일입니다.',
+        { field_errors: { email: '이미 가입 진행 중인 이메일입니다.' } }
+      );
     }
-    console.error(e);
-    return res
-      .status(500)
-      .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+    console.error(error);
+    return sendAuthError(res, 500, 'AUTH_SIGNUP_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
   }
 });
 
 // 6-2) 이메일 OTP 인증 처리
 router.post('/verify-email', async (req, res) => {
-  const { pending_id: pendingId, verification_code: verificationCode } =
-    req.body || {};
+  const { pending_id: pendingId, verification_code: verificationCode } = req.body || {};
 
   if (!pendingId || !verificationCode) {
-    return res.status(400).json({
-      ok: false,
-      message: '인증에 필요한 정보가 누락되었습니다.',
-    });
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_VERIFY_REQUIRED_FIELDS',
+      '인증에 필요한 정보가 누락되었습니다.'
+    );
   }
 
   try {
@@ -338,10 +585,12 @@ router.post('/verify-email', async (req, res) => {
     );
 
     if (!pending) {
-      return res.status(404).json({
-        ok: false,
-        message: '가입 정보를 찾을 수 없습니다. 회원가입을 다시 진행해 주세요.',
-      });
+      return sendAuthError(
+        res,
+        404,
+        'AUTH_VERIFY_PENDING_NOT_FOUND',
+        '가입 정보를 찾을 수 없습니다. 회원가입을 다시 진행해 주세요.'
+      );
     }
 
     const otpRow = await dbGet(
@@ -356,37 +605,40 @@ router.post('/verify-email', async (req, res) => {
     );
 
     if (!otpRow) {
-      return res.status(400).json({
-        ok: false,
-        message: '인증 번호가 존재하지 않습니다. 회원가입을 다시 진행해 주세요.',
-      });
+      return sendAuthError(
+        res,
+        400,
+        'AUTH_VERIFY_CODE_NOT_FOUND',
+        '인증 번호가 존재하지 않습니다. 회원가입을 다시 진행해 주세요.'
+      );
     }
 
     const now = Date.now();
-    const expiresTime = new Date(otpRow.expires_at).getTime();
+    const expiresTime = toMs(otpRow.expires_at);
 
-    if (Number.isNaN(expiresTime) || expiresTime < now) {
-      return res.status(400).json({
-        ok: false,
-        message: '인증 번호가 만료되었습니다. 회원가입을 다시 진행해 주세요.',
-      });
+    if (!expiresTime || expiresTime < now) {
+      return sendAuthError(
+        res,
+        400,
+        'AUTH_VERIFY_CODE_EXPIRED',
+        '인증 번호가 만료되었습니다. 회원가입을 다시 진행해 주세요.'
+      );
     }
 
-    if (otpRow.attempts >= MAX_OTP_ATTEMPTS) {
+    if (Number(otpRow.attempts) >= MAX_OTP_ATTEMPTS) {
       await dbRun('DELETE FROM pending_signups WHERE id = ?', [pendingId]);
-      return res.status(400).json({
-        ok: false,
-        message: '인증 시도 횟수를 초과했습니다. 회원가입을 다시 진행해 주세요.',
-      });
+      return sendAuthError(
+        res,
+        400,
+        'AUTH_VERIFY_ATTEMPTS_EXCEEDED',
+        '인증 시도 횟수를 초과했습니다. 회원가입을 다시 진행해 주세요.'
+      );
     }
 
-    const matches = await bcrypt.compare(
-      String(verificationCode),
-      otpRow.code_hash
-    );
+    const matches = await bcrypt.compare(String(verificationCode), otpRow.code_hash);
 
     if (!matches) {
-      const nextAttempts = otpRow.attempts + 1;
+      const nextAttempts = Number(otpRow.attempts) + 1;
       await dbRun(
         `
         UPDATE pending_otp_verifications
@@ -398,24 +650,25 @@ router.post('/verify-email', async (req, res) => {
 
       if (nextAttempts >= MAX_OTP_ATTEMPTS) {
         await dbRun('DELETE FROM pending_signups WHERE id = ?', [pendingId]);
-        return res.status(400).json({
-          ok: false,
-          message: '인증 시도 횟수를 초과했습니다. 회원가입을 다시 진행해 주세요.',
-        });
+        return sendAuthError(
+          res,
+          400,
+          'AUTH_VERIFY_ATTEMPTS_EXCEEDED',
+          '인증 시도 횟수를 초과했습니다. 회원가입을 다시 진행해 주세요.'
+        );
       }
 
-      return res.status(400).json({
-        ok: false,
-        message: '인증 번호가 올바르지 않습니다.',
-      });
+      return sendAuthError(res, 400, 'AUTH_VERIFY_CODE_MISMATCH', '인증 번호가 올바르지 않습니다.');
     }
 
     const userId = await commitPendingSignup(pending);
+
     try {
       await backfillUserAchievementStates(userId);
     } catch (backfillError) {
       console.error('신규 유저 업적 backfill 실패:', backfillError);
     }
+
     logUxEvent({
       user_id: userId,
       event_name: 'verify_email_success',
@@ -433,15 +686,15 @@ router.post('/verify-email', async (req, res) => {
     });
   } catch (error) {
     if (error && error.code === 'SQLITE_CONSTRAINT') {
-      return res.status(409).json({
-        ok: false,
-        message: '이미 가입된 이메일입니다. 로그인 페이지로 이동해 주세요.',
-      });
+      return sendAuthError(
+        res,
+        409,
+        'AUTH_VERIFY_EMAIL_ALREADY_REGISTERED',
+        '이미 가입된 이메일입니다. 로그인 페이지로 이동해 주세요.'
+      );
     }
     console.error('OTP 처리 오류:', error);
-    return res
-      .status(500)
-      .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+    return sendAuthError(res, 500, 'AUTH_VERIFY_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
   }
 });
 
@@ -450,13 +703,15 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
   const { pending_id: pendingId, email } = req.body || {};
 
   if (!pendingId && !email) {
-    return res.status(400).json({
-      ok: false,
-      message: '재발송에 필요한 정보가 누락되었습니다.',
-    });
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_VERIFY_RESEND_REQUIRED_FIELDS',
+      '재발송에 필요한 정보가 누락되었습니다.'
+    );
   }
 
-  const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+  const normalizedEmail = normalizeEmail(email);
 
   try {
     await cleanupExpiredPending();
@@ -472,9 +727,7 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
         );
 
     if (!pending) {
-      return res
-        .status(404)
-        .json({ ok: false, message: '가입 진행 정보를 찾을 수 없습니다.' });
+      return sendAuthError(res, 404, 'AUTH_VERIFY_PENDING_NOT_FOUND', '가입 진행 정보를 찾을 수 없습니다.');
     }
 
     const otpRow = await dbGet(
@@ -490,18 +743,18 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
 
     const retryAfter = calculateRetryAfterSeconds(otpRow?.created_at);
     if (retryAfter > 0) {
-      return res.status(429).json({
-        ok: false,
-        message: `재발송은 ${retryAfter}초 후에 가능합니다.`,
-        retry_after: retryAfter,
-      });
+      return sendAuthError(
+        res,
+        429,
+        'AUTH_VERIFY_RESEND_COOLDOWN',
+        `재발송은 ${retryAfter}초 후에 가능합니다.`,
+        { retry_after: retryAfter }
+      );
     }
 
     const otpCode = String(crypto.randomInt(100000, 1000000));
     const otpHash = await bcrypt.hash(otpCode, 10);
-    const expiresAt = new Date(
-      Date.now() + 1000 * 60 * OTP_TTL_MINUTES
-    ).toISOString();
+    const expiresAt = toIso(Date.now() + 1000 * 60 * OTP_TTL_MINUTES);
 
     await dbRun(
       `
@@ -551,24 +804,21 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
     );
   } catch (error) {
     console.error('OTP 재발송 오류:', error);
-    return res.status(500).json({
-      ok: false,
-      message: 'OTP 재발송 중 오류가 발생했습니다.',
-    });
+    return sendAuthError(res, 500, 'AUTH_VERIFY_RESEND_INTERNAL_ERROR', 'OTP 재발송 중 오류가 발생했습니다.');
   }
 });
 
 // 6-3) 비밀번호 재설정 메일 요청
 router.post('/password-reset-request', passwordLimiter, (req, res) => {
   const { email } = req.body || {};
+  const normalizedEmail = normalizeEmail(email);
 
-  if (!email) {
-    return res
-      .status(400)
-      .json({ ok: false, message: '이메일을 입력해주세요.' });
+  if (!normalizedEmail) {
+    return sendAuthError(res, 400, 'AUTH_RESET_EMAIL_REQUIRED', '이메일을 입력해주세요.', {
+      field_errors: { email: '이메일을 입력해주세요.' },
+    });
   }
 
-  const normalizedEmail = email.trim().toLowerCase();
   const responseMessage =
     '입력하신 이메일이 등록되어 있다면, 비밀번호 재설정 메일이 발송됩니다.';
 
@@ -578,20 +828,16 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
     (err, user) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+        return sendAuthError(res, 500, 'AUTH_RESET_REQUEST_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
       }
 
       if (!user) {
-        // 미검증 계정/미존재 계정 모두 동일 응답(메일 전송 없음)
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[password-reset-request] user not found or unverified');
         }
         return res.json({ ok: true, message: responseMessage });
       }
 
-      // 유효 시간 1시간짜리 재설정 토큰 생성
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
 
@@ -602,17 +848,19 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
         WHERE id = ?
         `,
         [token, expiresAt.toISOString(), user.id],
-        function (updateErr) {
+        (updateErr) => {
           if (updateErr) {
             console.error(updateErr);
-            return res
-              .status(500)
-              .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+            return sendAuthError(
+              res,
+              500,
+              'AUTH_RESET_REQUEST_INTERNAL_ERROR',
+              '서버 오류가 발생했습니다.'
+            );
           }
 
           const resetUrl = `${getBaseUrl(req)}/html/reset-password.html?token=${token}`;
 
-          // 사용자가 존재할 때만 안내 메일 전송
           sendPasswordResetEmail({
             to: normalizedEmail,
             name: user.name,
@@ -635,10 +883,7 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
                 [user.id],
                 (cleanupErr) => {
                   if (cleanupErr && process.env.NODE_ENV !== 'production') {
-                    console.warn(
-                      '[password-reset-request] failed to clear reset token:',
-                      cleanupErr
-                    );
+                    console.warn('[password-reset-request] failed to clear reset token:', cleanupErr);
                   }
                 }
               );
@@ -650,54 +895,97 @@ router.post('/password-reset-request', passwordLimiter, (req, res) => {
   );
 });
 
+router.post('/password-reset/validate', passwordLimiter, async (req, res) => {
+  const { token } = req.body || {};
+  const trimmedToken = typeof token === 'string' ? token.trim() : '';
+
+  if (!trimmedToken) {
+    return sendAuthError(res, 400, 'AUTH_RESET_TOKEN_REQUIRED', '유효한 토큰이 필요합니다.');
+  }
+
+  try {
+    const user = await dbGet(
+      'SELECT id, reset_expires FROM users WHERE reset_token = ?',
+      [trimmedToken]
+    );
+
+    if (!user || !user.reset_expires) {
+      return sendAuthError(res, 400, 'AUTH_RESET_TOKEN_INVALID', '유효하지 않은 링크입니다.');
+    }
+
+    const expiresTime = toMs(user.reset_expires);
+    if (!expiresTime || expiresTime < Date.now()) {
+      return sendAuthError(
+        res,
+        400,
+        'AUTH_RESET_TOKEN_EXPIRED',
+        '비밀번호 재설정 링크가 만료되었습니다. 다시 요청해주세요.'
+      );
+    }
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('[password-reset/validate] error:', error);
+    return sendAuthError(res, 500, 'AUTH_RESET_VALIDATE_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
+  }
+});
+
 // 6-4) 비밀번호 실제 변경 처리
 router.post('/password-reset', passwordLimiter, async (req, res) => {
   const { token, newPw } = req.body || {};
+  const trimmedToken = typeof token === 'string' ? token.trim() : '';
 
-  if (!token || !newPw) {
-    return res
-      .status(400)
-      .json({ ok: false, message: '토큰과 새 비밀번호를 모두 입력해주세요.' });
+  if (!trimmedToken || !newPw) {
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_RESET_REQUIRED_FIELDS',
+      '토큰과 새 비밀번호를 모두 입력해주세요.',
+      {
+        field_errors: {
+          ...(trimmedToken ? {} : { token: '재설정 토큰이 필요합니다.' }),
+          ...(newPw ? {} : { newPw: '새 비밀번호를 입력해주세요.' }),
+        },
+      }
+    );
   }
 
-  if (newPw.length < 8) {
-    return res.status(400).json({
-      ok: false,
-      message: '비밀번호는 8자 이상으로 설정해주세요.',
-    });
+  const passwordValidation = isStrongPassword(newPw);
+  if (!passwordValidation.ok) {
+    return sendAuthError(
+      res,
+      400,
+      passwordValidation.code,
+      passwordValidation.message,
+      { field_errors: passwordValidation.fieldErrors }
+    );
   }
 
-  // 1) 토큰으로 사용자와 만료 시간 확인
   db.get(
     'SELECT id, reset_expires FROM users WHERE reset_token = ?',
-    [token],
+    [trimmedToken],
     async (err, user) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+        return sendAuthError(res, 500, 'AUTH_RESET_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
       }
 
       if (!user || !user.reset_expires) {
-        return res
-          .status(400)
-          .json({ ok: false, message: '유효하지 않은 링크입니다.' });
+        return sendAuthError(res, 400, 'AUTH_RESET_TOKEN_INVALID', '유효하지 않은 링크입니다.');
       }
 
-      const now = Date.now();
-      const expiresTime = new Date(user.reset_expires).getTime();
-
-      if (isNaN(expiresTime) || expiresTime < now) {
-        return res.status(400).json({
-          ok: false,
-          message: '비밀번호 재설정 링크가 만료되었습니다. 다시 요청해주세요.',
-        });
+      const expiresTime = toMs(user.reset_expires);
+      if (!expiresTime || expiresTime < Date.now()) {
+        return sendAuthError(
+          res,
+          400,
+          'AUTH_RESET_TOKEN_EXPIRED',
+          '비밀번호 재설정 링크가 만료되었습니다. 다시 요청해주세요.'
+        );
       }
 
       try {
-        // 2) 비밀번호 해시 후 토큰 삭제
-        const hashedPw = await bcrypt.hash(newPw, 10);
+        const hashedPw = await bcrypt.hash(passwordValidation.normalized, 10);
 
         db.run(
           `
@@ -706,13 +994,21 @@ router.post('/password-reset', passwordLimiter, async (req, res) => {
           WHERE id = ?
           `,
           [hashedPw, user.id],
-          function (updateErr) {
+          async (updateErr) => {
             if (updateErr) {
               console.error(updateErr);
-              return res.status(500).json({
-                ok: false,
-                message: '비밀번호 변경 중 오류가 발생했습니다.',
-              });
+              return sendAuthError(
+                res,
+                500,
+                'AUTH_RESET_UPDATE_FAILED',
+                '비밀번호 변경 중 오류가 발생했습니다.'
+              );
+            }
+
+            try {
+              await revokeAllAuthSessionsForUser(user.id, 'password_reset');
+            } catch (revokeErr) {
+              console.error('[password-reset] revoke sessions failed:', revokeErr);
             }
 
             return res.json({
@@ -723,109 +1019,223 @@ router.post('/password-reset', passwordLimiter, async (req, res) => {
         );
       } catch (hashErr) {
         console.error(hashErr);
-        return res
-          .status(500)
-          .json({ ok: false, message: '서버 오류가 발생했습니다.' });
+        return sendAuthError(res, 500, 'AUTH_RESET_INTERNAL_ERROR', '서버 오류가 발생했습니다.');
       }
     }
   );
 });
 
 // 6-5) 로그인
-router.post('/login', loginLimiter, (req, res) => {
-  const { email, pw } = req.body;
+router.post('/login', loginLimiter, async (req, res) => {
+  const { email, pw, remember } = req.body || {};
+  const normalizedEmail = normalizeEmail(email);
+  const rememberMe = normalizeBoolean(remember);
 
-  if (!email || !pw) {
-    return res
-      .status(400)
-      .json({ ok: false, message: '이메일과 비밀번호를 입력하세요.' });
+  if (!normalizedEmail || !pw) {
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_LOGIN_REQUIRED_FIELDS',
+      '이메일과 비밀번호를 입력하세요.',
+      {
+        field_errors: {
+          ...(normalizedEmail ? {} : { email: '이메일을 입력해주세요.' }),
+          ...(pw ? {} : { pw: '비밀번호를 입력해주세요.' }),
+        },
+      }
+    );
   }
 
-  // 입력된 이메일을 소문자로 정리
-  const normalizedEmail = email.trim().toLowerCase();
+  try {
+    const user = await dbGet('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
 
-  db.get(
-    'SELECT * FROM users WHERE email = ?',
-    [normalizedEmail],
-    async (err, user) => {
-      if (err) {
-        console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
-      }
-
-      const invalidCredentialsResponse = () =>
-        res.status(401).json({
-          ok: false,
-          message: '이메일 또는 비밀번호가 올바르지 않습니다.',
+    if (user) {
+      const loginState = await getLoginState(user.id);
+      const retryAfter = calculateLockRetrySeconds(loginState?.locked_until);
+      if (retryAfter > 0) {
+        await logLoginEvent({
+          userId: user.id,
+          email: normalizedEmail,
+          req,
+          outcome: 'locked',
+          failureCode: 'AUTH_ACCOUNT_LOCKED',
+          rememberMe,
         });
-
-      if (!user) {
-        return invalidCredentialsResponse();
+        return sendAuthError(
+          res,
+          423,
+          'AUTH_ACCOUNT_LOCKED',
+          '로그인 시도가 제한되었습니다. 잠시 후 다시 시도해주세요.',
+          { retry_after: retryAfter }
+        );
       }
-
-      const match = await bcrypt.compare(pw, user.pw);
-      if (!match) {
-        return invalidCredentialsResponse();
-      }
-
-      const token = jwt.sign(
-        {
-          id: user.id,
-          name: user.name,
-          nickname: user.nickname,
-          email: user.email,
-          isAdmin: !!user.is_admin,
-          isVerified: !!user.is_verified,
-        },
-        JWT_SECRET,
-        {
-          expiresIn: '2h',
-          algorithm: JWT_ALGORITHM,
-          issuer: JWT_ISSUER,
-          audience: JWT_AUDIENCE,
-        }
-      );
-
-      const tokenMaxAgeMs = 2 * 60 * 60 * 1000; // 2h, JWT 만료와 동일하게 유지
-
-      res.cookie('token', token, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        maxAge: tokenMaxAgeMs,
-      });
-
-      logUxEvent({
-        user_id: user.id,
-        event_name: 'login_success',
-        source: 'server_auth',
-      }).catch((eventErr) => {
-        console.error('login ux event 기록 실패:', eventErr);
-      });
-
-      return res.json({
-        ok: true,
-        message: `환영합니다, ${user.name}님!`,
-        name: user.name,
-        nickname: user.nickname || null,
-        // ✅ 모바일(Expo/RN)에서 쿠키보다 안정적인 Bearer 인증을 위해 토큰도 함께 반환
-        token,
-      });
     }
-  );
+
+    const invalidCredentials = async (withLockStateUser) => {
+      if (withLockStateUser?.id) {
+        const result = await registerLoginFailure(withLockStateUser.id);
+        if (result.locked) {
+          await logLoginEvent({
+            userId: withLockStateUser.id,
+            email: normalizedEmail,
+            req,
+            outcome: 'locked',
+            failureCode: 'AUTH_ACCOUNT_LOCKED',
+            rememberMe,
+          });
+          return sendAuthError(
+            res,
+            423,
+            'AUTH_ACCOUNT_LOCKED',
+            '로그인 시도가 제한되었습니다. 잠시 후 다시 시도해주세요.',
+            { retry_after: result.retry_after }
+          );
+        }
+      }
+
+      await logLoginEvent({
+        userId: withLockStateUser?.id || null,
+        email: normalizedEmail,
+        req,
+        outcome: 'failure',
+        failureCode: 'AUTH_INVALID_CREDENTIALS',
+        rememberMe,
+      });
+
+      return sendAuthError(
+        res,
+        401,
+        'AUTH_INVALID_CREDENTIALS',
+        '이메일 또는 비밀번호가 올바르지 않습니다.',
+        { field_errors: { email: '이메일 또는 비밀번호를 확인해주세요.' } }
+      );
+    };
+
+    if (!user) {
+      return invalidCredentials(null);
+    }
+
+    const match = await bcrypt.compare(String(pw), user.pw);
+    if (!match) {
+      return invalidCredentials(user);
+    }
+
+    await clearLoginState(user.id);
+
+    const tokenTtlMs = getSessionTtlMs(rememberMe);
+    const session = await createAuthSession({
+      userId: user.id,
+      rememberMe,
+      req,
+    });
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        sid: session.sid,
+        name: user.name,
+        nickname: user.nickname,
+        email: user.email,
+        isAdmin: !!user.is_admin,
+        isVerified: !!user.is_verified,
+      },
+      JWT_SECRET,
+      {
+        expiresIn: Math.floor(tokenTtlMs / 1000),
+        algorithm: JWT_ALGORITHM,
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+      }
+    );
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: tokenTtlMs,
+    });
+
+    await logLoginEvent({
+      userId: user.id,
+      email: normalizedEmail,
+      req,
+      outcome: 'success',
+      failureCode: null,
+      rememberMe,
+    });
+
+    logUxEvent({
+      user_id: user.id,
+      event_name: 'login_success',
+      source: 'server_auth',
+    }).catch((eventErr) => {
+      console.error('login ux event 기록 실패:', eventErr);
+    });
+
+    return res.json({
+      ok: true,
+      message: `환영합니다, ${user.name}님!`,
+      name: user.name,
+      nickname: user.nickname || null,
+      token,
+      remember_me: rememberMe,
+      session_expires_at: session.expiresAt,
+    });
+  } catch (error) {
+    console.error('[login] error:', error);
+    return sendAuthError(res, 500, 'AUTH_LOGIN_INTERNAL_ERROR', '로그인 처리 중 오류가 발생했습니다.');
+  }
 });
 
 // 6-6) 로그아웃
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+  try {
+    const token = extractToken(req);
+    const decoded = await verifyJwtOrNull(token);
+    if (decoded?.sid) {
+      await revokeAuthSession(decoded.sid, 'logout');
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[logout] failed to revoke current session:', error);
+    }
+  }
+
   res.clearCookie('token', {
     path: '/',
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
   });
-  res.json({ ok: true, message: '로그아웃되었습니다.' });
+  return res.json({ ok: true, message: '로그아웃되었습니다.' });
+});
+
+router.post('/logout-all', authRequired, async (req, res) => {
+  try {
+    await revokeAllAuthSessionsForUser(req.user.id, 'logout_all');
+  } catch (error) {
+    console.error('[logout-all] failed to revoke sessions:', error);
+    return sendAuthError(res, 500, 'AUTH_LOGOUT_ALL_FAILED', '전체 로그아웃 처리 중 오류가 발생했습니다.');
+  }
+
+  res.clearCookie('token', {
+    path: '/',
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  });
+
+  return res.json({ ok: true, message: '모든 기기에서 로그아웃되었습니다.' });
+});
+
+router.get('/me/sessions', authRequired, async (req, res) => {
+  try {
+    const currentSid = typeof req.user?.sid === 'string' ? req.user.sid : null;
+    const sessions = await listActiveSessionsForUser(req.user.id, currentSid);
+    return res.json({ ok: true, sessions });
+  } catch (error) {
+    console.error('[me/sessions] error:', error);
+    return sendAuthError(res, 500, 'AUTH_SESSIONS_FETCH_FAILED', '세션 정보를 불러오지 못했습니다.');
+  }
 });
 
 // 7-1) 내 정보 조회
@@ -847,7 +1257,7 @@ router.get('/me', authRequired, (req, res) => {
       COALESCE(xp, 0) AS xp,
       COALESCE(streak_days, 0) AS streak_days,
       COALESCE(max_streak_days, 0) AS max_streak_days,
-      (SELECT COUNT(*) FROM follows f1 WHERE f1.followee_id = users.id)   AS follower_count,
+      (SELECT COUNT(*) FROM follows f1 WHERE f1.followee_id = users.id) AS follower_count,
       (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = users.id) AS following_count
     FROM users
     WHERE id = ?
@@ -856,19 +1266,14 @@ router.get('/me', authRequired, (req, res) => {
     (err, row) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
+        return sendAuthError(res, 500, 'AUTH_ME_FETCH_FAILED', 'DB 오류가 발생했습니다.');
       }
 
       if (!row) {
-        return res
-          .status(404)
-          .json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
+        return sendAuthError(res, 404, 'AUTH_USER_NOT_FOUND', '사용자를 찾을 수 없습니다.');
       }
 
-      // 기본 프로필 + 팔로워/팔로잉 집계 응답
-      res.json({
+      return res.json({
         ok: true,
         message: '내 정보를 불러왔습니다.',
         id: row.id,
@@ -913,9 +1318,12 @@ router.get('/me/followings', authRequired, (req, res) => {
     (err, rows) => {
       if (err) {
         console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '팔로잉 목록을 불러오는 중 오류가 발생했습니다.' });
+        return sendAuthError(
+          res,
+          500,
+          'AUTH_FOLLOWINGS_FETCH_FAILED',
+          '팔로잉 목록을 불러오는 중 오류가 발생했습니다.'
+        );
       }
 
       const followings = (rows || []).map((row) => ({
@@ -938,7 +1346,6 @@ router.get('/me/followings', authRequired, (req, res) => {
 });
 
 // 7-2) 내 정보 수정
-// - 닉네임/소개/비밀번호 변경을 한 번의 요청에서 처리
 router.put('/me', authRequired, (req, res) => {
   const userId = req.user.id;
   const { nickname, currentPw, newPw, bio, about } = req.body || {};
@@ -965,10 +1372,7 @@ router.put('/me', authRequired, (req, res) => {
 
   if (!wantsPwChange) {
     if (fields.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        message: '변경할 내용을 입력하세요.',
-      });
+      return sendAuthError(res, 400, 'AUTH_PROFILE_NO_CHANGES', '변경할 내용을 입력하세요.');
     }
 
     params.push(userId);
@@ -980,13 +1384,10 @@ router.put('/me', authRequired, (req, res) => {
       WHERE id = ?
       `,
       params,
-      function (updateErr) {
+      (updateErr) => {
         if (updateErr) {
           console.error(updateErr);
-          return res.status(500).json({
-            ok: false,
-            message: '내 정보 수정 중 오류가 발생했습니다.',
-          });
+          return sendAuthError(res, 500, 'AUTH_PROFILE_UPDATE_FAILED', '내 정보 수정 중 오류가 발생했습니다.');
         }
 
         return res.json({
@@ -999,49 +1400,53 @@ router.put('/me', authRequired, (req, res) => {
   }
 
   if (!currentPw) {
-    return res.status(400).json({
-      ok: false,
-      message: '비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.',
-    });
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_CURRENT_PASSWORD_REQUIRED',
+      '비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.',
+      { field_errors: { currentPw: '현재 비밀번호를 입력해주세요.' } }
+    );
+  }
+
+  const passwordValidation = isStrongPassword(newPw);
+  if (!passwordValidation.ok) {
+    return sendAuthError(
+      res,
+      400,
+      passwordValidation.code,
+      passwordValidation.message,
+      { field_errors: { newPw: passwordValidation.fieldErrors.pw } }
+    );
   }
 
   db.get('SELECT pw FROM users WHERE id = ?', [userId], async (err, user) => {
     if (err) {
       console.error(err);
-      return res
-        .status(500)
-        .json({ ok: false, message: 'DB 오류가 발생했습니다.' });
+      return sendAuthError(res, 500, 'AUTH_PROFILE_FETCH_FAILED', 'DB 오류가 발생했습니다.');
     }
 
     if (!user) {
-      return res
-        .status(404)
-        .json({ ok: false, message: '사용자를 찾을 수 없습니다.' });
+      return sendAuthError(res, 404, 'AUTH_USER_NOT_FOUND', '사용자를 찾을 수 없습니다.');
     }
 
     const okPw = await bcrypt.compare(currentPw, user.pw);
     if (!okPw) {
-      return res
-        .status(400)
-        .json({ ok: false, message: '현재 비밀번호가 일치하지 않습니다.' });
+      return sendAuthError(
+        res,
+        400,
+        'AUTH_CURRENT_PASSWORD_MISMATCH',
+        '현재 비밀번호가 일치하지 않습니다.',
+        { field_errors: { currentPw: '현재 비밀번호가 올바르지 않습니다.' } }
+      );
     }
 
-    if (!newPw || newPw.length < 6) {
-      return res.status(400).json({
-        ok: false,
-        message: '새 비밀번호는 최소 6자 이상이어야 합니다.',
-      });
-    }
-
-    const newHashedPw = await bcrypt.hash(newPw, 10);
+    const newHashedPw = await bcrypt.hash(passwordValidation.normalized, 10);
     fields.push('pw = ?');
     params.push(newHashedPw);
 
     if (fields.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        message: '변경할 내용을 입력하세요.',
-      });
+      return sendAuthError(res, 400, 'AUTH_PROFILE_NO_CHANGES', '변경할 내용을 입력하세요.');
     }
 
     params.push(userId);
@@ -1053,13 +1458,10 @@ router.put('/me', authRequired, (req, res) => {
       WHERE id = ?
       `,
       params,
-      function (updateErr) {
+      (updateErr) => {
         if (updateErr) {
           console.error(updateErr);
-          return res.status(500).json({
-            ok: false,
-            message: '내 정보 수정 중 오류가 발생했습니다.',
-          });
+          return sendAuthError(res, 500, 'AUTH_PROFILE_UPDATE_FAILED', '내 정보 수정 중 오류가 발생했습니다.');
         }
 
         return res.json({
