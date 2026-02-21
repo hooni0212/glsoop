@@ -70,3 +70,8 @@ playwright-report/
 # Notion sync local artifacts
 docs/work-notes/
 tools/notion-sync/sync.mjs
+
+# =========================
+# Docs (local only)
+# =========================
+/docs/
