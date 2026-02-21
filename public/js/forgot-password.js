@@ -1,15 +1,17 @@
 // public/js/forgot-password.js
 // "비밀번호 찾기" / "비밀번호 재설정 메일 보내기" 페이지 스크립트
-// - 이메일을 입력받아 /api/password-reset-request 엔드포인트에 요청
-// - 처리 결과에 따라 메세지 영역에 안내 문구 출력
-// - 전송 중일 때 버튼 비활성화 + 로딩 문구 표시
+
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 폼 요소와 메시지 출력 영역, 전송 버튼 가져오기
   const form = document.getElementById('forgotForm');
   if (!form) return;
+
   const msgEl = document.getElementById('forgotMessage');
   const submitBtn = form.querySelector('button[type="submit"]');
+  const emailInput = form.querySelector('input[name="email"]');
+  const authUtils = window.glsoopAuthFormUtils || null;
+  let stopRetryCountdown = null;
+
   const setFormMessage = (message, type = 'info', focus = false) => {
     if (!msgEl) return;
     if (window.glsoopUi && typeof window.glsoopUi.setFeedbackMessage === 'function') {
@@ -18,7 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     msgEl.textContent = message || '';
   };
+
   const clearFormMessage = () => {
+    if (stopRetryCountdown) {
+      stopRetryCountdown();
+      stopRetryCountdown = null;
+    }
     if (!msgEl) return;
     if (window.glsoopUi && typeof window.glsoopUi.clearFeedbackMessage === 'function') {
       window.glsoopUi.clearFeedbackMessage(msgEl);
@@ -26,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     msgEl.textContent = '';
   };
+
   const showNotice = (message, type = 'info') => {
     if (!window.glsoopUi || typeof window.glsoopUi.showPageNotice !== 'function') return;
     window.glsoopUi.showPageNotice(message, {
@@ -34,52 +42,88 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  // 폼 제출 이벤트 처리
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault(); // 기본 폼 제출(페이지 새로고침) 막기
+  if (emailInput && authUtils) {
+    emailInput.addEventListener('blur', () => {
+      const value = (emailInput.value || '').trim();
+      const valid = !value || authUtils.validateEmail(value);
+      authUtils.setFieldInvalid(emailInput, !valid);
+    });
+    emailInput.addEventListener('input', () => authUtils.setFieldInvalid(emailInput, false));
+  }
 
-    // 입력한 이메일 값 읽기
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
     const email = form.email.value.trim();
+    clearFormMessage();
+    if (authUtils) authUtils.clearFieldErrors(form);
+
     if (!email) {
       setFormMessage('이메일을 입력해주세요.', 'error', true);
-      if (form.email) form.email.focus();
+      if (authUtils && emailInput) authUtils.setFieldInvalid(emailInput, true);
+      if (emailInput) emailInput.focus();
       return;
     }
 
-    // ===== 전송 시작: UI 준비 =====
-    // 메시지 영역 초기화 + 로딩 문구 표시
-    clearFormMessage();
+    if (authUtils && !authUtils.validateEmail(email)) {
+      setFormMessage('이메일 형식을 확인해주세요.', 'error', true);
+      if (emailInput) {
+        authUtils.setFieldInvalid(emailInput, true);
+        emailInput.focus();
+      }
+      return;
+    }
+
     setFormMessage('메일을 보내는 중입니다...', 'info');
 
-    // 버튼 비활성화 + 버튼 텍스트 "전송 중..." 으로 변경
     if (submitBtn) {
       submitBtn.disabled = true;
-      // 나중에 원래 텍스트로 돌리기 위해 data-original-text에 백업
-      submitBtn.dataset.originalText =
-        submitBtn.dataset.originalText || submitBtn.textContent;
+      submitBtn.dataset.originalText = submitBtn.dataset.originalText || submitBtn.textContent;
       submitBtn.textContent = '전송 중...';
     }
 
     try {
-      // /api/password-reset-request 엔드포인트 호출
-      // - body: { email }
       const res = await fetch('/api/password-reset-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
-      // 서버에서 내려준 message 사용, 없으면 기본 문구
-      if (data.ok) {
+      if (res.ok && data.ok) {
         setFormMessage(data.message || '요청이 처리되었습니다.', 'success');
         showNotice(data.message || '재설정 메일 안내를 확인해주세요.', 'success');
-      } else {
-        setFormMessage(data.message || '요청 처리 중 오류가 발생했습니다.', 'error', true);
+        return;
+      }
+
+      const errorMessage =
+        authUtils && typeof authUtils.buildErrorMessage === 'function'
+          ? authUtils.buildErrorMessage({
+              code: data && data.code,
+              message: data && data.message,
+              retryAfter: null,
+            })
+          : data.message || '요청 처리 중 오류가 발생했습니다.';
+
+      const firstInvalid =
+        authUtils && typeof authUtils.applyFieldErrors === 'function'
+          ? authUtils.applyFieldErrors(form, data && data.field_errors)
+          : null;
+
+      setFormMessage(errorMessage, 'error', true);
+
+      const retryAfter = Number(data && data.retry_after);
+      if (authUtils && retryAfter > 0 && msgEl) {
+        stopRetryCountdown = authUtils.startRetryCountdown(msgEl, retryAfter, (remaining) => {
+          setFormMessage(`${errorMessage} (${remaining}초 후 재시도)`, 'error', false);
+        });
+      }
+
+      if (firstInvalid && typeof firstInvalid.focus === 'function') {
+        firstInvalid.focus();
       }
     } catch (err) {
-      // 네트워크 에러 등 예외 처리
       console.error(err);
       setFormMessage(
         '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
@@ -87,12 +131,9 @@ document.addEventListener('DOMContentLoaded', () => {
         true
       );
     } finally {
-      // ===== 전송 종료: 버튼 상태 복구 =====
       if (submitBtn) {
         submitBtn.disabled = false;
-        // 원래 텍스트가 저장돼있으면 복구, 없으면 기본값 사용
-        submitBtn.textContent =
-          submitBtn.dataset.originalText || '재설정 메일 보내기';
+        submitBtn.textContent = submitBtn.dataset.originalText || '재설정 메일 보내기';
       }
     }
   });

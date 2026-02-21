@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
       typeof window.glsoopUi.ensureFormFeedbackElement === 'function' &&
       window.glsoopUi.ensureFormFeedbackElement(form, 'signupMessage')) ||
     document.getElementById('signupMessage');
+  const authUtils = window.glsoopAuthFormUtils || null;
+  const pwStrengthEl = document.getElementById('signupPwStrength');
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -38,6 +40,16 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     feedbackEl.textContent = '';
+  };
+
+  const clearFieldErrors = () => {
+    if (!authUtils || typeof authUtils.clearFieldErrors !== 'function') return;
+    authUtils.clearFieldErrors(form);
+  };
+
+  const applyFieldErrors = (fieldErrors) => {
+    if (!authUtils || typeof authUtils.applyFieldErrors !== 'function') return null;
+    return authUtils.applyFieldErrors(form, fieldErrors || {});
   };
 
   trackEvent('signup_view');
@@ -74,6 +86,35 @@ document.addEventListener('DOMContentLoaded', () => {
   // 🔒 중복 제출 방지용 플래그 (요청 중일 때 true)
   let submitting = false;
 
+  const nameInput = form.querySelector('input[name="name"], input#name');
+  const nicknameInput = form.querySelector('input[name="nickname"], input#nickname');
+  const emailInput = form.querySelector('input[name="email"], input#email');
+  const pwInput = form.querySelector('input[name="pw"], input[name="password"], input#pw, input#password');
+
+  if (pwInput && authUtils) {
+    authUtils.renderPasswordStrength(pwStrengthEl, pwInput.value || '');
+    pwInput.addEventListener('input', () => {
+      authUtils.renderPasswordStrength(pwStrengthEl, pwInput.value || '');
+      authUtils.setFieldInvalid(pwInput, false);
+    });
+  }
+
+  if (emailInput && authUtils) {
+    emailInput.addEventListener('blur', () => {
+      const value = (emailInput.value || '').trim();
+      const valid = !value || authUtils.validateEmail(value);
+      authUtils.setFieldInvalid(emailInput, !valid);
+    });
+    emailInput.addEventListener('input', () => authUtils.setFieldInvalid(emailInput, false));
+  }
+
+  if (nameInput && authUtils) {
+    nameInput.addEventListener('input', () => authUtils.setFieldInvalid(nameInput, false));
+  }
+  if (nicknameInput && authUtils) {
+    nicknameInput.addEventListener('input', () => authUtils.setFieldInvalid(nicknameInput, false));
+  }
+
   // 폼 전송 이벤트 리스너 등록
   form.addEventListener('submit', async (e) => {
     e.preventDefault(); // 기본 폼 제출(페이지 새로고침) 막기
@@ -83,29 +124,17 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     clearFormMessage();
+    clearFieldErrors();
 
     trackEvent('signup_submit_clicked');
 
-    // --- 1) 입력 필드 찾기 ---
-    // name 속성이든, id 속성이든 대응할 수 있도록 둘 다 검색
-    const nameInput =
-      form.querySelector('input[name="name"], input#name') || null;
-    const nicknameInput =
-      form.querySelector('input[name="nickname"], input#nickname') || null;
-    const emailInput =
-      form.querySelector('input[name="email"], input#email') || null;
-    const pwInput =
-      form.querySelector(
-        'input[name="pw"], input[name="password"], input#pw, input#password'
-      ) || null;
-
-    // --- 2) 입력 값 읽어서 공백 제거 ---
+    // --- 1) 입력 값 읽어서 공백 제거 ---
     const name = nameInput ? nameInput.value.trim() : '';
     const nickname = nicknameInput ? nicknameInput.value.trim() : '';
     const email = emailInput ? emailInput.value.trim() : '';
     const pw = pwInput ? pwInput.value.trim() : '';
 
-    // --- 3) 필수값 체크 ---
+    // --- 2) 필수값 체크 ---
     // 닉네임 필드는 실제로 DOM에 존재할 때만 필수 항목으로 취급
     const needNickname = !!nicknameInput;
 
@@ -116,15 +145,42 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       setFormMessage('이름, 닉네임, 이메일, 비밀번호를 모두 입력하세요.', 'error', true);
       if (!name && nameInput) {
+        if (authUtils) authUtils.setFieldInvalid(nameInput, true);
         nameInput.focus();
       } else if (needNickname && !nickname && nicknameInput) {
+        if (authUtils) authUtils.setFieldInvalid(nicknameInput, true);
         nicknameInput.focus();
       } else if (!email && emailInput) {
+        if (authUtils) authUtils.setFieldInvalid(emailInput, true);
         emailInput.focus();
       } else if (!pw && pwInput) {
+        if (authUtils) authUtils.setFieldInvalid(pwInput, true);
         pwInput.focus();
       }
       return;
+    }
+
+    if (authUtils && !authUtils.validateEmail(email)) {
+      trackEvent('signup_validation_error', {
+        reason: 'invalid_email_format',
+      });
+      if (emailInput) authUtils.setFieldInvalid(emailInput, true);
+      setFormMessage('이메일 형식을 확인해주세요.', 'error', true);
+      if (emailInput) emailInput.focus();
+      return;
+    }
+
+    if (authUtils) {
+      const passwordStrength = authUtils.evaluatePasswordStrength(pw);
+      if (!passwordStrength.isStrong) {
+        trackEvent('signup_validation_error', {
+          reason: 'weak_password',
+        });
+        if (pwInput) authUtils.setFieldInvalid(pwInput, true);
+        setFormMessage('비밀번호는 8자 이상, 영문/숫자를 포함해야 합니다.', 'error', true);
+        if (pwInput) pwInput.focus();
+        return;
+      }
     }
 
     // 여기까지 통과하면 실제로 서버에 요청 보내기 시작
@@ -176,8 +232,23 @@ document.addEventListener('DOMContentLoaded', () => {
         trackEvent('signup_api_error', {
           status: res.status || null,
           has_message: Boolean(data && data.message),
+          code: data && data.code ? data.code : null,
         });
-        setFormMessage(data.message || '회원가입 중 오류가 발생했습니다.', 'error', true);
+        const errorMessage =
+          authUtils && typeof authUtils.buildErrorMessage === 'function'
+            ? authUtils.buildErrorMessage({
+                code: data && data.code,
+                message: data && data.message,
+                retryAfter: data && data.retry_after,
+              })
+            : data.message || '회원가입 중 오류가 발생했습니다.';
+        const firstInvalid = applyFieldErrors(data && data.field_errors);
+        setFormMessage(errorMessage, 'error', true);
+        if (firstInvalid && typeof firstInvalid.focus === 'function') {
+          firstInvalid.focus();
+        } else if (authUtils && typeof authUtils.focusFirstInvalid === 'function') {
+          authUtils.focusFirstInvalid(form);
+        }
         return; // 여기서 종료 → 아래 성공 처리로 내려가지 않음
       }
 

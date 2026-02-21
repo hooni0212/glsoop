@@ -187,6 +187,7 @@ async function loadMyPage() {
      modalEl.removeAttribute('hidden');
      modalEl.setAttribute('aria-hidden', 'false');
     }
+    loadMySessionsPanel();
    });
   }
 
@@ -207,6 +208,7 @@ async function loadMyPage() {
   }
 
   await loadGrowthMiniWidget();
+  await loadMySessionsPanel();
 
   // 기본 탭: "내가 쓴 글" 목록 로드
   await loadMyPosts();
@@ -255,6 +257,118 @@ async function loadGrowthMiniWidget() {
   console.error(error);
   summaryText.textContent = '성장 정보를 불러오지 못했습니다.';
   widget.classList.remove('gls-hidden');
+ }
+}
+
+async function loadMySessionsPanel() {
+ const sessionsListEl = document.getElementById('mySessionsList');
+ const sessionsMsgEl = document.getElementById('mySessionsMessage');
+ if (!sessionsListEl) return;
+
+ sessionsListEl.innerHTML = '<p class="gls-text-muted gls-mb-0">세션 정보를 불러오는 중입니다...</p>';
+ if (sessionsMsgEl) {
+  sessionsMsgEl.textContent = '';
+  sessionsMsgEl.classList.remove('text-danger', 'text-success');
+ }
+
+ try {
+  const res = await fetch('/api/me/sessions', { cache: 'no-store' });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok || !data.ok || !Array.isArray(data.sessions)) {
+   const message = (data && data.message) || '세션 정보를 불러오지 못했습니다.';
+   sessionsListEl.innerHTML = `<p class="text-danger gls-mb-0">${escapeHtml(message)}</p>`;
+   return;
+  }
+
+  if (data.sessions.length === 0) {
+   sessionsListEl.innerHTML = '<p class="gls-text-muted gls-mb-0">활성 세션이 없습니다.</p>';
+   return;
+  }
+
+  sessionsListEl.innerHTML = data.sessions
+   .map((session) => {
+    const createdAt = formatKoreanDateTime(session.created_at);
+    const lastSeenAt = formatKoreanDateTime(session.last_seen_at);
+    const expiresAt = formatKoreanDateTime(session.expires_at);
+    const rememberText = session.remember_me ? '자동 로그인 30일' : '기본 세션 2시간';
+    const currentBadge = session.current
+     ? '<span class="pill gls-text-xxs">현재 기기</span>'
+     : '<span class="pill gls-text-xxs">다른 기기</span>';
+    const ipHint = session.ip_hint ? escapeHtml(session.ip_hint) : '-';
+    const userAgent = escapeHtml(session.user_agent || '알 수 없는 기기');
+
+    return `
+      <div class="gls-mb-2 gls-p-2 gls-antique-paper gls-antique-paper--stone">
+        <div class="gls-flex gls-justify-between gls-items-center gls-gap-2 gls-mb-1">
+          <strong>${userAgent}</strong>
+          ${currentBadge}
+        </div>
+        <div class="gls-text-small gls-text-muted">
+          <div>생성: ${escapeHtml(createdAt || '-')}</div>
+          <div>최근 활동: ${escapeHtml(lastSeenAt || '-')}</div>
+          <div>만료: ${escapeHtml(expiresAt || '-')}</div>
+          <div>${escapeHtml(rememberText)} · ${ipHint}</div>
+        </div>
+      </div>
+    `;
+   })
+   .join('');
+ } catch (error) {
+  console.error(error);
+  sessionsListEl.innerHTML =
+   '<p class="text-danger gls-mb-0">세션 정보를 불러오는 중 오류가 발생했습니다.</p>';
+ }
+}
+
+async function logoutAllSessions() {
+ const sessionsMsgEl = document.getElementById('mySessionsMessage');
+ const logoutAllBtn = document.getElementById('logoutAllSessionsBtn');
+
+ if (logoutAllBtn) {
+  logoutAllBtn.disabled = true;
+  logoutAllBtn.dataset.originalText =
+   logoutAllBtn.dataset.originalText || logoutAllBtn.textContent;
+  logoutAllBtn.textContent = '처리 중...';
+ }
+
+ if (sessionsMsgEl) {
+  sessionsMsgEl.textContent = '';
+  sessionsMsgEl.classList.remove('text-danger', 'text-success');
+ }
+
+ try {
+  const res = await fetch('/api/logout-all', { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok || !data.ok) {
+   const message = (data && data.message) || '전체 로그아웃 처리 중 오류가 발생했습니다.';
+   if (sessionsMsgEl) {
+    sessionsMsgEl.textContent = message;
+    sessionsMsgEl.classList.add('text-danger');
+   }
+   return;
+  }
+
+  if (sessionsMsgEl) {
+   sessionsMsgEl.textContent = data.message || '모든 기기에서 로그아웃되었습니다.';
+   sessionsMsgEl.classList.add('text-success');
+  }
+
+  setTimeout(() => {
+   window.location.href = '/html/login.html?from=logout-all';
+  }, 700);
+ } catch (error) {
+  console.error(error);
+  if (sessionsMsgEl) {
+   sessionsMsgEl.textContent = '전체 로그아웃 처리 중 오류가 발생했습니다.';
+   sessionsMsgEl.classList.add('text-danger');
+  }
+ } finally {
+  if (logoutAllBtn) {
+   logoutAllBtn.disabled = false;
+   logoutAllBtn.textContent = logoutAllBtn.dataset.originalText || '모든 기기 로그아웃';
+  }
  }
 }
 
@@ -872,6 +986,7 @@ function setupUserEditForm() {
  const currentPwInput = document.getElementById('currentPwInput');
  const newPwInput = document.getElementById('newPwInput');
  const newPwConfirmInput = document.getElementById('newPwConfirmInput');
+ const logoutAllBtn = document.getElementById('logoutAllSessionsBtn');
 
  // 결과/에러 메시지 출력용 span
  const messageSpan = document.getElementById('userEditMessage');
@@ -879,6 +994,14 @@ function setupUserEditForm() {
  // 폼이 없는 경우(레이아웃 변경 등)에는 아무 것도 하지 않음
  if (!form) {
   return;
+ }
+
+ if (logoutAllBtn && !logoutAllBtn.dataset.bound) {
+  logoutAllBtn.dataset.bound = '1';
+  logoutAllBtn.addEventListener('click', (e) => {
+   e.preventDefault();
+   logoutAllSessions();
+  });
  }
 
  // 폼 제출(submit) 이벤트 처리
@@ -930,12 +1053,12 @@ function setupUserEditForm() {
     return;
    }
 
-   // 새 비밀번호 길이 제한 (간단 검증)
-   if (newPw.length < 6) {
+   // 새 비밀번호 정책
+   if (newPw.length < 8 || !/[a-zA-Z]/.test(newPw) || !/\d/.test(newPw)) {
     if (messageSpan) {
      messageSpan.classList.add('text-danger');
      messageSpan.textContent =
-      '비밀번호는 최소 6자 이상이 좋습니다.';
+      '비밀번호는 8자 이상, 영문과 숫자를 포함해야 합니다.';
     }
     return;
    }

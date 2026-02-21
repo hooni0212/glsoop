@@ -98,7 +98,7 @@
       </div>
 
       <!-- 회원가입 폼 -->
-      <form id="signupForm" class="auth-form-shell">
+      <form id="signupForm" class="auth-form-shell gls-antique-paper gls-antique-paper--mix">
         <div
           id="signupMessage"
           class="gls-feedback gls-feedback--info gls-mb-3"
@@ -108,7 +108,7 @@
         ></div>
 
         <!-- ✅ 약관 / 개인정보 동의 영역 (제목 바로 아래에 위치) -->
-        <div class="auth-agreement-box gls-mb-4 gls-p-3">
+        <div class="auth-agreement-box gls-mb-4 gls-p-3 gls-antique-paper gls-antique-paper--moss">
           <!-- 전체 동의 체크박스: 모든 하위 항목을 한 번에 토글 -->
           <div class="gls-check gls-mb-2">
             <input class="gls-check-input" type="checkbox" id="agreeAll">
@@ -189,6 +189,9 @@
         <div class="gls-mb-3">
           <label class="gls-label">비밀번호</label>
           <input type="password" name="pw" class="gls-input" required>
+          <div id="signupPwStrength" class="gls-text-small gls-text-muted gls-mt-1">
+            비밀번호 강도: 입력 대기
+          </div>
         </div>
 
         <!-- 가입 버튼 -->
@@ -216,6 +219,7 @@
   <!-- JS 로드 순서 -->
   <!-- 공통 유틸 (escapeHtml, maskEmail 등) -->
   <script src="/js/utils.js"></script>
+  <script src="/js/auth-form-utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <!-- 헤더 로그인 상태 제어 스크립트 (/api/me 호출해서 before/after-login 토글) -->
   <script src="../js/theme.js" defer></script>
