@@ -9,9 +9,12 @@ const E2E_JWT_ALGORITHM = 'HS256';
 const E2E_JWT_ISSUER = 'glsoop';
 const E2E_JWT_AUDIENCE = 'glsoop-client';
 
-const USER_ID = 9831;
-const SESSION_ID = 'guard_active_session_9831';
-const EXPIRED_SESSION_ID = 'guard_expired_session_9831';
+const SID_SUFFIX = `${process.pid}`;
+const USER_ID = 9831000 + Number(process.pid);
+const USER_EMAIL = `guard-user-${SID_SUFFIX}@glsoop.test`;
+const USER_NICKNAME = `guard_user_${SID_SUFFIX}`;
+const SESSION_ID = `guard_active_session_9831_${SID_SUFFIX}`;
+const EXPIRED_SESSION_ID = `guard_expired_session_9831_${SID_SUFFIX}`;
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -45,8 +48,8 @@ const signToken = (sid) =>
       id: USER_ID,
       sid,
       name: 'Auth Guard User',
-      nickname: 'guard_user',
-      email: 'guard-user@glsoop.test',
+      nickname: USER_NICKNAME,
+      email: USER_EMAIL,
       isAdmin: false,
       isVerified: true,
     },
@@ -72,7 +75,7 @@ const seedGuardFixtures = async () => {
     db,
     `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, 0, 1)`,
-    [USER_ID, 'Auth Guard User', 'guard_user', 'guard-user@glsoop.test', 'password']
+    [USER_ID, 'Auth Guard User', USER_NICKNAME, USER_EMAIL, 'password']
   );
 
   await dbRun(
