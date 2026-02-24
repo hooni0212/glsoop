@@ -215,6 +215,56 @@
               </div>
             </div>
 
+            <div
+              id="adminDangerConfirmModal"
+              class="admin-modal gls-hidden admin-danger-modal"
+              role="dialog"
+              aria-modal="true"
+              data-admin-danger-confirm="1"
+            >
+              <div class="admin-modal__overlay" data-dismiss="adminDangerConfirmModal"></div>
+              <div class="admin-modal__dialog glass-card admin-danger-modal__dialog">
+                <div class="admin-modal__header">
+                  <div>
+                    <p class="gls-text-muted gls-text-small gls-mb-1">위험 작업 확인</p>
+                    <h5 id="adminDangerTitle" class="gls-mb-0">삭제 확인</h5>
+                  </div>
+                  <button
+                    class="gls-modal-close"
+                    type="button"
+                    id="adminDangerCancelTop"
+                    aria-label="닫기"
+                  ></button>
+                </div>
+                <div class="admin-modal__body">
+                  <p id="adminDangerMessage" class="gls-mb-3">
+                    이 작업은 되돌릴 수 없습니다.
+                  </p>
+                  <label for="adminDangerInput" class="gls-label">
+                    삭제하려면 <strong>DELETE</strong> 를 입력하세요.
+                  </label>
+                  <input
+                    id="adminDangerInput"
+                    class="gls-input"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                  <p class="gls-text-muted gls-text-small gls-mt-2 gls-mb-0">
+                    확인 입력 전에는 삭제 버튼이 활성화되지 않습니다.
+                  </p>
+                </div>
+                <div class="admin-modal__footer gls-flex gls-justify-end gls-gap-2">
+                  <button class="gls-btn gls-btn-secondary gls-btn-sm" type="button" id="adminDangerCancelBtn">
+                    취소
+                  </button>
+                  <button class="gls-btn gls-btn-danger gls-btn-sm" type="button" id="adminDangerConfirmBtn" disabled>
+                    삭제 실행
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div class="tab-panel gls-hidden" id="shareSummaryTab">
               <div class="admin-panel card glass-card gls-mb-4">
                 <div class="card-body">
@@ -297,6 +347,7 @@
   <!-- admin.html이 /html 안에 있으므로 ../js/header.js 경로 사용 -->
   <script src="../js/theme.js" defer></script>
   <script src="../js/header.js"></script>
+  <script src="../js/analytics.js"></script>
 
   <!-- 관리자 페이지 전용 스크립트 (관리자 권한 체크 + 유저/글 관리) -->
   <script src="../js/admin.js"></script>

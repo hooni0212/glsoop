@@ -6,32 +6,78 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 const POST_MOBILE_DOCK_MEDIA = '(max-width: 768px)';
+const POST_MOBILE_DOCK_SCROLL_THRESHOLD = 0.68;
+
+function trackUxEvent(eventName, properties = {}, options = {}) {
+  if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+    return;
+  }
+  window.glsoopAnalytics.trackEvent(eventName, properties, options);
+}
+
+function getPostDockTargets() {
+  return {
+    body: document.body,
+    dock: document.querySelector('[data-post-action-dock="1"]'),
+  };
+}
 
 function syncPostMobileDockClass() {
-  const body = document.body;
+  const { body, dock } = getPostDockTargets();
   if (!body || !body.classList.contains('page-post')) return;
+
   const isMobile = window.matchMedia
     ? window.matchMedia(POST_MOBILE_DOCK_MEDIA).matches
     : window.innerWidth <= 768;
-  body.classList.toggle('has-mobile-action-dock', isMobile);
+
+  if (!isMobile) {
+    body.classList.remove('has-mobile-action-dock');
+    body.dataset.postActionMode = 'inline';
+    return;
+  }
+
+  const doc = document.documentElement;
+  const scrollable = Math.max(1, doc.scrollHeight - window.innerHeight);
+  const progress = Math.max(0, Math.min(1, window.scrollY / scrollable));
+  const dockRect = dock?.getBoundingClientRect();
+  const inlineDockVisible = Boolean(
+    dockRect &&
+      dockRect.top < window.innerHeight - 12 &&
+      dockRect.bottom > (window.matchMedia('(max-width: 420px)').matches ? 0 : 10)
+  );
+  const shouldUseFloatingDock = progress >= POST_MOBILE_DOCK_SCROLL_THRESHOLD && !inlineDockVisible;
+
+  body.classList.toggle('has-mobile-action-dock', shouldUseFloatingDock);
+  body.dataset.postActionMode = shouldUseFloatingDock ? 'dock' : 'inline';
 }
 
 function bindPostMobileDockClass() {
   if (window.__glsoopPostDockBound) return;
   window.__glsoopPostDockBound = true;
+  let rafId = 0;
+  const syncOnFrame = () => {
+    if (rafId) return;
+    rafId = window.requestAnimationFrame(() => {
+      rafId = 0;
+      syncPostMobileDockClass();
+    });
+  };
   syncPostMobileDockClass();
 
   if (window.matchMedia) {
     const mq = window.matchMedia(POST_MOBILE_DOCK_MEDIA);
-    const onChange = () => syncPostMobileDockClass();
+    const onChange = () => syncOnFrame();
     if (typeof mq.addEventListener === 'function') {
       mq.addEventListener('change', onChange);
     } else if (typeof mq.addListener === 'function') {
       mq.addListener(onChange);
     }
   } else {
-    window.addEventListener('resize', syncPostMobileDockClass, { passive: true });
+    window.addEventListener('resize', syncOnFrame, { passive: true });
   }
+
+  window.addEventListener('scroll', syncOnFrame, { passive: true });
+  window.addEventListener('resize', syncOnFrame, { passive: true });
 }
 
 async function initPostDetailPage() {
@@ -427,6 +473,7 @@ function bindSideActions(card, post) {
     sideLikeBtn.dataset.boundSideLike = '1';
     sideLikeBtn.addEventListener('click', (e) => {
       e.preventDefault();
+      trackUxEvent('post_action_click', { action: 'like' });
       if (!likeBtn) return;
       likeBtn.click();
       // toggle는 비동기일 수 있어 두 번 동기화
@@ -449,6 +496,7 @@ function bindSideActions(card, post) {
     sideBookmarkBtn.dataset.boundSideBookmark = '1';
     sideBookmarkBtn.addEventListener('click', (e) => {
       e.preventDefault();
+      trackUxEvent('post_action_click', { action: 'bookmark' });
       if (!bookmarkBtn) return;
       bookmarkBtn.click();
     });
@@ -459,6 +507,7 @@ function bindSideActions(card, post) {
     sideShareBtn.dataset.boundSideShare = '1';
     sideShareBtn.addEventListener('click', (e) => {
       e.preventDefault();
+      trackUxEvent('post_action_click', { action: 'share' });
       try {
         ensureIgExportModal();
         window.__igExportTargetPost = post;

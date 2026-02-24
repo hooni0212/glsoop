@@ -311,6 +311,39 @@ body.page-admin .admin-modal__body {
   overflow: auto;
 }
 
+body.page-admin .admin-danger-modal__dialog {
+  border-color: rgba(185, 28, 28, 0.38);
+  box-shadow: 0 24px 46px rgba(127, 29, 29, 0.24);
+}
+
+body.page-admin .admin-danger-modal .admin-modal__body {
+  max-height: none;
+}
+
+body.page-admin .admin-danger-modal .gls-label {
+  font-weight: 700;
+}
+
+body.page-admin .admin-danger-modal .gls-input {
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+body.page-admin .admin-danger-modal .gls-btn-danger[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+body.page-admin :is(
+  .admin-delete-user-btn,
+  .admin-post-card__delete,
+  .quest-template-delete,
+  .quest-campaign-delete
+) {
+  min-height: var(--gls-touch-target-min, 44px);
+  border-color: rgba(185, 28, 28, 0.34);
+}
+
 @media (max-width: 1199.98px) {
   body.page-admin .admin-sidebar {
     position: static;
@@ -400,7 +433,23 @@ body.page-admin .admin-modal__body {
   }
 
   body.page-admin .admin-users-table tbody td[data-label='관리'] .gls-btn {
-    min-height: 32px;
+    min-height: var(--gls-touch-target-min, 44px);
     padding-inline: 10px;
+  }
+
+  body.page-admin .admin-users-table tbody td[data-label='관리'] {
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(185, 28, 28, 0.28);
+  }
+
+  body.page-admin :is(
+    .admin-delete-user-btn,
+    .admin-post-card__delete,
+    .quest-template-delete,
+    .quest-campaign-delete
+  ) {
+    min-width: 100%;
+    justify-content: center;
   }
 }

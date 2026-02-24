@@ -856,6 +856,37 @@ body.page-growth .skeleton-line.skeleton-line-sm {
 }
 
 @media (max-width: 767.98px) {
+  body.page-growth .growth-shell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gls-space-4);
+  }
+
+  body.page-growth #growthQuestSection {
+    order: 1;
+  }
+
+  body.page-growth #growthMobilePanelsSection {
+    order: 2;
+    margin-top: 0;
+  }
+
+  body.page-growth #growthForestSection {
+    order: 3;
+  }
+
+  body.page-growth #growthAchievementListSection {
+    order: 4;
+  }
+
+  body.page-growth #growthSummarySection {
+    order: 5;
+  }
+
+  body.page-growth #growthAchievementQuestSection {
+    order: 6;
+  }
+
   body.page-growth .growth-header {
     align-items: flex-start;
   }
@@ -867,6 +898,22 @@ body.page-growth .skeleton-line.skeleton-line-sm {
 
   body.page-growth .growth-level-card .card-body {
     gap: 14px;
+  }
+
+  body.page-growth .quest-card,
+  body.page-growth .achievement-card {
+    padding: 12px;
+  }
+
+  body.page-growth .quest-card__title,
+  body.page-growth .achievement-card-title {
+    font-size: max(0.9rem, var(--gls-fs-xs));
+  }
+
+  body.page-growth .quest-card__desc,
+  body.page-growth .achievement-card-copy {
+    font-size: max(0.875rem, var(--gls-fs-xs));
+    line-height: 1.45;
   }
 
   body.page-growth .growth-level-ring {

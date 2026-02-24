@@ -20,6 +20,13 @@ let achievementCache = [];
 let selectedAchievementFilter = readStoredAchievementFilter();
 let selectedMobilePanel = readStoredMobilePanel();
 
+function trackUxEvent(eventName, properties = {}, options = {}) {
+  if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+    return;
+  }
+  window.glsoopAnalytics.trackEvent(eventName, properties, options);
+}
+
 function getLevelEmoji(level) {
   const n = Number(level) || 0;
   if (n <= 0) return '🌰';
@@ -110,7 +117,7 @@ function syncGrowthViewTabButtons() {
 }
 
 function applyGrowthViewPanel(panel, options = {}) {
-  const { persist = true } = options;
+  const { persist = true, source = 'system' } = options;
   selectedMobilePanel = normalizeMobilePanel(panel);
 
   if (persist) {
@@ -136,6 +143,12 @@ function applyGrowthViewPanel(panel, options = {}) {
   }
 
   syncGrowthViewTabButtons();
+  if (source === 'user') {
+    trackUxEvent('growth_panel_switch', {
+      panel: selectedMobilePanel,
+      mobile: window.matchMedia('(max-width: 991.98px)').matches,
+    });
+  }
 }
 
 function bindGrowthViewTabs() {
@@ -145,7 +158,7 @@ function bindGrowthViewTabs() {
   tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       const panel = normalizeMobilePanel(tab.dataset.view || 'forest');
-      applyGrowthViewPanel(panel);
+      applyGrowthViewPanel(panel, { source: 'user' });
     });
   });
 

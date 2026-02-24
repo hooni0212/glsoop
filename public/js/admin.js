@@ -58,6 +58,15 @@ Glsoop.AdminPage = (function () {
     event: '이벤트',
   };
 
+  const DANGER_CONFIRM_TOKEN = 'DELETE';
+  const inFlightDangerActions = new Set();
+  const dangerModalState = {
+    bound: false,
+    resolver: null,
+    actionKey: '',
+    triggerEl: null,
+  };
+
   /**
    * 엔트리 포인트
    */
@@ -78,6 +87,7 @@ Glsoop.AdminPage = (function () {
     setupThemeControls();
     setupTabSwitching();
     setupModalEvents();
+    setupDangerConfirmModal();
 
     const me = await fetchMeAsAdmin();
     if (!me) return;
@@ -270,13 +280,216 @@ Glsoop.AdminPage = (function () {
       if (dismissTarget === 'adminPostModal') {
         closePostModal();
       }
+      if (dismissTarget === 'adminDangerConfirmModal') {
+        closeDangerConfirm(false);
+      }
+      if (e.target.id === 'adminDangerCancelBtn' || e.target.id === 'adminDangerCancelTop') {
+        closeDangerConfirm(false);
+      }
       if (e.target.id === 'adminPostModalDelete') {
         const modal = document.getElementById('adminPostModal');
         const postId = modal?.dataset?.postId;
         const card = document.querySelector(`.admin-post-card[data-post-id="${postId}"]`);
-        confirmAndDeletePost(postId, card);
+        confirmAndDeletePost(postId, card, e.target);
       }
     });
+  }
+
+  function trackUxEvent(eventName, properties = {}, options = {}) {
+    if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+      return;
+    }
+    window.glsoopAnalytics.trackEvent(eventName, properties, options);
+  }
+
+  function showAdminNotice(message, type = 'info') {
+    if (!message) return;
+    if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
+      window.glsoopUi.showPageNotice(message, {
+        type,
+        autoHideMs: type === 'error' ? 3200 : 2400,
+      });
+      return;
+    }
+    alert(message);
+  }
+
+  function parseJsonSafe(response) {
+    return response.json().catch(() => ({}));
+  }
+
+  function setupDangerConfirmModal() {
+    if (dangerModalState.bound) return;
+
+    const modal = document.getElementById('adminDangerConfirmModal');
+    const confirmBtn = document.getElementById('adminDangerConfirmBtn');
+    const input = document.getElementById('adminDangerInput');
+    if (!modal || !confirmBtn || !input) return;
+
+    dangerModalState.bound = true;
+    modal.dataset.adminDangerConfirm = 'closed';
+    document.body.dataset.adminDangerConfirm = 'closed';
+
+    const sync = () => {
+      const isTokenMatched = String(input.value || '').trim().toUpperCase() === DANGER_CONFIRM_TOKEN;
+      confirmBtn.disabled = !isTokenMatched;
+    };
+
+    input.addEventListener('input', sync);
+    input.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      if (confirmBtn.disabled) return;
+      event.preventDefault();
+      confirmBtn.click();
+    });
+
+    confirmBtn.addEventListener('click', () => {
+      if (confirmBtn.disabled) return;
+      closeDangerConfirm(true);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      if (modal.classList.contains('gls-hidden')) return;
+      closeDangerConfirm(false);
+    });
+  }
+
+  function openDangerConfirm(options = {}) {
+    const modal = document.getElementById('adminDangerConfirmModal');
+    const titleEl = document.getElementById('adminDangerTitle');
+    const messageEl = document.getElementById('adminDangerMessage');
+    const input = document.getElementById('adminDangerInput');
+    const confirmBtn = document.getElementById('adminDangerConfirmBtn');
+    if (!modal || !input || !confirmBtn) return Promise.resolve(false);
+
+    if (dangerModalState.resolver) {
+      const previousResolver = dangerModalState.resolver;
+      dangerModalState.resolver = null;
+      previousResolver(false);
+    }
+
+    const title = options.title || '삭제 확인';
+    const message = options.message || '이 작업은 되돌릴 수 없습니다.';
+    const actionLabel = options.confirmLabel || '삭제 실행';
+
+    if (titleEl) titleEl.textContent = title;
+    if (messageEl) messageEl.textContent = message;
+    confirmBtn.textContent = actionLabel;
+    input.value = '';
+    confirmBtn.disabled = true;
+
+    modal.classList.remove('gls-hidden');
+    modal.dataset.adminDangerConfirm = 'open';
+    document.body.dataset.adminDangerConfirm = 'open';
+    dangerModalState.actionKey = options.actionKey || '';
+    dangerModalState.triggerEl = options.triggerEl || null;
+
+    window.requestAnimationFrame(() => {
+      input.focus({ preventScroll: true });
+    });
+
+    return new Promise((resolve) => {
+      dangerModalState.resolver = resolve;
+    });
+  }
+
+  function closeDangerConfirm(confirmed) {
+    const modal = document.getElementById('adminDangerConfirmModal');
+    const input = document.getElementById('adminDangerInput');
+    const confirmBtn = document.getElementById('adminDangerConfirmBtn');
+    if (!modal) return;
+
+    modal.classList.add('gls-hidden');
+    modal.dataset.adminDangerConfirm = 'closed';
+    document.body.dataset.adminDangerConfirm = 'closed';
+    if (input) input.value = '';
+    if (confirmBtn) confirmBtn.disabled = true;
+
+    const actionKey = dangerModalState.actionKey;
+    const triggerEl = dangerModalState.triggerEl;
+    const resolver = dangerModalState.resolver;
+    dangerModalState.actionKey = '';
+    dangerModalState.triggerEl = null;
+    dangerModalState.resolver = null;
+
+    if (triggerEl && typeof triggerEl.focus === 'function') {
+      triggerEl.focus({ preventScroll: true });
+    }
+    if (actionKey) {
+      trackUxEvent('admin_danger_confirm', {
+        action: actionKey,
+        confirmed: Boolean(confirmed),
+      });
+    }
+    if (resolver) {
+      resolver(Boolean(confirmed));
+    }
+  }
+
+  function lockDangerTrigger(triggerEl, busyLabel = '처리 중...') {
+    if (!triggerEl || typeof triggerEl !== 'object') {
+      return () => {};
+    }
+    const originalLabel = triggerEl.textContent;
+    triggerEl.disabled = true;
+    triggerEl.dataset.pending = '1';
+    if (busyLabel) {
+      triggerEl.textContent = busyLabel;
+    }
+    return () => {
+      triggerEl.disabled = false;
+      triggerEl.dataset.pending = '0';
+      if (originalLabel !== undefined) {
+        triggerEl.textContent = originalLabel;
+      }
+    };
+  }
+
+  async function runDangerAction(options = {}) {
+    const {
+      actionKey,
+      title,
+      message,
+      triggerEl = null,
+      confirmLabel = '삭제 실행',
+      pendingLabel = '삭제 중...',
+      request,
+      successMessage = '작업이 완료되었습니다.',
+      failMessage = '작업 중 오류가 발생했습니다.',
+    } = options;
+
+    if (!actionKey || typeof request !== 'function') return false;
+    if (inFlightDangerActions.has(actionKey)) return false;
+
+    const confirmed = await openDangerConfirm({
+      actionKey,
+      title,
+      message,
+      confirmLabel,
+      triggerEl,
+    });
+    if (!confirmed) return false;
+    if (inFlightDangerActions.has(actionKey)) return false;
+
+    inFlightDangerActions.add(actionKey);
+    const releaseTrigger = lockDangerTrigger(triggerEl, pendingLabel);
+    try {
+      await request();
+      showAdminNotice(successMessage, 'success');
+      return true;
+    } catch (error) {
+      console.error(error);
+      const parsedMessage =
+        typeof error?.message === 'string' && error.message.trim().length
+          ? error.message
+          : failMessage;
+      showAdminNotice(parsedMessage, 'error');
+      return false;
+    } finally {
+      inFlightDangerActions.delete(actionKey);
+      releaseTrigger();
+    }
   }
 
 
@@ -710,24 +923,26 @@ Glsoop.AdminPage = (function () {
     if (!tr) return;
     const userId = tr.getAttribute('data-user-id');
     if (!userId) return;
-    const ok = confirm('정말 이 회원을 삭제하시겠습니까? 관련 글/공감도 함께 삭제됩니다.');
-    if (!ok) return;
-    try {
-      const delRes = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
-      const delData = await delRes.json();
-      if (!delRes.ok || !delData.ok) {
-        alert(delData.message || '회원 삭제에 실패했습니다.');
-        return;
-      }
-      tr.remove();
-      decreaseTabCount('usersTab', 1);
-      if (!tbody.children.length) {
-        usersBox.innerHTML = '<p class="gls-text-muted">현재 가입된 회원이 없습니다.</p>';
-      }
-    } catch (err) {
-      console.error(err);
-      alert('회원 삭제 중 오류가 발생했습니다.');
-    }
+    await runDangerAction({
+      actionKey: `delete-user-${userId}`,
+      title: '회원 삭제 확인',
+      message: '이 회원을 삭제하면 관련 글과 공감 데이터도 함께 삭제됩니다.',
+      triggerEl: target,
+      request: async () => {
+        const delRes = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+        const delData = await parseJsonSafe(delRes);
+        if (!delRes.ok || !delData.ok) {
+          throw new Error(delData.message || '회원 삭제에 실패했습니다.');
+        }
+        tr.remove();
+        decreaseTabCount('usersTab', 1);
+        if (!tbody.children.length) {
+          usersBox.innerHTML = '<p class="gls-text-muted">현재 가입된 회원이 없습니다.</p>';
+        }
+      },
+      successMessage: '회원을 삭제했습니다.',
+      failMessage: '회원 삭제 중 오류가 발생했습니다.',
+    });
   }
 
   function setupPostsUi(postsBox) {
@@ -926,7 +1141,7 @@ Glsoop.AdminPage = (function () {
     const postId = card.getAttribute('data-post-id');
 
     if (deleteBtn) {
-      confirmAndDeletePost(postId, card);
+      confirmAndDeletePost(postId, card, deleteBtn);
       return;
     }
     if (previewBtn) {
@@ -986,32 +1201,31 @@ Glsoop.AdminPage = (function () {
     modal.dataset.postId = '';
   }
 
-  async function confirmAndDeletePost(postId, card) {
+  async function confirmAndDeletePost(postId, card, triggerEl = null) {
     if (!postId) return;
-    const ok = confirm(`정말 이 글(ID: ${postId})을 삭제하시겠습니까?`);
-    if (!ok) return;
-    try {
-      const delRes = await fetch(`/api/admin/posts/${postId}`, { method: 'DELETE' });
-      if (!delRes.ok) {
-        const txt = await delRes.text();
-        throw new Error(`status=${delRes.status} body=${txt.slice(0, 200)}`);
-      }
-      const delData = await delRes.json();
-      if (!delData.ok) {
-        alert(delData.message || '글 삭제에 실패했습니다.');
-        return;
-      }
-      if (card) card.remove();
-      decreaseTabCount('postsTab', 1);
-      const grid = document.getElementById('adminPostsGrid');
-      if (grid && !grid.querySelector('.admin-post-card')) {
-        grid.innerHTML = '<p class="gls-text-muted">등록된 글이 없습니다.</p>';
-      }
-      closePostModal();
-    } catch (err) {
-      console.error(err);
-      alert('글 삭제 중 오류가 발생했습니다.');
-    }
+    await runDangerAction({
+      actionKey: `delete-post-${postId}`,
+      title: '글 삭제 확인',
+      message: `글 ID ${postId}를 삭제합니다. 이 작업은 되돌릴 수 없습니다.`,
+      triggerEl,
+      pendingLabel: triggerEl?.id === 'adminPostModalDelete' ? '삭제 중...' : '',
+      request: async () => {
+        const delRes = await fetch(`/api/admin/posts/${postId}`, { method: 'DELETE' });
+        const delData = await parseJsonSafe(delRes);
+        if (!delRes.ok || !delData.ok) {
+          throw new Error(delData.message || '글 삭제에 실패했습니다.');
+        }
+        if (card) card.remove();
+        decreaseTabCount('postsTab', 1);
+        const grid = document.getElementById('adminPostsGrid');
+        if (grid && !grid.querySelector('.admin-post-card')) {
+          grid.innerHTML = '<p class="gls-text-muted">등록된 글이 없습니다.</p>';
+        }
+        closePostModal();
+      },
+      successMessage: '글을 삭제했습니다.',
+      failMessage: '글 삭제 중 오류가 발생했습니다.',
+    });
   }
 
   async function loadQuestTemplates() {
@@ -1237,20 +1451,23 @@ Glsoop.AdminPage = (function () {
       btn.addEventListener('click', async (e) => {
         const id = e.target.closest('tr')?.dataset?.templateId;
         if (!id) return;
-        if (!confirm('이 템플릿을 삭제하시겠습니까?')) return;
-        try {
-          const res = await fetch(`/api/admin/quest-templates/${id}`, { method: 'DELETE' });
-          const data = await res.json();
-          if (!res.ok || !data.ok) {
-            alert(data.message || '삭제에 실패했습니다.');
-            return;
-          }
-          await loadQuestTemplates();
-          await loadQuestCampaigns();
-        } catch (err) {
-          console.error(err);
-          alert('템플릿 삭제 중 오류가 발생했습니다.');
-        }
+        await runDangerAction({
+          actionKey: `delete-quest-template-${id}`,
+          title: '퀘스트 템플릿 삭제',
+          message: '이 템플릿을 삭제하면 연결된 캠페인 구성이 영향을 받을 수 있습니다.',
+          triggerEl: e.currentTarget,
+          request: async () => {
+            const res = await fetch(`/api/admin/quest-templates/${id}`, { method: 'DELETE' });
+            const data = await parseJsonSafe(res);
+            if (!res.ok || !data.ok) {
+              throw new Error(data.message || '삭제에 실패했습니다.');
+            }
+            await loadQuestTemplates();
+            await loadQuestCampaigns();
+          },
+          successMessage: '템플릿을 삭제했습니다.',
+          failMessage: '템플릿 삭제 중 오류가 발생했습니다.',
+        });
       });
     });
   }
@@ -1486,19 +1703,22 @@ Glsoop.AdminPage = (function () {
       btn.addEventListener('click', async (e) => {
         const id = e.target.closest('tr')?.dataset?.campaignId;
         if (!id) return;
-        if (!confirm('이 캠페인을 삭제하시겠습니까?')) return;
-        try {
-          const res = await fetch(`/api/admin/quest-campaigns/${id}`, { method: 'DELETE' });
-          const data = await res.json();
-          if (!res.ok || !data.ok) {
-            alert(data.message || '삭제에 실패했습니다.');
-            return;
-          }
-          await loadQuestCampaigns();
-        } catch (err) {
-          console.error(err);
-          alert('캠페인 삭제 중 오류가 발생했습니다.');
-        }
+        await runDangerAction({
+          actionKey: `delete-quest-campaign-${id}`,
+          title: '퀘스트 캠페인 삭제',
+          message: '이 캠페인을 삭제하면 포함된 진행 상태가 정리됩니다.',
+          triggerEl: e.currentTarget,
+          request: async () => {
+            const res = await fetch(`/api/admin/quest-campaigns/${id}`, { method: 'DELETE' });
+            const data = await parseJsonSafe(res);
+            if (!res.ok || !data.ok) {
+              throw new Error(data.message || '삭제에 실패했습니다.');
+            }
+            await loadQuestCampaigns();
+          },
+          successMessage: '캠페인을 삭제했습니다.',
+          failMessage: '캠페인 삭제 중 오류가 발생했습니다.',
+        });
       });
     });
   }
