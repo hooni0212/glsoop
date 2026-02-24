@@ -1,20 +1,119 @@
-// === 작가 글 목록 무한 스크롤 상태 ===
-// 한 작가(유저)의 글을 모아서 보여주는 페이지에서 사용할 상태값들
-
-const AUTHOR_LIMIT = 10;      // 한 번에 가져올 글 개수(페이지 크기)
-let authorOffset = 0;         // 지금까지 불러온 글 개수(다음 요청 offset)
-let authorLoading = false;    // 현재 글을 로딩 중인지 여부(중복 요청 방지)
-let authorDone = false;       // 더 이상 불러올 글이 없는지 여부
-let currentAuthorId = null;   // 현재 작가(유저)의 ID
-let authorFollowState = {
-  isLoggedIn: false,
-  isOwnProfile: false,
-  isFollowing: false,
+const AUTHOR_LIMIT = 10;
+const AUTHOR_SORT_LABELS = {
+  newest: '최신순',
+  oldest: '오래된순',
+  likes: '공감 많은순',
 };
-let authorFollowProcessing = false;
-let currentSort = 'newest';
-let currentAuthorNickname = '';
+const AUTHOR_FEED_STATES = new Set(['idle', 'loading', 'empty', 'end', 'error']);
+const AUTHOR_MOBILE_MEDIA = '(max-width: 768px)';
+const AUTHOR_ABOUT_COLLAPSE_THRESHOLD = 170;
+const AUTHOR_CARD_NAV_IGNORE_SELECTOR = [
+  'a',
+  'button',
+  'input',
+  'textarea',
+  'select',
+  'label',
+  '.like-btn',
+  '.post-bookmark-toggle',
+  '.more-toggle',
+  '.hashtag-pill',
+  '.gls-tag-btn',
+  '.gls-hashtag-chip',
+  '.gls-user-badge--link',
+  '.gls-author-badge[role="link"]',
+  '[data-card-stop-nav="1"]',
+].join(',');
+
 const authorPostCache = new Map();
+
+const state = {
+  authorId: null,
+  offset: 0,
+  loading: false,
+  done: false,
+  sort: 'newest',
+  nickname: '',
+  latestPost: null,
+  feedState: 'idle',
+  followState: {
+    isLoggedIn: false,
+    isOwnProfile: false,
+    isFollowing: false,
+  },
+  followProcessing: false,
+  overflowOpen: false,
+  overflowBound: false,
+  sortModal: null,
+  sortModalRestoreFocus: null,
+  profileViewTracked: false,
+  observer: null,
+  scrollFallbackBound: false,
+};
+
+const dom = {};
+
+function trackUxEvent(eventName, properties = {}, options = {}) {
+  if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+    return;
+  }
+  window.glsoopAnalytics.trackEvent(eventName, properties, options);
+}
+
+function isMobileViewport() {
+  if (window.matchMedia) {
+    return window.matchMedia(AUTHOR_MOBILE_MEDIA).matches;
+  }
+  return window.innerWidth <= 768;
+}
+
+function setAuthorDataset(name, value) {
+  if (dom.body) {
+    dom.body.dataset[name] = String(value);
+  }
+  if (dom.pageSection) {
+    dom.pageSection.dataset[name] = String(value);
+  }
+}
+
+function setFeedState(nextState) {
+  const stateKey = AUTHOR_FEED_STATES.has(nextState) ? nextState : 'idle';
+  state.feedState = stateKey;
+  setAuthorDataset('authorFeedState', stateKey);
+
+  const isLoading = stateKey === 'loading';
+  const isEmpty = stateKey === 'empty';
+  const isEnd = stateKey === 'end';
+  const isError = stateKey === 'error';
+
+  dom.postsLoading?.classList.toggle('is-hidden', !isLoading);
+  dom.postsEmpty?.classList.toggle('is-hidden', !isEmpty);
+  dom.postsEnd?.classList.toggle('is-hidden', !isEnd);
+  dom.postsError?.classList.toggle('is-hidden', !isError);
+}
+
+function parseJsonSafe(response) {
+  return response.json().catch(() => ({}));
+}
+
+function showAuthorToast(message, type = 'info', autoHideMs = 2200) {
+  if (!message || !dom.toast) return;
+
+  dom.toast.textContent = message;
+  dom.toast.classList.remove('is-error', 'is-success', 'is-visible');
+  if (type === 'error') dom.toast.classList.add('is-error');
+  if (type === 'success') dom.toast.classList.add('is-success');
+
+  if (dom.toast.dataset.timerId) {
+    clearTimeout(Number(dom.toast.dataset.timerId));
+  }
+
+  dom.toast.classList.add('is-visible');
+  const timerId = window.setTimeout(() => {
+    dom.toast.classList.remove('is-visible');
+  }, Math.max(1000, Number(autoHideMs) || 2200));
+  dom.toast.dataset.timerId = String(timerId);
+}
 
 function showUiNotice(message, type = 'info', autoHideMs = 2200) {
   if (!message) return;
@@ -22,153 +121,368 @@ function showUiNotice(message, type = 'info', autoHideMs = 2200) {
     window.glsoopUi.showPageNotice(message, { type, autoHideMs });
     return;
   }
-  alert(message);
+  showAuthorToast(message, type, autoHideMs);
 }
 
-// 페이지가 완전히 로드되면 작가 페이지 초기화 + 프로필 카드 스티키 처리 설정
-document.addEventListener('DOMContentLoaded', () => {
-  initAuthorPage();
-});
+function cacheAuthorDom() {
+  dom.body = document.body;
+  dom.pageSection = document.querySelector('.author-page-section');
 
-/**
- * 작가 페이지 초기화
- * - URL의 ?userId= 값을 읽어서 현재 작가를 결정
- * - 작가 프로필 로드
- * - 작가 글 목록 첫 페이지 로드
- * - 스크롤 이벤트 등록(무한 스크롤)
- */
-async function initAuthorPage() {
-  const params = new URLSearchParams(window.location.search);
-  const userId = params.get('userId');
+  dom.pageTitle = document.getElementById('authorPageTitle');
+  dom.heroSubtitle = document.getElementById('authorHeroSubtitle');
+  dom.nickname = document.getElementById('authorNicknameDisplay');
+  dom.avatar = document.getElementById('authorAvatarInitial');
+  dom.email = document.getElementById('authorEmailDisplay');
+  dom.bio = document.getElementById('authorBio');
+  dom.about = document.getElementById('authorAbout');
+  dom.aboutToggle = document.getElementById('authorBioToggleBtn');
+  dom.growthBadge = document.getElementById('authorGrowthBadge');
 
-  // userId 없이 접근하면 잘못된 진입으로 간주
-  if (!userId) {
-    alert('잘못된 접근입니다. 작가 정보를 찾을 수 없어요.');
-    window.location.href = '/index.html';
+  dom.postCount = document.getElementById('authorPostCount');
+  dom.likeCount = document.getElementById('authorLikeCount');
+  dom.followerCount = document.getElementById('authorFollowerCount');
+  dom.followingCount = document.getElementById('authorFollowingCount');
+
+  dom.followBtn = document.getElementById('authorFollowBtn');
+  dom.followHint = document.getElementById('authorFollowHint');
+  dom.profileActionBtn = document.getElementById('authorProfileActionBtn');
+  dom.latestPostBtn = document.getElementById('authorLatestPostBtn');
+
+  dom.postsList = document.getElementById('authorPostsList');
+  dom.postsLoading = document.getElementById('authorPostsLoading');
+  dom.postsEmpty = document.getElementById('authorPostsEmpty');
+  dom.postsEnd = document.getElementById('authorPostsEnd');
+  dom.postsError = document.getElementById('authorPostsError');
+  dom.feedSentinel = document.getElementById('authorFeedSentinel');
+
+  dom.overflowBtn = document.getElementById('authorOverflowBtn');
+  dom.overflowMenu = document.getElementById('authorOverflowMenu');
+  dom.shareBtn = document.getElementById('authorShareBtn');
+  dom.sortBtn = document.getElementById('authorSortBtn');
+
+  dom.sortModal = document.getElementById('authorSortModal');
+  dom.sortOptions = Array.from(document.querySelectorAll('.author-sort-options input[name="authorSort"]'));
+
+  dom.toast = document.getElementById('authorToast');
+}
+
+function bindProfileControls() {
+  if (dom.followBtn && !dom.followBtn.dataset.bound) {
+    dom.followBtn.addEventListener('click', handleAuthorFollowToggle);
+    dom.followBtn.dataset.bound = 'true';
+  }
+
+  if (dom.latestPostBtn && !dom.latestPostBtn.dataset.bound) {
+    dom.latestPostBtn.addEventListener('click', handleOpenLatestPost);
+    dom.latestPostBtn.dataset.bound = 'true';
+  }
+
+  if (dom.aboutToggle && !dom.aboutToggle.dataset.bound) {
+    dom.aboutToggle.addEventListener('click', toggleAuthorAboutText);
+    dom.aboutToggle.dataset.bound = 'true';
+  }
+
+  if (dom.postsError && !dom.postsError.dataset.bound) {
+    dom.postsError.setAttribute('role', 'button');
+    dom.postsError.setAttribute('tabindex', '0');
+    dom.postsError.addEventListener('click', () => {
+      if (state.loading) return;
+      loadMoreAuthorPosts();
+    });
+    dom.postsError.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      if (state.loading) return;
+      loadMoreAuthorPosts();
+    });
+    dom.postsError.dataset.bound = 'true';
+  }
+}
+
+function setupAuthorSortModal() {
+  if (!dom.sortOptions.length) return;
+
+  if (dom.sortModal && window.bootstrap?.Modal) {
+    dom.sortModal.addEventListener('hidden.bs.modal', () => {
+      if (dom.sortModal) {
+        dom.sortModal.setAttribute('aria-hidden', 'true');
+      }
+      if (state.sortModalRestoreFocus && typeof state.sortModalRestoreFocus.focus === 'function') {
+        state.sortModalRestoreFocus.focus({ preventScroll: true });
+      }
+      state.sortModalRestoreFocus = null;
+    });
+    dom.sortModal.addEventListener('shown.bs.modal', () => {
+      dom.sortModal?.setAttribute('aria-hidden', 'false');
+      const checkedInput = dom.sortOptions.find((option) => option.checked);
+      checkedInput?.focus({ preventScroll: true });
+    });
+    state.sortModal = window.bootstrap.Modal.getOrCreateInstance(dom.sortModal);
+  }
+
+  dom.sortOptions.forEach((option) => {
+    if (option.value === state.sort) {
+      option.checked = true;
+    }
+
+    if (option.dataset.bound) return;
+
+    option.addEventListener('change', async () => {
+      const nextSort = option.value;
+      if (!nextSort || nextSort === state.sort) return;
+
+      state.sort = nextSort;
+      updateSortButtonLabel();
+      resetAuthorPosts();
+      await loadMoreAuthorPosts();
+      hideAuthorSortModal();
+    });
+
+    option.dataset.bound = 'true';
+  });
+
+  if (dom.sortModal) {
+    const dismissButtons = dom.sortModal.querySelectorAll('[data-gls-dismiss="modal"]');
+    dismissButtons.forEach((button) => {
+      if (button.dataset.bound) return;
+      button.addEventListener('click', () => hideAuthorSortModal());
+      button.dataset.bound = 'true';
+    });
+  }
+
+  updateSortButtonLabel();
+}
+
+function openAuthorSortModal(triggerEl = null) {
+  if (!dom.sortModal) return;
+
+  state.sortModalRestoreFocus = triggerEl || dom.overflowBtn || null;
+
+  if (state.sortModal && typeof state.sortModal.show === 'function') {
+    state.sortModal.show();
     return;
   }
 
-  currentAuthorId = userId;
-
-  // 1) 프로필 먼저 로드
-  await loadAuthorProfile(userId);
-
-  // 2) 글 목록 첫 페이지 로드
-  await loadMoreAuthorPosts();
-
-  // 3) 스크롤로 추가 로드(무한 스크롤)
-  window.addEventListener('scroll', handleAuthorScroll);
-
-  setupAuthorToolbarActions();
-  setupAuthorSortModal();
-  setupAuthorPostNavigation();
+  dom.sortModal.classList.add('show');
+  dom.sortModal.style.display = 'block';
+  dom.sortModal.setAttribute('aria-hidden', 'false');
 }
 
-/**
- * === 작가 프로필 불러오기 ===
- * - GET /api/users/:authorId/profile
- * - 닉네임, 이메일(마스킹), bio, about, 통계 등을 페이지에 채움
- */
-async function loadAuthorProfile(authorId) {
-  try {
-    const res = await fetch(`/api/users/${authorId}/profile`);
-    const data = await res.json();
+function hideAuthorSortModal() {
+  if (!dom.sortModal) return;
 
-    if (!res.ok || !data.ok) {
-      alert(data.message || '작가 정보를 불러오는 중 오류가 발생했습니다.');
+  if (state.sortModal && typeof state.sortModal.hide === 'function') {
+    state.sortModal.hide();
+    return;
+  }
+
+  dom.sortModal.classList.remove('show');
+  dom.sortModal.style.display = 'none';
+  dom.sortModal.setAttribute('aria-hidden', 'true');
+
+  if (state.sortModalRestoreFocus && typeof state.sortModalRestoreFocus.focus === 'function') {
+    state.sortModalRestoreFocus.focus({ preventScroll: true });
+  }
+  state.sortModalRestoreFocus = null;
+}
+
+function setupAuthorOverflowMenu() {
+  if (state.overflowBound || !dom.overflowBtn || !dom.overflowMenu) return;
+  state.overflowBound = true;
+
+  dom.overflowBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (state.overflowOpen) {
+      closeAuthorOverflowMenu({ restoreFocus: true });
+      return;
+    }
+    openAuthorOverflowMenu({ focusFirstItem: false });
+  });
+
+  dom.overflowBtn.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    openAuthorOverflowMenu({ focusFirstItem: true });
+  });
+
+  dom.overflowMenu.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeAuthorOverflowMenu({ restoreFocus: true });
       return;
     }
 
-    const user = data.user;
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
 
-    // 닉네임이 있으면 사용, 없으면 "익명"
-    const nickname = (user.nickname && user.nickname.trim()) || '익명';
-    currentAuthorNickname = nickname;
-    const emailMasked = maskEmail(user.email || '');
-    const bio = (user.bio || '').trim();     // 한 줄 소개
-    const about = (user.about || '').trim(); // 여러 줄 자기소개
-    const level = Number(user.level) || 1;
+    const items = getOverflowMenuItems();
+    if (!items.length) return;
 
-    // 상단 타이틀 (ex: "홍길동님의 나무")
-    const titleEl = document.getElementById('authorPageTitle');
-    if (titleEl) {
-      titleEl.textContent = `${nickname}님의 나무`;
+    const currentIndex = items.indexOf(document.activeElement);
+    const offset = event.key === 'ArrowDown' ? 1 : -1;
+    const nextIndex = currentIndex < 0
+      ? 0
+      : (currentIndex + offset + items.length) % items.length;
+
+    event.preventDefault();
+    items[nextIndex].focus({ preventScroll: true });
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!state.overflowOpen) return;
+    if (dom.overflowMenu.contains(event.target) || dom.overflowBtn.contains(event.target)) return;
+    closeAuthorOverflowMenu({ restoreFocus: false });
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (!state.overflowOpen) return;
+    event.preventDefault();
+    closeAuthorOverflowMenu({ restoreFocus: true });
+  });
+}
+
+function getOverflowMenuItems() {
+  if (!dom.overflowMenu) return [];
+  return Array.from(dom.overflowMenu.querySelectorAll('[role="menuitem"]')).filter(
+    (item) => !item.disabled
+  );
+}
+
+function openAuthorOverflowMenu(options = {}) {
+  if (!dom.overflowBtn || !dom.overflowMenu) return;
+
+  state.overflowOpen = true;
+  setAuthorDataset('authorOverflowOpen', 'true');
+  dom.overflowBtn.setAttribute('aria-expanded', 'true');
+  dom.overflowMenu.classList.remove('is-hidden');
+  dom.overflowMenu.setAttribute('aria-hidden', 'false');
+
+  if (options.focusFirstItem) {
+    const [firstItem] = getOverflowMenuItems();
+    firstItem?.focus({ preventScroll: true });
+  }
+}
+
+function closeAuthorOverflowMenu(options = {}) {
+  if (!dom.overflowBtn || !dom.overflowMenu) return;
+
+  state.overflowOpen = false;
+  setAuthorDataset('authorOverflowOpen', 'false');
+  dom.overflowBtn.setAttribute('aria-expanded', 'false');
+  dom.overflowMenu.classList.add('is-hidden');
+  dom.overflowMenu.setAttribute('aria-hidden', 'true');
+
+  if (options.restoreFocus) {
+    dom.overflowBtn.focus({ preventScroll: true });
+  }
+}
+
+function setupAuthorToolbarActions() {
+  if (dom.shareBtn && !dom.shareBtn.dataset.bound) {
+    dom.shareBtn.addEventListener('click', async () => {
+      trackUxEvent('author_overflow_click', {
+        author_id: state.authorId,
+        action: 'share',
+        source: 'overflow_menu',
+        mobile: isMobileViewport(),
+      });
+      closeAuthorOverflowMenu({ restoreFocus: true });
+      await handleAuthorShare();
+    });
+    dom.shareBtn.dataset.bound = 'true';
+  }
+
+  if (dom.sortBtn && !dom.sortBtn.dataset.bound) {
+    dom.sortBtn.addEventListener('click', () => {
+      trackUxEvent('author_overflow_click', {
+        author_id: state.authorId,
+        action: 'sort',
+        source: 'overflow_menu',
+        mobile: isMobileViewport(),
+      });
+      closeAuthorOverflowMenu({ restoreFocus: false });
+      openAuthorSortModal(dom.overflowBtn);
+    });
+    dom.sortBtn.dataset.bound = 'true';
+  }
+}
+
+async function handleAuthorShare() {
+  const shareData = {
+    title: `${state.nickname || '작가'}님의 글숲`,
+    text: '글숲 작가 페이지를 함께 읽어보세요.',
+    url: window.location.href,
+  };
+
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+      showAuthorToast('공유가 완료되었습니다.', 'success', 1600);
+      return;
     }
 
-    // 왼쪽 프로필 카드의 닉네임 표시 + 이니셜 아바타
-    const nickEl = document.getElementById('authorNicknameDisplay');
-    if (nickEl) {
-      nickEl.textContent = nickname;
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(window.location.href);
+      showAuthorToast('링크를 클립보드에 복사했습니다.', 'success', 1800);
+      return;
     }
 
-    const avatarEl = document.getElementById('authorAvatarInitial');
-    if (avatarEl) {
-      const initial = nickname?.trim()?.charAt(0) || '🌿';
-      avatarEl.textContent = initial;
+    showAuthorToast('공유 기능을 사용할 수 없는 환경입니다.', 'error');
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      return;
     }
+    console.error(error);
+    showAuthorToast('공유에 실패했습니다.', 'error');
+  }
+}
 
-    // 이메일 (마스킹된 값)
-    const emailEl = document.getElementById('authorEmailDisplay');
-    if (emailEl) {
-      if (emailMasked) {
-        emailEl.textContent = emailMasked;
-        emailEl.hidden = false;
-      } else {
-        emailEl.textContent = '-';
-        emailEl.hidden = true;
+function setupInfiniteLoadTrigger() {
+  if (state.observer) {
+    state.observer.disconnect();
+    state.observer = null;
+  }
+
+  if ('IntersectionObserver' in window && dom.feedSentinel) {
+    state.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          loadMoreAuthorPosts();
+        });
+      },
+      {
+        root: null,
+        rootMargin: '0px 0px 260px 0px',
+        threshold: 0,
       }
-    }
+    );
+    state.observer.observe(dom.feedSentinel);
+    return;
+  }
 
-    // 🔽 프로필 문구: 한 줄 소개
-    const bioEl = document.getElementById('authorBio');
-    if (bioEl) {
-      if (bio) {
-        bioEl.textContent = bio;
-      } else {
-        bioEl.textContent = '아직 한 줄 소개가 등록되지 않았습니다.';
-      }
-    }
+  if (!state.scrollFallbackBound) {
+    state.scrollFallbackBound = true;
+    window.addEventListener('scroll', handleAuthorScrollFallback, { passive: true });
+  }
+}
 
-    // 🔽 프로필 문구: 자기소개 (여러 줄, CSS에서 white-space: pre-line 예정)
-    const aboutEl = document.getElementById('authorAbout');
-    if (aboutEl) {
-      if (about) {
-        aboutEl.textContent = about; // 줄바꿈 유지 ⇒ CSS에서 pre-line이면 됨
-        aboutEl.classList.remove('is-hidden');
-      } else {
-        aboutEl.textContent = '';
-        aboutEl.classList.add('is-hidden');
-      }
-    }
+function handleAuthorScrollFallback() {
+  if (state.loading || state.done) return;
 
-    const growthEl = document.getElementById('authorGrowthBadge');
-    if (growthEl) {
-      const { display, ariaLabel } = getGrowthBadge(level);
-      growthEl.textContent = display;
-      growthEl.setAttribute('aria-label', ariaLabel);
-    }
+  const scrollTop =
+    window.pageYOffset ||
+    document.documentElement.scrollTop ||
+    document.body.scrollTop ||
+    0;
+  const clientHeight =
+    document.documentElement.clientHeight || window.innerHeight;
+  const scrollHeight =
+    document.documentElement.scrollHeight || document.body.scrollHeight;
 
-    // 통계 정보: 글 수, 총 좋아요 수
-    const postCountEl = document.getElementById('authorPostCount');
-    const likeCountEl = document.getElementById('authorLikeCount');
-    const followerCountEl = document.getElementById('authorFollowerCount');
-    const followingCountEl = document.getElementById('authorFollowingCount');
-
-    if (postCountEl) postCountEl.textContent = user.post_count || 0;
-    if (likeCountEl) likeCountEl.textContent = user.total_likes || 0;
-    if (followerCountEl) followerCountEl.textContent = user.follower_count || 0;
-    if (followingCountEl) followingCountEl.textContent = user.following_count || 0;
-
-    authorFollowState = {
-      isLoggedIn: !!data.viewer?.is_logged_in,
-      isOwnProfile: !!data.viewer?.is_own_profile,
-      isFollowing: !!data.viewer?.is_following,
-    };
-    updateAuthorFollowUI();
-    updateAuthorProfileActionUI();
-  } catch (e) {
-    console.error(e);
-    alert('작가 정보를 불러오는 중 오류가 발생했습니다.');
+  if (scrollTop + clientHeight >= scrollHeight - 240) {
+    loadMoreAuthorPosts();
   }
 }
 
@@ -200,461 +514,540 @@ function getGrowthBadge(level) {
   };
 }
 
-/**
- * 팔로우 버튼 상태/UI 갱신
- */
-function updateAuthorFollowUI() {
-  const followBtn = document.getElementById('authorFollowBtn');
-  const hintEl = document.getElementById('authorFollowHint');
-
-  if (!followBtn) return;
-
-  if (!followBtn.dataset.bound) {
-    followBtn.addEventListener('click', handleAuthorFollowToggle);
-    followBtn.dataset.bound = 'true';
-  }
-
-  followBtn.classList.remove('gls-btn-primary', 'gls-btn-secondary', 'is-active');
-  followBtn.classList.add('gls-btn');
-  followBtn.disabled = false;
-
-  if (!authorFollowState.isLoggedIn) {
-    followBtn.textContent = '로그인 후 팔로우';
-    followBtn.classList.add('gls-btn-secondary');
-    followBtn.disabled = true;
-    if (hintEl)
-      hintEl.textContent = '팔로우하려면 로그인해주세요.';
-    return;
-  }
-
-  if (authorFollowState.isOwnProfile) {
-    followBtn.textContent = '내 프로필입니다';
-    followBtn.classList.add('gls-btn-secondary');
-    followBtn.disabled = true;
-    if (hintEl)
-      hintEl.textContent = '내 페이지에서는 팔로우 버튼이 비활성화됩니다.';
-    return;
-  }
-
-  if (authorFollowState.isFollowing) {
-    followBtn.textContent = '팔로잉';
-    followBtn.classList.add('gls-btn-primary','is-active');
-    if (hintEl)
-      hintEl.textContent = '팔로잉을 해제하면 새 소식을 받지 않게 돼요.';
-  } else {
-    followBtn.textContent = '팔로우';
-    followBtn.classList.add('gls-btn-secondary');
-    if (hintEl)
-      hintEl.textContent = '팔로우해서 작가의 소식을 받아보세요!';
-  }
-}
-
 function updateAuthorProfileActionUI() {
-  const profileBtn = document.getElementById('authorProfileActionBtn');
-  if (!profileBtn) return;
+  if (!dom.profileActionBtn) return;
 
-  if (authorFollowState.isOwnProfile) {
-    profileBtn.textContent = '내 프로필';
-    profileBtn.classList.remove('gls-hidden');
+  if (state.followState.isOwnProfile) {
+    dom.profileActionBtn.classList.remove('gls-hidden');
+    dom.profileActionBtn.textContent = '내 프로필';
   } else {
-    profileBtn.classList.add('gls-hidden');
+    dom.profileActionBtn.classList.add('gls-hidden');
   }
 }
 
-/**
- * 팔로우/언팔로우 토글 요청
- */
-async function handleAuthorFollowToggle() {
-  if (authorFollowProcessing) return;
-  if (!authorFollowState.isLoggedIn || authorFollowState.isOwnProfile) return;
-  if (!currentAuthorId) return;
+function updateAuthorFollowUI() {
+  if (!dom.followBtn) return;
 
-  authorFollowProcessing = true;
-  const followBtn = document.getElementById('authorFollowBtn');
-  const followerCountEl = document.getElementById('authorFollowerCount');
+  dom.followBtn.classList.remove('gls-btn-primary', 'gls-btn-secondary', 'is-active');
+  dom.followBtn.classList.add('gls-btn');
+  dom.followBtn.disabled = false;
+  dom.followBtn.removeAttribute('aria-pressed');
 
-  if (followBtn) {
-    followBtn.disabled = true;
-    followBtn.textContent = '처리 중...';
+  if (!state.followState.isLoggedIn) {
+    dom.followBtn.textContent = '로그인 후 팔로우';
+    dom.followBtn.classList.add('gls-btn-secondary');
+    dom.followBtn.disabled = true;
+    if (dom.followHint) dom.followHint.textContent = '팔로우하려면 로그인해주세요.';
+    return;
   }
+
+  if (state.followState.isOwnProfile) {
+    dom.followBtn.textContent = '내 프로필입니다';
+    dom.followBtn.classList.add('gls-btn-secondary');
+    dom.followBtn.disabled = true;
+    if (dom.followHint) dom.followHint.textContent = '내 작가 페이지에서는 팔로우가 비활성화됩니다.';
+    return;
+  }
+
+  if (state.followState.isFollowing) {
+    dom.followBtn.textContent = '팔로잉';
+    dom.followBtn.classList.add('gls-btn-primary', 'is-active');
+    dom.followBtn.setAttribute('aria-pressed', 'true');
+    if (dom.followHint) dom.followHint.textContent = '팔로잉 상태입니다. 다시 누르면 해제됩니다.';
+    return;
+  }
+
+  dom.followBtn.textContent = '팔로우';
+  dom.followBtn.classList.add('gls-btn-secondary');
+  dom.followBtn.setAttribute('aria-pressed', 'false');
+  if (dom.followHint) dom.followHint.textContent = '팔로우해서 작가의 새 글 소식을 받아보세요.';
+}
+
+function updateSortButtonLabel() {
+  if (!dom.sortBtn) return;
+  const label = AUTHOR_SORT_LABELS[state.sort] || AUTHOR_SORT_LABELS.newest;
+  dom.sortBtn.textContent = `정렬: ${label}`;
+}
+
+function setAboutTextContent(aboutTextRaw) {
+  if (!dom.about || !dom.aboutToggle) return;
+
+  const aboutText = String(aboutTextRaw || '').trim();
+  if (!aboutText) {
+    dom.about.textContent = '아직 등록된 작가 소개가 없습니다.';
+    dom.about.classList.remove('is-hidden', 'is-collapsed');
+    dom.aboutToggle.classList.add('is-hidden');
+    dom.aboutToggle.setAttribute('aria-expanded', 'true');
+    dom.aboutToggle.textContent = '소개 접기';
+    return;
+  }
+
+  dom.about.textContent = aboutText;
+  dom.about.classList.remove('is-hidden');
+  syncAuthorAboutCollapseToggle();
+}
+
+function syncAuthorAboutCollapseToggle() {
+  if (!dom.about || !dom.aboutToggle) return;
+
+  const aboutText = String(dom.about.textContent || '').trim();
+  const shouldCollapse = isMobileViewport() && aboutText.length > AUTHOR_ABOUT_COLLAPSE_THRESHOLD;
+
+  if (!shouldCollapse) {
+    dom.about.classList.remove('is-collapsed');
+    dom.aboutToggle.classList.add('is-hidden');
+    dom.aboutToggle.setAttribute('aria-expanded', 'true');
+    dom.aboutToggle.textContent = '소개 접기';
+    return;
+  }
+
+  dom.aboutToggle.classList.remove('is-hidden');
+
+  if (!dom.about.dataset.collapseInitialized) {
+    dom.about.classList.add('is-collapsed');
+    dom.aboutToggle.setAttribute('aria-expanded', 'false');
+    dom.aboutToggle.textContent = '소개 펼치기';
+    dom.about.dataset.collapseInitialized = 'true';
+    return;
+  }
+
+  const isCollapsed = dom.about.classList.contains('is-collapsed');
+  dom.aboutToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+  dom.aboutToggle.textContent = isCollapsed ? '소개 펼치기' : '소개 접기';
+}
+
+function toggleAuthorAboutText() {
+  if (!dom.about || !dom.aboutToggle || dom.aboutToggle.classList.contains('is-hidden')) return;
+
+  const nextCollapsed = !dom.about.classList.contains('is-collapsed');
+  dom.about.classList.toggle('is-collapsed', nextCollapsed);
+  dom.aboutToggle.setAttribute('aria-expanded', nextCollapsed ? 'false' : 'true');
+  dom.aboutToggle.textContent = nextCollapsed ? '소개 펼치기' : '소개 접기';
+}
+
+function upsertLatestPost(post) {
+  if (!post?.id) return;
+  if (!state.latestPost) {
+    state.latestPost = post;
+    return;
+  }
+
+  const currentDate = Date.parse(String(state.latestPost.created_at || '')) || 0;
+  const nextDate = Date.parse(String(post.created_at || '')) || 0;
+  if (nextDate > currentDate) {
+    state.latestPost = post;
+    return;
+  }
+
+  if (nextDate === currentDate && Number(post.id) > Number(state.latestPost.id)) {
+    state.latestPost = post;
+  }
+}
+
+async function loadAuthorProfile(authorId) {
+  try {
+    const response = await fetch(`/api/users/${authorId}/profile`);
+    const data = await parseJsonSafe(response);
+
+    if (!response.ok || !data.ok || !data.user) {
+      throw new Error(data.message || '작가 정보를 불러올 수 없습니다.');
+    }
+
+    const user = data.user;
+    const nickname = (user.nickname || '').trim() || '익명';
+    const emailMasked = typeof maskEmail === 'function' ? maskEmail(user.email || '') : user.email || '-';
+
+    state.nickname = nickname;
+
+    if (dom.pageTitle) {
+      dom.pageTitle.textContent = `${nickname}님의 글숲`;
+    }
+    if (dom.heroSubtitle) {
+      dom.heroSubtitle.textContent = `${nickname} 작가가 남긴 문장과 공감 기록을 한눈에 살펴보세요.`;
+    }
+    if (dom.nickname) {
+      dom.nickname.textContent = nickname;
+    }
+    if (dom.avatar) {
+      dom.avatar.textContent = nickname.charAt(0) || '🌿';
+    }
+    if (dom.email) {
+      dom.email.textContent = emailMasked || '-';
+      dom.email.hidden = !emailMasked;
+    }
+    if (dom.bio) {
+      dom.bio.textContent = (user.bio || '').trim() || '아직 한 줄 소개가 등록되지 않았습니다.';
+    }
+
+    setAboutTextContent(user.about || '');
+
+    if (dom.growthBadge) {
+      const badge = getGrowthBadge(user.level);
+      dom.growthBadge.textContent = badge.display;
+      dom.growthBadge.setAttribute('aria-label', badge.ariaLabel);
+    }
+
+    if (dom.postCount) dom.postCount.textContent = String(user.post_count || 0);
+    if (dom.likeCount) dom.likeCount.textContent = String(user.total_likes || 0);
+    if (dom.followerCount) dom.followerCount.textContent = String(user.follower_count || 0);
+    if (dom.followingCount) dom.followingCount.textContent = String(user.following_count || 0);
+
+    state.followState = {
+      isLoggedIn: Boolean(data.viewer?.is_logged_in),
+      isOwnProfile: Boolean(data.viewer?.is_own_profile),
+      isFollowing: Boolean(data.viewer?.is_following),
+    };
+
+    updateAuthorFollowUI();
+    updateAuthorProfileActionUI();
+
+    if (!state.profileViewTracked) {
+      trackUxEvent('author_profile_view', {
+        author_id: state.authorId,
+        source: 'author_page',
+        mobile: isMobileViewport(),
+      });
+      state.profileViewTracked = true;
+    }
+  } catch (error) {
+    console.error(error);
+    showUiNotice(error.message || '작가 정보를 불러오는 중 오류가 발생했습니다.', 'error', 2800);
+    setFeedState('error');
+    throw error;
+  }
+}
+
+async function handleAuthorFollowToggle() {
+  if (!state.authorId) return;
+  if (state.followProcessing) return;
+  if (!state.followState.isLoggedIn || state.followState.isOwnProfile) return;
+
+  state.followProcessing = true;
+
+  if (dom.followBtn) {
+    dom.followBtn.disabled = true;
+    dom.followBtn.textContent = '처리 중...';
+  }
+
+  const action = state.followState.isFollowing ? 'unfollow' : 'follow';
 
   try {
-    const res = await fetch(`/api/users/${currentAuthorId}/follow`, {
+    const response = await fetch(`/api/users/${state.authorId}/follow`, {
       method: 'POST',
     });
 
-    if (res.status === 401) {
+    if (response.status === 401) {
       if (typeof redirectToLoginWithNext === 'function') {
         redirectToLoginWithNext({
           alertMessage: '로그인 후 이용할 수 있습니다.',
           source: 'author-follow',
         });
       } else {
-        showUiNotice('로그인 후 이용할 수 있습니다.', 'error');
         window.location.href = '/html/login.html';
       }
       return;
     }
 
-    const data = await res.json();
+    const data = await parseJsonSafe(response);
 
-    if (!res.ok || !data.ok) {
-      throw new Error(data.message || '팔로우 처리 중 오류가 발생했습니다.');
+    if (!response.ok || !data.ok) {
+      throw new Error(data.message || '팔로우 처리 중 문제가 발생했습니다.');
     }
 
-    authorFollowState.isFollowing = !!data.following;
-    if (followerCountEl) followerCountEl.textContent = data.follower_count ?? 0;
-    updateAuthorFollowUI();
+    state.followState.isFollowing = Boolean(data.following);
+    if (dom.followerCount) {
+      dom.followerCount.textContent = String(data.follower_count ?? 0);
+    }
+
+    trackUxEvent('author_follow_click', {
+      author_id: state.authorId,
+      action,
+      source: 'follow_button',
+      mobile: isMobileViewport(),
+    });
+
     showUiNotice(
-      authorFollowState.isFollowing ? '팔로우했습니다.' : '언팔로우했습니다.',
-      authorFollowState.isFollowing ? 'success' : 'info',
-      1500
+      state.followState.isFollowing ? '팔로우했습니다.' : '팔로우를 해제했습니다.',
+      state.followState.isFollowing ? 'success' : 'info',
+      1600
     );
   } catch (error) {
     console.error(error);
-    showUiNotice(error.message || '팔로우 요청 중 문제가 발생했습니다.', 'error');
+    showUiNotice(error.message || '팔로우 요청 중 오류가 발생했습니다.', 'error');
   } finally {
-    authorFollowProcessing = false;
+    state.followProcessing = false;
     updateAuthorFollowUI();
   }
 }
 
-/**
- * === 스크롤로 다음 글 로드 ===
- * - 화면 맨 아래에서 200px 근처에 도달하면 loadMoreAuthorPosts 실행
- * - authorLoading / authorDone 플래그로 중복요청, 불필요요청 방지
- */
-function handleAuthorScroll() {
-  if (authorLoading || authorDone) return;
-
-  const scrollTop =
-    window.pageYOffset ||
-    document.documentElement.scrollTop ||
-    document.body.scrollTop ||
-    0;
-  const clientHeight =
-    document.documentElement.clientHeight || window.innerHeight;
-  const scrollHeight =
-    document.documentElement.scrollHeight || document.body.scrollHeight;
-
-  // 스크롤이 거의 맨 아래까지 내려왔을 때
-  if (scrollTop + clientHeight >= scrollHeight - 200) {
-    loadMoreAuthorPosts();
-  }
+function buildAuthorCardSourcePost(post) {
+  const resolvedVariant =
+    String(post?.card_length_variant || '').trim().toLowerCase() ||
+    detectAuthorCardLengthVariant(post?.content || post?.title || '');
+  const nickname = String(state.nickname || '').trim();
+  return {
+    ...post,
+    author_id: post?.author_id || state.authorId || null,
+    author_name: post?.author_name || nickname || '작가',
+    author_nickname: post?.author_nickname || nickname || '작가',
+    card_length_variant: resolvedVariant,
+  };
 }
 
-/**
- * === 작가 글 목록 추가 로드 ===
- * - GET /api/users/:userId/posts?offset=&limit=
- * - 첫 로드에서 글이 없으면 "아직 글이 없습니다" 메시지 표시
- * - 이후 더 이상 글이 없으면 authorDone = true + "끝" 메시지 노출
- */
-async function loadMoreAuthorPosts() {
-  if (!currentAuthorId) return;
+function extractPlainAuthorText(rawHtml) {
+  const withBreaks = String(rawHtml || '')
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/\s*(p|div|h[1-6]|li)\s*>/gi, '\n')
+    .replace(/<\s*li[^>]*>/gi, '• ');
 
-  const listBox = document.getElementById('authorPostsList');   // 글 카드들이 들어갈 영역
-  const loadingEl = document.getElementById('authorPostsLoading'); // "불러오는 중..." 표시
-  const emptyEl = document.getElementById('authorPostsEmpty');     // "아직 글이 없습니다" 표시
-  const endEl = document.getElementById('authorPostsEnd');         // "마지막 글입니다" 표시
+  if (typeof document !== 'undefined' && document.createElement) {
+    const holder = document.createElement('div');
+    holder.innerHTML = withBreaks;
+    return String(holder.textContent || holder.innerText || '')
+      .replace(/\r\n?/g, '\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\u200b/g, '')
+      .trim();
+  }
 
-  if (!listBox) return;
-  if (authorLoading || authorDone) return; // 이미 로딩 중이거나 끝났으면 종료
+  return withBreaks
+    .replace(/<[^>]*>/g, '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\u200b/g, '')
+    .trim();
+}
 
-  authorLoading = true;
-  if (loadingEl) loadingEl.classList.remove('is-hidden');
+function detectAuthorCardLengthVariant(rawContent) {
+  const text = extractPlainAuthorText(rawContent);
+  if (!text) return 'short';
 
-  try {
-    const params = new URLSearchParams({
-      offset: String(authorOffset),
-      limit: String(AUTHOR_LIMIT),
-      sort: currentSort,
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const compactLength = text.replace(/\s+/g, '').length;
+
+  // 긴글/짧은글 분류를 메이슨리 높이 차이에 반영하기 위해 short/medium/long 경계를 조금 더 공격적으로 설정
+  if (lines.length <= 1 && compactLength <= 22) return 'one-line';
+  if (compactLength <= 80) return 'short';
+  if (compactLength <= 150) return 'medium';
+  return 'long';
+}
+
+function buildAuthorPostCardHtml(post) {
+  const sourcePost = buildAuthorCardSourcePost(post);
+
+  if (typeof window.buildStandardPostCardHTML === 'function') {
+    const html = window.buildStandardPostCardHTML(sourcePost, {
+      showMoreButton: true,
+      forceRenderedImage: true,
+      cardExtraClass: 'author-post-card',
+      cardLengthVariant: sourcePost.card_length_variant || '',
+      cardClickable: true,
     });
 
-    const res = await fetch(
-      `/api/users/${currentAuthorId}/posts?` + params.toString()
+    // 테스트/기존 셀렉터 호환: author-post-title 클래스 유지
+    return html.replace(
+      'class="card-title gls-mb-2"',
+      'class="card-title gls-mb-2 author-post-title"'
     );
-    const data = await res.json();
-
-    if (!res.ok || !data.ok) {
-      alert(data.message || '작가 글을 불러오는 중 오류가 발생했습니다.');
-      return;
-    }
-
-    const posts = data.posts || [];
-
-    // 첫 로드인데 글이 아예 없는 경우
-    if (authorOffset === 0 && posts.length === 0) {
-      if (emptyEl) emptyEl.classList.remove('is-hidden');
-      authorDone = true;
-      return;
-    }
-
-    // 더 이상 가져올 글이 없는 경우
-    if (posts.length === 0) {
-      authorDone = true;
-      if (endEl) endEl.classList.remove('is-hidden');
-      return;
-    }
-
-    // 실제 카드 렌더링
-    renderAuthorPosts(posts);
-
-    // offset 업데이트
-    authorOffset += posts.length;
-
-    // 이번에 가져온 개수가 limit보다 적으면 → 이 페이지가 마지막
-    if (posts.length < AUTHOR_LIMIT) {
-      authorDone = true;
-      if (endEl) endEl.classList.remove('is-hidden');
-    }
-  } catch (e) {
-    console.error(e);
-    alert('작가 글을 불러오는 중 오류가 발생했습니다.');
-  } finally {
-    authorLoading = false;
-    if (loadingEl) loadingEl.classList.add('is-hidden');
   }
+
+  const safeTitle =
+    typeof escapeHtml === 'function'
+      ? escapeHtml(sourcePost.title || '제목 없음')
+      : String(sourcePost.title || '제목 없음');
+
+  return `
+    <div class="card gls-post-card author-post-card" data-post-id="${sourcePost.id}">
+      <div class="card-body">
+        <h5 class="card-title gls-mb-2 author-post-title">${safeTitle}</h5>
+      </div>
+    </div>
+  `;
 }
 
-/**
- * === 작가 글 카드 렌더링 ===
- * - posts 배열을 받아서 카드 HTML을 만들어 authorPostsList에 추가
- * - 각 카드에 좋아요/해시태그/폰트 조절 등 인터랙션 세팅
- */
-function renderAuthorPosts(posts) {
-  const listBox = document.getElementById('authorPostsList');
-  if (!listBox || !Array.isArray(posts) || posts.length === 0) return;
+function shouldIgnoreAuthorPostOpenTracking(target) {
+  if (!target || typeof target.closest !== 'function') return false;
+  return Boolean(target.closest(AUTHOR_CARD_NAV_IGNORE_SELECTOR));
+}
 
-  const fragmentHtml = posts
+function bindAuthorPostOpenTracking(card, post) {
+  if (!card || !post || card.dataset.authorOpenTrackBound === '1') return;
+  card.dataset.authorOpenTrackBound = '1';
+
+  const trackOpen = () => {
+    trackUxEvent('author_post_open', {
+      author_id: state.authorId,
+      post_id: post.id,
+      source: 'card',
+      mobile: isMobileViewport(),
+    });
+  };
+
+  card.addEventListener(
+    'click',
+    (event) => {
+      if (shouldIgnoreAuthorPostOpenTracking(event.target)) return;
+      trackOpen();
+    },
+    true
+  );
+
+  card.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      if (shouldIgnoreAuthorPostOpenTracking(event.target)) return;
+      trackOpen();
+    },
+    true
+  );
+}
+
+function setupAuthorPostInteractions(card, post) {
+  if (!card || !post) return;
+
+  if (typeof window.enhanceStandardPostCard === 'function') {
+    window.enhanceStandardPostCard(card, buildAuthorCardSourcePost(post));
+  } else if (typeof window.setupCardInteractions === 'function') {
+    window.setupCardInteractions(card, buildAuthorCardSourcePost(post));
+  }
+
+  bindAuthorPostOpenTracking(card, post);
+}
+
+function renderAuthorPosts(posts) {
+  if (!dom.postsList || !Array.isArray(posts) || !posts.length) return;
+
+  const markup = posts
     .map((post) => {
       authorPostCache.set(String(post.id), post);
-      // 작성일 포맷
-      const dateStr = post.created_at
-        ? formatKoreanDateTime(post.created_at)
-        : '';
-
-      // 좋아요 개수
-      const likeCount =
-        typeof post.like_count === 'number' ? post.like_count : 0;
-
-      // 현재 로그인 유저가 공감한 상태인지
-      const liked = post.user_liked === 1 || post.user_liked === true;
-
-      // 해시태그 버튼 HTML
-      const hashtagHtml = buildHashtagHtml(post);
-
-      // 폰트 메타 파싱 + XSS 방지 sanitize
-      const { cleanHtml, fontKey } = extractFontFromContent(post.content);
-      const safeHtml = sanitizePostHtml(cleanHtml);
-
-      const quoteFontClass =
-        fontKey === 'serif' || fontKey === 'sans' || fontKey === 'hand'
-          ? `quote-font-${fontKey}`
-          : '';
-
-      return `
-        <article class="gls-surface-panel gls-surface-veil author-post-card" data-post-id="${post.id}" tabindex="0" role="link">
-          <div class="author-post-inner">
-            <h6 class="author-post-title gls-mb-1">${escapeHtml(post.title)}</h6>
-
-            <div class="author-post-meta gls-text-muted gls-mb-1">
-              <gls-text-small>${dateStr}</gls-text-small>
-            </div>
-
-            <div class="author-post-extra gls-flex gls-items-center gls-mb-2">
-              <!-- 공감 버튼 (index.js와 구조 맞춤) -->
-              <button
-                class="gls-btn gls-btn-sm like-btn ${liked ? 'liked' : ''}"
-                type="button"
-                data-post-id="${post.id}"
-                data-liked="${liked ? '1' : '0'}"
-              >
-                <span class="like-heart">${liked ? '♥' : '♡'}</span>
-                <span class="like-count ms-1">${likeCount}</span>
-              </button>
-
-              <div class="ms-2">
-                ${hashtagHtml}
-              </div>
-            </div>
-
-            <!-- 글 내용 인스타 감성 카드 -->
-            <div class="author-post-content">
-              <div class="author-feed-post-content author-post-preview">
-                <div class="quote-card author-quote-card ${quoteFontClass}">
-                  ${safeHtml}
-                </div>
-              </div>
-            </div>
-          </div>
-        </article>
-      `;
+      upsertLatestPost(post);
+      return buildAuthorPostCardHtml(post);
     })
     .join('');
 
-  // DOM에 추가
-  listBox.insertAdjacentHTML('beforeend', fragmentHtml);
+  dom.postsList.insertAdjacentHTML('beforeend', markup);
 
-  // 새 카드들에 인터랙션 세팅
   posts.forEach((post) => {
-    const card = listBox.querySelector(
-      `.author-post-card[data-post-id="${post.id}"]`
-    );
+    const card = dom.postsList.querySelector(`.author-post-card[data-post-id="${post.id}"]`);
     if (!card) return;
     setupAuthorPostInteractions(card, post);
   });
 }
 
+function resetAuthorPosts() {
+  state.offset = 0;
+  state.done = false;
+  state.latestPost = null;
+  authorPostCache.clear();
 
-/**
- * === 개별 작가 글 카드 인터랙션 ===
- * - 글귀 폰트 자동조절(autoAdjustQuoteFont)
- * - 좋아요 토글 처리
- * - 해시태그 버튼 클릭 시 태그로 필터된 홈 피드로 이동
- */
-function setupAuthorPostInteractions(card, post) {
-  if (!card || !post) return;
-
-  // 글귀 폰트 자동 조절 (글 길이에 따라 폰트 크기 조정)
-  const quoteCard = card.querySelector('.quote-card');
-  if (quoteCard) {
-    autoAdjustQuoteFont(quoteCard);
+  if (dom.postsList) {
+    dom.postsList.innerHTML = '';
   }
 
-  // 좋아요 버튼
-  const likeBtn = card.querySelector('.like-btn');
-  if (likeBtn) {
-    likeBtn.addEventListener('click', async (event) => {
-      event.stopPropagation();
-      if (likeBtn.dataset.busy === '1') return;
-      const likePostId = likeBtn.getAttribute('data-post-id');
-      if (!likePostId) return;
-      likeBtn.dataset.busy = '1';
-      likeBtn.disabled = true;
-      likeBtn.classList.add('is-loading');
+  setFeedState('idle');
+}
 
-      try {
-        const res = await fetch(`/api/posts/${likePostId}/toggle-like`, {
-          method: 'POST',
-        });
+async function loadMoreAuthorPosts() {
+  if (!state.authorId) return;
+  if (state.loading || state.done) return;
 
-        // 로그인 안 되어 있으면 로그인 페이지로
-        if (res.status === 401) {
-          if (typeof redirectToLoginWithNext === 'function') {
-            redirectToLoginWithNext({
-              alertMessage: '로그인 후 공감할 수 있습니다.',
-              source: 'author-like',
-            });
-          } else {
-            showUiNotice('로그인 후 공감할 수 있습니다.', 'error');
-            window.location.href = '/html/login.html';
-          }
-          return;
-        }
+  state.loading = true;
+  setFeedState('loading');
 
-        const data = await res.json();
-        if (!res.ok || !data.ok) {
-          showUiNotice(data.message || '공감 처리 중 오류가 발생했습니다.', 'error');
-          return;
-        }
-
-        const liked = !!data.liked;
-        const likeCount =
-          typeof data.like_count === 'number' ? data.like_count : 0;
-
-        // data-liked 속성 업데이트
-        likeBtn.setAttribute('data-liked', liked ? '1' : '0');
-
-        const heartEl = likeBtn.querySelector('.like-heart');
-        const countEl = likeBtn.querySelector('.like-count');
-
-        // 하트 모양, 숫자 갱신
-        if (heartEl) {
-          heartEl.textContent = liked ? '♥' : '♡';
-        }
-        if (countEl) {
-          countEl.textContent = likeCount;
-        }
-
-        // liked 클래스 토글
-        likeBtn.classList.toggle('liked', liked);
-        showUiNotice(liked ? '공감을 남겼습니다.' : '공감을 취소했습니다.', liked ? 'success' : 'info', 1400);
-
-        // 좋아요 애니메이션 (ON일 때만)
-        if (heartEl && liked) {
-          heartEl.style.transition = 'transform 0.16s ease-out';
-          heartEl.style.transform = 'scale(1)';
-          // reflow를 강제로 일으켜 애니메이션 초기화
-          void heartEl.offsetWidth;
-          heartEl.style.transform = 'scale(1.28)';
-          setTimeout(() => {
-            heartEl.style.transform = 'scale(1)';
-          }, 160);
-        }
-      } catch (e) {
-        console.error(e);
-        showUiNotice('공감 처리 중 오류가 발생했습니다.', 'error');
-      } finally {
-        likeBtn.dataset.busy = '0';
-        likeBtn.disabled = false;
-        likeBtn.classList.remove('is-loading');
-      }
+  try {
+    const params = new URLSearchParams({
+      offset: String(state.offset),
+      limit: String(AUTHOR_LIMIT),
+      sort: state.sort,
     });
+
+    const response = await fetch(`/api/users/${state.authorId}/posts?${params.toString()}`);
+    const data = await parseJsonSafe(response);
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.message || '작가 글을 불러오는 중 오류가 발생했습니다.');
+    }
+
+    const posts = Array.isArray(data.posts) ? data.posts : [];
+
+    if (state.offset === 0 && posts.length === 0) {
+      state.done = true;
+      setFeedState('empty');
+      return;
+    }
+
+    if (posts.length === 0) {
+      state.done = true;
+      setFeedState('end');
+      return;
+    }
+
+    renderAuthorPosts(posts);
+    state.offset += posts.length;
+
+    if (posts.length < AUTHOR_LIMIT) {
+      state.done = true;
+      setFeedState('end');
+      return;
+    }
+
+    setFeedState('idle');
+  } catch (error) {
+    console.error(error);
+    setFeedState('error');
+    showUiNotice(error.message || '작가 글을 불러오는 중 오류가 발생했습니다.', 'error');
+  } finally {
+    state.loading = false;
   }
+}
 
-  // 해시태그 클릭 시 홈 피드로 이동해서 해당 태그로 필터 적용
-  const tagButtons = card.querySelectorAll('.hashtag-pill');
-  tagButtons.forEach((btn) => {
-    btn.addEventListener('click', (event) => {
-      event.stopPropagation();
-      const tag = btn.getAttribute('data-tag');
-      if (!tag) return;
-      // index.html?tag=태그 형식으로 이동
-      window.location.href = `/explore?tag=${encodeURIComponent(tag)}`;
+async function fetchLatestAuthorPostFallback() {
+  if (!state.authorId) return null;
+
+  try {
+    const params = new URLSearchParams({
+      offset: '0',
+      limit: '1',
+      sort: 'newest',
     });
-  });
+
+    const response = await fetch(`/api/users/${state.authorId}/posts?${params.toString()}`);
+    const data = await parseJsonSafe(response);
+
+    if (!response.ok || !data.ok) {
+      return null;
+    }
+
+    const first = Array.isArray(data.posts) ? data.posts[0] : null;
+    if (first?.id) {
+      authorPostCache.set(String(first.id), first);
+      upsertLatestPost(first);
+      return first;
+    }
+    return null;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
 }
 
-function setupAuthorPostNavigation() {
-  const listBox = document.getElementById('authorPostsList');
-  if (!listBox || listBox.dataset.navBound) return;
-  listBox.dataset.navBound = 'true';
-
-  listBox.addEventListener('click', (event) => {
-    const card = event.target.closest('.author-post-card');
-    if (!card) return;
-    if (event.target.closest('.like-btn, .hashtag-pill, button, a')) return;
-
-    const postId = card.getAttribute('data-post-id');
-    if (!postId) return;
-    const post = authorPostCache.get(String(postId));
-    if (post) {
-      navigateToPostDetail(post);
-      return;
-    }
-    window.location.href = `/html/post.html?postId=${encodeURIComponent(postId)}`;
-  });
-
-  listBox.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    const card = event.target.closest('.author-post-card');
-    if (!card) return;
-    if (event.target.closest('.like-btn, .hashtag-pill, button, a')) return;
-    event.preventDefault();
-
-    const postId = card.getAttribute('data-post-id');
-    if (!postId) return;
-    const post = authorPostCache.get(String(postId));
-    if (post) {
-      navigateToPostDetail(post);
-      return;
-    }
-    window.location.href = `/html/post.html?postId=${encodeURIComponent(postId)}`;
-  });
-}
-
-function navigateToPostDetail(post) {
+function navigateToPostDetail(post, source = 'card') {
   if (!post?.id) return;
+
+  trackUxEvent('author_post_open', {
+    author_id: state.authorId,
+    post_id: post.id,
+    source,
+    mobile: isMobileViewport(),
+  });
 
   try {
     const payload = {
@@ -666,7 +1059,7 @@ function navigateToPostDetail(post) {
       category: post.category,
       author_id: post.author_id,
     };
-    localStorage.setItem('glsoop_lastPost', JSON.stringify(payload));
+    window.localStorage.setItem('glsoop_lastPost', JSON.stringify(payload));
   } catch (error) {
     console.warn('glsoop_lastPost cache failed', error);
   }
@@ -674,141 +1067,67 @@ function navigateToPostDetail(post) {
   window.location.href = `/html/post.html?postId=${encodeURIComponent(post.id)}`;
 }
 
-/* ===== 해시태그 → 버튼 HTML =====
- * post.hashtags 문자열을 받아서
- * Bootstrap outline 버튼들로 변환
- */
-function buildHashtagHtml(post) {
-  if (!post.hashtags) return '';
+async function handleOpenLatestPost() {
+  if (!state.authorId) return;
 
-  const tags = String(post.hashtags)
-    .split(',')
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0);
-
-  if (!tags.length) return '';
-
-  const pills = tags
-    .map(
-      (t) =>
-        `<button type="button"
-                  class="gls-tag-btn hashtag-pill"
-                  data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`
-    )
-    .join('');
-
-  return `<div class="gls-card-hashtags gls-mt-1 gls-text-start">${pills}</div>`;
-}
-
-function setupAuthorToolbarActions() {
-  const shareBtn = document.getElementById('authorShareBtn');
-
-  if (shareBtn && !shareBtn.dataset.bound) {
-    shareBtn.addEventListener('click', handleAuthorShare);
-    shareBtn.dataset.bound = 'true';
+  if (state.latestPost?.id) {
+    navigateToPostDetail(state.latestPost, 'latest_cta');
+    return;
   }
-}
 
-async function handleAuthorShare() {
-  const shareData = {
-    title: `${currentAuthorNickname || '작가'}님의 글숲`,
-    url: window.location.href,
-  };
-
-  try {
-    if (navigator.share) {
-      await navigator.share(shareData);
-      showAuthorToast('공유가 완료되었습니다.');
+  if (state.offset === 0 && !state.loading) {
+    await loadMoreAuthorPosts();
+    if (state.latestPost?.id) {
+      navigateToPostDetail(state.latestPost, 'latest_cta');
       return;
     }
+  }
 
-    await navigator.clipboard.writeText(window.location.href);
-    showAuthorToast('링크가 복사되었습니다.');
+  const fallbackPost = await fetchLatestAuthorPostFallback();
+  if (fallbackPost?.id) {
+    navigateToPostDetail(fallbackPost, 'latest_cta');
+    return;
+  }
+
+  showUiNotice('아직 바로 읽을 수 있는 최신 글이 없습니다.', 'info', 1800);
+}
+
+async function initAuthorPage() {
+  cacheAuthorDom();
+  bindProfileControls();
+  setupAuthorOverflowMenu();
+  setupAuthorToolbarActions();
+  setupAuthorSortModal();
+  setupInfiniteLoadTrigger();
+
+  const params = new URLSearchParams(window.location.search);
+  const userId = params.get('userId');
+
+  if (!userId) {
+    showUiNotice('잘못된 접근입니다. 작가 정보를 찾을 수 없습니다.', 'error', 2200);
+    window.setTimeout(() => {
+      window.location.href = '/index.html';
+    }, 700);
+    return;
+  }
+
+  state.authorId = userId;
+
+  setAuthorDataset('authorLayout', 'v2');
+  setAuthorDataset('authorOverflowOpen', 'false');
+  setFeedState('idle');
+
+  window.addEventListener('resize', syncAuthorAboutCollapseToggle, { passive: true });
+
+  try {
+    await loadAuthorProfile(userId);
   } catch (error) {
-    console.error(error);
-    showAuthorToast('공유에 실패했습니다.');
-  }
-}
-
-function showAuthorToast(message) {
-  const toast = document.getElementById('authorToast');
-  if (!toast) return;
-
-  toast.textContent = message;
-  toast.classList.add('is-visible');
-
-  if (toast.dataset.timerId) {
-    clearTimeout(Number(toast.dataset.timerId));
+    return;
   }
 
-  const timerId = setTimeout(() => {
-    toast.classList.remove('is-visible');
-  }, 2000);
-
-  toast.dataset.timerId = String(timerId);
+  await loadMoreAuthorPosts();
 }
 
-function setupAuthorSortModal() {
-  const sortOptions = document.querySelectorAll(
-    '.author-sort-options input[name="authorSort"]'
-  );
-
-  if (!sortOptions.length) return;
-
-  sortOptions.forEach((input) => {
-    if (input.value === currentSort) {
-      input.checked = true;
-    }
-
-    if (!input.dataset.bound) {
-      input.addEventListener('change', () => {
-        const nextSort = input.value;
-        if (!nextSort || nextSort === currentSort) return;
-        currentSort = nextSort;
-        updateSortButtonLabel(nextSort);
-        resetAuthorPosts();
-        loadMoreAuthorPosts();
-      });
-      input.dataset.bound = 'true';
-    }
-  });
-
-  updateSortButtonLabel(currentSort);
-}
-
-function updateSortButtonLabel(sortKey) {
-  const sortBtn = document.getElementById('authorSortBtn');
-  if (!sortBtn) return;
-
-  const labels = {
-    newest: '최신순',
-    oldest: '오래된순',
-    likes: '공감 많은순',
-  };
-
-  sortBtn.textContent = labels[sortKey] || '정렬';
-}
-
-function resetAuthorPosts() {
-  const listBox = document.getElementById('authorPostsList');
-  const emptyEl = document.getElementById('authorPostsEmpty');
-  const endEl = document.getElementById('authorPostsEnd');
-
-  authorOffset = 0;
-  authorDone = false;
-  authorPostCache.clear();
-
-  if (listBox) listBox.innerHTML = '';
-  if (emptyEl) emptyEl.classList.add('is-hidden');
-  if (endEl) endEl.classList.add('is-hidden');
-}
-
-/**
- * === 작가 프로필 카드가 스크롤을 따라오게 만들기 ===
- * - 데스크탑(가로폭 >= 992px)에서만 적용
- * - 왼쪽 프로필 카드(.author-profile-card)를 스크롤에 맞춰 고정
- * - 상단 네비게이션 높이(NAV_OFFSET)만큼 띄워서 자연스럽게 따라오도록
- */
-function setupAuthorProfileSticky() {
-  // Sticky 동작 비활성화 (의도적으로 빈 함수 유지)
-}
+document.addEventListener('DOMContentLoaded', () => {
+  initAuthorPage();
+});

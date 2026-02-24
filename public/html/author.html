@@ -4,45 +4,29 @@
   <!--
     작가 페이지(author.html)
     - 연동 CSS: base.css, components.css, author.css
-    - 연동 JS: header.js(네비), author.js(프로필/팔로우/무한스크롤), postCard.js(카드 공통)
-    - 주요 요소: #authorProfileCard(왼쪽 프로필), #authorPosts(오른쪽 글 목록)
+    - 연동 JS: header.js(네비), analytics.js(UX 이벤트), author.js(프로필/팔로우/피드)
+    - 주요 요소: #authorFollowBtn, #authorPostsList, #authorSortBtn
   -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>작가 페이지 | 글숲</title>
 
-  <!-- Google Fonts: 사이트 전반에서 사용할 폰트들 로드 -->
-  <link
-    href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap"
-    rel="stylesheet"
-  />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap"
-    rel="stylesheet"
-  />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap"
-    rel="stylesheet"
-  />
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap" rel="stylesheet" />
 
-  <!-- Bootstrap CSS: 레이아웃 및 기본 컴포넌트 스타일 -->
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
     rel="stylesheet"
   />
 
-<link rel="stylesheet" href="/css/app.css">
-
-
+  <link rel="stylesheet" href="/css/app.css" />
 </head>
-<body class="page-author">
-  <!-- 상단 네비게이션 바 -->
+<body class="page-author" data-author-layout="v2" data-author-feed-state="idle" data-author-overflow-open="false">
   <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
     <div class="gls-container">
-      <!-- 로고: 클릭 시 메인 페이지로 이동 -->
       <a class="navbar-brand" href="/index.html">글숲</a>
 
-      <!-- 모바일에서 메뉴를 접었다 펼치는 토글 버튼 -->
       <button
         class="navbar-toggler"
         type="button"
@@ -51,12 +35,7 @@
         <span class="navbar-toggler-icon"></span>
       </button>
 
-      <!-- 실제 네비게이션 메뉴 영역 -->
       <div class="collapse navbar-collapse" id="navbarNav">
-          </li>
-        </ul>
-
-        <!-- 로그인 전: 로그인 / 회원가입 메뉴 -->
         <ul class="navbar-nav gls-ms-auto before-login">
           <li class="nav-item">
             <a class="nav-link" href="/html/login.html">로그인</a>
@@ -66,11 +45,8 @@
           </li>
         </ul>
 
-        <!-- 로그인 후: 사용자 이름 / 마이페이지 / 글쓰기 / 로그아웃 -->
-        <!-- 기본은 display:none; → header.js에서 /api/me 결과에 따라 토글 -->
         <ul class="navbar-nav gls-ms-auto after-login is-hidden">
           <li class="nav-item">
-            <!-- 로그인한 사용자 이름 표시 -->
             <span class="nav-link" id="navUserName"></span>
           </li>
           <li class="nav-item">
@@ -80,7 +56,6 @@
             <a class="nav-link" href="/html/editor.html">글쓰기</a>
           </li>
           <li class="nav-item">
-            <!-- 로그아웃 버튼 (header.js에서 이벤트 바인딩) -->
             <button
               class="user-profile"
               id="logoutBtn"
@@ -108,34 +83,27 @@
     </div>
   </nav>
 
-  <!-- 작가 페이지 본문 -->
-  <!-- fixed-top 네비게이션 때문에 gls-py-5 + gls-mt-5로 상단 여백 확보 -->
-  <section class="author-page-section">
+  <section class="author-page-section" data-author-feed-state="idle">
     <div class="author-page-shell">
-      <!-- 페이지 상단 타이틀/설명 -->
-      <div class="author-page-header">
-        <!-- JS에서 닉네임 불러와 “OOO님의 나무” 등으로 바뀜 -->
+      <header class="author-page-header gls-surface-panel gls-surface-veil" aria-labelledby="authorPageTitle">
+        <p class="author-hero-kicker">AUTHOR ARCHIVE</p>
         <h2 id="authorPageTitle" class="gls-mb-1">작가님의 글숲</h2>
-        <p class="gls-mb-0 gls-text-muted gls-text-small">
-          이 작가가 남긴 글들과 공감 기록을 한 눈에 볼 수 있어요.
+        <p id="authorHeroSubtitle" class="author-hero-subtitle gls-mb-0">
+          이 작가가 남긴 문장과 공감 기록을 한눈에 볼 수 있어요.
         </p>
-      </div>
+      </header>
 
-      <!-- 메인 레이아웃: 왼쪽 프로필 카드 + 오른쪽 글 목록 -->
       <div class="author-page-main-row gls-items-start">
-        <!-- 왼쪽: 작가 정보 카드 -->
         <aside class="author-left-col">
           <div class="card author-profile-card gls-surface-panel gls-surface-veil">
             <div class="card-body gls-flex gls-flex-col">
               <div class="author-card-header">
-                <span class="author-card-title">작가 정보</span>
+                <span class="author-card-title">작가 아이덴티티</span>
               </div>
 
               <div class="author-identity-block">
                 <div class="gls-user-badge">
-                  <div class="gls-user-badge__avatar" id="authorAvatarInitial" aria-hidden="true">
-                    🌿
-                  </div>
+                  <div class="gls-user-badge__avatar" id="authorAvatarInitial" aria-hidden="true">🌿</div>
                   <div class="gls-user-badge__body">
                     <p class="gls-user-badge__name gls-mb-1" id="authorNicknameDisplay">닉네임</p>
                     <div id="authorEmailDisplay" class="gls-user-badge__sub" aria-live="polite">-</div>
@@ -146,13 +114,20 @@
 
               <div class="author-bio-block">
                 <p class="author-label gls-text-small gls-mb-1">한 줄 소개</p>
-                <p id="authorBio" class="author-bio-text gls-mb-3 gls-text-muted">
-                  <!-- 한 줄 소개 -->
-                </p>
-                <p class="author-label gls-text-small gls-mb-1">작가 소개</p>
-                <p id="authorAbout" class="author-about-text gls-mb-0">
-                  <!-- 자기소개 여러 줄 -->
-                </p>
+                <p id="authorBio" class="author-bio-text gls-mb-3 gls-text-muted"></p>
+
+                <div class="author-about-head">
+                  <p class="author-label gls-text-small gls-mb-1">작가 소개</p>
+                  <button
+                    type="button"
+                    id="authorBioToggleBtn"
+                    class="author-bio-toggle gls-btn gls-btn-sm gls-btn-secondary is-hidden"
+                    aria-expanded="false"
+                  >
+                    소개 펼치기
+                  </button>
+                </div>
+                <p id="authorAbout" class="author-about-text gls-mb-0"></p>
               </div>
 
               <div class="author-stats-card">
@@ -178,73 +153,80 @@
               </div>
 
               <div class="author-follow-block mt-auto">
-                <button
-                  id="authorFollowBtn"
-                  type="button"
-                  class="gls-btn gls-btn-secondary gls-btn-block"
-                  aria-live="polite"
-                >
-                  팔로우
-                </button>
+                <div class="author-primary-actions">
+                  <button
+                    id="authorFollowBtn"
+                    type="button"
+                    class="gls-btn gls-btn-secondary gls-btn-block"
+                    aria-live="polite"
+                  >
+                    팔로우
+                  </button>
+                  <button
+                    id="authorLatestPostBtn"
+                    type="button"
+                    class="gls-btn gls-btn-ghost gls-btn-block"
+                  >
+                    최신 글 바로읽기
+                  </button>
+                  <a
+                    href="/html/mypage.html"
+                    class="gls-btn gls-btn-ghost gls-btn-block author-profile-action gls-hidden"
+                    id="authorProfileActionBtn"
+                    aria-label="내 프로필로 이동"
+                  >
+                    내 프로필
+                  </a>
+                </div>
                 <p class="gls-text-muted gls-text-small gls-mb-0 gls-mt-2" id="authorFollowHint">
-                  홈 피드에서 이 작가의 카드를 눌러도 이 페이지로 다시 올 수 있어요.
+                  팔로우해서 작가의 새 글 소식을 받아보세요.
                 </p>
               </div>
             </div>
           </div>
         </aside>
 
-        <!-- 오른쪽: 작가의 글 목록 카드 -->
         <div class="author-right-col">
-          <div class="author-feed-toolbar">
+          <div class="author-feed-toolbar gls-surface-panel gls-surface-veil">
             <div class="author-feed-toolbar-text">
               <h4 class="gls-mb-1">이 작가의 글</h4>
               <p class="gls-text-muted gls-text-small gls-mb-0">
-                작가가 남긴 문장과 공감이 모이는 공간이에요.
+                분위기에 맞는 글을 천천히 살펴보고 마음에 드는 문장을 눌러 읽어보세요.
               </p>
             </div>
             <div class="author-feed-toolbar-actions">
               <button
                 type="button"
-                class="gls-action-pill"
-                id="authorShareBtn"
-                aria-label="작가 페이지 공유"
+                class="gls-action-pill author-overflow-trigger"
+                id="authorOverflowBtn"
+                aria-label="보조 메뉴 열기"
+                aria-haspopup="menu"
+                aria-controls="authorOverflowMenu"
+                aria-expanded="false"
               >
-                공유
+                ...
               </button>
-              <button
-                type="button"
-                class="gls-action-pill"
-                id="authorSortBtn"
-                data-gls-toggle="modal"
-                data-gls-target="#authorSortModal"
-                aria-label="정렬 방식 선택"
+              <div
+                id="authorOverflowMenu"
+                class="author-overflow-menu is-hidden"
+                role="menu"
+                aria-label="보조 동작 메뉴"
+                aria-hidden="true"
               >
-                정렬
-              </button>
-              <a
-                href="/html/mypage.html"
-                class="gls-action-pill author-profile-action gls-hidden"
-                id="authorProfileActionBtn"
-                aria-label="내 프로필로 이동"
-              >
-                내 프로필
-              </a>
+                <button type="button" class="author-overflow-item" id="authorShareBtn" role="menuitem">
+                  공유
+                </button>
+                <button type="button" class="author-overflow-item" id="authorSortBtn" role="menuitem">
+                  정렬: 최신순
+                </button>
+              </div>
             </div>
           </div>
 
-          <!-- 데스크톱에서만 보이는 스크롤 안내 텍스트 -->
-          <p class="gls-text-muted gls-text-small gls-mb-3 gls-hidden gls-md-block">
-            아래로 스크롤하면 더 많은 글을 볼 수 있어요.
-          </p>
-
-          <!-- 글 목록 카드(안에 무한 스크롤로 글들이 쌓임) -->
           <div class="author-posts-card gls-surface-panel gls-surface-veil">
             <div class="author-posts-card-body">
-              <!-- 실제 글 카드들이 JS로 렌더링 되는 영역 -->
               <div id="authorPostsList"></div>
 
-              <!-- 글 로딩 중 메시지 -->
               <div
                 id="authorPostsLoading"
                 class="gls-text-center gls-text-muted gls-text-small gls-py-3 is-hidden"
@@ -252,7 +234,6 @@
                 글을 불러오는 중입니다...
               </div>
 
-              <!-- 이 작가가 글을 한 편도 쓰지 않았을 때 -->
               <div
                 id="authorPostsEmpty"
                 class="gls-text-center gls-text-muted gls-text-small gls-py-5 is-hidden"
@@ -260,13 +241,21 @@
                 아직 이 작가가 남긴 글이 없습니다.
               </div>
 
-              <!-- 더 불러올 글이 없을 때(마지막까지 내려왔을 때) -->
               <div
                 id="authorPostsEnd"
                 class="gls-text-center gls-text-muted gls-text-small gls-py-3 is-hidden"
               >
                 마지막 글까지 다 보셨어요.
               </div>
+
+              <div
+                id="authorPostsError"
+                class="gls-text-center gls-text-muted gls-text-small gls-py-3 is-hidden"
+              >
+                글 목록을 불러오는 중 오류가 발생했습니다.
+              </div>
+
+              <div id="authorFeedSentinel" class="author-feed-sentinel" aria-hidden="true"></div>
             </div>
           </div>
         </div>
@@ -274,7 +263,6 @@
     </div>
   </section>
 
-  <!-- 정렬 모달 -->
   <div
     class="modal fade"
     id="authorSortModal"
@@ -325,8 +313,6 @@
 
   <div id="authorToast" class="author-toast" role="status" aria-live="polite"></div>
 
-  <!-- 푸터 -->
-  <!-- 이 페이지는 사이트 공통 custom-footer 대신, author 전용 라이트한 푸터 사용 -->
   <footer class="site-footer gls-mt-5 gls-py-4">
     <div class="gls-container gls-text-center gls-text-muted gls-text-small">
       © 2025 글숲 · 오늘의 문장을 천천히 적어 내려가요.
@@ -334,17 +320,16 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-
-  <!-- 공통 유틸 스크립트 (escapeHtml, formatKoreanDateTime, maskEmail 등) -->
   <script src="/js/utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- 헤더 로그인 상태/로그아웃 버튼 처리 -->
   <script src="/js/seasonal.js" defer></script>
   <script src="../js/theme.js" defer></script>
   <script src="../js/header.js"></script>
+  <script src="../js/analytics.js"></script>
+  <script src="../js/postCard.js"></script>
+  <script src="../js/bookmarkModal.js"></script>
 
-  <!-- 작가 페이지 전용 스크립트: 프로필/글 목록 로딩 & 무한 스크롤 -->
   <script src="../js/author.js"></script>
 </body>
 </html>
