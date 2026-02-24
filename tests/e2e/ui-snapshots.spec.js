@@ -550,6 +550,55 @@ test.describe('UI snapshot tour', () => {
         }
 
         if (
+          projectName === 'mobile-chrome' &&
+          mode.name === 'guest' &&
+          pageEntry.key === 'home'
+        ) {
+          await stabilizePage(page);
+          await captureExtraSnapshot({
+            page,
+            projectName,
+            mode: mode.name,
+            key: 'home_mobile_ia',
+            manifest,
+          });
+        }
+
+        if (
+          projectName === 'mobile-chrome' &&
+          mode.name === 'guest' &&
+          pageEntry.key === 'explore'
+        ) {
+          await page.evaluate(() => {
+            const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+            window.scrollTo(0, Math.min(maxScroll, Math.floor(window.innerHeight * 0.8)));
+          });
+          await stabilizePage(page);
+          await captureExtraSnapshot({
+            page,
+            projectName,
+            mode: mode.name,
+            key: 'explore_mobile_sticky_filter',
+            manifest,
+          });
+        }
+
+        if (
+          projectName === 'mobile-chrome' &&
+          mode.name === 'guest' &&
+          pageEntry.key === 'login'
+        ) {
+          await stabilizePage(page);
+          await captureExtraSnapshot({
+            page,
+            projectName,
+            mode: mode.name,
+            key: 'login_mobile_form_first',
+            manifest,
+          });
+        }
+
+        if (
           projectName === 'desktop-chrome' &&
           mode.name === 'authed' &&
           pageEntry.key === 'post-1'
@@ -582,10 +631,38 @@ test.describe('UI snapshot tour', () => {
         }
 
         if (
+          projectName === 'mobile-chrome' &&
+          mode.name === 'authed' &&
+          pageEntry.key === 'post-1'
+        ) {
+          await page.evaluate(() => {
+            const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+            window.scrollTo(0, Math.floor(maxScroll * 0.82));
+          });
+          await stabilizePage(page);
+          await captureExtraSnapshot({
+            page,
+            projectName,
+            mode: mode.name,
+            key: 'post_mobile_action_safe',
+            manifest,
+          });
+        }
+
+        if (
           projectName === 'desktop-chrome' &&
           mode.name === 'authed' &&
           pageEntry.key === 'author-1'
         ) {
+          await stabilizePage(page);
+          await captureExtraSnapshot({
+            page,
+            projectName,
+            mode: mode.name,
+            key: 'author_desktop_2col_feed',
+            manifest,
+          });
+
           const followed = await safeClickIfVisible(page, '#authorFollowBtn');
           if (followed) {
             await stabilizePage(page);
@@ -597,6 +674,63 @@ test.describe('UI snapshot tour', () => {
               manifest,
             });
           }
+        }
+
+        if (
+          projectName === 'mobile-chrome' &&
+          mode.name === 'authed' &&
+          pageEntry.key === 'author-1'
+        ) {
+          await stabilizePage(page);
+          await captureExtraSnapshot({
+            page,
+            projectName,
+            mode: mode.name,
+            key: 'author_mobile_hero_dual_cta',
+            manifest,
+          });
+
+          const overflowOpened = await safeClickIfVisible(page, '#authorOverflowBtn');
+          if (overflowOpened) {
+            await stabilizePage(page);
+            await captureExtraSnapshot({
+              page,
+              projectName,
+              mode: mode.name,
+              key: 'author_mobile_overflow_open',
+              manifest,
+            });
+          }
+        }
+
+        if (
+          projectName === 'mobile-chrome' &&
+          mode.name === 'authed' &&
+          pageEntry.key === 'growth'
+        ) {
+          await stabilizePage(page);
+          await captureExtraSnapshot({
+            page,
+            projectName,
+            mode: mode.name,
+            key: 'growth_mobile_priority',
+            manifest,
+          });
+        }
+
+        if (
+          projectName === 'mobile-chrome' &&
+          mode.name === 'admin' &&
+          pageEntry.key === 'admin'
+        ) {
+          await stabilizePage(page);
+          await captureExtraSnapshot({
+            page,
+            projectName,
+            mode: mode.name,
+            key: 'admin_mobile_safety',
+            manifest,
+          });
         }
       }
 
