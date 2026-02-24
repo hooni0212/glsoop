@@ -6,16 +6,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('forgotForm');
   if (!form) return;
 
-  const msgEl = document.getElementById('forgotMessage');
+  const authUtils = window.glsoopAuthFormUtils || null;
+  const msgEl =
+    (authUtils && typeof authUtils.ensureFeedbackElement === 'function'
+      ? authUtils.ensureFeedbackElement(form, 'forgotMessage')
+      : null) || document.getElementById('forgotMessage');
   const submitBtn = form.querySelector('button[type="submit"]');
   const emailInput = form.querySelector('input[name="email"]');
-  const authUtils = window.glsoopAuthFormUtils || null;
   let stopRetryCountdown = null;
 
   const setFormMessage = (message, type = 'info', focus = false) => {
     if (!msgEl) return;
-    if (window.glsoopUi && typeof window.glsoopUi.setFeedbackMessage === 'function') {
-      window.glsoopUi.setFeedbackMessage(msgEl, message, { type, focus });
+    if (authUtils && typeof authUtils.setFormFeedback === 'function') {
+      authUtils.setFormFeedback(msgEl, message, type, focus);
       return;
     }
     msgEl.textContent = message || '';
@@ -27,8 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
       stopRetryCountdown = null;
     }
     if (!msgEl) return;
-    if (window.glsoopUi && typeof window.glsoopUi.clearFeedbackMessage === 'function') {
-      window.glsoopUi.clearFeedbackMessage(msgEl);
+    if (authUtils && typeof authUtils.clearFormFeedback === 'function') {
+      authUtils.clearFormFeedback(msgEl);
       return;
     }
     msgEl.textContent = '';

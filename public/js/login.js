@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const rememberLoginModalEl = document.getElementById('rememberLoginModal');
   const rememberLoginConfirmBtn = document.getElementById('rememberLoginConfirmBtn');
   const authShell = document.querySelector('[data-auth-shell="1"]');
+  const authSceneToggleBtn = document.getElementById('authSceneToggleBtn');
   const authSceneStage = document.getElementById('authSceneStage');
   const authSceneFamily = document.getElementById('authSceneFamily');
   const authSceneName = document.getElementById('authSceneName');
@@ -576,6 +577,77 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  const isMobileViewport = () =>
+    window.matchMedia
+      ? window.matchMedia('(max-width: 768px)').matches
+      : (window.innerWidth || 1024) <= 768;
+
+  const applyAuthSceneCollapsed = (collapsed) => {
+    if (!authShell) return;
+    const next = collapsed ? 'true' : 'false';
+    authShell.dataset.authSceneCollapsed = next;
+    if (authSceneToggleBtn) {
+      authSceneToggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      authSceneToggleBtn.textContent = collapsed ? '장면 펼치기' : '장면 접기';
+    }
+  };
+
+  const bindAuthSceneCollapse = () => {
+    if (!authShell || !authSceneToggleBtn) return;
+    let wasMobile = isMobileViewport();
+    applyAuthSceneCollapsed(wasMobile);
+
+    authSceneToggleBtn.addEventListener('click', () => {
+      const collapsed = authShell.dataset.authSceneCollapsed === 'true';
+      applyAuthSceneCollapsed(!collapsed);
+    });
+
+    window.addEventListener(
+      'resize',
+      () => {
+        const nowMobile = isMobileViewport();
+        if (nowMobile === wasMobile) return;
+        wasMobile = nowMobile;
+        applyAuthSceneCollapsed(nowMobile);
+      },
+      { passive: true }
+    );
+  };
+
+  const trackAuthFormVisible = () => {
+    if (!form) return;
+    if (typeof IntersectionObserver !== 'function') {
+      trackEvent(
+        'auth_form_visible',
+        {
+          mobile: isMobileViewport(),
+          path: `${window.location.pathname}${window.location.search || ''}`,
+        },
+        { useBeacon: true }
+      );
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.2);
+        if (!visible) return;
+        observer.disconnect();
+        trackEvent(
+          'auth_form_visible',
+          {
+            mobile: isMobileViewport(),
+            path: `${window.location.pathname}${window.location.search || ''}`,
+          },
+          { useBeacon: true }
+        );
+      },
+      { threshold: [0.2] }
+    );
+
+    observer.observe(form);
+  };
+
   const triggerFormState = (stateClass) => {
     if (!stateClass) return;
     form.classList.remove('is-login-error', 'is-login-success');
@@ -1088,7 +1160,9 @@ document.addEventListener('DOMContentLoaded', () => {
   setAuthShellMotion(motionState.pointerX, motionState.pointerY);
   bindAuthShellParallax();
   startAmbientSceneMotion();
+  bindAuthSceneCollapse();
   bindFormFieldState();
+  trackAuthFormVisible();
   trackEvent('login_view', {
     scene_key: selectedScene ? selectedScene.key : null,
   });

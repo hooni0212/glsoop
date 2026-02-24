@@ -6,24 +6,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const token = (params.get('token') || '').trim();
 
   const form = document.getElementById('resetForm');
-  const msgEl = document.getElementById('resetMessage');
+  const authUtils = window.glsoopAuthFormUtils || null;
+  const msgEl =
+    (authUtils && typeof authUtils.ensureFeedbackElement === 'function'
+      ? authUtils.ensureFeedbackElement(form, 'resetMessage')
+      : null) || document.getElementById('resetMessage');
   const tokenStateEl = document.getElementById('resetTokenState');
   const strengthEl = document.getElementById('resetPwStrength');
-  const authUtils = window.glsoopAuthFormUtils || null;
 
   if (!form || !msgEl) return;
 
   const setFormMessage = (message, type = 'error', focus = false) => {
-    if (window.glsoopUi && typeof window.glsoopUi.setFeedbackMessage === 'function') {
-      window.glsoopUi.setFeedbackMessage(msgEl, message, { type, focus });
+    if (authUtils && typeof authUtils.setFormFeedback === 'function') {
+      authUtils.setFormFeedback(msgEl, message, type, focus);
       return;
     }
     msgEl.textContent = message || '';
   };
 
   const clearFormMessage = () => {
-    if (window.glsoopUi && typeof window.glsoopUi.clearFeedbackMessage === 'function') {
-      window.glsoopUi.clearFeedbackMessage(msgEl);
+    if (authUtils && typeof authUtils.clearFormFeedback === 'function') {
+      authUtils.clearFormFeedback(msgEl);
       return;
     }
     msgEl.textContent = '';

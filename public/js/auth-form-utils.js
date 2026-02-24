@@ -155,6 +155,39 @@
     }
   }
 
+  function ensureFeedbackElement(form, fallbackId) {
+    if (window.glsoopUi && typeof window.glsoopUi.ensureFormFeedbackElement === 'function') {
+      return window.glsoopUi.ensureFormFeedbackElement(form, fallbackId);
+    }
+    if (!form) return null;
+    if (fallbackId) {
+      const byId = document.getElementById(fallbackId);
+      if (byId) return byId;
+    }
+    return form.querySelector('.gls-feedback');
+  }
+
+  function setFormFeedback(feedbackEl, message, type = 'error', focus = false) {
+    if (!feedbackEl) return;
+    if (window.glsoopUi && typeof window.glsoopUi.setFeedbackMessage === 'function') {
+      window.glsoopUi.setFeedbackMessage(feedbackEl, message, { type, focus });
+      return;
+    }
+    feedbackEl.textContent = message || '';
+    if (focus && typeof feedbackEl.focus === 'function') {
+      feedbackEl.focus();
+    }
+  }
+
+  function clearFormFeedback(feedbackEl) {
+    if (!feedbackEl) return;
+    if (window.glsoopUi && typeof window.glsoopUi.clearFeedbackMessage === 'function') {
+      window.glsoopUi.clearFeedbackMessage(feedbackEl);
+      return;
+    }
+    feedbackEl.textContent = '';
+  }
+
   global.glsoopAuthFormUtils = {
     findInput,
     setFieldInvalid,
@@ -166,5 +199,8 @@
     buildErrorMessage,
     startRetryCountdown,
     focusFirstInvalid,
+    ensureFeedbackElement,
+    setFormFeedback,
+    clearFormFeedback,
   };
 })(window);

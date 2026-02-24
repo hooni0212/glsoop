@@ -2137,3 +2137,52 @@
     transition: none !important;
   }
 }
+
+/* =============================================================
+   Mobile-first auth funnel overrides
+   - form-first layout + collapsible scene panel
+   ============================================================= */
+
+.page-login .auth-scene-toggle {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .page-login .auth-shell {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .page-login .auth-card {
+    order: 1;
+  }
+
+  .page-login .auth-aside {
+    order: 2;
+  }
+
+  .page-login .auth-card__header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .page-login .auth-scene-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--gls-touch-target-min, 44px);
+    margin-left: auto;
+  }
+
+  .page-login [data-auth-shell='1'][data-auth-scene-collapsed='true'] .auth-aside {
+    display: none;
+  }
+
+  .page-login .auth-hero {
+    padding-bottom: 2.2rem;
+  }
+
+  .page-login .auth-card {
+    padding: 1.15rem;
+  }
+}

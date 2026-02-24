@@ -65,6 +65,15 @@ body.page-signup {
   -webkit-backdrop-filter: blur(var(--gls-blur-ui));
 }
 
+.page-signup .auth-form-shell .gls-input,
+.page-signup .auth-form-shell .gls-select {
+  min-height: var(--gls-touch-target-min, 44px);
+}
+
+.page-signup .auth-form-shell .gls-btn {
+  min-height: var(--gls-touch-target-min, 44px);
+}
+
 .page-signup .auth-agreement-box {
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--gls-action-border) 78%, rgba(31, 41, 55, 0.1));
@@ -78,4 +87,15 @@ body.page-signup {
 
 .page-signup .auth-agreement-box a {
   color: var(--gls-color-primary-strong);
+}
+
+@media (max-width: 576px) {
+  .page-signup .auth-lite-hero {
+    padding-bottom: 42px;
+  }
+
+  .page-signup .auth-form-shell {
+    padding: 16px 14px;
+    border-radius: 18px;
+  }
 }
