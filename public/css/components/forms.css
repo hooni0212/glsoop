@@ -11,7 +11,7 @@ textarea.gls-input,
 input.gls-input,
 select.gls-select {
   width: 100%;
-  min-height: 42px;
+  min-height: var(--gls-touch-target-min, 44px);
   border: 1px solid var(--gls-control-border);
   border-radius: var(--gls-control-radius);
   background-color: var(--gls-control-bg);
@@ -56,9 +56,9 @@ textarea.gls-input:focus {
 
 .gls-input-sm,
 .gls-select-sm {
-  min-height: 36px;
+  min-height: 40px;
   padding: 0.42rem 0.68rem;
-  font-size: 0.875rem;
+  font-size: max(0.875rem, var(--gls-fs-xs));
   border-radius: 10px;
 }
 

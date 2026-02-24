@@ -17,6 +17,13 @@ function setNodeGroupVisibility(nodes, visible) {
   });
 }
 
+function trackUxEvent(eventName, properties = {}, options = {}) {
+  if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+    return;
+  }
+  window.glsoopAnalytics.trackEvent(eventName, properties, options);
+}
+
 /**
  * 헤더 영역에 로그인 상태 반영
  * - /api/me로 사용자 정보를 요청
@@ -244,16 +251,30 @@ function setupMobileNavCloseBehavior() {
   if (!navbarNav || !toggler) return;
 
   const isMobile = () => window.innerWidth < 992;
+  const setBodyNavState = (open) => {
+    if (!document.body) return;
+    document.body.dataset.mobileNavOpen = open ? 'true' : 'false';
+  };
   const openNav = () => {
+    if (!isMobile()) return;
     navbarNav.classList.add('is-open');
     navbarNav.classList.add('show');
     toggler.setAttribute('aria-expanded', 'true');
+    navbarNav.setAttribute('data-mobile-nav-open', 'true');
+    setBodyNavState(true);
+    trackUxEvent('mobile_nav_open', {
+      path: `${window.location.pathname}${window.location.search || ''}`,
+    });
   };
   const closeNav = () => {
     navbarNav.classList.remove('is-open');
     navbarNav.classList.remove('show');
     toggler.setAttribute('aria-expanded', 'false');
+    navbarNav.setAttribute('data-mobile-nav-open', 'false');
+    setBodyNavState(false);
   };
+
+  closeNav();
 
   toggler.addEventListener('click', (e) => {
     e.preventDefault();
@@ -284,6 +305,16 @@ function setupMobileNavCloseBehavior() {
     }
     closeAllDropdowns();
   });
+
+  window.addEventListener(
+    'resize',
+    () => {
+      if (!isMobile()) {
+        closeNav();
+      }
+    },
+    { passive: true }
+  );
 
   const dropdownToggles = Array.from(document.querySelectorAll('[data-gls-toggle="dropdown"]'));
 

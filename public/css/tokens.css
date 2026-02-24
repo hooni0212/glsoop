@@ -43,7 +43,7 @@
   --gls-fs-md: 1.0625rem;
   --gls-fs-sm: 0.95rem;
   --gls-fs-xl: 1.52rem;
-  --gls-fs-xs: 0.8125rem;
+  --gls-fs-xs: 0.875rem;
   --gls-lh-normal: 1.6;
   --gls-lh-relaxed: 1.7;
   --gls-lh-tight: 1.28;
@@ -52,7 +52,7 @@
   --gls-color-bg: #ece8de;
   --gls-color-border: #c8beab;
   --gls-color-highlight: #f7f1e4;
-  --gls-color-muted: #5b5d57;
+  --gls-color-muted: #4a4e49;
   --gls-color-overlay: rgba(248, 244, 236, 0.68);
   --gls-color-overlay-strong: rgba(248, 244, 236, 0.9);
   --gls-color-primary: #1d6b52;
@@ -61,7 +61,7 @@
   --gls-color-surface: #fffcf5;
   --gls-color-surface-strong: #f5efe3;
   --gls-color-surface-subtle: #faf4e8;
-  --gls-color-text: #1e2623;
+  --gls-color-text: #172019;
   --gls-color-hero-subtitle: #4f5c53;
   --gls-color-hero-cta-hover: #1a5d40;
   --gls-color-search-input: #fffdf8;
@@ -128,6 +128,20 @@
   --gls-card-hover-lift: -3px;
   --gls-card-hover-border: rgba(47, 109, 93, 0.3);
   --gls-card-hover-shadow: 0 24px 40px rgba(33, 27, 19, 0.16);
+  --gls-author-card-bg: color-mix(
+    in srgb,
+    var(--gls-color-surface, #fffcf5) 82%,
+    rgba(255, 255, 255, 0.38) 18%
+  );
+  --gls-author-card-border: color-mix(
+    in srgb,
+    var(--gls-color-border, #c8beab) 74%,
+    rgba(255, 255, 255, 0.36) 26%
+  );
+  --gls-author-card-shadow: 0 14px 28px rgba(35, 25, 12, 0.1);
+  --gls-author-card-padding: clamp(16px, 2vw, 22px);
+  --gls-author-card-title-size: clamp(1.04rem, 1.28vw, 1.16rem);
+  --gls-author-hero-shadow: 0 20px 44px rgba(20, 24, 20, 0.2);
   --gls-mobile-action-dock-height: 76px;
   --gls-mobile-action-dock-safe: env(safe-area-inset-bottom, 0px);
   --gls-mobile-action-dock-offset: calc(
@@ -175,13 +189,14 @@
   --gls-account-text: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 92%, rgba(0, 0, 0, 0.08));
   /* Controls (inputs) */
   --gls-control-bg: rgba(255, 252, 246, 0.86);
-  --gls-control-border: rgba(30, 42, 51, 0.22);
-  --gls-control-border-focus: rgba(29, 107, 82, 0.58);
+  --gls-control-border: rgba(20, 34, 26, 0.3);
+  --gls-control-border-focus: rgba(22, 88, 64, 0.68);
   --gls-control-radius: 12px;
   --gls-control-shadow-focus: 0 0 0 3px rgba(29, 107, 82, 0.18);
   /* Focus rings */
   --gls-focus-offset: 3px;
-  --gls-focus-outline: 2px solid rgba(29, 107, 82, 0.45);
+  --gls-focus-outline: 3px solid rgba(22, 88, 64, 0.52);
+  --gls-touch-target-min: 44px;
 
   /* Motion */
   --gls-ease: cubic-bezier(0.2, 0.9, 0.2, 1);
@@ -216,6 +231,12 @@
   --gls-z-modal: 1100;
   --gls-z-backdrop: calc(var(--gls-z-modal, 1100) - 10);
   --gls-z-toast: 1200;
+  --gls-z-nav-sheet: 260;
+
+  /* Mobile nav sheet */
+  --gls-nav-sheet-bg: linear-gradient(160deg, rgba(19, 71, 51, 0.97), rgba(13, 52, 38, 0.96));
+  --gls-nav-sheet-border: rgba(232, 251, 242, 0.24);
+  --gls-nav-sheet-shadow: 0 18px 34px rgba(8, 26, 18, 0.34);
 
     /* Shell sub-surface presets */
   --gls-sub-surface: var(--gls-glass-bg-subtle);

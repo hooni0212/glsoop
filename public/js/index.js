@@ -31,6 +31,13 @@ Glsoop.FeedPage = (function () {
   let feedMasonryResizeBound = false;
   let feedMasonryObserver = null;
 
+  function trackUxEvent(eventName, properties = {}, options = {}) {
+    if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+      return;
+    }
+    window.glsoopAnalytics.trackEvent(eventName, properties, options);
+  }
+
   function getGridColumnCount(computedStyle) {
     const template = computedStyle?.gridTemplateColumns || '';
     if (!template) return 0;
@@ -141,6 +148,9 @@ Glsoop.FeedPage = (function () {
     // 3) 카테고리 필터(전체/시/에세이/짧은 구절) 이벤트 등록
     setupCategoryFilters();
 
+    // 3-1) 모바일 탐색 가이드 접기/펼치기
+    setupMobileGuideCollapse();
+
     // 4) 피드 초기화 (첫 로드 + 스크롤 이벤트 등록)
     initFeed();
 
@@ -148,6 +158,39 @@ Glsoop.FeedPage = (function () {
     if (currentTags.length > 0) {
       renderTagFilterBar();
     }
+  }
+
+  function setupMobileGuideCollapse() {
+    const guideBox = document.querySelector('[data-explore-guide]');
+    const toggleBtn = document.querySelector('[data-explore-guide-toggle]');
+    if (!guideBox || !toggleBtn) return;
+
+    const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
+
+    const applyCollapsed = (collapsed) => {
+      guideBox.dataset.collapsed = collapsed ? 'true' : 'false';
+      toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      toggleBtn.textContent = collapsed ? '가이드 펼치기' : '접기';
+    };
+
+    const syncByViewport = () => {
+      if (isMobile()) {
+        applyCollapsed(true);
+        return;
+      }
+      applyCollapsed(false);
+    };
+
+    toggleBtn.addEventListener('click', () => {
+      const nextCollapsed = guideBox.dataset.collapsed !== 'true';
+      applyCollapsed(nextCollapsed);
+      trackUxEvent('explore_guide_toggle', {
+        collapsed: nextCollapsed,
+      });
+    });
+
+    syncByViewport();
+    window.addEventListener('resize', syncByViewport, { passive: true });
   }
 
   /**

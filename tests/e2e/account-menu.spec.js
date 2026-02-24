@@ -26,18 +26,48 @@ function skipUnlessProject(name) {
 
 async function waitForNavCollapse(page) {
   const navbarNav = page.locator('#navbarNav');
-  await expect.poll(async () => {
-    const classList = await navbarNav.evaluate((el) => el.className);
-    return classList.includes('show');
-  }, { message: 'wait for nav to open' });
+  await expect
+    .poll(
+      async () => {
+        const classList = await navbarNav.evaluate((el) => el.className);
+        return classList.includes('show');
+      },
+      { message: 'wait for nav to open' }
+    )
+    .toBe(true);
 }
 
 async function expectNavClosed(page) {
   const navbarNav = page.locator('#navbarNav');
-  await expect.poll(async () => {
-    const classList = await navbarNav.evaluate((el) => el.className);
-    return !classList.includes('show');
-  }, { message: 'nav should be closed' });
+  await expect
+    .poll(
+      async () => {
+        const classList = await navbarNav.evaluate((el) => el.className);
+        return !classList.includes('show');
+      },
+      { message: 'nav should be closed' }
+    )
+    .toBe(true);
+}
+
+async function expectScrollLocked(page, locked) {
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const body = document.body;
+          return {
+            state: body.dataset.mobileNavOpen || '',
+            overflow: window.getComputedStyle(body).overflow,
+          };
+        }),
+      { message: `body scroll lock should be ${locked ? 'on' : 'off'}` }
+    )
+    .toEqual(
+      locked
+        ? expect.objectContaining({ state: 'true', overflow: 'hidden' })
+        : expect.objectContaining({ state: 'false' })
+    );
 }
 
 async function closeDialogOn(page) {
@@ -79,6 +109,7 @@ test.describe('Desktop account popover', () => {
 
     await trigger.click();
     await expect(menu).toBeVisible();
+    await trigger.focus();
     await page.keyboard.press('Escape');
     await expect(menu).toBeHidden();
     await expect(trigger).toBeFocused();
@@ -107,7 +138,9 @@ test.describe('Desktop account popover', () => {
 test.describe('Mobile hamburger menu', () => {
   test.skip(skipUnlessProject('mobile-chrome'), 'Mobile only');
 
-  test('closes on selection and keeps logout as list item', async ({ browser }) => {
+  test('locks scroll on open, restores focus/scroll on close, and keeps logout as list item', async ({
+    browser,
+  }) => {
     const context = await browser.newContext({
       ...devices['Pixel 5'],
       viewport: { width: 390, height: 844 },
@@ -119,6 +152,7 @@ test.describe('Mobile hamburger menu', () => {
     const toggler = page.locator('.navbar-toggler');
     await toggler.click();
     await waitForNavCollapse(page);
+    await expectScrollLocked(page, true);
 
     const nav = page.locator('#navbarNav');
     await expect(nav.locator('.mobile-account-chip')).toBeVisible();
@@ -130,18 +164,36 @@ test.describe('Mobile hamburger menu', () => {
     });
     expect(dividerBeforeLogout).toBe(true);
 
+    await page.keyboard.press('Escape');
+    await expectNavClosed(page);
+    await expectScrollLocked(page, false);
+    await expect(toggler).toBeFocused();
+
+    await toggler.click();
+    await waitForNavCollapse(page);
+    await expectScrollLocked(page, true);
+    await page.locator('body').click({ position: { x: 4, y: 4 } });
+    await expectNavClosed(page);
+    await expectScrollLocked(page, false);
+
+    await toggler.click();
+    await waitForNavCollapse(page);
+    await expectScrollLocked(page, true);
     await Promise.all([
       page.waitForNavigation(),
       nav.getByRole('link', { name: '마이페이지' }).click(),
     ]);
     await expectNavClosed(page);
+    await expectScrollLocked(page, false);
 
     await page.locator('.navbar-toggler').click();
     await waitForNavCollapse(page);
+    await expectScrollLocked(page, true);
 
     closeDialogOn(page);
     await Promise.all([page.waitForNavigation(), logoutButton.click()]);
     await expect(page).toHaveURL(/index\.html/);
+    await expectScrollLocked(page, false);
 
     await context.close();
   });

@@ -98,7 +98,9 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
   background: rgba(0, 0, 0, 0.08);
   color: #fff;
   border-radius: 12px;
-  padding: 0.5rem 0.65rem;
+  min-width: var(--gls-touch-target-min, 44px);
+  min-height: var(--gls-touch-target-min, 44px);
+  padding: 0.45rem 0.65rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -109,6 +111,11 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
 .navbar-toggler:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.65);
   outline-offset: 2px;
+}
+
+.navbar-toggler[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(232, 251, 242, 0.56);
 }
 
 /* 기본 아이콘(bootstrap 없이도 보이게) */
@@ -129,11 +136,33 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
 }
 
 @media (max-width: 991.98px) {
+  body[data-mobile-nav-open='true'] {
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  .custom-navbar {
+    z-index: var(--gls-z-header, 100);
+  }
+
   /* navbarNav: 기본은 숨김, is-open/show에서 표시 */
   #navbarNav {
     display: none;
-    width: 100%;
-    margin-top: 0.75rem;
+    position: fixed;
+    left: max(var(--gls-gutter, 12px), env(safe-area-inset-left, 0px));
+    right: max(var(--gls-gutter, 12px), env(safe-area-inset-right, 0px));
+    top: calc(var(--gls-nav-height, 68px) - 6px);
+    width: auto;
+    max-height: calc(100dvh - var(--gls-nav-height, 68px) - 18px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    margin-top: 0;
+    border: 1px solid var(--gls-nav-sheet-border, rgba(232, 251, 242, 0.24));
+    border-radius: 16px;
+    padding: 10px;
+    background: var(--gls-nav-sheet-bg);
+    box-shadow: var(--gls-nav-sheet-shadow);
+    z-index: var(--gls-z-nav-sheet, 260);
   }
 
   #navbarNav.is-open,
@@ -144,10 +173,22 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
   #navbarNav .navbar-nav {
     flex-direction: column;
     width: 100%;
+    gap: 4px;
   }
 
   #navbarNav .nav-link {
-    padding: 0.55rem 0.75rem;
+    min-height: var(--gls-touch-target-min, 44px);
+    padding: 0.6rem 0.75rem;
+    border-radius: 10px;
+  }
+
+  #navbarNav .before-login,
+  #navbarNav .after-login {
+    gap: 4px;
+  }
+
+  .mobile-account-chip {
+    min-height: var(--gls-touch-target-min, 44px);
   }
 }
 

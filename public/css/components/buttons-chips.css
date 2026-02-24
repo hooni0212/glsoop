@@ -6,8 +6,8 @@
   color: var(--gls-color-text);
   border-radius: var(--gls-btn-radius);
   padding: 10px 14px;
-  min-height: 40px;
-  font-size: 0.92rem;
+  min-height: var(--gls-touch-target-min, 44px);
+  font-size: max(0.92rem, var(--gls-fs-xs));
   font-weight: var(--gls-btn-font-weight, 600);
   letter-spacing: -0.005em;
   line-height: 1;
@@ -87,22 +87,22 @@
 
 
 .gls-btn-sm {
-  min-height: 36px;
+  min-height: 40px;
   padding: 8px 12px;
-  font-size: 0.88rem;
+  font-size: max(0.875rem, var(--gls-fs-xs));
   border-radius: var(--gls-btn-radius);
 }
 
 .gls-btn-xs {
-  min-height: 30px;
+  min-height: 36px;
   padding: 5px 9px;
-  font-size: 0.78rem;
+  font-size: max(0.875rem, var(--gls-fs-xs));
   border-radius: var(--gls-btn-radius);
 }
 
 .gls-chip {
   padding: 10px 14px;
-  font-size: 0.88rem;
+  font-size: max(0.875rem, var(--gls-fs-xs));
   border-radius: var(--gls-chip-radius);
   gap: 6px;
   transform: none !important;
@@ -147,7 +147,7 @@
   -webkit-backdrop-filter: blur(var(--gls-glass-blur)) !important;
   box-shadow: var(--gls-glass-inset) !important;
   padding: 8px 14px !important;
-  font-size: 0.90rem !important;
+  font-size: max(0.90rem, var(--gls-fs-xs)) !important;
   font-weight: 700 !important;
   line-height: 1 !important;
   text-decoration: none !important;

@@ -22,13 +22,13 @@ font-family: 'Noto Sans KR', system-ui, -apple-system, BlinkMacSystemFont,
 
 /* text utilities (legacy muted/small replacement) */
 .gls-text-muted { color: var(--gls-muted); }
-.gls-text-small { font-size: 0.85rem; line-height: 1.25; }
+.gls-text-small { font-size: max(0.875rem, var(--gls-fs-xs)); line-height: 1.35; }
 
 /* form helper text (legacy form helper replacement) */
 .gls-form-help {
   margin-top: 0.25rem;
-  font-size: 0.85rem;
-  line-height: 1.3;
+  font-size: max(0.875rem, var(--gls-fs-xs));
+  line-height: 1.4;
   color: var(--gls-muted);
 }
 

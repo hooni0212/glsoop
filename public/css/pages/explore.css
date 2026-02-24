@@ -150,12 +150,33 @@ body.page-explore::after {
   padding: 16px;
 }
 
+.page-explore .explore-aside-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .page-explore .explore-aside-title {
   margin: 0;
   font-size: 0.76rem;
   letter-spacing: 0.12em;
   font-weight: 700;
   color: rgba(229, 251, 241, 0.9);
+}
+
+.page-explore .explore-aside-toggle {
+  display: none;
+  appearance: none;
+  border: 1px solid rgba(233, 250, 241, 0.44);
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 12px;
+  background: rgba(248, 253, 250, 0.14);
+  color: rgba(241, 252, 246, 0.96);
+  font-size: max(0.875rem, var(--gls-fs-xs, 0.875rem));
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .page-explore .explore-aside-list {
@@ -222,7 +243,7 @@ body.page-explore::after {
 }
 
 .page-explore .explore-category-btn {
-  min-height: 34px;
+  min-height: 40px;
   border-radius: 999px;
   border: 1px solid rgba(47, 109, 93, 0.2);
   background: rgba(255, 255, 255, 0.78);
@@ -816,27 +837,50 @@ body.page-explore::after {
 
 @media (max-width: 768px) {
   .page-explore .explore-hub {
-    padding-top: 90px;
-    padding-bottom: 72px;
+    padding-top: 84px;
+    padding-bottom: 60px;
   }
 
   .page-explore .explore-hero-card {
-    padding: 20px 16px;
+    padding: 16px 14px;
     border-radius: 22px;
   }
 
   .page-explore .explore-title {
-    font-size: clamp(1.56rem, 7vw, 2.08rem);
+    font-size: clamp(1.38rem, 6.2vw, 1.9rem);
   }
 
   .page-explore .explore-copy {
+    margin-top: 8px;
+    font-size: max(0.9rem, var(--gls-fs-xs, 0.875rem));
+    line-height: 1.56;
+  }
+
+  .page-explore .explore-hero-aside {
+    padding: 12px;
+  }
+
+  .page-explore .explore-aside-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .page-explore [data-explore-guide][data-collapsed='true'] .explore-aside-list {
+    display: none;
+  }
+
+  .page-explore .explore-filter-strip {
+    position: sticky;
+    top: calc(var(--gls-nav-height, 68px) + 8px);
+    z-index: 60;
     margin-top: 10px;
   }
 
   .page-explore .explore-filter-shell,
   .page-explore .explore-feed-shell {
     border-radius: 18px;
-    padding: 14px 12px;
+    padding: 12px 11px;
   }
 
   .page-explore .feed-tabs {

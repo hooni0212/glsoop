@@ -439,6 +439,32 @@ body.page-home::after {
   color: color-mix(in srgb, var(--gls-color-muted, #5f5a4f) 74%, #2a2418 26%);
 }
 
+.home-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.home-side-collapse-toggle {
+  appearance: none;
+  border: 1px solid rgba(31, 107, 75, 0.22);
+  background: rgba(255, 255, 255, 0.72);
+  color: color-mix(in srgb, var(--gls-color-text, #1e2623) 86%, #0d3223 14%);
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: max(0.875rem, var(--gls-fs-xs, 0.875rem));
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.home-side-collapsible {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .home-side-title {
   margin: 0;
   font-family: var(--gls-font-serif, 'Hahmlet', serif);
@@ -597,6 +623,41 @@ body.page-home::after {
     padding: 102px 0 68px;
   }
 
+  .home-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .home-main,
+  .home-side {
+    display: contents;
+  }
+
+  .home-hero {
+    order: 1;
+  }
+
+  .home-side-quick[data-home-mobile-quick='1'] {
+    order: 2;
+  }
+
+  .home-side-pick {
+    order: 3;
+  }
+
+  .home-main .home-section:nth-of-type(1) {
+    order: 4;
+  }
+
+  .home-main .home-section:nth-of-type(2) {
+    order: 5;
+  }
+
+  .home-side-author {
+    order: 6;
+  }
+
   .home-hero {
     padding: 22px;
     min-height: 0;
@@ -616,6 +677,33 @@ body.page-home::after {
 
   .curation-carousel {
     min-height: 276px;
+  }
+
+  .home-side-collapse-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .home-side-block[data-home-folded='true'] .home-side-collapsible {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    gap: 0;
+    pointer-events: none;
+    transition: max-height 220ms ease, opacity 180ms ease;
+  }
+
+  .home-side-block[data-home-folded='false'] .home-side-collapsible {
+    max-height: 260px;
+    opacity: 1;
+    transition: max-height 240ms ease, opacity 200ms ease;
+  }
+}
+
+@media (min-width: 681px) {
+  .home-side-collapse-toggle {
+    display: none;
   }
 }
 

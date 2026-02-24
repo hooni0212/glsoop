@@ -150,9 +150,19 @@
               </div>
             </div>
 
-            <aside class="explore-hero-aside" aria-label="탐색 가이드">
-              <p class="explore-aside-title">탐색 가이드</p>
-              <ul class="explore-aside-list">
+            <aside class="explore-hero-aside" aria-label="탐색 가이드" data-explore-guide>
+              <div class="explore-aside-head">
+                <p class="explore-aside-title">탐색 가이드</p>
+                <button
+                  type="button"
+                  class="explore-aside-toggle"
+                  data-explore-guide-toggle
+                  aria-expanded="true"
+                >
+                  접기
+                </button>
+              </div>
+              <ul class="explore-aside-list" data-explore-guide-list>
                 <li><span>01</span> 탭에서 최신 / 인기 / 팔로잉을 선택하세요.</li>
                 <li><span>02</span> 카테고리 필터로 원하는 글감을 좁히세요.</li>
                 <li><span>03</span> 태그 칩 클릭으로 교집합 탐색이 가능합니다.</li>

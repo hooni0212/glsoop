@@ -182,7 +182,7 @@
           </section>
         </section>
 
-        <aside class="home-side">
+        <aside class="home-side" data-home-side="1">
           <section class="home-side-block home-side-pick">
             <h4>오늘의 추천</h4>
             <p class="home-side-title" id="todayPickTitle">추천 글을 고르는 중입니다</p>
@@ -190,16 +190,28 @@
             <a class="gls-btn gls-btn-secondary" id="todayPickLink" href="/explore">읽기</a>
           </section>
 
-          <section class="home-side-block">
-            <h4>이달의 작가</h4>
-            <p class="home-side-title" id="curationAuthorName">추천 작가를 찾는 중이에요</p>
-            <p class="home-side-copy" id="curationAuthorCopy">공감이 모인 작가를 소개합니다.</p>
-            <a class="gls-btn gls-btn-secondary" id="curationAuthorLink" href="/explore">
-              이 작가 글 보기
-            </a>
+          <section class="home-side-block home-side-author" data-home-foldable="1" data-home-folded="false">
+            <div class="home-side-head">
+              <h4>이달의 작가</h4>
+              <button
+                type="button"
+                class="home-side-collapse-toggle"
+                data-home-side-toggle
+                aria-expanded="true"
+              >
+                접기
+              </button>
+            </div>
+            <div class="home-side-collapsible" data-home-side-panel>
+              <p class="home-side-title" id="curationAuthorName">추천 작가를 찾는 중이에요</p>
+              <p class="home-side-copy" id="curationAuthorCopy">공감이 모인 작가를 소개합니다.</p>
+              <a class="gls-btn gls-btn-secondary" id="curationAuthorLink" href="/explore">
+                이 작가 글 보기
+              </a>
+            </div>
           </section>
 
-          <section class="home-side-block home-side-quick">
+          <section class="home-side-block home-side-quick" data-home-mobile-quick="1">
             <h4>조용한 동선</h4>
             <div class="home-side-links">
               <a class="home-side-link-card" href="/explore">

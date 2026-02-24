@@ -53,6 +53,7 @@ body {
   font-family: var(--gls-font-sans, 'IBM Plex Sans KR', system-ui, -apple-system, BlinkMacSystemFont, sans-serif);
   background-color: var(--gls-color-bg);
   color: var(--gls-color-text);
+  font-size: 1rem;
   min-height: 100dvh;
   height: auto;
   padding-top: var(--gls-nav-height); /* fixed navbar와 겹치지 않도록 위에 여백 */
@@ -132,7 +133,7 @@ main :where(h3, h4) {
   border-radius: 14px;
   padding: 11px 13px;
   border: 1px solid transparent;
-  font-size: 0.91rem;
+  font-size: max(0.875rem, var(--gls-fs-xs));
   line-height: 1.45;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
 }

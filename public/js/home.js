@@ -31,6 +31,7 @@ const HomeCuration = (() => {
     });
 
     setupRandomButtons();
+    setupMobileHomeSide();
   }
 
   async function loadCuration() {
@@ -159,6 +160,36 @@ const HomeCuration = (() => {
         window.location.href = `/html/post.html?postId=${encodeURIComponent(post.id)}`;
       });
     });
+  }
+
+  function setupMobileHomeSide() {
+    const foldable = document.querySelector('[data-home-foldable="1"]');
+    const toggleBtn = document.querySelector('[data-home-side-toggle]');
+    if (!foldable || !toggleBtn) return;
+
+    const isMobile = () => window.matchMedia('(max-width: 680px)').matches;
+
+    const applyFoldState = (folded) => {
+      foldable.dataset.homeFolded = folded ? 'true' : 'false';
+      toggleBtn.setAttribute('aria-expanded', folded ? 'false' : 'true');
+      toggleBtn.textContent = folded ? '열기' : '접기';
+    };
+
+    const syncByViewport = () => {
+      if (isMobile()) {
+        applyFoldState(true);
+        return;
+      }
+      applyFoldState(false);
+    };
+
+    toggleBtn.addEventListener('click', () => {
+      const currentlyFolded = foldable.dataset.homeFolded === 'true';
+      applyFoldState(!currentlyFolded);
+    });
+
+    syncByViewport();
+    window.addEventListener('resize', syncByViewport, { passive: true });
   }
 
   function updateRandomButtons() {
