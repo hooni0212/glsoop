@@ -289,7 +289,7 @@ function buildStandardPostCardHTML(post, options = {}) {
 
   return `
     <div
-      class="card gls-mb-3 gls-post-card${cardLengthClass}${extraClass}"
+      class="card gls-mb-3 gls-post-card gls-post-card--uikit-canon${cardLengthClass}${extraClass}"
       data-post-id="${post.id}"
       data-length-variant="${resolvedLengthVariant}"
       data-card-clickable="${cardClickable ? 'true' : 'false'}"

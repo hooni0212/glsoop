@@ -145,6 +145,12 @@ body.page-post #postDetail .gls-post-card {
   background: transparent;
 }
 
+body.page-post #postDetail .gls-post-card::before,
+body.page-post #postDetail .gls-post-card::after {
+  content: none !important;
+  display: none !important;
+}
+
 body.page-post #postDetail .gls-post-card .card-body {
   padding: 0;
   gap: var(--gls-space-5, 20px);
