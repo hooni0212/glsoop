@@ -1,1153 +1,1201 @@
 // public/js/mypage.js
-// 마이페이지 화면 스크립트
-// - 상단 내 정보 표시
-// - 탭(내가 쓴 글 / 공감한 글) 전환
-// - 글 카드 렌더링 + 수정/삭제 기능
-// - 내 정보 수정 모달(닉네임, 한 줄 소개, 자기소개, 비밀번호 변경)
+// 마이페이지 V2 스크립트
+// - 기능 계약(API/이벤트/접근성)은 유지
+// - 렌더 구조는 대시보드형으로 재작성
 
-/**
- * 내가 쓴 글, 공감한 글이 이미 로드되었는지 여부
- * - 탭 전환 시 매번 서버에 요청하지 않기 위한 플래그
- */
 let myPostsLoaded = false;
 let likedPostsLoaded = false;
 let followingsLoaded = false;
 let rememberLoginEnabledInitial = false;
+let mypageSafeAreaGuidesEnabled = false;
 
 function trackUxEvent(eventName, properties = {}, options = {}) {
- if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
-  return;
- }
- window.glsoopAnalytics.trackEvent(eventName, properties, options);
+  if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
+    return;
+  }
+  window.glsoopAnalytics.trackEvent(eventName, properties, options);
 }
 
-function getCurrentPathWithSearch() {
- return `${window.location.pathname}${window.location.search || ''}`;
+function safeEscape(value) {
+  const raw = value == null ? '' : String(value);
+  if (typeof escapeHtml === 'function') return escapeHtml(raw);
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-function buildLoginRedirectUrl(source = 'mypage') {
- const query = new URLSearchParams();
- query.set('next', getCurrentPathWithSearch());
- if (source) {
-  query.set('from', source);
- }
- return `/html/login.html?${query.toString()}`;
-}
-
-function renderMyPostsEmptyState(postsBox, reason = 'load') {
- if (!postsBox) return;
-
- trackUxEvent('mypage_my_posts_empty', {
-  reason,
- });
-
- postsBox.innerHTML = `
-  <div class="mypage-empty-state gls-flex gls-flex-col gls-items-start gls-gap-2">
-    <p class="gls-text-muted gls-mb-0">아직 작성한 글이 없습니다.</p>
-    <a class="gls-btn gls-btn-primary gls-btn-sm mypage-empty-state__cta" href="/html/editor.html" id="mypageEmptyCreatePostCta">
-      첫 글 쓰러 가기
-    </a>
-  </div>
- `;
-
- const emptyCta = document.getElementById('mypageEmptyCreatePostCta');
- if (emptyCta) {
-  emptyCta.addEventListener('click', () => {
-   trackUxEvent('mypage_empty_state_cta_click', {
-    target: '/html/editor.html',
-    reason,
-   }, { useBeacon: true });
+function formatDateTime(value) {
+  if (!value) return '-';
+  if (typeof formatKoreanDateTime === 'function') {
+    return formatKoreanDateTime(value) || '-';
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '-';
+  return parsed.toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
   });
- }
 }
 
-// DOM이 완전히 로드되면 마이페이지 초기화
-document.addEventListener('DOMContentLoaded', () => {
- setupMyPageTabs();    // 탭 버튼(내가 쓴 글 / 공감한 글) 이벤트 설정
- loadMyPage();       // 내 정보 + 기본 탭(내가 쓴 글) 데이터 로드
- setupUserEditForm();   // 내 정보 수정 모달 폼 처리
- setupMyPostCardEvents(); // 내가 쓴 글 카드에서 수정/삭제 버튼 처리
- setupFollowingListEvents(); // 팔로잉 목록 카드 내 언팔로우 처리
-});
-
-/**
- * 마이페이지 전체 초기화
- * - /api/me로 내 정보 불러오기 (로그인 확인도 겸함)
- * - 상단 프로필 박스 렌더링
- * - 모달 기본 값 채우기
- * - 기본 탭(내가 쓴 글) 로딩
- */
-async function loadMyPage() {
- const userInfoBox = document.getElementById('userInfo');    // 상단 '내 정보' 영역
- const myPostsBox = document.getElementById('myPosts');     // 내가 쓴 글 리스트 영역
- const likedBox = document.getElementById('likedPosts');    // 공감한 글 리스트 영역
-
- // 기본 컨테이너가 없으면 스크립트 중단 (레이아웃 깨진 경우 방어)
- if (!userInfoBox || !myPostsBox || !likedBox) {
-  console.error('userInfo, myPosts, likedPosts 요소를 찾을 수 없습니다.');
-  return;
- }
-
- try {
-  // 1. 내 정보 가져오기 (로그인 확인 겸용)
-  const meRes = await fetch('/api/me'); // 로그인 상태 확인 + 사용자 정보
-
-  // HTTP 레벨에서 실패(401, 403 등)인 경우 → 로그인 필요 안내 후 로그인 페이지로 이동
-  if (!meRes.ok) {
-   userInfoBox.innerHTML =
-    '<p class="text-danger">로그인이 필요합니다. 로그인 페이지로 이동합니다.</p>';
-   myPostsBox.innerHTML = '';
-   likedBox.innerHTML = '';
-   setTimeout(() => {
-    window.location.href = buildLoginRedirectUrl('mypage');
-   }, 1500);
-   return;
-  }
-
-  const meData = await meRes.json();
-
-  // API 응답에서 ok가 false인 경우도 로그인 실패로 처리
-  if (!meData.ok) {
-   userInfoBox.innerHTML =
-    '<p class="text-danger">로그인이 필요합니다. 로그인 페이지로 이동합니다.</p>';
-   myPostsBox.innerHTML = '';
-   likedBox.innerHTML = '';
-   setTimeout(() => {
-    window.location.href = buildLoginRedirectUrl('mypage');
-   }, 1500);
-   return;
-  }
-
-  // 2. 내 정보 출력 + "내 정보 수정" 버튼 (모달 열기)
-  // 표시 이름: 닉네임이 있으면 닉네임, 없으면 가입 시 이름 사용
-  const displayName =
-   meData.nickname && meData.nickname.trim().length > 0
-    ? meData.nickname
-    : meData.name;
-
-  const followerCount = Number(meData.follower_count) || 0;
-  const followingCount = Number(meData.following_count) || 0;
-
-  trackUxEvent('mypage_view', {
-   follower_count: followerCount,
-   following_count: followingCount,
-  });
-
-  // 한 줄 소개(bio)가 있는 경우에만 줄 추가
-  const bioHtml = meData.bio
-   ? `<p class="gls-mb-1 gls-text-muted gls-text-small">한 줄 소개: ${escapeHtml(
-     meData.bio
-    )}</p>`
-   : '';
-
-  // 자기소개(about)가 있는 경우에만 줄 추가
-  // - white-space: pre-line; → 줄바꿈(\n)을 실제 줄바꿈으로 보여줌
-  const aboutHtml = meData.about
-   ? `<p class="gls-mb-0 gls-text-small mypage-preserve-lines">${escapeHtml(
-     meData.about
-    )}</p>`
-   : '';
-
-  // 상단 프로필 영역 HTML 구성
-  userInfoBox.innerHTML = `
-   <div class="gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-2">
-    <div>
-     <p class="gls-mb-1"><strong>안녕하세요, ${escapeHtml(
-      displayName
-     )}님!</strong></p>
-     <p class="gls-mb-1">이메일: ${escapeHtml(meData.email)}</p>
-     ${bioHtml}
-     ${aboutHtml}
-     <div class="gls-flex gls-gap-3 gls-flex-wrap gls-mt-2 gls-text-small gls-text-muted">
-      <span>팔로워 <strong id="mypageFollowerCount">${followerCount}</strong></span>
-      <span>팔로잉 <strong id="mypageFollowingCount">${followingCount}</strong></span>
-     </div>
-    </div>
-    <button
-     type="button"
-     class="gls-btn gls-btn-ghost gls-btn-xs"
-     data-gls-toggle="modal"
-     data-gls-target="#userEditModal"
-    >
-     내 정보 수정
-    </button>
-   </div>
-  `;
-
-  const editBtn = userInfoBox.querySelector('[data-gls-target="#userEditModal"]');
-  if (editBtn && !editBtn.dataset.glsModalBound) {
-   editBtn.dataset.glsModalBound = '1';
-   editBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const modalEl = document.getElementById('userEditModal');
-    if (!modalEl) return;
-    if (window.glsModal) {
-     window.glsModal.open(modalEl, editBtn);
-    } else {
-     modalEl.classList.add('is-open', 'show', 'is-flex-visible');
-     modalEl.removeAttribute('hidden');
-     modalEl.setAttribute('aria-hidden', 'false');
-    }
-    loadMySessionsPanel();
-   });
-  }
-
-  // 2-1. 모달 내 닉네임 / 프로필 기본 값 채우기
-  const nicknameInput = document.getElementById('nicknameInput');
-  const bioInput = document.getElementById('bioInput');
-  const aboutInput = document.getElementById('aboutInput');
-  const rememberLoginEnabledInput = document.getElementById('rememberLoginEnabledInput');
-
-  if (nicknameInput) {
-   // 기존 닉네임이 있으면 그대로, 없으면 빈 문자열
-   nicknameInput.value = meData.nickname || '';
-  }
-  if (bioInput) {
-   bioInput.value = meData.bio || '';
-  }
-  if (aboutInput) {
-   aboutInput.value = meData.about || '';
-  }
-  if (rememberLoginEnabledInput) {
-   const rememberEnabled = Boolean(meData.remember_login_enabled);
-   rememberLoginEnabledInput.checked = rememberEnabled;
-   rememberLoginEnabledInitial = rememberEnabled;
-  }
-
-  await loadGrowthMiniWidget();
-  await loadMySessionsPanel();
-
-  // 기본 탭: "내가 쓴 글" 목록 로드
-  await loadMyPosts();
- } catch (e) {
-  // /api/me 요청 또는 JSON 파싱 도중 예외 발생 시
-  console.error(e);
-  userInfoBox.innerHTML =
-   '<p class="text-danger">마이페이지를 불러오는 중 오류가 발생했습니다.</p>';
-
-  // 추가로 글 목록/공감한 글 영역에도 오류 메시지 출력
-  const myPostsBox2 = document.getElementById('myPosts');
-  const likedBox2 = document.getElementById('likedPosts');
-  if (myPostsBox2) {
-   myPostsBox2.innerHTML =
-    '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
-  }
-  if (likedBox2) {
-   likedBox2.innerHTML =
-    '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
-  }
- }
+function stripHtmlToText(html) {
+  const raw = String(html || '');
+  return raw
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-async function loadGrowthMiniWidget() {
- const widget = document.getElementById('mypageGrowthMini');
- const summaryText = document.querySelector('.mypage-growth-summary-text');
- if (!widget || !summaryText) return;
-
- try {
-  const res = await fetch('/api/growth/summary', { cache: 'no-store' });
-  if (!res.ok) throw new Error('growth summary failed');
-  const data = await res.json();
-  if (!data.ok || !data.summary) throw new Error('growth summary invalid');
-
-  const {
-   level = 0,
-   today_xp = 0,
-   streak_days = 0,
-   current_xp = 0,
-   next_level_xp = 0,
-   title = '성장',
-  } = data.summary;
-  summaryText.textContent = `Lv.${level} ${title} · ${current_xp} / ${next_level_xp} XP · 오늘 +${today_xp} XP · 연속 ${streak_days}일 글쓰기`;
-  widget.classList.remove('gls-hidden');
- } catch (error) {
-  console.error(error);
-  summaryText.textContent = '성장 정보를 불러오지 못했습니다.';
-  widget.classList.remove('gls-hidden');
- }
-}
-
-async function loadMySessionsPanel() {
- const sessionsListEl = document.getElementById('mySessionsList');
- const sessionsMsgEl = document.getElementById('mySessionsMessage');
- if (!sessionsListEl) return;
-
- sessionsListEl.innerHTML = '<p class="gls-text-muted gls-mb-0">세션 정보를 불러오는 중입니다...</p>';
- if (sessionsMsgEl) {
-  sessionsMsgEl.textContent = '';
-  sessionsMsgEl.classList.remove('text-danger', 'text-success');
- }
-
- try {
-  const res = await fetch('/api/me/sessions', { cache: 'no-store' });
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok || !data.ok || !Array.isArray(data.sessions)) {
-   const message = (data && data.message) || '세션 정보를 불러오지 못했습니다.';
-   sessionsListEl.innerHTML = `<p class="text-danger gls-mb-0">${escapeHtml(message)}</p>`;
-   return;
-  }
-
-  if (data.sessions.length === 0) {
-   sessionsListEl.innerHTML = '<p class="gls-text-muted gls-mb-0">활성 세션이 없습니다.</p>';
-   return;
-  }
-
-  sessionsListEl.innerHTML = data.sessions
-   .map((session) => {
-    const createdAt = formatKoreanDateTime(session.created_at);
-    const lastSeenAt = formatKoreanDateTime(session.last_seen_at);
-    const expiresAt = formatKoreanDateTime(session.expires_at);
-    const rememberText = session.remember_me ? '자동 로그인 30일' : '기본 세션 2시간';
-    const currentBadge = session.current
-     ? '<span class="pill gls-text-xxs">현재 기기</span>'
-     : '<span class="pill gls-text-xxs">다른 기기</span>';
-    const ipHint = session.ip_hint ? escapeHtml(session.ip_hint) : '-';
-    const userAgent = escapeHtml(session.user_agent || '알 수 없는 기기');
-
-    return `
-      <div class="gls-mb-2 gls-p-2 gls-antique-paper gls-antique-paper--stone">
-        <div class="gls-flex gls-justify-between gls-items-center gls-gap-2 gls-mb-1">
-          <strong>${userAgent}</strong>
-          ${currentBadge}
-        </div>
-        <div class="gls-text-small gls-text-muted">
-          <div>생성: ${escapeHtml(createdAt || '-')}</div>
-          <div>최근 활동: ${escapeHtml(lastSeenAt || '-')}</div>
-          <div>만료: ${escapeHtml(expiresAt || '-')}</div>
-          <div>${escapeHtml(rememberText)} · ${ipHint}</div>
-        </div>
-      </div>
-    `;
-   })
-   .join('');
- } catch (error) {
-  console.error(error);
-  sessionsListEl.innerHTML =
-   '<p class="text-danger gls-mb-0">세션 정보를 불러오는 중 오류가 발생했습니다.</p>';
- }
-}
-
-async function logoutAllSessions() {
- const sessionsMsgEl = document.getElementById('mySessionsMessage');
- const logoutAllBtn = document.getElementById('logoutAllSessionsBtn');
-
- if (logoutAllBtn) {
-  logoutAllBtn.disabled = true;
-  logoutAllBtn.dataset.originalText =
-   logoutAllBtn.dataset.originalText || logoutAllBtn.textContent;
-  logoutAllBtn.textContent = '처리 중...';
- }
-
- if (sessionsMsgEl) {
-  sessionsMsgEl.textContent = '';
-  sessionsMsgEl.classList.remove('text-danger', 'text-success');
- }
-
- try {
-  const res = await fetch('/api/logout-all', { method: 'POST' });
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok || !data.ok) {
-   const message = (data && data.message) || '전체 로그아웃 처리 중 오류가 발생했습니다.';
-   if (sessionsMsgEl) {
-    sessionsMsgEl.textContent = message;
-    sessionsMsgEl.classList.add('text-danger');
-   }
-   return;
-  }
-
-  if (sessionsMsgEl) {
-   sessionsMsgEl.textContent = data.message || '모든 기기에서 로그아웃되었습니다.';
-   sessionsMsgEl.classList.add('text-success');
-  }
-
-  setTimeout(() => {
-   window.location.href = '/html/login.html?from=logout-all';
-  }, 700);
- } catch (error) {
-  console.error(error);
-  if (sessionsMsgEl) {
-   sessionsMsgEl.textContent = '전체 로그아웃 처리 중 오류가 발생했습니다.';
-   sessionsMsgEl.classList.add('text-danger');
-  }
- } finally {
-  if (logoutAllBtn) {
-   logoutAllBtn.disabled = false;
-   logoutAllBtn.textContent = logoutAllBtn.dataset.originalText || '모든 기기 로그아웃';
-  }
- }
-}
-
-/* ======================
- * 탭 전환 관련
- * ====================== */
-
-/**
- * 마이페이지 상단 탭(내가 쓴 글 / 공감한 글)에 클릭 이벤트 설정
- * - 각 탭을 클릭했을 때 switchMyPageTab으로 섹션 가시성 변경
- * - 아직 로드되지 않은 섹션은 처음 클릭 시 데이터 로딩
- */
-function setupMyPageTabs() {
- const tabMy = document.getElementById('tabMyPosts');   // "내가 쓴 글" 탭 버튼
- const tabLiked = document.getElementById('tabLikedPosts'); // "공감한 글" 탭 버튼
- const tabFollowings = document.getElementById('tabFollowings'); // "팔로잉" 탭 버튼
- const tabBookmarks = document.getElementById('tabBookmarks'); // "북마크" 탭 버튼 (bookmarks.html로 이동)
- const mySection = document.getElementById('myPostsSection');
- const likedSection = document.getElementById('likedPostsSection');
- const followingsSection = document.getElementById('followingsSection');
-
- if (!tabMy || !tabLiked || !tabFollowings || !mySection || !likedSection || !followingsSection) return;
-
- // 탭/패널 ARIA 속성 보정 (JS 렌더 환경에서도 접근성 상태를 일관되게 유지)
- const tabConfigs = [
-  { tab: tabMy, panel: mySection, panelId: 'myPostsSection' },
-  { tab: tabLiked, panel: likedSection, panelId: 'likedPostsSection' },
-  { tab: tabFollowings, panel: followingsSection, panelId: 'followingsSection' },
- ];
- tabConfigs.forEach(({ tab, panel, panelId }, index) => {
-  tab.setAttribute('role', 'tab');
-  tab.setAttribute('aria-controls', panelId);
-  tab.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
-  tab.setAttribute('tabindex', index === 0 ? '0' : '-1');
-  panel.setAttribute('role', 'tabpanel');
-  panel.setAttribute('aria-labelledby', tab.id);
-  panel.tabIndex = index === 0 ? 0 : -1;
- });
-
- const tabOrder = [tabMy, tabLiked, tabFollowings];
- tabOrder.forEach((tab, index) => {
-  tab.addEventListener('keydown', (event) => {
-   let nextIndex = null;
-   if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabOrder.length;
-   if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabOrder.length) % tabOrder.length;
-   if (event.key === 'Home') nextIndex = 0;
-   if (event.key === 'End') nextIndex = tabOrder.length - 1;
-   if (nextIndex === null) return;
-
-   event.preventDefault();
-   const nextTab = tabOrder[nextIndex];
-   if (!nextTab) return;
-   nextTab.focus();
-   nextTab.click();
-  });
- });
-
- // "내가 쓴 글" 탭 클릭 시
- tabMy.addEventListener('click', async () => {
-  switchMyPageTab('my');  // 탭/섹션 전환
-  if (!myPostsLoaded) {
-   await loadMyPosts();  // 아직 로드 안 됐으면 서버에서 데이터 가져오기
-  }
- });
-
- // "공감한 글" 탭 클릭 시
- tabLiked.addEventListener('click', async () => {
-  switchMyPageTab('liked');
-  if (!likedPostsLoaded) {
-   await loadLikedPosts(); // 아직 로드 안 됐으면 서버에서 데이터 가져오기
-  }
- });
-
- // "팔로잉" 탭 클릭 시
- tabFollowings.addEventListener('click', async () => {
-  switchMyPageTab('followings');
-  if (!followingsLoaded) {
-   await loadMyFollowings();
-  }
- });
-
- // "북마크" 탭 → 별도 북마크 페이지 이동
- if (tabBookmarks && !tabBookmarks.dataset.bound) {
-  tabBookmarks.addEventListener('click', (e) => {
-   // 같은 탭 바 레이아웃을 사용하지만, 실제로는 전용 페이지로 이동
-   e.preventDefault();
-   window.location.href = '/html/bookmarks.html';
-  });
-  tabBookmarks.dataset.bound = 'true';
- }
-
- // 초기 탭 상태를 명시적으로 동기화
- switchMyPageTab('my');
-}
-
-/**
- * 실제 탭/섹션 전환
- *
- * @param {'my'|'liked'|'followings'} target - 탭/섹션 표시
- */
-function switchMyPageTab(target) {
- const tabMy = document.getElementById('tabMyPosts');
- const tabLiked = document.getElementById('tabLikedPosts');
- const tabFollowings = document.getElementById('tabFollowings');
- const tabBookmarks = document.getElementById('tabBookmarks');
- const mySection = document.getElementById('myPostsSection');
- const likedSection = document.getElementById('likedPostsSection');
- const followingsSection = document.getElementById('followingsSection');
-
- if (!tabMy || !tabLiked || !tabFollowings || !mySection || !likedSection || !followingsSection) return;
-
- const isMyTab = target === 'my';
- const isLikedTab = target === 'liked';
- const isFollowingsTab = target === 'followings';
-
- const syncTabState = (tabEl, sectionEl, isActive) => {
-  if (!tabEl || !sectionEl) return;
-  tabEl.classList.toggle('is-active', isActive);
-  tabEl.setAttribute('aria-selected', isActive ? 'true' : 'false');
-  tabEl.setAttribute('tabindex', isActive ? '0' : '-1');
-  sectionEl.classList.toggle('gls-hidden', !isActive);
-  sectionEl.hidden = !isActive;
-  sectionEl.tabIndex = isActive ? 0 : -1;
- };
-
- syncTabState(tabMy, mySection, isMyTab);
- syncTabState(tabLiked, likedSection, isLikedTab);
- syncTabState(tabFollowings, followingsSection, isFollowingsTab);
- if (tabBookmarks) {
-  tabBookmarks.classList.remove('is-active');
- }
-}
-
-/* ======================
- * 공통 카드 렌더링
- * ====================== */
-
-/**
- * 마이페이지에서 사용하는 공통 글 카드 HTML 생성
- * - 내가 쓴 글 / 공감한 글 둘 다 이 함수를 사용
- * - showActions가 true이면 카드 아래에 수정/삭제 버튼 표시
- *
- * @param {Object} post
- * @param {Object} options
- * @param {boolean} options.showActions - 수정/삭제 버튼 표시 여부
- * @returns {string} HTML 문자열
- */
-function renderPostCard(post, options = {}) {
- const { showActions = false } = options;
-
- // 공통 카드 HTML (내용은 항상 전체 보이게)
- const mainCardHtml = buildStandardPostCardHTML(post, {
-  showMoreButton: false,   // 마이페이지에선 더보기 버튼 안 씀
-  contentExpanded: true,   // 내용 전체 표시
- });
-
- // 바깥에 마이페이지 전용 wrapper를 하나 더 두고,
- // 그 안에 공통 카드 + (선택) 수정/삭제 버튼을 넣는다.
- return `
-  <div class="mypage-post-card" data-post-id="${post.id}">
-   ${mainCardHtml}
-
-   ${
-    showActions
-     ? `
-   <div class="gls-flex gls-justify-end gls-w-100 gls-mt-2 gls-gap-2">
-    <button
-     type="button"
-     class="gls-btn gls-btn-secondary gls-btn-xs edit-post-btn"
-    >
-     수정
-    </button>
-    <button
-     type="button"
-     class="gls-btn gls-btn-danger gls-btn-xs delete-post-btn"
-    >
-     삭제
-    </button>
-   </div>
-   `
-     : ''
-   }
-  </div>
- `;
-}
-
-/**
- * 팔로잉 목록 카드 렌더링
- * @param {Object} user - 팔로잉한 사용자 정보
- * @returns {string}
- */
-function renderFollowingCard(user) {
- const displayName = getDisplayName(user);
- const maskedEmail = maskEmail(user.email || '');
- const emailHtml = maskedEmail
-  ? `<p class="gls-mb-1 gls-text-muted gls-text-small">${escapeHtml(maskedEmail)}</p>`
-  : '';
- const bioHtml = user.bio
-  ? `<p class="gls-mb-1 gls-text-muted gls-text-small">${escapeHtml(user.bio)}</p>`
-  : '';
- const aboutHtml = user.about
-  ? `<p class="gls-mb-1 gls-text-small mypage-preserve-lines">${escapeHtml(
-    user.about
-   )}</p>`
-  : '';
-
- return `
-  <div class="card gls-mb-3 mypage-following-card" data-user-id="${user.id}">
-   <div class="card-body">
-    <div class="gls-flex gls-justify-between gls-items-start gls-gap-3 gls-flex-wrap">
-     <div class="flex-fill">
-      <h6 class="gls-mb-1">${escapeHtml(displayName)}</h6>
-      ${emailHtml}
-      ${bioHtml}
-      ${aboutHtml}
-      <p class="gls-mb-0 gls-text-muted gls-text-small">팔로워 ${user.follower_count || 0}</p>
-     </div>
-     <div class="gls-flex gls-flex-col gls-gap-2 gls-items-end">
-      <a
-       class="gls-btn gls-btn-primary gls-btn-xs"
-       href="/html/author.html?userId=${encodeURIComponent(user.id)}"
-      >
-       프로필 보기
-      </a>
-      <button
-       type="button"
-       class="gls-btn gls-btn-danger gls-btn-xs unfollow-btn"
-       data-user-id="${user.id}"
-      >
-       언팔로우
-      </button>
-     </div>
-    </div>
-   </div>
-  </div>
- `;
+function toExcerpt(content, maxLength = 150) {
+  const plain = stripHtmlToText(content);
+  if (!plain) return '본문 미리보기가 없습니다.';
+  if (plain.length <= maxLength) return plain;
+  return `${plain.slice(0, maxLength)}…`;
 }
 
 function getDisplayName(user = {}) {
- if (user.nickname && user.nickname.trim().length > 0) {
-  return user.nickname;
- }
- return user.name || '';
+  if (user.nickname && String(user.nickname).trim().length > 0) {
+    return String(user.nickname).trim();
+  }
+  return user.name || '';
 }
 
-/* ======================
- * 내가 쓴 글 로딩
- * ====================== */
+function getMaskedEmail(email) {
+  if (typeof maskEmail === 'function') {
+    return maskEmail(email || '');
+  }
+  const raw = String(email || '').trim();
+  const at = raw.indexOf('@');
+  if (at <= 1) return raw;
+  return `${raw.slice(0, 2)}***${raw.slice(at)}`;
+}
 
-/**
- * "내가 쓴 글" 목록 로딩
- * - GET /api/posts/my 호출
- * - 글이 없으면 안내 문구, 있으면 renderPostCard로 카드 목록 렌더링
- */
-async function loadMyPosts() {
- const postsBox = document.getElementById('myPosts');
- if (!postsBox) return;
+function getCategoryLabel(category) {
+  if (category === 'poem') return '시';
+  if (category === 'essay') return '에세이';
+  return '짧은 구절';
+}
 
- // 로딩 중 안내 문구
- postsBox.innerHTML =
-  '<p class="gls-text-muted">글 목록을 불러오는 중입니다...</p>';
+const TITLE_SAFE_ZONE_BY_LENGTH = {
+  'one-line': {
+    left: 29,
+    width: 42,
+    top: 24,
+    height: 12.5,
+    bodyLeft: 29,
+    bodyTop: 34,
+    bodyWidth: 42,
+    bodyHeight: 32,
+    textAlign: 'center',
+    bodyFontRatio: 0.041,
+    bodyLineHeight: 1.14,
+  },
+  short: {
+    left: 33.6,
+    width: 42.4,
+    top: 25.6,
+    height: 12.2,
+    bodyLeft: 33.6,
+    bodyTop: 36.4,
+    bodyWidth: 42.4,
+    bodyHeight: 34.6,
+    textAlign: 'center',
+    bodyFontRatio: 0.035,
+    bodyLineHeight: 1.15,
+  },
+  medium: {
+    left: 35.4,
+    width: 41,
+    top: 26.8,
+    height: 12,
+    bodyLeft: 35.4,
+    bodyTop: 46.2,
+    bodyWidth: 41,
+    bodyHeight: 41.2,
+    textAlign: 'left',
+    bodyFontRatio: 0.0325,
+    bodyLineHeight: 1.13,
+  },
+  long: {
+    left: 32.2,
+    width: 45.2,
+    top: 26.2,
+    height: 12.4,
+    bodyLeft: 32.2,
+    bodyTop: 44.8,
+    bodyWidth: 45.2,
+    bodyHeight: 45,
+    textAlign: 'left',
+    bodyFontRatio: 0.03,
+    bodyLineHeight: 1.12,
+  },
+  xlong: {
+    left: 29.9,
+    width: 48.8,
+    top: 25.8,
+    height: 12.8,
+    bodyLeft: 29.9,
+    bodyTop: 43.8,
+    bodyWidth: 48.8,
+    bodyHeight: 47.4,
+    textAlign: 'left',
+    bodyFontRatio: 0.0275,
+    bodyLineHeight: 1.11,
+  },
+};
 
- try {
-  const postsRes = await fetch('/api/posts/my');
+function resolveTitleSafeZone(lengthVariant) {
+  const key = String(lengthVariant || '').trim().toLowerCase();
+  if (TITLE_SAFE_ZONE_BY_LENGTH[key]) {
+    return TITLE_SAFE_ZONE_BY_LENGTH[key];
+  }
+  return TITLE_SAFE_ZONE_BY_LENGTH.medium;
+}
 
-  // HTTP 레벨 오류 처리
-  if (!postsRes.ok) {
-   postsBox.innerHTML =
-    '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
-   return;
+async function setupMypageSafeAreaGuides() {
+  const body = document.body;
+  if (!body) return;
+
+  try {
+    const runtimeConfig = typeof getGlsoopRuntimeConfig === 'function'
+      ? await getGlsoopRuntimeConfig()
+      : { safe_area_guides: false };
+    mypageSafeAreaGuidesEnabled = Boolean(runtimeConfig?.safe_area_guides);
+  } catch (error) {
+    mypageSafeAreaGuidesEnabled = false;
   }
 
-  const postsData = await postsRes.json();
+  body.classList.toggle('gls-safe-area-debug', mypageSafeAreaGuidesEnabled);
+}
 
-  // API 응답에서 ok가 false인 경우 오류 메시지 표시
-  if (!postsData.ok) {
-   postsBox.innerHTML = `<p class="text-danger">${
-    postsData.message || '글 목록을 불러오지 못했습니다.'
-   }</p>`;
-   return;
+function injectMypageImageTitle(cardHtml, titleText = '제목 없음') {
+  if (typeof document === 'undefined') return cardHtml;
+
+  const template = document.createElement('template');
+  template.innerHTML = String(cardHtml || '').trim();
+
+  const cardEl = template.content.querySelector('.gls-post-card');
+  if (!cardEl) return cardHtml;
+
+  const imageShell = cardEl.querySelector('.feed-rendered-image-shell');
+  if (!imageShell) return cardHtml;
+  const safeZone = resolveTitleSafeZone(cardEl.dataset.lengthVariant);
+
+  const titleEl = cardEl.querySelector('.card-title');
+  if (titleEl) {
+    titleEl.classList.add('mpd-card-title-outside');
+    titleEl.setAttribute('aria-hidden', 'true');
   }
 
-  const posts = postsData.posts || [];
-
-  // 작성한 글이 하나도 없는 경우
-  if (!posts.length) {
-   renderMyPostsEmptyState(postsBox, 'load');
-   myPostsLoaded = true;
-   return;
+  let bodySafeOverlay = null;
+  if (mypageSafeAreaGuidesEnabled) {
+    bodySafeOverlay = document.createElement('div');
+    bodySafeOverlay.className = 'mpd-image-body-safe';
+    bodySafeOverlay.style.setProperty('--mpd-safe-body-left', `${safeZone.bodyLeft ?? safeZone.left}%`);
+    bodySafeOverlay.style.setProperty('--mpd-safe-body-top', `${safeZone.bodyTop ?? 46.2}%`);
+    bodySafeOverlay.style.setProperty('--mpd-safe-body-width', `${safeZone.bodyWidth ?? safeZone.width}%`);
+    bodySafeOverlay.style.setProperty('--mpd-safe-body-height', `${safeZone.bodyHeight ?? 41.2}%`);
   }
 
-  // 글마다 공통 카드 렌더링 (수정/삭제 버튼 있음)
-  const listHtml = posts
-   .map((post) => renderPostCard(post, { showActions: true }))
-   .join('');
+  const overlay = document.createElement('div');
+  overlay.className = 'mpd-image-title';
+  overlay.setAttribute('data-title', titleText && String(titleText).trim().length > 0
+    ? String(titleText).trim()
+    : '제목 없음');
+  overlay.style.setProperty('--mpd-safe-left', `${safeZone.left}%`);
+  overlay.style.setProperty('--mpd-safe-width', `${safeZone.width}%`);
+  overlay.style.setProperty('--mpd-safe-top', `${safeZone.top}%`);
+  overlay.style.setProperty('--mpd-safe-title-height', `${safeZone.height}%`);
+  overlay.style.setProperty('--mpd-safe-title-align', safeZone.textAlign || 'left');
+  overlay.style.setProperty('--mpd-body-font-ratio', String(safeZone.bodyFontRatio || 0.0325));
+  overlay.style.setProperty('--mpd-body-line-height', String(safeZone.bodyLineHeight || 1.13));
 
-   postsBox.innerHTML = listHtml;
-   myPostsLoaded = true; // 이후에는 다시 로드하지 않도록 플래그 설정
- 
-   // ✅ 공통 카드 기능(폰트 조절 등) + 카드 클릭 → 상세 페이지 이동
-   posts.forEach((post) => {
-    const wrapper = postsBox.querySelector(
-     `.mypage-post-card[data-post-id="${post.id}"]`
-    );
-    if (!wrapper) return;
- 
-    const card = wrapper.querySelector('.gls-post-card');
-    if (card && typeof enhanceStandardPostCard === 'function') {
-     // autoAdjustQuoteFont 등 공통 처리
-     enhanceStandardPostCard(card, post);
-    }
- 
-    // 카드 전체 클릭 → 상세 페이지로 이동
-    wrapper.addEventListener('click', (e) => {
-     // 수정/삭제 버튼 클릭은 상세 페이지로 안 가게 예외 처리
-     if (e.target.closest('.edit-post-btn') || e.target.closest('.delete-post-btn')) {
+  const text = document.createElement('span');
+  text.className = 'mpd-image-title__text';
+  text.textContent = titleText && String(titleText).trim().length > 0
+    ? String(titleText).trim()
+    : '제목 없음';
+
+  overlay.appendChild(text);
+  if (bodySafeOverlay) {
+    imageShell.appendChild(bodySafeOverlay);
+  }
+  imageShell.appendChild(overlay);
+
+  return template.innerHTML;
+}
+
+function getCurrentPathWithSearch() {
+  return `${window.location.pathname}${window.location.search || ''}`;
+}
+
+function buildLoginRedirectUrl(source = 'mypage') {
+  const query = new URLSearchParams();
+  query.set('next', getCurrentPathWithSearch());
+  if (source) query.set('from', source);
+  return `/html/login.html?${query.toString()}`;
+}
+
+function renderMyPostsEmptyState(postsBox, reason = 'load') {
+  if (!postsBox) return;
+
+  trackUxEvent('mypage_my_posts_empty', { reason });
+
+  postsBox.innerHTML = `
+    <div class="mpd-empty-state">
+      <p class="gls-text-muted gls-mb-2">아직 작성한 글이 없습니다.</p>
+      <a
+        class="gls-btn gls-btn-primary gls-btn-sm mpd-empty-state__cta"
+        href="/html/editor.html"
+        id="mypageEmptyCreatePostCta"
+      >
+        첫 글 쓰러 가기
+      </a>
+    </div>
+  `;
+
+  const emptyCta = document.getElementById('mypageEmptyCreatePostCta');
+  if (emptyCta) {
+    emptyCta.addEventListener('click', () => {
+      trackUxEvent(
+        'mypage_empty_state_cta_click',
+        {
+          target: '/html/editor.html',
+          reason,
+        },
+        { useBeacon: true }
+      );
+    });
+  }
+}
+
+function renderFollowingsEmptyState(followingsBox) {
+  if (!followingsBox) return;
+  followingsBox.innerHTML = '<p class="mpd-empty-note gls-mb-0">아직 팔로잉한 사람이 없습니다.</p>';
+}
+
+function openUserEditModal(triggerEl = null) {
+  const modalEl = document.getElementById('userEditModal');
+  if (!modalEl) return;
+
+  if (window.glsModal) {
+    window.glsModal.open(modalEl, triggerEl || undefined);
+  } else {
+    modalEl.classList.add('is-open', 'show', 'is-flex-visible');
+    modalEl.removeAttribute('hidden');
+    modalEl.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function closeUserEditModal() {
+  const modalEl = document.getElementById('userEditModal');
+  if (!modalEl) return;
+
+  if (window.glsModal) {
+    window.glsModal.close(modalEl);
+  } else {
+    modalEl.classList.remove('is-open', 'show', 'is-flex-visible');
+    modalEl.setAttribute('aria-hidden', 'true');
+    modalEl.setAttribute('hidden', 'hidden');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await setupMypageSafeAreaGuides();
+  setupMyPageTabs();
+  setupMyPostCardEvents();
+  setupLikedPostCardEvents();
+  setupFollowingListEvents();
+  setupUserEditForm();
+  loadMyPage();
+});
+
+async function loadMyPage() {
+  const userInfoBox = document.getElementById('userInfo');
+  const myPostsBox = document.getElementById('myPosts');
+  const likedBox = document.getElementById('likedPosts');
+
+  if (!userInfoBox || !myPostsBox || !likedBox) {
+    console.error('userInfo, myPosts, likedPosts 요소를 찾을 수 없습니다.');
+    return;
+  }
+
+  try {
+    const meRes = await fetch('/api/me', { cache: 'no-store' });
+
+    if (!meRes.ok) {
+      userInfoBox.innerHTML = '<p class="text-danger gls-mb-0">로그인이 필요합니다. 로그인 페이지로 이동합니다.</p>';
+      myPostsBox.innerHTML = '';
+      likedBox.innerHTML = '';
+      setTimeout(() => {
+        window.location.href = buildLoginRedirectUrl('mypage');
+      }, 1500);
       return;
-     }
-     window.location.href = `/html/post.html?postId=${encodeURIComponent(
-      post.id
-     )}`;
-    });
-   });
- } catch (err) {
-  console.error(err);
-  postsBox.innerHTML =
-   '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
- }
-}
-
-/* ======================
- * 내가 공감한 글 로딩
- * ====================== */
-
-/**
- * "공감한 글" 목록 로딩
- * - GET /api/posts/liked 호출
- * - 글이 없으면 안내 문구, 있으면 renderPostCard로 카드 목록 렌더링
- */
-async function loadLikedPosts() {
- const likedBox = document.getElementById('likedPosts');
- if (!likedBox) return;
-
- // 로딩 중 안내 문구
- likedBox.innerHTML =
-  '<p class="gls-text-muted">공감한 글을 불러오는 중입니다...</p>';
-
- try {
-  const likedRes = await fetch('/api/posts/liked');
-
-  // HTTP 레벨 오류
-  if (!likedRes.ok) {
-   likedBox.innerHTML =
-    '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
-   return;
-  }
-
-  const likedData = await likedRes.json();
-
-  // API 레벨 오류
-  if (!likedData.ok) {
-   likedBox.innerHTML = `<p class="text-danger">${
-    likedData.message || '공감한 글을 불러오지 못했습니다.'
-   }</p>`;
-   return;
-  }
-
-  const likedPosts = likedData.posts || [];
-
-  // 공감한 글이 하나도 없는 경우
-  if (!likedPosts.length) {
-   likedBox.innerHTML =
-    '<p class="gls-text-muted">아직 공감한 글이 없습니다.</p>';
-   likedPostsLoaded = true;
-   return;
-  }
-
-  // 공감한 글은 읽기 전용이므로 showActions: false (수정/삭제 버튼 X)
-  const likedHtml = likedPosts
-   .map((post) => renderPostCard(post, { showActions: false }))
-   .join('');
-
-   likedBox.innerHTML = likedHtml;
-   likedPostsLoaded = true;
- 
-   // ✅ 공통 카드 기능 + 카드 클릭 → 상세 페이지 이동
-   likedPosts.forEach((post) => {
-    const wrapper = likedBox.querySelector(
-     `.mypage-post-card[data-post-id="${post.id}"]`
-    );
-    if (!wrapper) return;
- 
-    const card = wrapper.querySelector('.gls-post-card');
-    if (card && typeof enhanceStandardPostCard === 'function') {
-     enhanceStandardPostCard(card, post);
     }
- 
-    wrapper.addEventListener('click', (e) => {
-     // (여긴 수정/삭제 버튼이 없으니까 바로 이동)
-     window.location.href = `/html/post.html?postId=${encodeURIComponent(
-      post.id
-     )}`;
+
+    const meData = await meRes.json().catch(() => ({}));
+
+    if (!meData.ok) {
+      userInfoBox.innerHTML = '<p class="text-danger gls-mb-0">로그인이 필요합니다. 로그인 페이지로 이동합니다.</p>';
+      myPostsBox.innerHTML = '';
+      likedBox.innerHTML = '';
+      setTimeout(() => {
+        window.location.href = buildLoginRedirectUrl('mypage');
+      }, 1500);
+      return;
+    }
+
+    const displayName = getDisplayName({
+      nickname: meData.nickname,
+      name: meData.name,
     });
-   });
+    const followerCount = Number(meData.follower_count) || 0;
+    const followingCount = Number(meData.following_count) || 0;
 
- } catch (err) {
-  console.error(err);
-  likedBox.innerHTML =
-   '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
- }
+    trackUxEvent('mypage_view', {
+      follower_count: followerCount,
+      following_count: followingCount,
+    });
+
+    const bioHtml = meData.bio
+      ? `<p class="mpd-profile-bio">${safeEscape(meData.bio)}</p>`
+      : '';
+
+    const aboutHtml = meData.about
+      ? `<p class="mpd-profile-about mypage-preserve-lines">${safeEscape(meData.about)}</p>`
+      : '';
+
+    userInfoBox.innerHTML = `
+      <div class="mpd-profile-shell">
+        <div class="mpd-profile-main">
+          <p class="mpd-profile-eyebrow gls-mb-1">내 계정</p>
+          <h3 class="mpd-profile-name gls-mb-1">${safeEscape(displayName)}님</h3>
+          <p class="mpd-profile-email gls-mb-0">${safeEscape(meData.email)}</p>
+          ${bioHtml}
+          ${aboutHtml}
+        </div>
+
+        <div class="mpd-profile-stats" role="group" aria-label="팔로우 통계">
+          <div class="mpd-stat-item">
+            <span class="mpd-stat-label">팔로워</span>
+            <strong id="mypageFollowerCount">${followerCount}</strong>
+          </div>
+          <div class="mpd-stat-item">
+            <span class="mpd-stat-label">팔로잉</span>
+            <strong id="mypageFollowingCount">${followingCount}</strong>
+          </div>
+        </div>
+
+        <div class="mpd-profile-actions">
+          <button
+            type="button"
+            class="gls-btn gls-btn-ghost gls-btn-sm mpd-profile-edit-btn"
+            data-gls-toggle="modal"
+            data-gls-target="#userEditModal"
+          >
+            내 정보 수정
+          </button>
+        </div>
+      </div>
+    `;
+
+    const editBtn = userInfoBox.querySelector('[data-gls-target="#userEditModal"]');
+    if (editBtn && !editBtn.dataset.glsModalBound) {
+      editBtn.dataset.glsModalBound = '1';
+      editBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        openUserEditModal(editBtn);
+        loadMySessionsPanel();
+      });
+    }
+
+    const nicknameInput = document.getElementById('nicknameInput');
+    const bioInput = document.getElementById('bioInput');
+    const aboutInput = document.getElementById('aboutInput');
+    const rememberLoginEnabledInput = document.getElementById('rememberLoginEnabledInput');
+
+    if (nicknameInput) nicknameInput.value = meData.nickname || '';
+    if (bioInput) bioInput.value = meData.bio || '';
+    if (aboutInput) aboutInput.value = meData.about || '';
+    if (rememberLoginEnabledInput) {
+      const rememberEnabled = Boolean(meData.remember_login_enabled);
+      rememberLoginEnabledInput.checked = rememberEnabled;
+      rememberLoginEnabledInitial = rememberEnabled;
+    }
+
+    await loadGrowthMiniWidget();
+    await loadMySessionsPanel();
+    await loadMyPosts();
+  } catch (error) {
+    console.error(error);
+    userInfoBox.innerHTML = '<p class="text-danger gls-mb-0">마이페이지를 불러오는 중 오류가 발생했습니다.</p>';
+    myPostsBox.innerHTML = '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
+    likedBox.innerHTML = '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
+  }
 }
 
-/* ======================
- * 내가 팔로잉하는 사람들 로딩
- * ====================== */
+async function loadGrowthMiniWidget() {
+  const widget = document.getElementById('mypageGrowthMini');
+  const summaryText = document.querySelector('.mypage-growth-summary-text');
+  if (!widget || !summaryText) return;
 
-/**
- * "팔로잉" 목록 로딩
- * - GET /api/me/followings 호출
- * - 목록이 없으면 안내 문구, 있으면 카드 렌더링
- */
+  try {
+    const res = await fetch('/api/growth/summary', { cache: 'no-store' });
+    if (!res.ok) throw new Error('growth summary failed');
+
+    const data = await res.json().catch(() => ({}));
+    if (!data.ok || !data.summary) throw new Error('growth summary invalid');
+
+    const {
+      level = 0,
+      today_xp = 0,
+      streak_days = 0,
+      current_xp = 0,
+      next_level_xp = 0,
+      title = '성장',
+    } = data.summary;
+
+    summaryText.textContent = `Lv.${level} ${title} · ${current_xp} / ${next_level_xp} XP · 오늘 +${today_xp} XP · 연속 ${streak_days}일 글쓰기`;
+    widget.classList.remove('gls-hidden');
+  } catch (error) {
+    console.error(error);
+    summaryText.textContent = '성장 정보를 불러오지 못했습니다.';
+    widget.classList.remove('gls-hidden');
+  }
+}
+
+async function loadMySessionsPanel() {
+  const sessionsListEl = document.getElementById('mySessionsList');
+  const sessionsMsgEl = document.getElementById('mySessionsMessage');
+  if (!sessionsListEl) return;
+
+  sessionsListEl.innerHTML = '<p class="gls-text-muted gls-mb-0">세션 정보를 불러오는 중입니다...</p>';
+  if (sessionsMsgEl) {
+    sessionsMsgEl.textContent = '';
+    sessionsMsgEl.classList.remove('text-danger', 'text-success');
+  }
+
+  try {
+    const res = await fetch('/api/me/sessions', { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok || !Array.isArray(data.sessions)) {
+      const message = (data && data.message) || '세션 정보를 불러오지 못했습니다.';
+      sessionsListEl.innerHTML = `<p class="text-danger gls-mb-0">${safeEscape(message)}</p>`;
+      return;
+    }
+
+    if (data.sessions.length === 0) {
+      sessionsListEl.innerHTML = '<p class="gls-text-muted gls-mb-0">활성 세션이 없습니다.</p>';
+      return;
+    }
+
+    sessionsListEl.innerHTML = `
+      <div class="mpd-session-list">
+        ${data.sessions
+          .map((session) => {
+            const createdAt = formatDateTime(session.created_at);
+            const lastSeenAt = formatDateTime(session.last_seen_at);
+            const expiresAt = formatDateTime(session.expires_at);
+            const rememberText = session.remember_me ? '자동 로그인 30일' : '기본 세션 2시간';
+            const currentBadge = session.current
+              ? '<span class="pill gls-text-xxs">현재 기기</span>'
+              : '<span class="pill gls-text-xxs">다른 기기</span>';
+            const ipHint = session.ip_hint ? safeEscape(session.ip_hint) : '-';
+            const userAgent = safeEscape(session.user_agent || '알 수 없는 기기');
+
+            return `
+              <article class="mpd-session-item">
+                <div class="mpd-session-item__head">
+                  <strong>${userAgent}</strong>
+                  ${currentBadge}
+                </div>
+                <div class="mpd-session-item__meta">
+                  <div>생성: ${safeEscape(createdAt || '-')}</div>
+                  <div>최근 활동: ${safeEscape(lastSeenAt || '-')}</div>
+                  <div>만료: ${safeEscape(expiresAt || '-')}</div>
+                  <div>${safeEscape(rememberText)} · ${ipHint}</div>
+                </div>
+              </article>
+            `;
+          })
+          .join('')}
+      </div>
+    `;
+  } catch (error) {
+    console.error(error);
+    sessionsListEl.innerHTML = '<p class="text-danger gls-mb-0">세션 정보를 불러오는 중 오류가 발생했습니다.</p>';
+  }
+}
+
+async function logoutAllSessions() {
+  const sessionsMsgEl = document.getElementById('mySessionsMessage');
+  const logoutAllBtn = document.getElementById('logoutAllSessionsBtn');
+
+  if (logoutAllBtn) {
+    logoutAllBtn.disabled = true;
+    logoutAllBtn.dataset.originalText = logoutAllBtn.dataset.originalText || logoutAllBtn.textContent;
+    logoutAllBtn.textContent = '처리 중...';
+  }
+
+  if (sessionsMsgEl) {
+    sessionsMsgEl.textContent = '';
+    sessionsMsgEl.classList.remove('text-danger', 'text-success');
+  }
+
+  try {
+    const res = await fetch('/api/logout-all', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
+      const message = (data && data.message) || '전체 로그아웃 처리 중 오류가 발생했습니다.';
+      if (sessionsMsgEl) {
+        sessionsMsgEl.textContent = message;
+        sessionsMsgEl.classList.add('text-danger');
+      }
+      return;
+    }
+
+    if (sessionsMsgEl) {
+      sessionsMsgEl.textContent = data.message || '모든 기기에서 로그아웃되었습니다.';
+      sessionsMsgEl.classList.add('text-success');
+    }
+
+    setTimeout(() => {
+      window.location.href = '/html/login.html?from=logout-all';
+    }, 700);
+  } catch (error) {
+    console.error(error);
+    if (sessionsMsgEl) {
+      sessionsMsgEl.textContent = '전체 로그아웃 처리 중 오류가 발생했습니다.';
+      sessionsMsgEl.classList.add('text-danger');
+    }
+  } finally {
+    if (logoutAllBtn) {
+      logoutAllBtn.disabled = false;
+      logoutAllBtn.textContent = logoutAllBtn.dataset.originalText || '모든 기기 로그아웃';
+    }
+  }
+}
+
+function setupMyPageTabs() {
+  const tabMy = document.getElementById('tabMyPosts');
+  const tabLiked = document.getElementById('tabLikedPosts');
+  const tabFollowings = document.getElementById('tabFollowings');
+  const tabBookmarks = document.getElementById('tabBookmarks');
+
+  const mySection = document.getElementById('myPostsSection');
+  const likedSection = document.getElementById('likedPostsSection');
+  const followingsSection = document.getElementById('followingsSection');
+
+  if (!tabMy || !tabLiked || !tabFollowings || !mySection || !likedSection || !followingsSection) {
+    return;
+  }
+
+  const tabConfigs = [
+    { tab: tabMy, panel: mySection, panelId: 'myPostsSection' },
+    { tab: tabLiked, panel: likedSection, panelId: 'likedPostsSection' },
+    { tab: tabFollowings, panel: followingsSection, panelId: 'followingsSection' },
+  ];
+
+  tabConfigs.forEach(({ tab, panel, panelId }, index) => {
+    tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-controls', panelId);
+    tab.setAttribute('aria-selected', index === 0 ? 'true' : 'false');
+    tab.setAttribute('tabindex', index === 0 ? '0' : '-1');
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', tab.id);
+    panel.tabIndex = index === 0 ? 0 : -1;
+  });
+
+  const tabOrder = [tabMy, tabLiked, tabFollowings];
+  tabOrder.forEach((tab, index) => {
+    tab.addEventListener('keydown', (event) => {
+      let nextIndex = null;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabOrder.length;
+      if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabOrder.length) % tabOrder.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = tabOrder.length - 1;
+      if (nextIndex === null) return;
+
+      event.preventDefault();
+      const nextTab = tabOrder[nextIndex];
+      if (!nextTab) return;
+      nextTab.focus();
+      nextTab.click();
+    });
+  });
+
+  tabMy.addEventListener('click', async () => {
+    switchMyPageTab('my');
+    if (!myPostsLoaded) {
+      await loadMyPosts();
+    }
+  });
+
+  tabLiked.addEventListener('click', async () => {
+    switchMyPageTab('liked');
+    if (!likedPostsLoaded) {
+      await loadLikedPosts();
+    }
+  });
+
+  tabFollowings.addEventListener('click', async () => {
+    switchMyPageTab('followings');
+    if (!followingsLoaded) {
+      await loadMyFollowings();
+    }
+  });
+
+  if (tabBookmarks && !tabBookmarks.dataset.bound) {
+    tabBookmarks.dataset.bound = '1';
+    tabBookmarks.addEventListener('click', (event) => {
+      event.preventDefault();
+      window.location.href = '/html/bookmarks.html';
+    });
+  }
+
+  switchMyPageTab('my');
+}
+
+function switchMyPageTab(target) {
+  const tabMy = document.getElementById('tabMyPosts');
+  const tabLiked = document.getElementById('tabLikedPosts');
+  const tabFollowings = document.getElementById('tabFollowings');
+  const tabBookmarks = document.getElementById('tabBookmarks');
+
+  const mySection = document.getElementById('myPostsSection');
+  const likedSection = document.getElementById('likedPostsSection');
+  const followingsSection = document.getElementById('followingsSection');
+
+  if (!tabMy || !tabLiked || !tabFollowings || !mySection || !likedSection || !followingsSection) {
+    return;
+  }
+
+  const isMyTab = target === 'my';
+  const isLikedTab = target === 'liked';
+  const isFollowingsTab = target === 'followings';
+
+  const syncTabState = (tabEl, sectionEl, isActive) => {
+    tabEl.classList.toggle('is-active', isActive);
+    tabEl.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    tabEl.setAttribute('tabindex', isActive ? '0' : '-1');
+
+    sectionEl.classList.toggle('gls-hidden', !isActive);
+    sectionEl.hidden = !isActive;
+    sectionEl.tabIndex = isActive ? 0 : -1;
+  };
+
+  syncTabState(tabMy, mySection, isMyTab);
+  syncTabState(tabLiked, likedSection, isLikedTab);
+  syncTabState(tabFollowings, followingsSection, isFollowingsTab);
+
+  if (tabBookmarks) {
+    tabBookmarks.classList.remove('is-active');
+  }
+}
+
+function renderPostCard(post, options = {}) {
+  const { editable = false } = options;
+
+  const postId = post && post.id != null ? String(post.id) : '';
+  const dateText = safeEscape(formatDateTime(post && post.created_at));
+  const categoryLabel = getCategoryLabel(post && post.category);
+  const titleText = post && post.title ? String(post.title) : '제목 없음';
+  const cardHtml = typeof buildStandardPostCardHTML === 'function'
+    ? injectMypageImageTitle(
+      buildStandardPostCardHTML(post, {
+        showMoreButton: false,
+        contentExpanded: true,
+        showEngagementActions: false,
+        cardClickable: false,
+      }),
+      titleText
+    )
+    : `
+      <article class="card gls-post-card gls-mb-0">
+        <div class="card-body">
+          <h5 class="card-title gls-mb-2">${safeEscape((post && post.title) || '제목 없음')}</h5>
+          <p class="gls-mb-0">${safeEscape(toExcerpt(post && post.content))}</p>
+        </div>
+      </article>
+    `;
+
+  const actionsHtml = editable
+    ? `
+      <div class="mpd-post-actions" data-card-stop-nav="1">
+        <button type="button" class="gls-btn gls-btn-secondary gls-btn-xs edit-post-btn">수정</button>
+        <button type="button" class="gls-btn gls-btn-danger gls-btn-xs delete-post-btn">삭제</button>
+      </div>
+    `
+    : `
+      <a
+        class="gls-btn gls-btn-secondary gls-btn-xs"
+        href="/html/post.html?postId=${encodeURIComponent(postId)}"
+        data-card-stop-nav="1"
+      >
+        상세 보기
+      </a>
+    `;
+
+  return `
+    <article class="mpd-post-card mypage-post-card" data-post-id="${safeEscape(postId)}">
+      <div class="mpd-post-canvas">
+        ${cardHtml}
+      </div>
+      <div class="mpd-post-foot">
+        <span class="mpd-post-foot-meta">${dateText} · ${safeEscape(categoryLabel)}</span>
+        ${actionsHtml}
+      </div>
+    </article>
+  `;
+}
+
+function enhanceRenderedPostCards(container, posts) {
+  if (!container || !Array.isArray(posts)) return;
+  if (typeof enhanceStandardPostCard !== 'function') return;
+
+  const postById = new Map(
+    posts.map((post) => [String(post && post.id != null ? post.id : ''), post])
+  );
+
+  container.querySelectorAll('.mypage-post-card').forEach((wrapper) => {
+    const postId = wrapper.getAttribute('data-post-id') || '';
+    const post = postById.get(postId);
+    if (!post) return;
+
+    const cardEl = wrapper.querySelector('.gls-post-card');
+    if (!cardEl) return;
+    enhanceStandardPostCard(cardEl, post);
+  });
+}
+
+function renderFollowingCard(user) {
+  const userId = user && user.id != null ? String(user.id) : '';
+  const displayName = getDisplayName(user);
+  const maskedEmail = getMaskedEmail((user && user.email) || '');
+  const bioHtml = user && user.bio
+    ? `<p class="mpd-following-bio">${safeEscape(user.bio)}</p>`
+    : '';
+  const aboutHtml = user && user.about
+    ? `<p class="mpd-following-about mypage-preserve-lines">${safeEscape(user.about)}</p>`
+    : '';
+
+  return `
+    <article class="mpd-following-card mypage-following-card" data-user-id="${safeEscape(userId)}">
+      <div class="mpd-following-main">
+        <h6 class="gls-mb-1">${safeEscape(displayName)}</h6>
+        <p class="mpd-following-email">${safeEscape(maskedEmail)}</p>
+        ${bioHtml}
+        ${aboutHtml}
+        <p class="mpd-following-meta gls-mb-0">팔로워 ${Number((user && user.follower_count) || 0)}</p>
+      </div>
+      <div class="mpd-following-actions">
+        <a
+          class="gls-btn gls-btn-secondary gls-btn-xs"
+          href="/html/author.html?userId=${encodeURIComponent(userId)}"
+          data-card-stop-nav="1"
+        >
+          프로필 보기
+        </a>
+        <button
+          type="button"
+          class="gls-btn gls-btn-danger gls-btn-xs unfollow-btn"
+          data-user-id="${safeEscape(userId)}"
+        >
+          언팔로우
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+async function loadMyPosts() {
+  const postsBox = document.getElementById('myPosts');
+  if (!postsBox) return;
+
+  postsBox.innerHTML = '<p class="gls-text-muted">글 목록을 불러오는 중입니다...</p>';
+
+  try {
+    const postsRes = await fetch('/api/posts/my', { cache: 'no-store' });
+    if (!postsRes.ok) {
+      postsBox.innerHTML = '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
+      return;
+    }
+
+    const postsData = await postsRes.json().catch(() => ({}));
+    if (!postsData.ok) {
+      postsBox.innerHTML = `<p class="text-danger">${safeEscape(postsData.message || '글 목록을 불러오지 못했습니다.')}</p>`;
+      return;
+    }
+
+    const posts = Array.isArray(postsData.posts) ? postsData.posts : [];
+    if (!posts.length) {
+      renderMyPostsEmptyState(postsBox, 'load');
+      myPostsLoaded = true;
+      return;
+    }
+
+    postsBox.innerHTML = `
+      <div class="mpd-post-list">
+        ${posts.map((post) => renderPostCard(post, { editable: true })).join('')}
+      </div>
+    `;
+    enhanceRenderedPostCards(postsBox, posts);
+    myPostsLoaded = true;
+  } catch (error) {
+    console.error(error);
+    postsBox.innerHTML = '<p class="text-danger">글 목록을 불러오는 중 오류가 발생했습니다.</p>';
+  }
+}
+
+async function loadLikedPosts() {
+  const likedBox = document.getElementById('likedPosts');
+  if (!likedBox) return;
+
+  likedBox.innerHTML = '<p class="gls-text-muted">공감한 글을 불러오는 중입니다...</p>';
+
+  try {
+    const likedRes = await fetch('/api/posts/liked', { cache: 'no-store' });
+    if (!likedRes.ok) {
+      likedBox.innerHTML = '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
+      return;
+    }
+
+    const likedData = await likedRes.json().catch(() => ({}));
+    if (!likedData.ok) {
+      likedBox.innerHTML = `<p class="text-danger">${safeEscape(likedData.message || '공감한 글을 불러오지 못했습니다.')}</p>`;
+      return;
+    }
+
+    const likedPosts = Array.isArray(likedData.posts) ? likedData.posts : [];
+    if (!likedPosts.length) {
+      likedBox.innerHTML = '<p class="mpd-empty-note gls-mb-0">아직 공감한 글이 없습니다.</p>';
+      likedPostsLoaded = true;
+      return;
+    }
+
+    likedBox.innerHTML = `
+      <div class="mpd-post-list">
+        ${likedPosts.map((post) => renderPostCard(post, { editable: false })).join('')}
+      </div>
+    `;
+    enhanceRenderedPostCards(likedBox, likedPosts);
+    likedPostsLoaded = true;
+  } catch (error) {
+    console.error(error);
+    likedBox.innerHTML = '<p class="text-danger">공감한 글을 불러오는 중 오류가 발생했습니다.</p>';
+  }
+}
+
 async function loadMyFollowings() {
- const followingsBox = document.getElementById('followingsList');
- if (!followingsBox) return;
+  const followingsBox = document.getElementById('followingsList');
+  if (!followingsBox) return;
 
- followingsBox.innerHTML =
-  '<p class="gls-text-muted">팔로잉 목록을 불러오는 중입니다...</p>';
+  followingsBox.innerHTML = '<p class="gls-text-muted">팔로잉 목록을 불러오는 중입니다...</p>';
 
- try {
-  const res = await fetch('/api/me/followings');
+  try {
+    const res = await fetch('/api/me/followings', { cache: 'no-store' });
+    if (!res.ok) {
+      followingsBox.innerHTML = '<p class="text-danger">팔로잉 목록을 불러오는 중 오류가 발생했습니다.</p>';
+      return;
+    }
 
-  if (!res.ok) {
-   followingsBox.innerHTML =
-    '<p class="text-danger">팔로잉 목록을 불러오는 중 오류가 발생했습니다.</p>';
-   return;
+    const data = await res.json().catch(() => ({}));
+    if (!data.ok) {
+      followingsBox.innerHTML = `<p class="text-danger">${safeEscape(data.message || '팔로잉 목록을 불러오지 못했습니다.')}</p>`;
+      return;
+    }
+
+    const followings = Array.isArray(data.followings) ? data.followings : [];
+    if (!followings.length) {
+      renderFollowingsEmptyState(followingsBox);
+      followingsLoaded = true;
+      return;
+    }
+
+    followingsBox.innerHTML = `
+      <div class="mpd-following-list">
+        ${followings.map((user) => renderFollowingCard(user)).join('')}
+      </div>
+    `;
+    followingsLoaded = true;
+  } catch (error) {
+    console.error(error);
+    followingsBox.innerHTML = '<p class="text-danger">팔로잉 목록을 불러오는 중 오류가 발생했습니다.</p>';
   }
-
-  const data = await res.json();
-  if (!data.ok) {
-   followingsBox.innerHTML = `<p class="text-danger">${
-    data.message || '팔로잉 목록을 불러오지 못했습니다.'
-   }</p>`;
-   return;
-  }
-
-  const followings = data.followings || [];
-  if (!followings.length) {
-   followingsBox.innerHTML =
-    '<p class="gls-text-muted">아직 팔로잉한 사람이 없습니다.</p>';
-   followingsLoaded = true;
-   return;
-  }
-
-  const cardsHtml = followings
-   .map((user) => renderFollowingCard(user))
-   .join('');
-
-  followingsBox.innerHTML = cardsHtml;
-  followingsLoaded = true;
- } catch (err) {
-  console.error(err);
-  followingsBox.innerHTML =
-   '<p class="text-danger">팔로잉 목록을 불러오는 중 오류가 발생했습니다.</p>';
- }
 }
 
-/* ======================
- * 팔로잉 카드 이벤트 (언팔로우)
- * ====================== */
+function setupMyPostCardEvents() {
+  const postsBox = document.getElementById('myPosts');
+  if (!postsBox || postsBox.dataset.bound === '1') return;
+
+  postsBox.dataset.bound = '1';
+  postsBox.addEventListener('click', async (event) => {
+    const target = event.target;
+    const card = target.closest('.mypage-post-card');
+    if (!card) return;
+
+    const postId = card.getAttribute('data-post-id');
+    if (!postId) return;
+
+    if (target.closest('.delete-post-btn')) {
+      const ok = confirm('정말 이 글을 삭제하시겠습니까?');
+      if (!ok) return;
+
+      try {
+        const delRes = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
+        const delData = await delRes.json().catch(() => ({}));
+        if (!delRes.ok || !delData.ok) {
+          alert(delData.message || '글 삭제에 실패했습니다.');
+          return;
+        }
+
+        card.remove();
+        if (!postsBox.querySelector('.mypage-post-card')) {
+          renderMyPostsEmptyState(postsBox, 'after_delete');
+        }
+      } catch (error) {
+        console.error(error);
+        alert('글 삭제 중 오류가 발생했습니다.');
+      }
+      return;
+    }
+
+    if (target.closest('.edit-post-btn')) {
+      window.location.href = `/html/editor.html?postId=${postId}`;
+      return;
+    }
+
+    if (target.closest('a, button, input, textarea, select, label, [role="button"], [data-card-stop-nav="1"]')) {
+      return;
+    }
+
+    window.location.href = `/html/post.html?postId=${encodeURIComponent(postId)}`;
+  });
+}
+
+function setupLikedPostCardEvents() {
+  const likedBox = document.getElementById('likedPosts');
+  if (!likedBox || likedBox.dataset.bound === '1') return;
+
+  likedBox.dataset.bound = '1';
+  likedBox.addEventListener('click', (event) => {
+    const target = event.target;
+    const card = target.closest('.mypage-post-card');
+    if (!card) return;
+
+    if (target.closest('a, button, input, textarea, select, label, [role="button"], [data-card-stop-nav="1"]')) {
+      return;
+    }
+
+    const postId = card.getAttribute('data-post-id');
+    if (!postId) return;
+    window.location.href = `/html/post.html?postId=${encodeURIComponent(postId)}`;
+  });
+}
 
 function setupFollowingListEvents() {
- const followingsBox = document.getElementById('followingsList');
- if (!followingsBox) return;
+  const followingsBox = document.getElementById('followingsList');
+  if (!followingsBox || followingsBox.dataset.bound === '1') return;
 
- followingsBox.addEventListener('click', async (e) => {
-  const target = e.target;
-  if (!target.classList.contains('unfollow-btn')) return;
+  followingsBox.dataset.bound = '1';
+  followingsBox.addEventListener('click', async (event) => {
+    const target = event.target;
+    const actionBtn = target.closest('.unfollow-btn');
+    if (!actionBtn) return;
 
-  const userId = target.getAttribute('data-user-id');
-  if (!userId) return;
+    const userId = actionBtn.getAttribute('data-user-id');
+    if (!userId) return;
 
-  if (!confirm('이 사용자를 언팔로우하시겠어요?')) {
-   return;
-  }
-
-  const originalText = target.textContent;
-  target.disabled = true;
-  target.textContent = '처리 중...';
-
-  try {
-   const res = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
-   const data = await res.json().catch(() => ({}));
-
-   if (!res.ok || !data.ok) {
-    alert(data.message || '언팔로우 중 오류가 발생했습니다.');
-    target.disabled = false;
-    target.textContent = originalText;
-    return;
-   }
-
-   const stillFollowing = !!data.following;
-   const followingCountEl = document.getElementById('mypageFollowingCount');
-
-   if (!stillFollowing) {
-    // 팔로우가 해제된 경우 카드 제거
-    const card = target.closest('.mypage-following-card');
-    if (card) {
-     card.remove();
+    if (!confirm('이 사용자를 언팔로우하시겠어요?')) {
+      return;
     }
 
-    // 상단 팔로잉 카운트 갱신
-    if (followingCountEl) {
-     const current = Number(followingCountEl.textContent) || 0;
-     followingCountEl.textContent = Math.max(current - 1, 0);
+    const originalText = actionBtn.textContent;
+    actionBtn.disabled = true;
+    actionBtn.textContent = '처리 중...';
+
+    try {
+      const res = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        alert(data.message || '언팔로우 중 오류가 발생했습니다.');
+        actionBtn.disabled = false;
+        actionBtn.textContent = originalText;
+        return;
+      }
+
+      const stillFollowing = !!data.following;
+      const followingCountEl = document.getElementById('mypageFollowingCount');
+
+      if (!stillFollowing) {
+        const card = actionBtn.closest('.mypage-following-card');
+        if (card) card.remove();
+
+        if (followingCountEl) {
+          const current = Number(followingCountEl.textContent) || 0;
+          followingCountEl.textContent = String(Math.max(current - 1, 0));
+        }
+
+        if (!followingsBox.querySelector('.mypage-following-card')) {
+          renderFollowingsEmptyState(followingsBox);
+        }
+      } else {
+        actionBtn.disabled = false;
+        actionBtn.textContent = originalText;
+      }
+    } catch (error) {
+      console.error(error);
+      alert('언팔로우 처리 중 오류가 발생했습니다.');
+      actionBtn.disabled = false;
+      actionBtn.textContent = originalText;
     }
-
-    // 카드가 모두 사라졌다면 안내 문구 노출
-    if (!followingsBox.querySelector('.mypage-following-card')) {
-     followingsBox.innerHTML =
-      '<p class="gls-text-muted">아직 팔로잉한 사람이 없습니다.</p>';
-    }
-   } else {
-    // 여전히 팔로잉 상태라면 버튼만 복원
-    target.disabled = false;
-    target.textContent = originalText;
-   }
-  } catch (err) {
-   console.error(err);
-   alert('언팔로우 처리 중 오류가 발생했습니다.');
-   target.disabled = false;
-   target.textContent = originalText;
-  }
- });
-}
-
-/* ======================
- * 수정/삭제 버튼 이벤트
- * ====================== */
-
-/**
- * "내가 쓴 글" 카드 영역에 이벤트 위임 설정
- * - 카드 내부의 수정/삭제 버튼 클릭을 한 곳에서 처리
- */
-function setupMyPostCardEvents() {
- const postsBox = document.getElementById('myPosts');
- if (!postsBox) return;
-
- // myPosts 영역에 클릭 이벤트 리스너를 한 번만 등록
- postsBox.addEventListener('click', async (e) => {
-  const target = e.target;
-  // 클릭된 요소에서 가장 가까운 .mypage-post-card(부모 카드) 찾기
-  const card = target.closest('.mypage-post-card');
-  if (!card) return;
-
-  const postId = card.getAttribute('data-post-id');
-  if (!postId) return;
-
-  // ===== 삭제 버튼 처리 =====
-  if (target.classList.contains('delete-post-btn')) {
-   const ok = confirm('정말 이 글을 삭제하시겠습니까?');
-   if (!ok) return;
-
-   try {
-    // DELETE /api/posts/:id 요청
-    const delRes = await fetch(`/api/posts/${postId}`, {
-     method: 'DELETE',
-    });
-    const delData = await delRes.json();
-
-    // HTTP 또는 응답 ok가 false이면 실패
-    if (!delRes.ok || !delData.ok) {
-     alert(delData.message || '글 삭제에 실패했습니다.');
-     return;
-    }
-
-    // DOM에서 해당 카드 제거
-    card.remove();
-
-    // 더 이상 카드가 없으면 "아직 작성한 글이 없습니다" 문구 출력
-    if (!postsBox.querySelector('.mypage-post-card')) {
-     renderMyPostsEmptyState(postsBox, 'after_delete');
-    }
-   } catch (err) {
-    console.error(err);
-    alert('글 삭제 중 오류가 발생했습니다.');
-   }
-  }
-
-  // ===== 수정 버튼 처리 → 에디터 페이지로 이동 =====
-  if (target.classList.contains('edit-post-btn')) {
-   // 글쓰기 페이지(editor.html)에 postId 쿼리로 넘김
-   // - 에디터 쪽에서 ?postId=...를 보고 수정 모드로 동작
-   window.location.href = `/html/editor.html?postId=${postId}`;
-  }
- });
-}
-
-/* ======================
- * 내 정보 수정 폼
- * ====================== */
-
-/**
- * 내 정보 수정 모달 폼 처리
- * - 닉네임 / 한 줄 소개 / 자기소개 / 비밀번호 변경
- * - 비밀번호 변경 시 간단한 클라이언트 검증
- * - PUT /api/me 호출 후 성공 시 프로필 갱신 + 모달 닫기
- */
-function setupUserEditForm() {
- const form = document.getElementById('userEditForm');
-
- // 각 입력 필드
- const nicknameInput = document.getElementById('nicknameInput');
- const bioInput = document.getElementById('bioInput');
- const aboutInput = document.getElementById('aboutInput');
- const currentPwInput = document.getElementById('currentPwInput');
- const newPwInput = document.getElementById('newPwInput');
- const newPwConfirmInput = document.getElementById('newPwConfirmInput');
- const rememberLoginEnabledInput = document.getElementById('rememberLoginEnabledInput');
- const logoutAllBtn = document.getElementById('logoutAllSessionsBtn');
-
- // 결과/에러 메시지 출력용 span
- const messageSpan = document.getElementById('userEditMessage');
-
- // 폼이 없는 경우(레이아웃 변경 등)에는 아무 것도 하지 않음
- if (!form) {
-  return;
- }
-
- if (logoutAllBtn && !logoutAllBtn.dataset.bound) {
-  logoutAllBtn.dataset.bound = '1';
-  logoutAllBtn.addEventListener('click', (e) => {
-   e.preventDefault();
-   logoutAllSessions();
   });
- }
+}
 
- // 폼 제출(submit) 이벤트 처리
- form.addEventListener('submit', async (e) => {
-  e.preventDefault(); // 기본 폼 제출(페이지 새로고침) 막기
+function setupUserEditForm() {
+  const form = document.getElementById('userEditForm');
+  const nicknameInput = document.getElementById('nicknameInput');
+  const bioInput = document.getElementById('bioInput');
+  const aboutInput = document.getElementById('aboutInput');
+  const currentPwInput = document.getElementById('currentPwInput');
+  const newPwInput = document.getElementById('newPwInput');
+  const newPwConfirmInput = document.getElementById('newPwConfirmInput');
+  const rememberLoginEnabledInput = document.getElementById('rememberLoginEnabledInput');
+  const logoutAllBtn = document.getElementById('logoutAllSessionsBtn');
+  const messageSpan = document.getElementById('userEditMessage');
 
-  // 각 값을 읽어서 트리밍
-  const nickname = nicknameInput ? nicknameInput.value.trim() : '';
-  const bio = bioInput ? bioInput.value.trim() : '';
-  const about = aboutInput ? aboutInput.value : '';
-  const currentPw = currentPwInput ? currentPwInput.value : '';
-  const newPw = newPwInput ? newPwInput.value : '';
-  const newPwConfirm = newPwConfirmInput ? newPwConfirmInput.value : '';
-  const rememberLoginEnabled = rememberLoginEnabledInput
-   ? !!rememberLoginEnabledInput.checked
-   : false;
-  const rememberPolicyChanged = rememberLoginEnabledInput
-   ? rememberLoginEnabled !== rememberLoginEnabledInitial
-   : false;
+  if (!form) return;
 
-  // 메시지 영역 초기화
-  if (messageSpan) {
-   messageSpan.classList.remove('text-danger', 'text-success');
-   messageSpan.textContent = '';
+  if (logoutAllBtn && !logoutAllBtn.dataset.bound) {
+    logoutAllBtn.dataset.bound = '1';
+    logoutAllBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      logoutAllSessions();
+    });
   }
 
-  // ===== 비밀번호 변경 관련 기본 검증 =====
-  // newPw 또는 newPwConfirm 중 하나라도 입력되어 있으면 "비밀번호 변경" 의도가 있다고 보고 검증
-  if (newPw || newPwConfirm) {
-   // 둘 중 하나만 입력된 경우
-   if (!newPw || !newPwConfirm) {
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const nickname = nicknameInput ? nicknameInput.value.trim() : '';
+    const bio = bioInput ? bioInput.value.trim() : '';
+    const about = aboutInput ? aboutInput.value : '';
+    const currentPw = currentPwInput ? currentPwInput.value : '';
+    const newPw = newPwInput ? newPwInput.value : '';
+    const newPwConfirm = newPwConfirmInput ? newPwConfirmInput.value : '';
+
+    const rememberLoginEnabled = rememberLoginEnabledInput
+      ? !!rememberLoginEnabledInput.checked
+      : false;
+    const rememberPolicyChanged = rememberLoginEnabledInput
+      ? rememberLoginEnabled !== rememberLoginEnabledInitial
+      : false;
+
     if (messageSpan) {
-     messageSpan.classList.add('text-danger');
-     messageSpan.textContent = '새 비밀번호와 확인을 모두 입력해주세요.';
+      messageSpan.classList.remove('text-danger', 'text-success');
+      messageSpan.textContent = '';
     }
-    return;
-   }
 
-   // 새 비밀번호와 확인이 일치하지 않을 때
-   if (newPw !== newPwConfirm) {
-    if (messageSpan) {
-     messageSpan.classList.add('text-danger');
-     messageSpan.textContent = '새 비밀번호가 서로 일치하지 않습니다.';
+    if (newPw || newPwConfirm) {
+      if (!newPw || !newPwConfirm) {
+        if (messageSpan) {
+          messageSpan.classList.add('text-danger');
+          messageSpan.textContent = '새 비밀번호와 확인을 모두 입력해주세요.';
+        }
+        return;
+      }
+
+      if (newPw !== newPwConfirm) {
+        if (messageSpan) {
+          messageSpan.classList.add('text-danger');
+          messageSpan.textContent = '새 비밀번호가 서로 일치하지 않습니다.';
+        }
+        return;
+      }
+
+      if (!currentPw) {
+        if (messageSpan) {
+          messageSpan.classList.add('text-danger');
+          messageSpan.textContent = '비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.';
+        }
+        return;
+      }
+
+      if (newPw.length < 8 || !/[a-zA-Z]/.test(newPw) || !/\d/.test(newPw)) {
+        if (messageSpan) {
+          messageSpan.classList.add('text-danger');
+          messageSpan.textContent = '비밀번호는 8자 이상, 영문과 숫자를 포함해야 합니다.';
+        }
+        return;
+      }
     }
-    return;
-   }
 
-   // 현재 비밀번호를 입력하지 않은 경우
-   if (!currentPw) {
-    if (messageSpan) {
-     messageSpan.classList.add('text-danger');
-     messageSpan.textContent =
-      '비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.';
+    if (!nickname && !bio && !about && !newPw && !rememberPolicyChanged) {
+      if (messageSpan) {
+        messageSpan.classList.add('text-danger');
+        messageSpan.textContent = '변경할 내용을 입력해주세요.';
+      }
+      return;
     }
-    return;
-   }
 
-   // 새 비밀번호 정책
-   if (newPw.length < 8 || !/[a-zA-Z]/.test(newPw) || !/\d/.test(newPw)) {
-    if (messageSpan) {
-     messageSpan.classList.add('text-danger');
-     messageSpan.textContent =
-      '비밀번호는 8자 이상, 영문과 숫자를 포함해야 합니다.';
+    try {
+      const payload = {
+        nickname: nickname || null,
+        currentPw: currentPw || null,
+        newPw: newPw || null,
+        bio,
+        about,
+      };
+
+      if (rememberPolicyChanged) {
+        payload.remember_login_enabled = rememberLoginEnabled;
+      }
+
+      const res = await fetch('/api/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        if (messageSpan) {
+          messageSpan.classList.add('text-danger');
+          messageSpan.textContent = (data && data.message) || '정보 수정에 실패했습니다.';
+        }
+        return;
+      }
+
+      if (messageSpan) {
+        messageSpan.classList.add('text-success');
+        messageSpan.textContent = data.message || '내 정보가 수정되었습니다.';
+      }
+
+      if (currentPwInput) currentPwInput.value = '';
+      if (newPwInput) newPwInput.value = '';
+      if (newPwConfirmInput) newPwConfirmInput.value = '';
+
+      if (rememberPolicyChanged) {
+        rememberLoginEnabledInitial = rememberLoginEnabled;
+      }
+
+      closeUserEditModal();
+      await loadMyPage();
+    } catch (error) {
+      console.error(error);
+      if (messageSpan) {
+        messageSpan.classList.add('text-danger');
+        messageSpan.textContent = '정보 수정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      }
     }
-    return;
-   }
-  }
-
-  // ===== 변경할 내용이 하나도 없는 경우 막기 =====
-  // 닉네임, 한 줄 소개, 자기소개, 새 비밀번호 중 아무 것도 입력되지 않았으면 제출 X
-  if (!nickname && !bio && !about && !newPw && !rememberPolicyChanged) {
-   if (messageSpan) {
-    messageSpan.classList.add('text-danger');
-    messageSpan.textContent = '변경할 내용을 입력해주세요.';
-   }
-   return;
-  }
-
-  try {
-   const payload = {
-    nickname: nickname || null, // 닉네임을 비우면 null로 보내서 서버에서 이름 사용
-    currentPw: currentPw || null,
-    newPw: newPw || null,
-    bio: bio,
-    about: about,
-   };
-   if (rememberPolicyChanged) {
-    payload.remember_login_enabled = rememberLoginEnabled;
-   }
-
-   // /api/me에 PUT으로 수정 요청
-   const res = await fetch('/api/me', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-   });
-
-   // 응답 JSON 파싱 (실패하면 {}로 대체)
-   const data = await res.json().catch(() => ({}));
-
-   // HTTP 또는 data.ok 실패 시 에러 메시지 출력
-   if (!res.ok || !data.ok) {
-    if (messageSpan) {
-     messageSpan.classList.add('text-danger');
-     messageSpan.textContent =
-      (data && data.message) || '정보 수정에 실패했습니다.';
-    }
-    return;
-   }
-
-   // 성공 메시지 출력
-   if (messageSpan) {
-    messageSpan.classList.add('text-success');
-    messageSpan.textContent =
-     data.message || '내 정보가 수정되었습니다.';
-   }
-
-   // 비밀번호 입력칸은 항상 비워주기 (보안/UX)
-   if (currentPwInput) currentPwInput.value = '';
-   if (newPwInput) newPwInput.value = '';
-   if (newPwConfirmInput) newPwConfirmInput.value = '';
-   if (rememberPolicyChanged) {
-    rememberLoginEnabledInitial = rememberLoginEnabled;
-   }
-
-   // ✅ 모달 닫기 (GLS Modal)
-   const modalEl = document.getElementById('userEditModal');
-   if (modalEl && window.glsModal) window.glsModal.close(modalEl);
-
-   // 상단 프로필 영역도 바로 갱신 (새 닉네임/소개 반영)
-   await loadMyPage();
-  } catch (err) {
-   console.error(err);
-   if (messageSpan) {
-    messageSpan.classList.add('text-danger');
-    messageSpan.textContent =
-     '정보 수정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
-   }
-  }
- });
+  });
 }

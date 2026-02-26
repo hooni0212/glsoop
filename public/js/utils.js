@@ -105,6 +105,35 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+let glsoopRuntimeConfigPromise = null;
+
+function getGlsoopRuntimeConfig() {
+  if (glsoopRuntimeConfigPromise) return glsoopRuntimeConfigPromise;
+
+  const fallback = { safe_area_guides: false };
+
+  if (typeof window === 'undefined' || typeof fetch !== 'function') {
+    glsoopRuntimeConfigPromise = Promise.resolve(fallback);
+    return glsoopRuntimeConfigPromise;
+  }
+
+  glsoopRuntimeConfigPromise = fetch('/api/runtime-config', { cache: 'no-store' })
+    .then(async (response) => {
+      if (!response.ok) return fallback;
+
+      const payload = await response.json().catch(() => null);
+      const safeAreaGuidesEnabled =
+        payload?.ok === true && payload?.flags?.safe_area_guides === true;
+
+      return {
+        safe_area_guides: safeAreaGuidesEnabled,
+      };
+    })
+    .catch(() => fallback);
+
+  return glsoopRuntimeConfigPromise;
+}
+
 /**
  * DB/서버에서 온 날짜를 한국 시간 기준 "YYYY-MM-DD HH:MM"으로 포맷하는 함수
  *

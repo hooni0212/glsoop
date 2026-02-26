@@ -1,17 +1,10 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <!--
-    마이페이지(mypage.html)
-    - 연동 CSS: base.css, components.css
-    - 연동 JS: header.js(네비), mypage.js(프로필/탭/내글·좋아요·팔로잉 로드), postCard.js(공통 카드)
-    - 주요 요소: #myProfileCard, #myPosts/#likedPosts/#myFollowings 탭 컨테이너
-  -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>마이페이지 | 글숲</title>
 
-  <!-- Google Fonts: 사이트 공통 폰트들 -->
   <link
     href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap"
     rel="stylesheet"
@@ -24,38 +17,31 @@
     href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap"
     rel="stylesheet"
   />
-
-  <!-- Bootstrap CSS: 레이아웃/컴포넌트 기본 스타일 -->
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="/css/app.css">
-
-
+  <link rel="stylesheet" href="/css/app.css" />
 </head>
 <body class="page-mypage">
-  <!-- 헤더 네비게이션 바 -->
   <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
     <div class="gls-container">
-      <!-- 브랜드 로고: 클릭 시 메인 페이지로 이동 -->
       <a class="navbar-brand" href="/index.html">글숲</a>
 
-      <!-- 모바일 메뉴 버튼 -->
       <button
         class="navbar-toggler"
         type="button"
-        data-gls-toggle="nav" aria-controls="navbarNav" aria-expanded="false"
+        data-gls-toggle="nav"
+        aria-controls="navbarNav"
+        aria-expanded="false"
       >
         <span class="navbar-toggler-icon"></span>
       </button>
 
-      <!-- 네비게이션 메뉴 영역 -->
       <div class="collapse navbar-collapse" id="navbarNav">
           </li>
         </ul>
 
-        <!-- 로그인 전: 로그인/회원가입만 보이는 영역 -->
         <ul class="navbar-nav gls-ms-auto before-login">
           <li class="nav-item">
             <a class="nav-link" href="/html/login.html">로그인</a>
@@ -65,11 +51,8 @@
           </li>
         </ul>
 
-        <!-- 로그인 후: 유저 이름 / 마이페이지 / 글쓰기 / 로그아웃 -->
-        <!-- header.js 에서 /api/me 결과에 따라 before-login / after-login 토글 -->
         <ul class="navbar-nav gls-ms-auto after-login is-hidden">
           <li class="nav-item">
-            <!-- 로그인한 사용자 이름 표시 (예: 홍길동님) -->
             <span class="nav-link" id="navUserName"></span>
           </li>
           <li class="nav-item">
@@ -79,7 +62,6 @@
             <a class="nav-link" href="/html/editor.html">글쓰기</a>
           </li>
           <li class="nav-item">
-            <!-- 로그아웃 버튼: header.js에서 클릭 이벤트 처리 -->
             <button
               class="user-profile"
               id="logoutBtn"
@@ -108,116 +90,126 @@
   </nav>
 
   <main class="page-shell">
-    <div class="gls-container mypage-panels">
-      <div class="page-hero-card gls-surface-veil">
-        <div class="page-hero-meta">
-          <p class="eyebrow gls-mb-0">나의 공간</p>
-          <span class="pill">읽고 쓴 발자국</span>
+    <div class="gls-container">
+      <section class="mpd-hero page-hero-card gls-surface-veil">
+        <div class="mpd-hero-head">
+          <div>
+            <p class="mpd-eyebrow gls-mb-1">MY DASHBOARD</p>
+            <h1 class="mpd-title gls-mb-1">마이페이지</h1>
+            <p class="mpd-subtitle gls-mb-0">기능은 그대로, 내 기록을 더 빠르게 관리할 수 있는 대시보드로 정리했습니다.</p>
+          </div>
+          <a class="gls-btn gls-btn-primary gls-btn-sm" href="/html/editor.html">새 글 쓰기</a>
         </div>
-        <h2 class="gls-mt-2 gls-mb-1">마이페이지</h2>
-        <p class="gls-mb-0 gls-text-muted">홈/상세 페이지와 같은 유리 톤으로 내 정보와 기록을 정리했어요.</p>
-      </div>
+      </section>
 
-      <div id="userInfo" class="mypage-card gls-surface-veil">
-        <p class="gls-text-muted gls-mb-0">내 정보를 불러오는 중입니다...</p>
-      </div>
-
-      <div id="mypageGrowthMini" class="mypage-growth-mini mypage-card gls-surface-veil gls-hidden">
-        <div class="gls-flex gls-flex-wrap gls-justify-between gls-items-center gls-gap-3">
-          <div class="mypage-growth-summary-text gls-text-muted">성장 정보를 불러오는 중...</div>
-          <a href="/html/growth.html" class="mypage-growth-link">숲 지도에서 더 보기 →</a>
-        </div>
-      </div>
-
-      <div class="mypage-section mypage-section--posts mypage-card gls-surface-veil">
-        <div class="mypage-section-header gls-spread gls-mb-3">
-          <h4 class="mypage-section-title gls-mb-0">내 글 관리</h4>
-        </div>
-
-        <div class="mypage-tabs" role="tablist" aria-label="마이페이지 글 목록 탭">
-          <button
-            type="button"
-            class="mypage-tab is-active"
-            id="tabMyPosts"
-            role="tab"
-            aria-controls="myPostsSection"
-            aria-selected="true"
-            tabindex="0"
-          >
-            <span class="tab-label">내가 쓴 글</span>
-          </button>
-          <button
-            type="button"
-            class="mypage-tab"
-            id="tabLikedPosts"
-            role="tab"
-            aria-controls="likedPostsSection"
-            aria-selected="false"
-            tabindex="-1"
-          >
-            <span class="tab-label">내가 공감한 글</span>
-          </button>
-          <button
-            type="button"
-            class="mypage-tab"
-            id="tabFollowings"
-            role="tab"
-            aria-controls="followingsSection"
-            aria-selected="false"
-            tabindex="-1"
-          >
-            <span class="tab-label">내가 팔로잉</span>
-          </button>
-          <a class="mypage-tab" id="tabBookmarks" href="/html/bookmarks.html" aria-label="북마크 페이지로 이동">
-            <span class="tab-label">북마크</span>
-          </a>
-        </div>
-
-        <div class="mypage-tab-panels">
-          <!-- 내가 쓴 글 섹션 -->
-          <!-- mypage.js → loadMyPosts() 결과가 #myPosts 안에 렌더링 -->
-          <div id="myPostsSection" class="mypage-tab-panel" role="tabpanel" aria-labelledby="tabMyPosts" tabindex="0">
-            <div id="myPosts">
-              <p class="gls-text-muted">글 목록을 불러오는 중입니다...</p>
-            </div>
+      <section class="mpd-layout" aria-label="내 계정 대시보드">
+        <aside class="mpd-sidebar" aria-label="내 정보 요약">
+          <div id="userInfo" class="mpd-panel mpd-panel--profile">
+            <p class="gls-text-muted gls-mb-0">내 정보를 불러오는 중입니다...</p>
           </div>
 
-          <!-- 내가 공감한 글 섹션 (초기에는 gls-hidden으로 숨김) -->
-          <!-- mypage.js → loadLikedPosts() 결과가 #likedPosts 안에 렌더링 -->
-          <div
-            id="likedPostsSection"
-            class="gls-hidden mypage-tab-panel"
-            role="tabpanel"
-            aria-labelledby="tabLikedPosts"
-            tabindex="-1"
-            hidden
-          >
-            <div id="likedPosts">
-              <p class="gls-text-muted">공감한 글을 불러오는 중입니다...</p>
+          <div id="mypageGrowthMini" class="mpd-panel mpd-panel--growth gls-hidden" aria-live="polite">
+            <div class="mpd-growth-row">
+              <p class="mpd-growth-summary-text mypage-growth-summary-text gls-mb-0">성장 정보를 불러오는 중...</p>
+              <a href="/html/growth.html" class="mypage-growth-link mpd-growth-link">숲 지도에서 더 보기</a>
             </div>
+          </div>
+        </aside>
+
+        <section class="mpd-panel mpd-panel--content" aria-label="내 기록 관리">
+          <div class="mpd-content-head">
+            <h2 class="mpd-section-title gls-mb-0">내 기록</h2>
+            <p class="gls-text-small gls-text-muted gls-mb-0">탭을 전환해 작성글, 공감글, 팔로잉을 관리하세요.</p>
           </div>
 
-          <!-- 내가 팔로잉하는 사람들 섹션 (초기에는 gls-hidden) -->
-          <div
-            id="followingsSection"
-            class="gls-hidden mypage-tab-panel"
-            role="tabpanel"
-            aria-labelledby="tabFollowings"
-            tabindex="-1"
-            hidden
-          >
-            <div id="followingsList">
-              <p class="gls-text-muted">팔로잉 목록을 불러오는 중입니다...</p>
-            </div>
+          <div class="mpd-tabs" role="tablist" aria-label="마이페이지 글 목록 탭">
+            <button
+              type="button"
+              class="mpd-tab is-active"
+              id="tabMyPosts"
+              role="tab"
+              aria-controls="myPostsSection"
+              aria-selected="true"
+              tabindex="0"
+            >
+              내가 쓴 글
+            </button>
+            <button
+              type="button"
+              class="mpd-tab"
+              id="tabLikedPosts"
+              role="tab"
+              aria-controls="likedPostsSection"
+              aria-selected="false"
+              tabindex="-1"
+            >
+              내가 공감한 글
+            </button>
+            <button
+              type="button"
+              class="mpd-tab"
+              id="tabFollowings"
+              role="tab"
+              aria-controls="followingsSection"
+              aria-selected="false"
+              tabindex="-1"
+            >
+              내가 팔로잉
+            </button>
+            <a
+              class="mpd-tab mpd-tab--link"
+              id="tabBookmarks"
+              href="/html/bookmarks.html"
+              aria-label="북마크 페이지로 이동"
+            >
+              북마크
+            </a>
           </div>
-        </div>
-      </div>
+
+          <div class="mpd-tab-panels">
+            <section
+              id="myPostsSection"
+              class="mpd-tab-panel"
+              role="tabpanel"
+              aria-labelledby="tabMyPosts"
+              tabindex="0"
+            >
+              <div id="myPosts">
+                <p class="gls-text-muted">글 목록을 불러오는 중입니다...</p>
+              </div>
+            </section>
+
+            <section
+              id="likedPostsSection"
+              class="mpd-tab-panel gls-hidden"
+              role="tabpanel"
+              aria-labelledby="tabLikedPosts"
+              tabindex="-1"
+              hidden
+            >
+              <div id="likedPosts">
+                <p class="gls-text-muted">공감한 글을 불러오는 중입니다...</p>
+              </div>
+            </section>
+
+            <section
+              id="followingsSection"
+              class="mpd-tab-panel gls-hidden"
+              role="tabpanel"
+              aria-labelledby="tabFollowings"
+              tabindex="-1"
+              hidden
+            >
+              <div id="followingsList">
+                <p class="gls-text-muted">팔로잉 목록을 불러오는 중입니다...</p>
+              </div>
+            </section>
+          </div>
+        </section>
+      </section>
     </div>
   </main>
 
-  <!-- 내 정보 수정 모달 -->
-  <!-- "내 정보 수정" 버튼 클릭 시 나타나는 Bootstrap 모달 -->
-  <!-- mypage.js → setupUserEditForm() 에서 폼 submit 로직 처리 -->
   <div
     class="modal fade"
     id="userEditModal"
@@ -225,13 +217,14 @@
     aria-labelledby="userEditModalLabel"
     aria-hidden="true"
   >
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <!-- 내 정보 수정 폼 -->
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content mpd-modal">
         <form id="userEditForm">
           <div class="modal-header">
-            <h5 class="modal-title" id="userEditModalLabel">내 정보 수정</h5>
-            <!-- 모달 닫기 버튼 -->
+            <div>
+              <p class="mpd-modal-eyebrow gls-mb-1">PROFILE SETTINGS</p>
+              <h5 class="modal-title" id="userEditModalLabel">내 정보 수정</h5>
+            </div>
             <button
               type="button"
               class="gls-modal-close"
@@ -240,41 +233,40 @@
             ></button>
           </div>
 
-          <div class="modal-body">
-            <div class="gls-modal-section">
-              <p class="gls-text-muted gls-text-small gls-mb-2">프로필 정보</p>
-              <!-- 닉네임 -->
-              <div class="gls-mb-3">
-                <label for="nicknameInput" class="gls-label">닉네임</label>
-                <input
-                  type="text"
-                  class="gls-input"
-                  id="nicknameInput"
-                  placeholder="표시할 닉네임"
-                  data-gls-autofocus
-                />
-                <div class="gls-form-help">
-                  사이트에서 이름 대신 보여줄 닉네임입니다. 비워두면 이름이 표시됩니다.
+          <div class="modal-body mpd-modal-body">
+            <section class="mpd-modal-block" aria-label="프로필 정보">
+              <div class="mpd-modal-block-head">
+                <h6 class="gls-mb-0">프로필 정보</h6>
+                <p class="gls-text-small gls-text-muted gls-mb-0">공개 프로필에 노출되는 기본 정보입니다.</p>
+              </div>
+
+              <div class="mpd-form-grid">
+                <div>
+                  <label for="nicknameInput" class="gls-label">닉네임</label>
+                  <input
+                    type="text"
+                    class="gls-input"
+                    id="nicknameInput"
+                    placeholder="표시할 닉네임"
+                    data-gls-autofocus
+                  />
+                  <div class="gls-form-help">비워두면 가입 시 이름이 표시됩니다.</div>
+                </div>
+
+                <div>
+                  <label for="bioInput" class="gls-label">한 줄 소개</label>
+                  <input
+                    type="text"
+                    class="gls-input"
+                    id="bioInput"
+                    maxlength="100"
+                    placeholder="예) 조용히 마음을 적어두는 사람입니다."
+                  />
+                  <div class="gls-form-help">작가 카드에 짧게 표시되는 소개 문구입니다.</div>
                 </div>
               </div>
 
-              <!-- 한 줄 소개 -->
-              <div class="gls-mb-3">
-                <label for="bioInput" class="gls-label">한 줄 소개</label>
-                <input
-                  type="text"
-                  class="gls-input"
-                  id="bioInput"
-                  maxlength="100"
-                  placeholder="예) 조용히 마음을 적어두는 사람입니다."
-                />
-                <div class="gls-form-help">
-                  작가 카드에 짧게 보여줄 소개 문장입니다.
-                </div>
-              </div>
-
-              <!-- 자기소개 / 작가 소개 (여러 줄) -->
-              <div class="gls-mb-0">
+              <div class="gls-mt-3">
                 <label for="aboutInput" class="gls-label">자기소개 / 작가 소개</label>
                 <textarea
                   class="gls-input"
@@ -282,42 +274,39 @@
                   rows="4"
                   placeholder="글을 쓰게 된 계기나 좋아하는 주제 등을 적어보세요."
                 ></textarea>
-                <div class="gls-form-help">
-                  조금 길게 적어도 괜찮아요. 줄바꿈도 그대로 보여줍니다.
-                </div>
+                <div class="gls-form-help">줄바꿈은 프로필에서 그대로 표시됩니다.</div>
               </div>
-            </div>
+            </section>
 
-            <div class="gls-modal-section gls-modal-section--muted gls-mt-3">
-              <div class="gls-flex gls-items-center gls-justify-between gls-mb-2">
-                <p class="gls-text-muted gls-text-small gls-mb-0">보안 · 비밀번호 변경</p>
+            <section class="mpd-modal-block" aria-label="보안 설정">
+              <div class="mpd-modal-block-head">
+                <h6 class="gls-mb-0">보안 · 비밀번호 변경</h6>
                 <span class="pill gls-text-xxs">선택</span>
               </div>
 
-              <!-- 현재 비밀번호 -->
-              <div class="gls-mb-3">
-                <label for="currentPwInput" class="gls-label">현재 비밀번호</label>
-                <input
-                  type="password"
-                  class="gls-input"
-                  id="currentPwInput"
-                  autocomplete="current-password"
-                />
+              <div class="mpd-form-grid">
+                <div>
+                  <label for="currentPwInput" class="gls-label">현재 비밀번호</label>
+                  <input
+                    type="password"
+                    class="gls-input"
+                    id="currentPwInput"
+                    autocomplete="current-password"
+                  />
+                </div>
+
+                <div>
+                  <label for="newPwInput" class="gls-label">새 비밀번호</label>
+                  <input
+                    type="password"
+                    class="gls-input"
+                    id="newPwInput"
+                    autocomplete="new-password"
+                  />
+                </div>
               </div>
 
-              <!-- 새 비밀번호 -->
-              <div class="gls-mb-3">
-                <label for="newPwInput" class="gls-label">새 비밀번호</label>
-                <input
-                  type="password"
-                  class="gls-input"
-                  id="newPwInput"
-                  autocomplete="new-password"
-                />
-              </div>
-
-              <!-- 새 비밀번호 확인 -->
-              <div class="gls-mb-0">
+              <div class="gls-mt-3">
                 <label for="newPwConfirmInput" class="gls-label">새 비밀번호 확인</label>
                 <input
                   type="password"
@@ -326,45 +315,45 @@
                   autocomplete="new-password"
                 />
               </div>
+            </section>
 
-              <div class="gls-mt-3">
-                <div class="gls-mb-3">
-                  <label for="rememberLoginEnabledInput" class="gls-label">30일 로그인 유지</label>
-                  <div class="gls-flex gls-items-center gls-gap-2">
-                    <input
-                      type="checkbox"
-                      id="rememberLoginEnabledInput"
-                      class="gls-checkbox"
-                    />
-                    <span class="gls-text-small">이 기기에서 30일 자동 로그인 유지</span>
-                  </div>
-                  <div class="gls-form-help">
-                    해제 시 기본 세션(2시간)으로 동작합니다.
-                  </div>
-                </div>
-                <div class="gls-flex gls-items-center gls-justify-between gls-mb-2">
-                  <p class="gls-text-muted gls-text-small gls-mb-0">내 세션 관리</p>
-                  <button
-                    type="button"
-                    class="gls-btn gls-btn-secondary gls-btn-xs"
-                    id="logoutAllSessionsBtn"
-                  >
-                    모든 기기 로그아웃
-                  </button>
-                </div>
-                <div id="mySessionsList" class="gls-text-small gls-text-muted">
-                  세션 정보를 불러오는 중입니다...
-                </div>
-                <small id="mySessionsMessage" class="gls-text-small gls-text-muted gls-block gls-mt-1"></small>
+            <section class="mpd-modal-block" aria-label="세션 관리">
+              <div class="mpd-modal-block-head">
+                <h6 class="gls-mb-0">세션 관리</h6>
+                <button
+                  type="button"
+                  class="gls-btn gls-btn-secondary gls-btn-xs"
+                  id="logoutAllSessionsBtn"
+                >
+                  모든 기기 로그아웃
+                </button>
               </div>
-            </div>
+
+              <div class="mpd-remember-box gls-mb-3">
+                <label for="rememberLoginEnabledInput" class="gls-label">30일 로그인 유지</label>
+                <div class="gls-flex gls-items-center gls-gap-2">
+                  <input
+                    type="checkbox"
+                    id="rememberLoginEnabledInput"
+                    class="gls-checkbox"
+                  />
+                  <span class="gls-text-small">이 기기에서 자동 로그인 유지</span>
+                </div>
+                <div class="gls-form-help">해제 시 기본 세션(2시간)으로 동작합니다.</div>
+              </div>
+
+              <div id="mySessionsList" class="mpd-session-root gls-text-small gls-text-muted">
+                세션 정보를 불러오는 중입니다...
+              </div>
+              <small
+                id="mySessionsMessage"
+                class="gls-text-small gls-text-muted gls-block gls-mt-1"
+              ></small>
+            </section>
           </div>
 
           <div class="modal-footer">
-            <!-- 서버 응답/에러 메시지 표시 영역 -->
             <small id="userEditMessage" class="gls-modal-msg gls-text-muted gls-text-small"></small>
-
-            <!-- 모달 닫기 버튼 -->
             <button
               type="button"
               class="gls-btn gls-btn-secondary"
@@ -372,9 +361,6 @@
             >
               닫기
             </button>
-
-            <!-- 수정 내용 저장 버튼 -->
-            <!-- mypage.js → /api/me PUT 요청 보내고 성공 시 상단 프로필 재로딩 -->
             <button type="submit" class="gls-btn gls-btn-primary">저장하기</button>
           </div>
         </form>
@@ -382,7 +368,6 @@
     </div>
   </div>
 
-  <!-- 글숲 공통 푸터 -->
   <footer class="custom-footer">
     <div class="gls-container">
       <div class="gls-flex gls-flex-col gls-gap-2 gls-md-flex-row gls-justify-between gls-items-center">
@@ -398,23 +383,15 @@
     </div>
   </footer>
 
-  <!-- JS 로딩 순서 -->
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-  
-  <!-- 1) 공통 유틸 함수 (escapeHtml, 날짜 포맷, quote-card 폰트 조정 등) -->
   <script src="/js/utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- 3) 헤더 로그인 상태 처리 (/api/me → before/after-login 토글, 로그아웃 처리) -->
   <script src="../js/theme.js" defer></script>
   <script src="../js/header.js"></script>
   <script src="../js/analytics.js"></script>
   <script src="../js/postCard.js"></script>
   <script src="../js/bookmarkModal.js"></script>
-  <!-- 4) 마이페이지 전용 스크립트
-         - loadMyPage(): 내 정보 + "내가 쓴 글" 초기 로딩
-         - 탭 전환 (내 글 / 공감한 글)
-         - 글 수정/삭제, 내 정보 수정 모달 처리 -->
   <script src="../js/mypage.js"></script>
 </body>
 </html>

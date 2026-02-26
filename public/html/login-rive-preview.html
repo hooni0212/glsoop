@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>로그인 | 글숲</title>
+  <title>로그인 Rive 전체화면 시안 | 글숲</title>
 
   <link
     href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap"
@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="/css/app.css">
 </head>
 <body class="page-login-preview">
-  <main class="login-preview-screen" aria-label="글숲 로그인 화면">
+  <main class="login-preview-screen" aria-label="Rive 로그인 미리보기 화면">
     <canvas
       id="loginPreviewRiveCanvas"
       class="login-preview-canvas"
@@ -32,43 +32,34 @@
 
     <div class="login-preview-backdrop" aria-hidden="true"></div>
 
-    <section class="login-preview-card gls-antique-paper gls-antique-paper--mix" aria-labelledby="loginTitle">
+    <section class="login-preview-card gls-antique-paper gls-antique-paper--mix" aria-labelledby="loginPreviewTitle">
       <header class="login-preview-card__head">
         <div class="login-preview-card__brand-row">
           <a href="/index.html" class="login-preview-card__brand" aria-label="홈으로 이동">글숲</a>
           <p class="login-preview-card__eyebrow gls-mb-0">SIGN IN</p>
         </div>
-        <h1 id="loginTitle" class="gls-mb-2">다시 돌아오신 걸 환영해요</h1>
-        <p class="gls-mb-0 login-preview-card__copy">글숲 계정으로 로그인하고 오늘의 마음을 이어가세요.</p>
+        <h1 id="loginPreviewTitle" class="gls-mb-2">다시 돌아오신 걸 환영해요</h1>
+        <p class="gls-mb-0 login-preview-card__copy">전체 배경 모션 위 로그인 카드 오버레이 시안입니다.</p>
       </header>
 
-      <form id="loginForm" class="login-preview-form auth-ui-form" novalidate>
-        <div
-          id="loginMessage"
-          class="gls-feedback gls-feedback--info gls-mb-3"
-          role="alert"
-          aria-live="polite"
-          tabindex="-1"
-        ></div>
-
+      <form id="loginPreviewForm" class="login-preview-form" novalidate>
         <div class="gls-mb-3 auth-field">
-          <label class="gls-label" for="loginEmail">이메일</label>
+          <label class="gls-label" for="previewEmail">이메일</label>
           <input
-            id="loginEmail"
+            id="previewEmail"
             type="email"
             name="email"
             class="gls-input"
             required
             autocomplete="email"
-            autofocus
             placeholder="name@example.com"
           >
         </div>
 
         <div class="gls-mb-3 auth-field">
-          <label class="gls-label" for="loginPassword">비밀번호</label>
+          <label class="gls-label" for="previewPw">비밀번호</label>
           <input
-            id="loginPassword"
+            id="previewPw"
             type="password"
             name="pw"
             class="gls-input"
@@ -80,6 +71,13 @@
 
         <button type="submit" class="gls-btn gls-btn-primary gls-btn-block">로그인</button>
 
+        <div
+          id="loginPreviewMessage"
+          class="gls-feedback gls-feedback--info gls-mt-3"
+          role="status"
+          aria-live="polite"
+        ></div>
+
         <div class="login-preview-links gls-mt-3">
           <a href="/html/forgot-password.html" class="auth-link-inline">비밀번호 찾기</a>
           <a href="/html/signup.html" class="auth-link-inline">회원가입</a>
@@ -88,45 +86,7 @@
     </section>
   </main>
 
-  <div
-    class="modal fade login-remember-modal"
-    id="rememberLoginModal"
-    tabindex="-1"
-    aria-labelledby="rememberLoginModalLabel"
-    aria-hidden="true"
-  >
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content gls-antique-paper gls-antique-paper--mix">
-        <div class="modal-header">
-          <h5 class="modal-title" id="rememberLoginModalLabel">자동 로그인 안내</h5>
-        </div>
-        <div class="modal-body">
-          <p class="gls-mb-2">
-            이 기기에서 <strong>30일 자동 로그인 유지</strong>가 설정되었습니다.
-          </p>
-          <p class="gls-text-muted gls-text-small gls-mb-0">
-            공용 기기에서는 사용 후 반드시 로그아웃해주세요.
-          </p>
-        </div>
-        <div class="modal-footer">
-          <button
-            type="button"
-            class="gls-btn gls-btn-primary"
-            id="rememberLoginConfirmBtn"
-            data-gls-autofocus
-          >
-            확인하고 이동
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="/js/utils.js"></script>
-  <script src="/js/auth-form-utils.js"></script>
-  <script src="/js/analytics.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@rive-app/canvas@2.31.6"></script>
   <script src="/js/login-rive-preview.js"></script>
-  <script src="/js/login.js"></script>
 </body>
 </html>

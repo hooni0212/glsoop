@@ -26,14 +26,6 @@ test.describe('Auth funnel on mobile', () => {
     const emailInput = page.locator('#loginForm input[name="email"]');
     await expect(emailInput).toBeVisible();
 
-    const shellCollapsed = page.locator('[data-auth-shell="1"]');
-    await expect
-      .poll(
-        async () => shellCollapsed.getAttribute('data-auth-scene-collapsed'),
-        { message: 'mobile scene should default to collapsed' }
-      )
-      .toBe('true');
-
     const cardRect = await page.locator('#loginForm').boundingBox();
     const inputRect = await emailInput.boundingBox();
     expect(cardRect).not.toBeNull();

@@ -84,13 +84,6 @@ function renderCategoryBadge(post) {
   return `<span class="${cls}">${label}</span>`;
 }
 
-function isExplorePageContext() {
-  if (typeof document === 'undefined') return false;
-  if (document.body?.classList?.contains('page-explore')) return true;
-  const pathname = String(window.location?.pathname || '');
-  return pathname.endsWith('/explore') || pathname.endsWith('/explore/');
-}
-
 function normalizeCardLengthVariant(raw) {
   const value = String(raw || '').trim().toLowerCase();
   if (
@@ -173,8 +166,8 @@ function buildFeedRenderedImageUrl(post, template = 'paper01') {
   )}&scale=2&v=${encodeURIComponent(version)}`;
 }
 
-function buildRenderedImageCardHtml(post, fallbackHtml) {
-  const src = buildFeedRenderedImageUrl(post);
+function buildRenderedImageCardHtml(post, fallbackHtml, renderedImageSrc = '') {
+  const src = renderedImageSrc || buildFeedRenderedImageUrl(post);
 
   return `
     <div class="feed-rendered-image-shell">
@@ -204,7 +197,8 @@ function buildStandardPostCardHTML(post, options = {}) {
     showMoreButton = true,     // 더보기 버튼 표시 여부 (피드는 true, 관련글/마이페이지는 false도 가능)
     cardExtraClass = '',       // .related-card 같은 추가 클래스
     contentExpanded = false,   // true면 feed-post-content에 expanded 클래스 추가 (잘리지 않게)
-    forceRenderedImage = false, // true면 explore가 아니어도 렌더 이미지 카드 사용
+    showEngagementActions = true, // 좋아요/북마크 버튼 표시 여부
+    renderedImageSrc = '', // 렌더 이미지 URL 강제 지정(에디터 프리뷰 등)
     cardLengthVariant = '',    // 카드 길이 타입 강제 지정(one-line|short|medium|long)
     cardClickable = true,      // 카드 전체 클릭 가능 여부
   } = options;
@@ -223,7 +217,7 @@ function buildStandardPostCardHTML(post, options = {}) {
   const normalizedVariant = normalizeCardLengthVariant(cardLengthVariant);
   const resolvedLengthVariant =
     normalizedVariant || detectCardLengthVariant(cleanHtml || post?.title || '');
-  const useRenderedImage = forceRenderedImage || isExplorePageContext();
+  const useRenderedImage = true;
   const bookmarkIcon = `
     <svg
       class="post-bookmark-icon"
@@ -282,7 +276,7 @@ function buildStandardPostCardHTML(post, options = {}) {
     .join(' ');
 
   const quoteBodyHtml = useRenderedImage
-    ? buildRenderedImageCardHtml(post, safeHtml)
+    ? buildRenderedImageCardHtml(post, safeHtml, renderedImageSrc)
     : safeHtml;
 
   const shouldShowMoreButton = showMoreButton && !useRenderedImage;
@@ -300,18 +294,22 @@ function buildStandardPostCardHTML(post, options = {}) {
           <span class="gls-author-badge">
             ${escapeHtml(author)}
           </span>
-          <div class="post-top-actions">
-            ${bookmarkBtn}
-            <button
-              type="button"
-              class="gls-btn gls-btn-sm like-btn ${liked ? 'liked' : ''}"
-              data-post-id="${post.id}"
-              data-liked="${liked ? '1' : '0'}"
-            >
-              <span class="like-heart">${liked ? '♥' : '♡'}</span>
-              <span class="like-count">${likeCount}</span>
-            </button>
-          </div>
+          ${
+            showEngagementActions
+              ? `<div class="post-top-actions">
+                   ${bookmarkBtn}
+                   <button
+                     type="button"
+                     class="gls-btn gls-btn-sm like-btn ${liked ? 'liked' : ''}"
+                     data-post-id="${post.id}"
+                     data-liked="${liked ? '1' : '0'}"
+                   >
+                     <span class="like-heart">${liked ? '♥' : '♡'}</span>
+                     <span class="like-count">${likeCount}</span>
+                   </button>
+                 </div>`
+              : ''
+          }
         </div>
 
         <!-- 제목 -->

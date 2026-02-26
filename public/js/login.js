@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.glsoopUi.ensureFormFeedbackElement(form, 'loginMessage')) ||
     document.getElementById('loginMessage');
   const authUtils = window.glsoopAuthFormUtils || null;
+  const loginRive = window.glsoopLoginRive || null;
   const params = new URLSearchParams(window.location.search);
   const nextUrl = params.get('next');
   const source = params.get('from');
@@ -38,13 +39,98 @@ document.addEventListener('DOMContentLoaded', () => {
   const LOGIN_SUCCESS_COLLAPSE_MS = toSuccessDuration(700);
   const LOGIN_SUCCESS_TRANSITION_MS =
     LOGIN_SUCCESS_EXPAND_MS + LOGIN_SUCCESS_HOLD_MS + LOGIN_SUCCESS_COLLAPSE_MS;
+  const MIN_SUBMIT_VISUAL_MS = reducedMotion ? 0 : 900;
+  const REMEMBER_MODAL_FALLBACK_MS = reducedMotion ? 12000 : 15000;
+  const RIVE_FOCUS_IDLE = 0;
+  const RIVE_FOCUS_EMAIL = 1;
+  const RIVE_FOCUS_PASSWORD = 2;
   const isSafeInternalPath = (value) =>
     typeof value === 'string' &&
     value.startsWith('/') &&
     !value.startsWith('//') &&
     !value.startsWith('/\\');
   const safeNextUrl = isSafeInternalPath(nextUrl) ? nextUrl : null;
+  const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
+  const delay = (ms) => new Promise((resolve) => {
+    window.setTimeout(resolve, Math.max(0, Number(ms) || 0));
+  });
+  const setLoginRiveFocusStep = (step) => {
+    if (!loginRive) return;
+    if (typeof loginRive.setFocusStep === 'function') {
+      loginRive.setFocusStep(step);
+      return;
+    }
+    if (typeof loginRive.setFocus === 'function') {
+      if (step === RIVE_FOCUS_EMAIL) {
+        loginRive.setFocus('email');
+        return;
+      }
+      if (step === RIVE_FOCUS_PASSWORD) {
+        loginRive.setFocus('password');
+        return;
+      }
+      loginRive.setFocus(null);
+    }
+  };
+  const setLoginRiveTypingFromEmail = () => {
+    if (!loginRive || typeof loginRive.setTypingProgress !== 'function' || !form.email) return;
+    const normalized = clamp01((form.email.value || '').trim().length / 24);
+    loginRive.setTypingProgress(normalized);
+  };
+  const syncLoginRiveFocusFromActiveElement = () => {
+    if (document.activeElement === form.email) {
+      setLoginRiveFocusStep(RIVE_FOCUS_EMAIL);
+      return;
+    }
+    if (document.activeElement === form.pw) {
+      setLoginRiveFocusStep(RIVE_FOCUS_PASSWORD);
+      return;
+    }
+    setLoginRiveFocusStep(RIVE_FOCUS_IDLE);
+  };
+  const beginLoginRiveSubmitAttempt = () => {
+    if (!loginRive) return;
+    if (typeof loginRive.beginSubmitAttempt === 'function') {
+      loginRive.beginSubmitAttempt();
+      return;
+    }
+    if (typeof loginRive.playSubmitAttempt === 'function') {
+      loginRive.playSubmitAttempt();
+      return;
+    }
+    if (typeof loginRive.pulseSubmit === 'function') {
+      loginRive.pulseSubmit();
+    }
+  };
+  const playLoginRiveSubmitAttemptAndWait = async () => {
+    if (!loginRive) return;
+    if (typeof loginRive.playSubmitAttemptAndWait === 'function') {
+      await loginRive.playSubmitAttemptAndWait();
+      return;
+    }
+    beginLoginRiveSubmitAttempt();
+    if (!reducedMotion) {
+      await delay(900);
+    }
+  };
+  const completeLoginRiveSubmitResult = (success) => {
+    if (!loginRive) return;
+    if (typeof loginRive.completeSubmitResult === 'function') {
+      loginRive.completeSubmitResult(Boolean(success));
+      return;
+    }
+    if (typeof loginRive.setSubmitResult === 'function') {
+      loginRive.setSubmitResult(Boolean(success));
+      return;
+    }
+    if (typeof loginRive.playSubmit === 'function') {
+      loginRive.playSubmit(Boolean(success));
+    }
+  };
   let submitting = false;
+  let submitAnimationInFlight = false;
+  let submitTokenSequence = 0;
+  let activeSubmitToken = 0;
   let redirectingAfterSuccess = false;
   let successSignalTimer = 0;
   let successTransitionTimer = 0;
@@ -558,10 +644,17 @@ document.addEventListener('DOMContentLoaded', () => {
       inputEl.addEventListener('focus', () => {
         syncField(inputEl);
         syncEngaged();
+        if (inputEl.name === 'email') {
+          setLoginRiveFocusStep(RIVE_FOCUS_EMAIL);
+          setLoginRiveTypingFromEmail();
+        } else if (inputEl.name === 'pw') {
+          setLoginRiveFocusStep(RIVE_FOCUS_PASSWORD);
+        }
       });
       inputEl.addEventListener('blur', () => {
         syncField(inputEl);
         syncEngaged();
+        window.requestAnimationFrame(syncLoginRiveFocusFromActiveElement);
         if (!authUtils) return;
         if (inputEl.name === 'email') {
           const value = (inputEl.value || '').trim();
@@ -571,10 +664,19 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       inputEl.addEventListener('input', () => {
         syncField(inputEl);
+        if (inputEl.name === 'email') {
+          setLoginRiveTypingFromEmail();
+          setLoginRiveFocusStep(RIVE_FOCUS_EMAIL);
+        } else if (inputEl.name === 'pw') {
+          setLoginRiveFocusStep(RIVE_FOCUS_PASSWORD);
+        }
         if (!authUtils) return;
         authUtils.setFieldInvalid(inputEl, false);
       });
     });
+
+    syncLoginRiveFocusFromActiveElement();
+    setLoginRiveTypingFromEmail();
   };
 
   const isMobileViewport = () =>
@@ -1140,7 +1242,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const runRedirect = pendingRememberRedirect;
       pendingRememberRedirect = null;
       runRedirect();
-    }, 700);
+    }, REMEMBER_MODAL_FALLBACK_MS);
 
     return true;
   };
@@ -1193,75 +1295,97 @@ document.addEventListener('DOMContentLoaded', () => {
       source: source || null,
     });
   }
+  syncLoginRiveFocusFromActiveElement();
+  setLoginRiveTypingFromEmail();
 
   // 폼 제출 이벤트 리스너 등록
   form.addEventListener('submit', async (e) => {
     e.preventDefault(); // 기본 폼 제출(페이지 새로고침) 막기
-    if (submitting) return;
-    clearFormMessage();
-    clearFieldErrors();
-
-    trackEvent('login_submit_clicked', {
-      has_next: Boolean(safeNextUrl),
-      source: source || null,
-    });
-
-    // 폼 안의 input name="email", name="pw"에서 값 읽기
-    const email = form.email.value.trim();
-    const pw = form.pw.value.trim();
-
-    // 이메일 또는 비밀번호가 비어 있으면 경고
-    if (!email || !pw) {
-      trackEvent('login_validation_error', {
-        reason: 'required_fields_missing',
-      });
-      setFormMessage('이메일과 비밀번호를 모두 입력하세요.', 'error', true);
-      if (!email && form.email) {
-        if (authUtils) authUtils.setFieldInvalid(form.email, true);
-        form.email.focus();
-      } else if (!pw && form.pw) {
-        if (authUtils) authUtils.setFieldInvalid(form.pw, true);
-        form.pw.focus();
-      }
-      return;
-    }
-
-    if (authUtils && !authUtils.validateEmail(email)) {
-      trackEvent('login_validation_error', {
-        reason: 'invalid_email_format',
-      });
-      authUtils.setFieldInvalid(form.email, true);
-      setFormMessage('이메일 형식을 확인해주세요.', 'error', true);
-      if (form.email) form.email.focus();
-      return;
-    }
-
-    submitting = true;
-    form.classList.remove('is-login-error', 'is-login-success');
-    form.classList.add('is-submitting');
+    if (submitting || submitAnimationInFlight) return;
+    const submitToken = ++submitTokenSequence;
+    activeSubmitToken = submitToken;
+    submitAnimationInFlight = true;
     const submitBtn = form.querySelector('button[type="submit"]');
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.dataset.originalText = submitBtn.dataset.originalText || submitBtn.textContent;
-      submitBtn.textContent = '로그인 중...';
-    }
 
     try {
-      // /api/login 엔드포인트로 POST 요청
-      // - body: { email, pw }
-      // - 서버에서 로그인 성공 시 JWT를 httpOnly 쿠키에 세팅
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, pw }),
+      clearFormMessage();
+      clearFieldErrors();
+
+      trackEvent('login_submit_clicked', {
+        has_next: Boolean(safeNextUrl),
+        source: source || null,
       });
 
-      // 응답 JSON 파싱 (예: { ok: true/false, message: '...' })
-      const data = await res.json().catch(() => ({}));
+      // 폼 안의 input name="email", name="pw"에서 값 읽기
+      const email = form.email.value.trim();
+      const pw = form.pw.value.trim();
+
+      // 이메일 또는 비밀번호가 비어 있으면 경고
+      if (!email || !pw) {
+        trackEvent('login_validation_error', {
+          reason: 'required_fields_missing',
+        });
+        completeLoginRiveSubmitResult(false);
+        setFormMessage('이메일과 비밀번호를 모두 입력하세요.', 'error', true);
+        if (!email && form.email) {
+          if (authUtils) authUtils.setFieldInvalid(form.email, true);
+          form.email.focus();
+        } else if (!pw && form.pw) {
+          if (authUtils) authUtils.setFieldInvalid(form.pw, true);
+          form.pw.focus();
+        }
+        return;
+      }
+
+      if (authUtils && !authUtils.validateEmail(email)) {
+        trackEvent('login_validation_error', {
+          reason: 'invalid_email_format',
+        });
+        completeLoginRiveSubmitResult(false);
+        authUtils.setFieldInvalid(form.email, true);
+        setFormMessage('이메일 형식을 확인해주세요.', 'error', true);
+        if (form.email) form.email.focus();
+        return;
+      }
+
+      submitting = true;
+      form.classList.remove('is-login-error', 'is-login-success');
+      form.classList.add('is-submitting');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.dataset.originalText = submitBtn.dataset.originalText || submitBtn.textContent;
+        submitBtn.textContent = '로그인 중...';
+      }
+
+      const minVisualTimer = delay(MIN_SUBMIT_VISUAL_MS);
+      const apiRequest = (async () => {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, pw }),
+        });
+        const data = await res.json().catch(() => ({}));
+        return { res, data };
+      })();
+
+      const settled = await Promise.allSettled([apiRequest, minVisualTimer]);
+      if (submitToken !== activeSubmitToken) return;
+
+      const apiResult = settled[0];
+      if (apiResult.status === 'rejected') {
+        throw apiResult.reason;
+      }
+
+      const { res, data } = apiResult.value;
 
       // HTTP 응답도 OK이고, 응답 JSON의 ok도 true인 경우 "로그인 성공"으로 간주
       // 로그인 성공 후 이동
       if (res.ok && data.ok) {
+        // 도토리 드롭은 로그인 성공(자격증명 유효)일 때만 실행하고,
+        // 모션이 보이도록 짧게 대기한 뒤 전환한다.
+        await playLoginRiveSubmitAttemptAndWait();
+        if (submitToken !== activeSubmitToken) return;
+        completeLoginRiveSubmitResult(true);
         form.classList.add('is-login-success');
         clearFieldErrors();
         setFormMessage(data.message || '로그인에 성공했습니다.', 'success');
@@ -1273,6 +1397,7 @@ document.addEventListener('DOMContentLoaded', () => {
           {
             redirect_to: redirectTo,
             transition_ms: LOGIN_SUCCESS_TRANSITION_MS,
+            min_visual_ms: MIN_SUBMIT_VISUAL_MS,
           },
           { useBeacon: true }
         );
@@ -1302,57 +1427,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         startPostLoginRedirect(redirectTo, submitBtn);
         return;
-      } else {
-        triggerFormState('is-login-error');
-        trackEvent('login_error', {
-          status: res.status || null,
-          has_message: Boolean(data && data.message),
-          code: data && data.code ? data.code : null,
+      }
+
+      completeLoginRiveSubmitResult(false);
+      triggerFormState('is-login-error');
+      trackEvent('login_error', {
+        status: res.status || null,
+        has_message: Boolean(data && data.message),
+        code: data && data.code ? data.code : null,
+      });
+      const errorMessage =
+        authUtils && typeof authUtils.buildErrorMessage === 'function'
+          ? authUtils.buildErrorMessage({
+              code: data && data.code,
+              message: data && data.message,
+              retryAfter: null,
+            })
+          : data.message || '로그인에 실패했습니다.';
+      const firstInvalid = applyFieldErrors(data && data.field_errors);
+      setFormMessage(errorMessage, 'error', true);
+
+      const retryAfter = Number(data && data.retry_after);
+      if (authUtils && retryAfter > 0 && feedbackEl) {
+        if (stopRetryCountdown) {
+          stopRetryCountdown();
+        }
+        stopRetryCountdown = authUtils.startRetryCountdown(feedbackEl, retryAfter, (remaining) => {
+          setFormMessage(
+            `${errorMessage} (${remaining}초 후 재시도)`,
+            'error',
+            false
+          );
         });
-        const errorMessage =
-          authUtils && typeof authUtils.buildErrorMessage === 'function'
-            ? authUtils.buildErrorMessage({
-                code: data && data.code,
-                message: data && data.message,
-                retryAfter: null,
-              })
-            : data.message || '로그인에 실패했습니다.';
-        const firstInvalid = applyFieldErrors(data && data.field_errors);
-        setFormMessage(errorMessage, 'error', true);
+      }
 
-        const retryAfter = Number(data && data.retry_after);
-        if (authUtils && retryAfter > 0 && feedbackEl) {
-          if (stopRetryCountdown) {
-            stopRetryCountdown();
-          }
-          stopRetryCountdown = authUtils.startRetryCountdown(feedbackEl, retryAfter, (remaining) => {
-            setFormMessage(
-              `${errorMessage} (${remaining}초 후 재시도)`,
-              'error',
-              false
-            );
-          });
-        }
-
-        if (firstInvalid && typeof firstInvalid.focus === 'function') {
-          firstInvalid.focus();
-        } else if (authUtils && typeof authUtils.focusFirstInvalid === 'function') {
-          authUtils.focusFirstInvalid(form);
-        }
+      if (firstInvalid && typeof firstInvalid.focus === 'function') {
+        firstInvalid.focus();
+      } else if (authUtils && typeof authUtils.focusFirstInvalid === 'function') {
+        authUtils.focusFirstInvalid(form);
       }
     } catch (err) {
       // 네트워크 에러 등 예외 처리
       console.error(err);
+      completeLoginRiveSubmitResult(false);
       triggerFormState('is-login-error');
       trackEvent('login_error', {
         reason: 'network_error',
       });
       setFormMessage('로그인 중 오류가 발생했습니다.', 'error', true);
     } finally {
+      if (submitToken !== activeSubmitToken) return;
+      activeSubmitToken = 0;
+      submitAnimationInFlight = false;
+
       if (redirectingAfterSuccess) return;
       submitting = false;
       form.classList.remove('is-submitting');
-      const submitBtn = form.querySelector('button[type="submit"]');
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = submitBtn.dataset.originalText || '로그인';

@@ -239,22 +239,7 @@
           <!-- flex-grow-1: 남은 세로 공간을 채워서 아래쪽 카드가 크게 보이도록 -->
           <div class="card editor-preview-card gls-flex-1">
             <div class="card-body">
-              <!-- 라벨(지금은 비워둠, 필요하면 안내 텍스트 추가 가능) -->
-              <p class="gls-text-muted gls-text-small gls-mb-1"></p>
-
-              <!-- 제목 미리보기: JS(editor.js)에서 실시간으로 변경 -->
-              <h5 id="previewTitle" class="gls-mb-3">
-                제목 미리보기
-              </h5>
-
-              <!-- 인스타 감성 종이질감 카드(quote-card) 안에 본문 미리보기 -->
-              <div class="quote-card editor-preview-paper" id="previewContent">
-                여기에 오늘의 문장을 적어 보시면, 이 카드에서 바로 미리 볼 수 있어요.
-              </div>
-              <button type="button" class="editor-preview-more" id="previewMoreBtn">
-                더보기
-              </button>
-              <div id="previewMeta" class="preview-meta gls-text-small gls-text-muted gls-mt-3"></div>
+              <div id="previewFeedCardMount" class="editor-preview-feed-card-mount"></div>
             </div>
           </div>
         </div>
@@ -279,6 +264,7 @@
   <script src="../js/theme.js" defer></script>
   <script src="../js/header.js"></script>
   <script src="../js/analytics.js"></script>
+  <script src="../js/postCard.js"></script>
 
   <!-- 5) 글쓰기 페이지 전용 스크립트(에디터 초기화, 글자 수 제한, 저장/수정 로직 등) -->
   <script src="../js/editor.js"></script>

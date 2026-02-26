@@ -217,6 +217,55 @@
   flex-direction: column;
 }
 
+.editor-preview-feed-card-mount {
+  min-height: 280px;
+}
+
+.editor-preview-feed-card-mount .gls-post-card {
+  margin: 0 !important;
+  border-radius: clamp(18px, 2.4vw, 24px);
+  background: rgba(255, 252, 246, 0.86);
+  border-color: rgba(40, 58, 43, 0.16);
+  box-shadow: 0 12px 26px rgba(24, 34, 26, 0.12);
+}
+
+.editor-preview-feed-card-mount .gls-post-card .feed-post-content {
+  padding-bottom: 0;
+}
+
+.editor-preview-feed-card-mount .feed-rendered-image-shell {
+  position: relative;
+}
+
+.editor-preview-feed-card-mount .feed-rendered-image-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.22) 48%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.editor-preview-feed-card-mount .feed-rendered-image-shell.is-preview-loading::after {
+  opacity: 1;
+}
+
+.editor-preview-feed-card-mount .feed-rendered-card-image {
+  transition: opacity 220ms ease;
+  opacity: 1;
+}
+
+.editor-preview-feed-card-mount .feed-rendered-image-shell.is-preview-loading .feed-rendered-card-image {
+  opacity: 0.62;
+}
+
 /* 미리보기 카드: 짧은 글은 고정 높이 + 중앙 정렬, 긴 글은 부드럽게 확장 */
 #previewContent {
   --gls-preview-min-lines: 4;
@@ -290,7 +339,7 @@
 
 /* Quill 에디터 박스 살짝 배경 */
 .editor-box {
-  background-color: #ffffff;
+  background-color: rgba(255, 252, 246, 0.92);
 }
 
 .editor-box-fixed {

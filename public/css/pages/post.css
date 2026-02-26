@@ -231,6 +231,8 @@ body.page-post #postDetail .gls-post-card.is-rendered-detail .feed-rendered-imag
   width: min(680px, 100%);
   margin: 0 auto;
   aspect-ratio: 5 / 6;
+  position: relative;
+  container-type: inline-size;
   border-radius: 24px;
   overflow: hidden;
   border: 1px solid rgba(66, 53, 35, 0.14);
@@ -254,6 +256,134 @@ body.page-post #postDetail .gls-post-card.is-rendered-detail .feed-rendered-fall
   background: linear-gradient(180deg, rgba(255, 252, 246, 0.95), rgba(241, 233, 221, 0.97));
   font-size: 1.06rem;
   line-height: 1.78;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-card-title-outside {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-image-body-safe {
+  position: absolute;
+  left: var(--post-safe-body-left, 35.4%);
+  top: var(--post-safe-body-top, 46.2%);
+  width: var(--post-safe-body-width, 41%);
+  height: var(--post-safe-body-height, 41.2%);
+  z-index: 2;
+  pointer-events: none;
+  display: none;
+}
+
+body.page-post.gls-safe-area-debug #postDetail .gls-post-card.is-rendered-detail .post-image-body-safe {
+  display: block;
+  outline: 1.5px dashed rgba(173, 108, 16, 0.72);
+  background: rgba(226, 170, 71, 0.12);
+  border-radius: 10px;
+}
+
+body.page-post.gls-safe-area-debug #postDetail .gls-post-card.is-rendered-detail .post-image-body-safe::before {
+  content: 'BODY SAFE AREA';
+  position: absolute;
+  left: 0;
+  top: -20px;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  font-weight: 700;
+  color: #6f4510;
+  background: rgba(255, 243, 223, 0.94);
+  border: 1px solid rgba(173, 108, 16, 0.56);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-image-title {
+  position: absolute;
+  left: var(--post-safe-left, 35.4%);
+  top: var(--post-safe-top, 26.8%);
+  width: var(--post-safe-width, 41%);
+  height: var(--post-safe-title-height, 12%);
+  z-index: 3;
+  pointer-events: none;
+  max-width: none;
+  overflow: hidden;
+  outline: none;
+  background: transparent;
+}
+
+body.page-post.gls-safe-area-debug #postDetail .gls-post-card.is-rendered-detail .post-image-title {
+  outline: 1.5px dashed rgba(26, 121, 86, 0.66);
+  background: rgba(41, 153, 111, 0.13);
+  border-radius: 8px;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-image-title::before {
+  content: none;
+}
+
+body.page-post.gls-safe-area-debug #postDetail .gls-post-card.is-rendered-detail .post-image-title::before {
+  content: 'TITLE SAFE AREA';
+  position: absolute;
+  left: 0;
+  top: -20px;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  font-weight: 700;
+  color: #0f4f39;
+  background: rgba(232, 251, 242, 0.92);
+  border: 1px solid rgba(26, 121, 86, 0.52);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-image-title::after {
+  content: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-image-title__text {
+  position: relative;
+  display: -webkit-box;
+  color: #473f36;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: var(--post-body-line-height, 1.13);
+  font-size: 0.92rem;
+  font-family: 'Noto Serif KR', 'Nanum Myeongjo', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Times New Roman', serif;
+  text-rendering: optimizeLegibility;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  text-align: var(--post-safe-title-align, left);
+  text-shadow: none;
+  -webkit-text-stroke: 0;
+}
+
+@supports (font-size: 1cqw) {
+  body.page-post #postDetail .gls-post-card.is-rendered-detail .post-image-title__text {
+    font-size: calc(var(--post-body-font-ratio, 0.0325) * 100cqw);
+  }
 }
 
 @media (max-width: 768px) {
@@ -987,12 +1117,20 @@ body.page-post .post-layout {
 body.page-post .post-panel,
 body.page-post .post-toolbar,
 body.page-post .post-related-panel {
-  background: linear-gradient(180deg, rgba(255, 252, 246, 0.84), rgba(254, 247, 236, 0.76));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--gls-color-surface, #fffcf5) 86%, rgba(255, 255, 255, 0.24) 14%),
+    color-mix(in srgb, var(--gls-color-surface-subtle, #faf4e8) 90%, rgba(255, 255, 255, 0.16) 10%)
+  );
 }
 
 body.page-post #postDetail .post-content-surface {
   background:
-    linear-gradient(180deg, rgba(255, 253, 248, 0.82), rgba(255, 250, 242, 0.66));
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--gls-color-surface, #fffcf5) 92%, rgba(255, 255, 255, 0.2) 8%),
+      color-mix(in srgb, var(--gls-color-surface-subtle, #faf4e8) 92%, rgba(255, 255, 255, 0.14) 8%)
+    );
 }
 
 body.page-post #postDetail .quote-card {
@@ -1044,4 +1182,42 @@ body.page-post .post-related-item-snippet {
   body.page-post .post-actions-grid .gls-action-tile {
     min-height: 66px;
   }
+}
+
+body.page-post .post-share-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+body.page-post .post-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body.page-post .post-share-link-hint {
+  margin: 0;
+  word-break: break-all;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(31, 107, 75, 0.18);
+  background: rgba(246, 252, 248, 0.84);
+}
+
+body.page-post .post-share-preview {
+  border-radius: 12px;
+  border: 1px solid rgba(31, 107, 75, 0.16);
+  background: rgba(255, 252, 246, 0.78);
+  padding: 10px;
+}
+
+body.page-post .post-share-preview-title {
+  margin: 0 0 8px;
+}
+
+body.page-post .post-share-preview-image {
+  width: 100%;
+  border-radius: 10px;
+  display: block;
 }

@@ -155,7 +155,37 @@ function toIso(ms) {
 
 function toMs(value) {
   if (!value) return null;
-  const parsed = new Date(value).getTime();
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isNaN(time) ? null : time;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  // SQLite datetime('now') 문자열(예: 2026-02-27 01:23:45)은 UTC로 취급한다.
+  const sqliteUtcMatch = raw.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?$/
+  );
+  const hasTzSuffix = /(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(raw);
+  if (sqliteUtcMatch && !hasTzSuffix) {
+    const year = Number(sqliteUtcMatch[1]);
+    const month = Number(sqliteUtcMatch[2]) - 1;
+    const day = Number(sqliteUtcMatch[3]);
+    const hour = Number(sqliteUtcMatch[4]);
+    const minute = Number(sqliteUtcMatch[5]);
+    const second = sqliteUtcMatch[6] ? Number(sqliteUtcMatch[6]) : 0;
+    const milli = sqliteUtcMatch[7]
+      ? Number(sqliteUtcMatch[7].padEnd(3, '0').slice(0, 3))
+      : 0;
+    return Date.UTC(year, month, day, hour, minute, second, milli);
+  }
+
+  const parsed = new Date(raw).getTime();
   return Number.isNaN(parsed) ? null : parsed;
 }
 

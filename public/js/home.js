@@ -228,9 +228,25 @@ const HomeCuration = (() => {
       return;
     }
 
-    container.innerHTML = posts
-      .map((post) => buildCurationCard(post))
-      .join('');
+    const heading = container.closest('.home-section')?.querySelector('h3');
+    const label = heading?.textContent?.trim()
+      ? `${heading.textContent.trim()} 캐러셀`
+      : '추천 글 캐러셀';
+
+    const carousel = document.createElement('div');
+    carousel.className = 'curation-carousel';
+    carousel.setAttribute('role', 'region');
+    carousel.setAttribute('aria-label', label);
+
+    const track = document.createElement('div');
+    track.className = 'curation-carousel-track';
+    track.innerHTML = posts.map((post) => buildCurationCard(post)).join('');
+
+    carousel.appendChild(track);
+    container.innerHTML = '';
+    container.appendChild(carousel);
+    bindCurationImageFallback(track);
+    setupCurationMotion(carousel, track, container.id);
   }
 
   function renderCurationCarousel(container, posts) {
@@ -241,209 +257,7 @@ const HomeCuration = (() => {
     }
 
     const limited = posts.slice(0, SECTION_LIMIT * 5);
-    const slides = chunkPosts(limited, SECTION_LIMIT);
-
-    if (slides.length > 1) {
-      const last = slides[slides.length - 1];
-      if (last.length < SECTION_LIMIT) {
-        const deficit = SECTION_LIMIT - last.length;
-        slides[slides.length - 1] = last.concat(limited.slice(0, deficit));
-      }
-    }
-
-    if (slides.length <= 1) {
-      renderCurationList(container, limited.slice(0, SECTION_LIMIT));
-      return;
-    }
-
-    container.innerHTML = '';
-
-    const viewport = document.createElement('div');
-    viewport.className = 'curation-carousel';
-
-    const track = document.createElement('div');
-    track.className = 'curation-track';
-
-    let currentSlide = document.createElement('div');
-    currentSlide.className = 'curation-slide is-current';
-    currentSlide.appendChild(buildSlideGrid(slides[0]));
-
-    let nextSlide = document.createElement('div');
-    nextSlide.className = 'curation-slide is-next';
-    nextSlide.appendChild(buildSlideGrid(slides[1]));
-
-    track.appendChild(currentSlide);
-    track.appendChild(nextSlide);
-    viewport.appendChild(track);
-    container.appendChild(viewport);
-
-    const reduceMotion = window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (reduceMotion) {
-      renderCurationList(container, limited.slice(0, SECTION_LIMIT));
-      return;
-    }
-
-    const transitionDuration = 1050;
-    const autoplayInterval =
-      container.id === 'curationStayList' ? 3800 : 3500;
-    const initialDelay = 300;
-    const staggerDelay = 0;
-    const slideInDelay = 160;
-
-    let currentIndex = 0;
-    let nextIndex = 1;
-    let isAnimating = false;
-    let timerId = null;
-    let safetyId = null;
-    let transitionLogged = false;
-
-    console.log('[home] carousel timing', {
-      autoplayInterval,
-      transitionDuration,
-      initialDelay,
-    });
-
-    const updateViewportHeight = () => {
-      const currentHeight = currentSlide?.offsetHeight || 0;
-      const nextHeight = nextSlide?.offsetHeight || 0;
-      const target = Math.max(320, currentHeight, nextHeight);
-      viewport.style.minHeight = `${target}px`;
-      return target;
-    };
-
-    const goNext = () => {
-      if (isAnimating) return;
-      isAnimating = true;
-      currentSlide.classList.add('is-dimming');
-      updateViewportHeight();
-      nextSlide.setAttribute('aria-hidden', 'false');
-      nextSlide.classList.add('is-ready');
-      nextSlide.offsetHeight;
-
-      if (safetyId) {
-        window.clearTimeout(safetyId);
-        safetyId = null;
-      }
-      safetyId = window.setTimeout(() => {
-        if (!isAnimating) return;
-        isAnimating = false;
-        scheduleNext(autoplayInterval);
-      }, transitionDuration + 500);
-
-      window.setTimeout(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            nextSlide.classList.add('slide-in');
-          });
-        });
-      }, slideInDelay);
-    };
-
-    const scheduleNext = (delayMs) => {
-      if (timerId) {
-        window.clearTimeout(timerId);
-        timerId = null;
-      }
-      timerId = window.setTimeout(goNext, delayMs);
-    };
-
-    const stopTimer = () => {
-      if (!timerId) return;
-      window.clearTimeout(timerId);
-      timerId = null;
-    };
-
-    const handleTransitionEnd = (event) => {
-      if (event.propertyName !== 'transform') return;
-      if (!isAnimating) return;
-      if (event.target !== nextSlide) return;
-
-      if (safetyId) {
-        window.clearTimeout(safetyId);
-        safetyId = null;
-      }
-
-      if (!transitionLogged) {
-        console.log('[home] carousel transitionend', true);
-        transitionLogged = true;
-      }
-
-      currentIndex = nextIndex;
-      nextIndex = (nextIndex + 1) % slides.length;
-
-      const incomingSlide = nextSlide;
-      const outgoingSlide = currentSlide;
-
-      incomingSlide.classList.remove('slide-in', 'is-next', 'is-ready');
-      incomingSlide.classList.add('is-current');
-      incomingSlide.classList.remove('is-dimming');
-
-      outgoingSlide.classList.add('is-reset');
-      outgoingSlide.classList.remove('is-dimming');
-      outgoingSlide.classList.remove('is-current');
-      outgoingSlide.classList.add('is-next');
-      outgoingSlide.offsetHeight;
-      outgoingSlide.classList.remove('is-reset');
-
-      currentSlide = incomingSlide;
-      nextSlide = outgoingSlide;
-
-      nextSlide.replaceChildren(buildSlideGrid(slides[nextIndex]));
-      currentSlide.setAttribute('aria-hidden', 'false');
-      nextSlide.setAttribute('aria-hidden', 'true');
-      updateViewportHeight();
-      isAnimating = false;
-
-      console.log('[home] carousel index', currentIndex);
-      scheduleNext(autoplayInterval);
-    };
-
-    currentSlide.addEventListener('transitionend', handleTransitionEnd);
-    nextSlide.addEventListener('transitionend', handleTransitionEnd);
-    currentSlide.setAttribute('aria-hidden', 'false');
-    nextSlide.setAttribute('aria-hidden', 'true');
-    const initialHeight = updateViewportHeight();
-    if (!initialHeight) {
-      renderCurationList(container, limited.slice(0, SECTION_LIMIT));
-      return;
-    }
-    scheduleNext(autoplayInterval + initialDelay + staggerDelay);
-
-    viewport.addEventListener('mouseenter', stopTimer);
-    viewport.addEventListener('mouseleave', () => {
-      if (!isAnimating) {
-        scheduleNext(autoplayInterval);
-      }
-    });
-    viewport.addEventListener('focusin', stopTimer);
-    viewport.addEventListener('focusout', () => {
-      window.setTimeout(() => {
-        if (!viewport.contains(document.activeElement)) {
-          if (!isAnimating) {
-            scheduleNext(autoplayInterval);
-          }
-        }
-      }, 0);
-    });
-
-    window.addEventListener('resize', updateViewportHeight);
-  }
-
-  function chunkPosts(posts, size) {
-    const chunks = [];
-    for (let i = 0; i < posts.length; i += size) {
-      chunks.push(posts.slice(i, i + size));
-    }
-    return chunks;
-  }
-
-  function buildSlideGrid(posts) {
-    const grid = document.createElement('div');
-    grid.className = 'curation-grid';
-    grid.innerHTML = posts.map((post) => buildCurationCard(post)).join('');
-    return grid;
+    renderCurationList(container, limited);
   }
 
   function renderEmptyState(container, message) {
@@ -458,23 +272,216 @@ const HomeCuration = (() => {
 
   function buildCurationCard(post) {
     const title = escapeHtml(post.title || '제목 없는 글');
-    const excerpt = escapeHtml(buildExcerpt(post.content || ''));
+    const excerpt = escapeHtml(buildExcerpt(post.content || '', 84));
     const author = escapeHtml(buildAuthorName(post));
     const href = `/html/post.html?postId=${encodeURIComponent(post.id)}`;
+    const imageUrl = buildCurationImageUrl(post);
+    const fallbackClass = imageUrl ? '' : ' is-image-fallback';
+    const imageHtml = imageUrl
+      ? `
+        <img
+          class="curation-card-image"
+          src="${imageUrl}"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      `
+      : '';
 
     return `
-      <a class="curation-card" href="${href}">
+      <a class="curation-card${fallbackClass}" href="${href}">
+        ${imageHtml}
         <div class="curation-card-body">
           <h4 class="curation-title">${title}</h4>
           <p class="curation-excerpt">${excerpt}</p>
-        </div>
-        <div class="curation-meta">
-          <span class="curation-author">${author}</span>
+          <div class="curation-meta">
+            <span class="curation-author">${author}</span>
+          </div>
         </div>
       </a>
     `;
   }
 
+
+  function buildCurationImageVersion(post) {
+    const seed = [
+      'home-curation-v1',
+      post?.id || '',
+      post?.title || '',
+      post?.content || '',
+      post?.created_at || '',
+    ].join('|');
+
+    let hash = 0;
+    for (let i = 0; i < seed.length; i += 1) {
+      hash = (hash << 5) - hash + seed.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  function buildCurationImageUrl(post, template = 'paper01') {
+    const postId = encodeURIComponent(post?.id || '');
+    if (!postId) return '';
+    const version = buildCurationImageVersion(post);
+    return `/api/feed-images/post/${postId}?template=${encodeURIComponent(
+      template
+    )}&scale=2&v=${encodeURIComponent(version)}`;
+  }
+
+  function bindCurationImageFallback(scope) {
+    if (!scope) return;
+    const images = scope.querySelectorAll('.curation-card-image');
+    images.forEach((imageEl) => {
+      if (imageEl.dataset.fallbackBound === '1') return;
+      imageEl.dataset.fallbackBound = '1';
+
+      const activateFallback = () => {
+        imageEl.classList.add('is-hidden');
+        const card = imageEl.closest('.curation-card');
+        if (card) {
+          card.classList.add('is-image-fallback');
+        }
+      };
+
+      imageEl.addEventListener('error', activateFallback, { once: true });
+      if (imageEl.complete && imageEl.naturalWidth === 0) {
+        activateFallback();
+      }
+    });
+  }
+
+  function setupCurationMotion(carousel, track, containerId = '') {
+    if (!carousel || !track) return;
+
+    const cards = Array.from(track.querySelectorAll('.curation-card'));
+    if (!cards.length) return;
+
+    cards.forEach((card, index) => {
+      card.style.setProperty('--curation-stagger-index', String(index));
+    });
+
+    const reduceMotion = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion) {
+      carousel.classList.remove('is-prep');
+      carousel.classList.remove('is-animated');
+      return;
+    }
+
+    carousel.classList.add('is-prep');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        carousel.classList.add('is-animated');
+      });
+    });
+
+    const revealDuration = 620;
+    const revealStagger = 70;
+    const revealTail = 160;
+    const revealTotal = revealDuration + cards.length * revealStagger + revealTail;
+    window.setTimeout(() => {
+      carousel.classList.remove('is-prep');
+      carousel.classList.remove('is-animated');
+    }, revealTotal);
+
+    if (cards.length <= 1) return;
+
+    const autoplayInterval = containerId === 'curationStayList' ? 6000 : 5400;
+    let timerId = null;
+    let interactionUntil = 0;
+    let isVisible = true;
+
+    const scheduleNext = (delayMs = autoplayInterval) => {
+      if (timerId) {
+        window.clearTimeout(timerId);
+      }
+      timerId = window.setTimeout(goNext, delayMs);
+    };
+
+    const findNearestIndex = () => {
+      const currentLeft = carousel.scrollLeft;
+      let nearestIndex = 0;
+      let nearestDelta = Number.POSITIVE_INFINITY;
+      cards.forEach((card, index) => {
+        const delta = Math.abs(card.offsetLeft - currentLeft);
+        if (delta < nearestDelta) {
+          nearestDelta = delta;
+          nearestIndex = index;
+        }
+      });
+      return nearestIndex;
+    };
+
+    const markInteracted = (holdMs = autoplayInterval + 1200) => {
+      interactionUntil = Date.now() + holdMs;
+      scheduleNext(holdMs);
+    };
+
+    const goNext = () => {
+      if (!isVisible) {
+        scheduleNext(autoplayInterval);
+        return;
+      }
+
+      const now = Date.now();
+      if (now < interactionUntil) {
+        scheduleNext(Math.max(320, interactionUntil - now));
+        return;
+      }
+
+      const currentIndex = findNearestIndex();
+      const nextIndex = (currentIndex + 1) % cards.length;
+
+      cards[nextIndex].scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'start',
+      });
+
+      scheduleNext(autoplayInterval);
+    };
+
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.target !== carousel) return;
+            isVisible = entry.isIntersecting && entry.intersectionRatio >= 0.35;
+            if (isVisible) {
+              scheduleNext(autoplayInterval);
+            }
+          });
+        },
+        { threshold: [0, 0.35, 0.7] }
+      );
+      observer.observe(carousel);
+    }
+
+    carousel.addEventListener('pointerdown', () => markInteracted(), {
+      passive: true,
+    });
+    carousel.addEventListener('touchstart', () => markInteracted(), {
+      passive: true,
+    });
+    carousel.addEventListener('wheel', () => markInteracted(), {
+      passive: true,
+    });
+    carousel.addEventListener('mouseenter', () => markInteracted(autoplayInterval + 1600));
+    carousel.addEventListener('focusin', () => markInteracted(autoplayInterval + 1600));
+    carousel.addEventListener('mouseleave', () => scheduleNext(autoplayInterval));
+    carousel.addEventListener('focusout', () => {
+      window.setTimeout(() => {
+        if (!carousel.contains(document.activeElement)) {
+          scheduleNext(autoplayInterval);
+        }
+      }, 0);
+    });
+
+    scheduleNext(autoplayInterval + 700);
+  }
 
   function buildExcerpt(html, maxLength = 90) {
     const plain = stripHtml(html).trim();

@@ -250,7 +250,17 @@ function setupMobileNavCloseBehavior() {
   const toggler = document.querySelector('.navbar-toggler');
   if (!navbarNav || !toggler) return;
 
-  const isMobile = () => window.innerWidth < 992;
+  const getViewportWidth = () => {
+    const values = [
+      window.visualViewport?.width,
+      document.documentElement?.clientWidth,
+      window.innerWidth,
+    ].filter((value) => Number.isFinite(value) && value > 0);
+    if (!values.length) return 0;
+    return Math.min(...values);
+  };
+
+  const isMobile = () => getViewportWidth() < 992;
   const setBodyNavState = (open) => {
     if (!document.body) return;
     document.body.dataset.mobileNavOpen = open ? 'true' : 'false';

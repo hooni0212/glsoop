@@ -141,6 +141,7 @@ Glsoop.FeedPage = (function () {
   function init() {
     // 1) URL 쿼리에서 태그 읽기 (?tag=힐링 또는 ?tags=힐링,위로)
     parseTagsFromURL();
+    parseCategoryFromURL();
 
     // 2) 피드 탭(최신/인기/팔로잉) 이벤트 등록
     setupFeedTabs();
@@ -216,6 +217,14 @@ Glsoop.FeedPage = (function () {
     }
   }
 
+  function parseCategoryFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = normalizeCategoryValue(params.get('category'));
+    if (fromUrl) {
+      currentCategory = fromUrl;
+    }
+  }
+
   function setupFeedTabs() {
     const tabButtons = document.querySelectorAll('[data-feed-tab]');
     if (!tabButtons.length) return;
@@ -254,11 +263,28 @@ Glsoop.FeedPage = (function () {
     const categoryButtons = document.querySelectorAll('[data-category-filter]');
     if (!categoryButtons.length) return;
 
-    const activeBtn =
-      document.querySelector('[data-category-filter].active') || categoryButtons[0];
-    if (activeBtn) {
-      currentCategory = normalizeCategoryValue(activeBtn.dataset.categoryFilter);
+    let activeBtn = null;
+    if (currentCategory) {
+      activeBtn = Array.from(categoryButtons).find(
+        (btn) => normalizeCategoryValue(btn.dataset.categoryFilter) === currentCategory
+      );
     }
+    if (!activeBtn) {
+      activeBtn = document.querySelector('[data-category-filter].active') || categoryButtons[0];
+      if (activeBtn) {
+        currentCategory = normalizeCategoryValue(activeBtn.dataset.categoryFilter);
+      }
+    }
+
+    categoryButtons.forEach((btn) => {
+      const isActive = btn === activeBtn;
+      btn.classList.toggle('active', isActive);
+      if (isActive) {
+        btn.setAttribute('aria-current', 'true');
+      } else {
+        btn.removeAttribute('aria-current');
+      }
+    });
 
     categoryButtons.forEach((btn) => {
       btn.addEventListener('click', () => {

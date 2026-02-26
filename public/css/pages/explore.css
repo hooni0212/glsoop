@@ -928,3 +928,35 @@ body.page-explore::after {
     animation: none !important;
   }
 }
+
+/* 2026-02 Tone Unification */
+body.page-explore {
+  --gls-explore-ink: var(--gls-color-text, #172019);
+  --gls-explore-muted: var(--gls-color-muted, #4a4e49);
+  --gls-explore-accent: var(--gls-color-primary, #1d6b52);
+  --gls-explore-paper: color-mix(in srgb, var(--gls-color-surface, #fffcf5) 90%, #ffffff 10%);
+  --gls-explore-card: color-mix(in srgb, var(--gls-color-surface, #fffcf5) 94%, #ffffff 6%);
+  --gls-explore-border: color-mix(in srgb, var(--gls-color-border, #c8beab) 62%, rgba(255, 255, 255, 0.4) 38%);
+}
+
+.page-explore .explore-filter-shell,
+.page-explore .explore-feed-shell {
+  background: color-mix(in srgb, var(--gls-color-surface, #fffcf5) 88%, rgba(255, 255, 255, 0.3) 12%);
+}
+
+.page-explore #feedPosts .gls-post-card::before,
+.page-explore #feedPosts .gls-post-card:nth-child(6n + 2)::before,
+.page-explore #feedPosts .gls-post-card:nth-child(6n + 3)::before,
+.page-explore #feedPosts .gls-post-card:nth-child(6n + 4)::before,
+.page-explore #feedPosts .gls-post-card:nth-child(6n + 5)::before,
+.page-explore #feedPosts .gls-post-card:nth-child(6n)::before,
+.page-explore #feedPosts .gls-post-card.gls-post-card--len-one-line::before,
+.page-explore #feedPosts .gls-post-card.gls-post-card--len-short::before,
+.page-explore #feedPosts .gls-post-card.gls-post-card--len-medium::before,
+.page-explore #feedPosts .gls-post-card.gls-post-card--len-long::before {
+  background: linear-gradient(
+    140deg,
+    rgba(219, 238, 227, 0.34),
+    rgba(239, 247, 241, 0.24)
+  );
+}

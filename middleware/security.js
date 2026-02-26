@@ -103,10 +103,12 @@ const baseCspDirectives = {
   frameSrc: ["'self'"],
 };
 
-const uiKitRiveCspDirectives = {
+const riveWasmCspDirectives = {
   ...baseCspDirectives,
-  // UI-kit Rive 데모 페이지에서만 WASM 실행 허용
+  // Rive 데모 페이지에서만 WASM 실행 허용
   scriptSrc: [...baseCspDirectives.scriptSrc, "'wasm-unsafe-eval'"],
+  // Rive 내부 텍스처 디코딩 시 blob URL 이미지가 사용될 수 있음
+  imgSrc: [...baseCspDirectives.imgSrc, 'blob:'],
 };
 
 function applySecurity(app) {
@@ -127,11 +129,25 @@ function applySecurity(app) {
     })
   );
 
-  // 2-1) UI-kit Rive 데모 경로 전용 CSP (WASM 허용 범위를 최소화)
+  // 2-1) Rive 데모 경로 전용 CSP (WASM 허용 범위를 최소화)
   app.use(
     '/ui-kit-animated-signin-rive.html',
     helmet.contentSecurityPolicy({
-      directives: uiKitRiveCspDirectives,
+      directives: riveWasmCspDirectives,
+    })
+  );
+
+  app.use(
+    '/html/login-rive-preview.html',
+    helmet.contentSecurityPolicy({
+      directives: riveWasmCspDirectives,
+    })
+  );
+
+  app.use(
+    '/html/login.html',
+    helmet.contentSecurityPolicy({
+      directives: riveWasmCspDirectives,
     })
   );
 

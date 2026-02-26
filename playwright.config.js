@@ -39,6 +39,7 @@ module.exports = defineConfig({
       JWT_SECRET: 'devsecret',
       JWT_ISSUER: 'glsoop',
       JWT_AUDIENCE: 'glsoop-client',
+      RESET_TOKEN_HMAC_SECRET: 'devsecret',
     },
   },
   projects: [

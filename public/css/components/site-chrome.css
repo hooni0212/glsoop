@@ -45,10 +45,10 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
 */
 .custom-navbar {
   background:
-    linear-gradient(115deg, rgba(17, 54, 38, 0.9), rgba(28, 94, 65, 0.86)),
-    var(--gls-header-gradient, linear-gradient(90deg, #2e8b57, #3ca66c));
+    linear-gradient(115deg, rgba(17, 54, 38, 0.42), rgba(28, 94, 65, 0.36)),
+    var(--gls-header-gradient, linear-gradient(90deg, #2f815b, #378f66));
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 0 12px 30px rgba(8, 26, 18, 0.22);
+  box-shadow: 0 10px 22px rgba(8, 26, 18, 0.14);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -143,6 +143,26 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
 
   .custom-navbar {
     z-index: var(--gls-z-header, 100);
+    left: 0;
+    right: 0;
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  @supports (width: 100dvw) {
+    .custom-navbar {
+      width: 100dvw;
+      max-width: 100dvw;
+    }
+  }
+
+  .custom-navbar :where(.gls-container, .container) {
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+    box-sizing: border-box;
+    padding-left: max(var(--gls-gutter, 12px), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--gls-gutter, 12px), env(safe-area-inset-right, 0px));
   }
 
   /* navbarNav: 기본은 숨김, is-open/show에서 표시 */

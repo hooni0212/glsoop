@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const MAX_CONTENT_LENGTH = 200;
   const DRAFT_KEY_PREFIX = 'glsoop:editor:draft:v1';
   const DRAFT_SAVE_DEBOUNCE_MS = 900;
+  const PREVIEW_IMAGE_DEBOUNCE_MS = 420;
 
   // 해시태그 칩용 내부 리스트
   // ex) ['힐링', '위로']
@@ -21,6 +22,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isProgrammaticUpdate = false;
   let isNavigatingAfterSave = false;
   let isSaving = false;
+  let previewImageTimer = null;
+  let previewImageRequestSeq = 0;
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -126,10 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const hashtagsInput = document.getElementById('postHashtags'); // ✅ 해시태그 입력 인풋
 
   // ✅ 미리보기 요소
-  const previewTitleEl = document.getElementById('previewTitle');     // 미리보기 제목
-  const previewContentEl = document.getElementById('previewContent'); // 미리보기 본문(quote-card)
-  const previewMetaEl = document.getElementById('previewMeta');       // 미리보기 하단 메타(폰트/태그)
-  const previewMoreBtn = document.getElementById('previewMoreBtn');   // 더보기 토글(에디터에선 미사용)
+  const previewFeedCardMountEl = document.getElementById('previewFeedCardMount');
 
   // ✅ 남은 글자 수 표시 요소 (에디터 박스 오른쪽 아래)
   const charCounterEl = document.getElementById('charCounter');
@@ -167,16 +167,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 1) Quill 에디터 내부 텍스트 폰트 변경
     if (quill && quill.root) {
       quill.root.style.fontFamily = fontFamily;
-    }
-
-    // 2) 미리보기 카드 폰트 (quote-card에 클래스 붙이기)
-    if (previewContentEl) {
-      previewContentEl.classList.remove(
-        'quote-font-serif',
-        'quote-font-sans',
-        'quote-font-hand'
-      );
-      previewContentEl.classList.add('quote-font-' + key);
     }
 
     // 폰트 라벨 등 미리보기 메타도 갱신
@@ -427,7 +417,8 @@ document.addEventListener('DOMContentLoaded', async () => {
    * - hashtagList 또는 인풋값을 기반으로 태그 표시
    */
   function updatePreviewMeta() {
-    if (!previewMetaEl) return;
+    // 공용 카드 미리보기에서는 별도 메타 텍스트를 렌더링하지 않음.
+    if (!previewFeedCardMountEl) return;
 
     const fontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
     const fontLabel = FONT_LABEL_MAP[fontKey] || '감성 명조체';
@@ -439,12 +430,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       tagsText = hashtagsInput.value.trim();
     }
 
-    let html = `<span class="me-2">폰트: ${escapeHtml(fontLabel)}</span>`;
-    if (tagsText) {
-      html += `<span class="gls-text-muted">태그: ${escapeHtml(tagsText)}</span>`;
-    }
-
-    previewMetaEl.innerHTML = html;
+    previewFeedCardMountEl.dataset.previewFontLabel = fontLabel;
+    previewFeedCardMountEl.dataset.previewTags = tagsText;
   }
 
   /**
@@ -455,31 +442,171 @@ document.addEventListener('DOMContentLoaded', async () => {
     const title = titleInput.value.trim();
     const contentHtml = quill.root.innerHTML.trim();
     const plainText = quill.getText().trim();
-  
-    // 제목 미리보기
-    if (previewTitleEl) {
-      previewTitleEl.textContent = title || '여기에 글 제목이 미리 보여요';
-    }
-  
-    // 본문 미리보기
-    if (previewContentEl) {
-      if (!plainText) {
-        // 아무 내용도 없으면 안내 문구
-        previewContentEl.innerHTML =
-          '여기에 오늘의 문장을 적어 보시면, 이 카드에서 바로 미리 볼 수 있어요.';
-      } else {
-        // 사용자가 작성한 HTML(Quill output) 반영 (XSS 방지)
-        previewContentEl.innerHTML = sanitizePostHtml(contentHtml);
-      }
-  
-      // 내용 길이에 따라 폰트 크기 자동 조절
-      autoAdjustQuoteFont(previewContentEl);
 
-      // 에디터에서는 페이드/더보기 없이 안정적인 카드 높이만 유지
+    if (previewFeedCardMountEl && typeof buildStandardPostCardHTML === 'function') {
+      const previewPost = buildEditorPreviewPost({
+        title,
+        contentHtml,
+        plainText,
+      });
+      const previewImageUrl = buildEditorPreviewRenderedImageUrl({
+        title: previewPost.title,
+        content: previewPost.content,
+        category: previewPost.category,
+      });
+      const previewCard = ensureEditorPreviewCard(previewPost, previewImageUrl);
+      syncEditorPreviewCardMeta(previewCard, previewPost);
+      scheduleEditorPreviewImageUpdate(previewCard, previewImageUrl);
     }
-  
+
     // 하단 메타 갱신
     updatePreviewMeta();
+  }
+
+  function buildEditorPreviewPost({ title, contentHtml, plainText }) {
+    const selectedFontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
+    const selectedCategory = categorySelectEl ? categorySelectEl.value || 'short' : 'short';
+    const normalizedContent = plainText
+      ? contentHtml
+      : '<p>여기에 오늘의 문장을 적어 보시면, 이 카드에서 바로 미리 볼 수 있어요.</p>';
+    const contentWithFontMeta = `<!--FONT:${selectedFontKey}-->${normalizedContent}`;
+
+    return {
+      id: 'editor-preview',
+      author_name: '나',
+      title: title || '여기에 글 제목이 미리 보여요',
+      content: contentWithFontMeta,
+      hashtags: hashtagList.join(', '),
+      category: selectedCategory,
+      created_at: new Date().toISOString(),
+      like_count: 0,
+      user_liked: 0,
+    };
+  }
+
+  function buildEditorPreviewRenderedImageUrl({ title, content, category }) {
+    const params = new URLSearchParams();
+    params.set('title', title || '');
+    params.set('content', content || '');
+    params.set('category', category || 'short');
+    params.set('template', 'paper01');
+    // 에디터 프리뷰는 반응성을 우선해서 경량 렌더 스케일 사용
+    params.set('scale', '1');
+    return `/api/feed-images/preview?${params.toString()}`;
+  }
+
+  function ensureEditorPreviewCard(previewPost, previewImageUrl) {
+    let previewCard = previewFeedCardMountEl.querySelector('.gls-post-card');
+    if (previewCard) {
+      return previewCard;
+    }
+
+    previewFeedCardMountEl.innerHTML = buildStandardPostCardHTML(previewPost, {
+      showMoreButton: false,
+      showEngagementActions: false,
+      contentExpanded: true,
+      cardClickable: false,
+      cardExtraClass: 'editor-preview-feed-card',
+      renderedImageSrc: previewImageUrl,
+    });
+
+    previewCard = previewFeedCardMountEl.querySelector('.gls-post-card');
+    if (previewCard && typeof enhanceStandardPostCard === 'function') {
+      enhanceStandardPostCard(previewCard, previewPost, {});
+    }
+    return previewCard;
+  }
+
+  function syncEditorPreviewCardMeta(previewCard, previewPost) {
+    if (!previewCard) return;
+
+    const titleEl = previewCard.querySelector('.card-title');
+    if (titleEl) {
+      titleEl.textContent = previewPost.title || '';
+    }
+
+    const categoryHtml = renderCategoryBadge(previewPost);
+    const hashtagHtml = buildHashtagHtml(previewPost);
+    let metaEl = previewCard.querySelector('.post-bottom-meta');
+
+    if (categoryHtml || hashtagHtml) {
+      const metaInnerHtml = `${
+        categoryHtml ? `<div class="post-category-row">${categoryHtml}</div>` : ''
+      }${hashtagHtml || ''}`;
+      if (!metaEl) {
+        metaEl = document.createElement('div');
+        metaEl.className = 'post-bottom-meta';
+        const bodyEl = previewCard.querySelector('.card-body');
+        if (bodyEl) {
+          bodyEl.appendChild(metaEl);
+        }
+      }
+      if (metaEl) {
+        metaEl.innerHTML = metaInnerHtml;
+      }
+    } else if (metaEl) {
+      metaEl.remove();
+    }
+
+    const extracted = extractContentWithFont(previewPost);
+    const fallbackEl = previewCard.querySelector('[data-feed-render-fallback]');
+    if (fallbackEl) {
+      fallbackEl.innerHTML = sanitizePostHtml(extracted.cleanHtml || '');
+    }
+  }
+
+  function scheduleEditorPreviewImageUpdate(previewCard, previewImageUrl) {
+    if (!previewCard || !previewImageUrl) return;
+
+    const imageEl = previewCard.querySelector('.feed-rendered-card-image');
+    const fallbackEl = previewCard.querySelector('[data-feed-render-fallback]');
+    const imageShellEl = previewCard.querySelector('.feed-rendered-image-shell');
+    if (!imageEl) return;
+
+    const currentSrc = imageEl.getAttribute('src') || '';
+    if (currentSrc === previewImageUrl) return;
+
+    if (previewImageTimer) {
+      clearTimeout(previewImageTimer);
+    }
+
+    const requestSeq = ++previewImageRequestSeq;
+    previewImageTimer = window.setTimeout(() => {
+      const loader = new Image();
+      loader.decoding = 'async';
+      if (imageShellEl) {
+        imageShellEl.classList.add('is-preview-loading');
+      }
+
+      loader.onload = () => {
+        if (requestSeq !== previewImageRequestSeq) return;
+        imageEl.src = previewImageUrl;
+        imageEl.classList.remove('is-hidden');
+        imageEl.removeAttribute('hidden');
+        if (fallbackEl) {
+          fallbackEl.hidden = true;
+          fallbackEl.classList.remove('is-active');
+        }
+        if (imageShellEl) {
+          imageShellEl.classList.remove('is-preview-loading');
+        }
+      };
+
+      loader.onerror = () => {
+        if (requestSeq !== previewImageRequestSeq) return;
+        if (fallbackEl) {
+          imageEl.classList.add('is-hidden');
+          imageEl.setAttribute('hidden', '');
+          fallbackEl.hidden = false;
+          fallbackEl.classList.add('is-active');
+        }
+        if (imageShellEl) {
+          imageShellEl.classList.remove('is-preview-loading');
+        }
+      };
+
+      loader.src = previewImageUrl;
+    }, PREVIEW_IMAGE_DEBOUNCE_MS);
   }
 
   function buildEditorStateSnapshot() {

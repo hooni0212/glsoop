@@ -1,12 +1,163 @@
 // public/js/post.js
 // 개별 글 상세 페이지 스크립트
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await setupPostSafeAreaGuides();
   initPostDetailPage();
 });
 
 const POST_MOBILE_DOCK_MEDIA = '(max-width: 768px)';
 const POST_MOBILE_DOCK_SCROLL_THRESHOLD = 0.68;
+let postSafeAreaGuidesEnabled = false;
+const DETAIL_TITLE_SAFE_ZONE_BY_LENGTH = {
+  'one-line': {
+    left: 29,
+    width: 42,
+    top: 24,
+    height: 12.5,
+    bodyLeft: 29,
+    bodyTop: 34,
+    bodyWidth: 42,
+    bodyHeight: 32,
+    textAlign: 'center',
+    bodyFontRatio: 0.041,
+    bodyLineHeight: 1.14,
+  },
+  short: {
+    left: 33.6,
+    width: 42.4,
+    top: 25.6,
+    height: 12.2,
+    bodyLeft: 33.6,
+    bodyTop: 36.4,
+    bodyWidth: 42.4,
+    bodyHeight: 34.6,
+    textAlign: 'center',
+    bodyFontRatio: 0.035,
+    bodyLineHeight: 1.15,
+  },
+  medium: {
+    left: 35.4,
+    width: 41,
+    top: 26.8,
+    height: 12,
+    bodyLeft: 35.4,
+    bodyTop: 46.2,
+    bodyWidth: 41,
+    bodyHeight: 41.2,
+    textAlign: 'left',
+    bodyFontRatio: 0.0325,
+    bodyLineHeight: 1.13,
+  },
+  long: {
+    left: 32.2,
+    width: 45.2,
+    top: 26.2,
+    height: 12.4,
+    bodyLeft: 32.2,
+    bodyTop: 44.8,
+    bodyWidth: 45.2,
+    bodyHeight: 45,
+    textAlign: 'left',
+    bodyFontRatio: 0.03,
+    bodyLineHeight: 1.12,
+  },
+  xlong: {
+    left: 29.9,
+    width: 48.8,
+    top: 25.8,
+    height: 12.8,
+    bodyLeft: 29.9,
+    bodyTop: 43.8,
+    bodyWidth: 48.8,
+    bodyHeight: 47.4,
+    textAlign: 'left',
+    bodyFontRatio: 0.0275,
+    bodyLineHeight: 1.11,
+  },
+};
+
+function resolveDetailTitleSafeZone(lengthVariant) {
+  const key = String(lengthVariant || '').trim().toLowerCase();
+  if (DETAIL_TITLE_SAFE_ZONE_BY_LENGTH[key]) {
+    return DETAIL_TITLE_SAFE_ZONE_BY_LENGTH[key];
+  }
+  return DETAIL_TITLE_SAFE_ZONE_BY_LENGTH.medium;
+}
+
+async function setupPostSafeAreaGuides() {
+  const body = document.body;
+  if (!body) return;
+
+  try {
+    const runtimeConfig = typeof getGlsoopRuntimeConfig === 'function'
+      ? await getGlsoopRuntimeConfig()
+      : { safe_area_guides: false };
+    postSafeAreaGuidesEnabled = Boolean(runtimeConfig?.safe_area_guides);
+  } catch (error) {
+    postSafeAreaGuidesEnabled = false;
+  }
+
+  body.classList.toggle('gls-safe-area-debug', postSafeAreaGuidesEnabled);
+}
+
+function applyDetailImageTitleOverlay(cardEl, titleText = '제목 없음') {
+  if (!cardEl) return;
+
+  const imageShell = cardEl.querySelector('.feed-rendered-image-shell');
+  if (!imageShell) return;
+
+  const existingOverlay = imageShell.querySelector('.post-image-title');
+  if (existingOverlay) existingOverlay.remove();
+  const existingBodyOverlay = imageShell.querySelector('.post-image-body-safe');
+  if (existingBodyOverlay) existingBodyOverlay.remove();
+
+  const safeZone = resolveDetailTitleSafeZone(cardEl.dataset.lengthVariant);
+  const titleEl = cardEl.querySelector('.card-title');
+  if (titleEl) {
+    titleEl.classList.add('post-card-title-outside');
+    titleEl.setAttribute('aria-hidden', 'true');
+  }
+
+  let bodySafeOverlay = null;
+  if (postSafeAreaGuidesEnabled) {
+    bodySafeOverlay = document.createElement('div');
+    bodySafeOverlay.className = 'post-image-body-safe';
+    bodySafeOverlay.style.setProperty('--post-safe-body-left', `${safeZone.bodyLeft ?? safeZone.left}%`);
+    bodySafeOverlay.style.setProperty('--post-safe-body-top', `${safeZone.bodyTop ?? 46.2}%`);
+    bodySafeOverlay.style.setProperty('--post-safe-body-width', `${safeZone.bodyWidth ?? safeZone.width}%`);
+    bodySafeOverlay.style.setProperty('--post-safe-body-height', `${safeZone.bodyHeight ?? 41.2}%`);
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'post-image-title';
+  overlay.setAttribute(
+    'data-title',
+    titleText && String(titleText).trim().length > 0
+      ? String(titleText).trim()
+      : '제목 없음'
+  );
+  overlay.style.setProperty('--post-safe-left', `${safeZone.left}%`);
+  overlay.style.setProperty('--post-safe-width', `${safeZone.width}%`);
+  overlay.style.setProperty('--post-safe-top', `${safeZone.top}%`);
+  overlay.style.setProperty('--post-safe-title-height', `${safeZone.height}%`);
+  overlay.style.setProperty('--post-safe-title-align', safeZone.textAlign || 'left');
+  overlay.style.setProperty('--post-body-font-ratio', String(safeZone.bodyFontRatio || 0.0325));
+  overlay.style.setProperty('--post-body-line-height', String(safeZone.bodyLineHeight || 1.13));
+
+  const text = document.createElement('span');
+  text.className = 'post-image-title__text';
+  text.textContent =
+    titleText && String(titleText).trim().length > 0
+      ? String(titleText).trim()
+      : '제목 없음';
+
+  overlay.appendChild(text);
+  if (bodySafeOverlay) {
+    imageShell.appendChild(bodySafeOverlay);
+  }
+  imageShell.appendChild(overlay);
+}
 
 function trackUxEvent(eventName, properties = {}, options = {}) {
   if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -141,174 +292,172 @@ async function initPostDetailPage() {
   loadRelatedPosts(postData);
 }
 
-/**
- * ✅ 인스타 내보내기 모달(한 번만 생성)
- */
-function ensureIgExportModal() {
-  if (document.getElementById('igExportModal')) return;
+function resolveRenderedImageOptions(card) {
+  const fallback = {
+    template: 'paper01',
+    scale: '2',
+  };
 
-  const modalHtml = `
-  <div class="modal fade" id="igExportModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">인스타 이미지 내보내기</h5>
-          <button type="button" class="gls-modal-close" data-gls-dismiss="modal" aria-label="닫기"></button>
-        </div>
+  const renderedImageEl = card?.querySelector('.feed-rendered-card-image');
+  const src = renderedImageEl?.getAttribute('src');
+  if (!src) return fallback;
 
-        <div class="modal-body">
-          <div class="gls-grid gls-grid-2 gls-gap-2">
-            <div>
-              <label class="gls-label gls-text-small gls-mb-1">포맷</label>
-              <select id="igOptFormat" class="gls-select gls-select-sm">
-                <option value="feed45">피드 4:5 (1080×1350)</option>
-                <option value="square">정사각 (1080×1080)</option>
-              </select>
+  try {
+    const parsed = new URL(src, window.location.origin);
+    const template = parsed.searchParams.get('template');
+    const scale = parsed.searchParams.get('scale');
+    return {
+      template: template ? String(template).trim() : fallback.template,
+      scale: scale === '1' || scale === '2' ? scale : fallback.scale,
+    };
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function resolveRenderedImageDownloadUrl(post, card) {
+  const postId = post?.id != null ? String(post.id) : '';
+  if (!postId) return '';
+
+  const options = resolveRenderedImageOptions(card);
+  const params = new URLSearchParams();
+  params.set('template', options.template || 'paper01');
+  params.set('scale', options.scale || '2');
+
+  return `/api/feed-images/share/post/${encodeURIComponent(postId)}?${params.toString()}`;
+}
+
+function buildPostPermalink(post) {
+  if (!post?.id) return window.location.href;
+  return `${window.location.origin}/html/post.html?postId=${encodeURIComponent(post.id)}`;
+}
+
+async function downloadRenderedImage(post, card) {
+  const imageUrl = resolveRenderedImageDownloadUrl(post, card);
+  if (!imageUrl) {
+    alert('저장할 이미지를 찾지 못했습니다.');
+    return;
+  }
+
+  try {
+    const response = await fetch(imageUrl, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`이미지 요청 실패: ${response.status}`);
+    }
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = `glsoop_post_${post?.id || 'card'}.webp`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch (error) {
+    console.error(error);
+    alert('이미지 저장 중 오류가 발생했습니다.');
+  }
+}
+
+function ensurePostShareModal() {
+  if (document.getElementById('igExportModal') || document.getElementById('postShareModal')) return;
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div class="modal fade" id="igExportModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">공유</h5>
+            <button type="button" class="gls-modal-close" data-gls-dismiss="modal" aria-label="닫기"></button>
+          </div>
+          <div class="modal-body post-share-modal-body">
+            <div class="post-share-actions">
+              <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" id="postShareLinkBtn">링크 공유</button>
+              <button type="button" class="gls-btn gls-btn-secondary gls-btn-sm" id="postShareSaveImageBtn">이미지 저장</button>
             </div>
-
-            <div>
-              <label class="gls-label gls-text-small gls-mb-1">스타일</label>
-              <select id="igOptStyle" class="gls-select gls-select-sm">
-                <option value="photo-overlay">감성(오버레이)</option>
-                <option value="clean-card">클린 카드</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="gls-label gls-text-small gls-mb-1">배경 프리셋</label>
-              <select id="igOptBgKey" class="gls-select gls-select-sm">
-                <option value="forestMist">숲 안개</option>
-                <option value="deepGreen">딥 그린</option>
-                <option value="dawnSky">새벽 하늘</option>
-                <option value="warmPaper">따뜻한 종이</option>
-                <option value="nightLake">밤 호수</option>
-                <option value="springLeaf">봄 잎</option>
-                <option value="monoInk">잉크 모노</option>
-                <option value="sunsetPeach">노을 피치</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="gls-label gls-text-small gls-mb-1">오버레이 진하기</label>
-              <input id="igOptOverlay" type="range" class="gls-range" min="0" max="0.65" step="0.01" value="0.35" />
-              <div class="gls-spread">
-                <span class="gls-text-muted gls-text-small">밝게</span>
-                <span class="gls-text-muted gls-text-small">진하게</span>
-              </div>
-            </div>
-
-            <div class="gls-col-span-2 gls-mt-2">
-              <label class="gls-label gls-text-small gls-mb-1">배경 이미지 URL (선택)</label>
-              <input id="igOptBgUrl" class="gls-input gls-input-sm"
-                     placeholder="예) /img/ig/bg.jpg 또는 https://..." />
-              <div class="gls-form-help">
-                URL이 있으면 프리셋 대신 사진이 사용돼.
-              </div>
+            <p class="post-share-link-hint gls-text-small gls-text-muted" id="postShareLinkHint"></p>
+            <div class="post-share-preview">
+              <p class="post-share-preview-title gls-text-small">이미지 저장 미리보기</p>
+              <img id="postSharePreviewImage" class="post-share-preview-image" alt="저장될 카드 이미지 미리보기" />
             </div>
           </div>
         </div>
-
-        <div class="modal-footer">
-          <button type="button" class="gls-btn gls-btn-secondary gls-btn-sm" data-gls-dismiss="modal">닫기</button>
-          <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" id="igExportRunBtn">PNG 저장</button>
-        </div>
       </div>
     </div>
-  </div>`;
+  `;
+  document.body.appendChild(wrapper.firstElementChild);
 
-  const wrap = document.createElement('div');
-  wrap.innerHTML = modalHtml;
-  document.body.appendChild(wrap.firstElementChild);
+  const linkBtn = document.getElementById('postShareLinkBtn');
+  const saveBtn = document.getElementById('postShareSaveImageBtn');
 
-  // 실행 버튼 핸들러(한 번만)
-  const runBtn = document.getElementById('igExportRunBtn');
-  runBtn.addEventListener('click', async () => {
-    const post = window.__igExportTargetPost;
-    if (!post) return;
+  if (linkBtn && linkBtn.dataset.bound !== '1') {
+    linkBtn.dataset.bound = '1';
+    linkBtn.addEventListener('click', async () => {
+      const state = window.__glsoopPostShareState || {};
+      const post = state.post;
+      const permalink = buildPostPermalink(post);
+      const shareData = {
+        title: post?.title || '글숲 글',
+        text: '글숲에서 이 글을 함께 읽어보세요.',
+        url: permalink,
+      };
 
-    if (typeof window.exportPostToInstagram !== 'function') {
-      alert('이미지 내보내기 모듈을 불러오지 못했습니다. (igExport.js 확인)');
-      return;
-    }
-
-    const format = document.getElementById('igOptFormat')?.value || 'feed45';
-    const style = document.getElementById('igOptStyle')?.value || 'photo-overlay';
-    const bgKey = document.getElementById('igOptBgKey')?.value || 'forestMist';
-    const bgImageUrl = (document.getElementById('igOptBgUrl')?.value || '').trim();
-    const overlayOpacity = parseFloat(document.getElementById('igOptOverlay')?.value || '0.35');
-
-    try {
-      await window.exportPostToInstagram(post, {
-        format,
-        style,
-        bgKey,
-        bgImageUrl,
-        overlayOpacity,
-      });
-
-      // 모달 닫기
-      const modalEl = document.getElementById('igExportModal');
-      if (window.glsModal) window.glsModal.close(modalEl);
-    } catch (e) {
-      console.error(e);
-      alert('이미지 생성 중 오류가 발생했습니다. 콘솔을 확인해주세요.');
-    }
-  });
-}
-
-/**
- * ✅ 카드 헤더에 “공유(⋯)” 버튼을 넣고 모달을 여는 함수
- * - 가능한 한 구조에 덜 의존하도록 like-btn 옆에 끼워 넣는 방식
- */
-function attachIgShareButton(card, post) {
-  if (!card || !post) return;
-
-  // 이미 붙였으면 스킵
-  if (card.querySelector('[data-ig-share-btn="1"]')) return;
-
-  ensureIgExportModal();
-
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'gls-btn gls-btn-xs gls-btn-secondary ig-share-btn';
-  btn.textContent = '⋯';
-  btn.setAttribute('data-ig-share-btn', '1');
-  btn.style.padding = '2px 10px';
-  btn.style.lineHeight = '1.2';
-  btn.style.borderRadius = '999px';
-
-  // 넣을 자리: like 버튼 옆이 1순위
-  const likeBtn = card.querySelector('.like-btn');
-  if (likeBtn && likeBtn.parentElement) {
-    // likeBtn 앞에 넣어서 (⋯) [하트] 순서
-    likeBtn.parentElement.insertBefore(btn, likeBtn);
-    // 간격 확보
-    btn.style.marginRight = '8px';
-  } else {
-    // fallback: 카드 상단 어디든 “오른쪽 끝”에 붙이기
-    const headerLikeArea =
-      card.querySelector('.card-header') ||
-      card.querySelector('.gls-post-header') ||
-      card.querySelector('.feed-post-header') ||
-      card.querySelector('.post-header') ||
-      card;
-
-    headerLikeArea.appendChild(btn);
-    btn.style.position = 'absolute';
-    btn.style.top = '14px';
-    btn.style.right = '14px';
+      try {
+        if (navigator.share) {
+          await navigator.share(shareData);
+          return;
+        }
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(permalink);
+          alert('링크를 클립보드에 복사했습니다.');
+          return;
+        }
+        window.prompt('아래 링크를 복사해 공유하세요.', permalink);
+      } catch (error) {
+        if (error?.name !== 'AbortError') {
+          console.error(error);
+          alert('링크 공유 중 오류가 발생했습니다.');
+        }
+      }
+    });
   }
 
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
+  if (saveBtn && saveBtn.dataset.bound !== '1') {
+    saveBtn.dataset.bound = '1';
+    saveBtn.addEventListener('click', async () => {
+      const state = window.__glsoopPostShareState || {};
+      await downloadRenderedImage(state.post, state.card);
+    });
+  }
+}
 
-    // 현재 포스트를 전역에 임시 저장(모달 실행 버튼에서 사용)
-    window.__igExportTargetPost = post;
+function openPostShareModal(post, card) {
+  ensurePostShareModal();
 
-    // 모달 열기
-    const modalEl = document.getElementById('igExportModal');
-    if (window.glsModal) window.glsModal.open(modalEl);
-  });
+  const imageUrl = resolveRenderedImageDownloadUrl(post, card);
+  const permalink = buildPostPermalink(post);
+  window.__glsoopPostShareState = {
+    post,
+    card,
+    imageUrl,
+    permalink,
+  };
+
+  const previewImageEl = document.getElementById('postSharePreviewImage');
+  if (previewImageEl) {
+    previewImageEl.src = imageUrl;
+  }
+
+  const linkHintEl = document.getElementById('postShareLinkHint');
+  if (linkHintEl) {
+    linkHintEl.textContent = permalink;
+  }
+
+  const modalEl = document.getElementById('igExportModal') || document.getElementById('postShareModal');
+  if (window.glsModal && modalEl) {
+    window.glsModal.open(modalEl);
+  }
 }
 
 /**
@@ -364,6 +513,7 @@ function renderPostDetail(container, post) {
       if (hasRenderedImage) {
         feedContent.classList.add('feed-post-content--detail-rendered');
         card.classList.add('is-rendered-detail');
+        applyDetailImageTitleOverlay(card, post.title || '제목 없음');
       } else {
         feedContent.classList.add('post-inner-surface', 'post-content-surface');
       }
@@ -502,20 +652,17 @@ function bindSideActions(card, post) {
     });
   }
 
-  // 공유: 사이드 → 인스타 내보내기 모달 열기
+  // 공유: 사이드 → 링크 공유/이미지 저장 옵션 모달
   if (sideShareBtn.dataset.boundSideShare !== '1') {
     sideShareBtn.dataset.boundSideShare = '1';
     sideShareBtn.addEventListener('click', (e) => {
       e.preventDefault();
       trackUxEvent('post_action_click', { action: 'share' });
       try {
-        ensureIgExportModal();
-        window.__igExportTargetPost = post;
-        const modalEl = document.getElementById('igExportModal');
-        if (window.glsModal) window.glsModal.open(modalEl);
+        openPostShareModal(post, card);
       } catch (err) {
         console.error(err);
-        alert('공유 모달을 열지 못했습니다. 콘솔을 확인해주세요.');
+        alert('공유 모달을 열지 못했습니다. 잠시 후 다시 시도해주세요.');
       }
     });
   }
