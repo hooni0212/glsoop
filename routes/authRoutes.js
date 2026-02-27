@@ -48,6 +48,8 @@ const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const LOGIN_FAIL_LIMIT = 5;
 const LOGIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
 
+const EMAIL_SEND_FAILURE_STATUS = 503;
+
 const dbGet = (sql, params = []) =>
   new Promise((resolve, reject) => {
     db.get(sql, params, (err, row) => {
@@ -71,6 +73,26 @@ const dbRun = (sql, params = []) =>
       resolve(this);
     });
   });
+
+const sendMail = (message) =>
+  new Promise((resolve, reject) => {
+    transporter.sendMail(message, (error, info) => {
+      if (error) return reject(error);
+      resolve(info);
+    });
+  });
+
+function getMailErrorDetails(error) {
+  if (!error || typeof error !== 'object') {
+    return { message: String(error || 'unknown error') };
+  }
+  return {
+    message: error.message || 'unknown error',
+    code: error.code || null,
+    responseCode: error.responseCode || null,
+    command: error.command || null,
+  };
+}
 
 function sendAuthError(res, status, code, message, extras = {}) {
   return res.status(status).json({ ok: false, code, message, ...extras });
@@ -601,6 +623,39 @@ router.post('/signup', signupLimiter, async (req, res) => {
       [pendingId, otpHash, otpExpiresAt]
     );
 
+    try {
+      await sendMail({
+        from: `"글숲" <${process.env.GMAIL_USER}>`,
+        to: normalizedEmail,
+        subject: '[글숲] 이메일 인증 번호를 확인해주세요',
+        html: `
+          <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
+            <p><strong>${trimmedNickname || trimmedName}님, 안녕하세요.</strong></p>
+            <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
+            <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
+              ${otpCode}
+            </p>
+            <p style="font-size: 0.9rem; color:#888;">
+              인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
+            </p>
+          </div>
+        `,
+      });
+    } catch (mailErr) {
+      console.error('인증 메일 발송 오류:', getMailErrorDetails(mailErr));
+      try {
+        await dbRun('DELETE FROM pending_signups WHERE id = ?', [pendingId]);
+      } catch (cleanupErr) {
+        console.error('회원가입 pending 정리 실패:', cleanupErr);
+      }
+      return sendAuthError(
+        res,
+        EMAIL_SEND_FAILURE_STATUS,
+        'AUTH_SIGNUP_EMAIL_SEND_FAILED',
+        '인증 메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'
+      );
+    }
+
     res.json({
       ok: true,
       message: '인증 번호를 이메일로 발송했습니다.',
@@ -617,31 +672,6 @@ router.post('/signup', signupLimiter, async (req, res) => {
     }).catch((eventErr) => {
       console.error('signup ux event 기록 실패:', eventErr);
     });
-
-    transporter.sendMail(
-      {
-        from: `"글숲" <${process.env.GMAIL_USER}>`,
-        to: normalizedEmail,
-        subject: '[글숲] 이메일 인증 번호를 확인해주세요',
-        html: `
-          <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-            <p><strong>${trimmedNickname || trimmedName}님, 안녕하세요.</strong></p>
-            <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
-            <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
-              ${otpCode}
-            </p>
-            <p style="font-size: 0.9rem; color:#888;">
-              인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
-            </p>
-          </div>
-        `,
-      },
-      (mailErr) => {
-        if (mailErr) {
-          console.error('인증 메일 발송 오류:', mailErr);
-        }
-      }
-    );
   } catch (error) {
     if (error && error.code === 'SQLITE_CONSTRAINT') {
       return sendAuthError(
@@ -862,7 +892,7 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
       [pending.id]
     );
 
-    await dbRun(
+    const otpInsertResult = await dbRun(
       `
       INSERT INTO pending_otp_verifications (pending_id, code_hash, expires_at, attempts)
       VALUES (?, ?, ?, 0)
@@ -870,14 +900,8 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
       [pending.id, otpHash, expiresAt]
     );
 
-    res.json({
-      ok: true,
-      message: '인증 번호를 다시 발송했습니다.',
-      retry_after: Math.ceil(OTP_COOLDOWN_MS / 1000),
-    });
-
-    transporter.sendMail(
-      {
+    try {
+      await sendMail({
         from: `"글숲" <${process.env.GMAIL_USER}>`,
         to: pending.email,
         subject: '[글숲] 이메일 인증 번호를 다시 확인해주세요',
@@ -893,13 +917,27 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
             </p>
           </div>
         `,
-      },
-      (mailErr) => {
-        if (mailErr) {
-          console.error('인증 메일 재발송 오류:', mailErr);
-        }
+      });
+    } catch (mailErr) {
+      console.error('인증 메일 재발송 오류:', getMailErrorDetails(mailErr));
+      try {
+        await dbRun('DELETE FROM pending_otp_verifications WHERE id = ?', [otpInsertResult.lastID]);
+      } catch (cleanupErr) {
+        console.error('OTP 재발송 실패 후 정리 오류:', cleanupErr);
       }
-    );
+      return sendAuthError(
+        res,
+        EMAIL_SEND_FAILURE_STATUS,
+        'AUTH_VERIFY_RESEND_EMAIL_SEND_FAILED',
+        '인증 메일 재발송에 실패했습니다. 잠시 후 다시 시도해주세요.'
+      );
+    }
+
+    res.json({
+      ok: true,
+      message: '인증 번호를 다시 발송했습니다.',
+      retry_after: Math.ceil(OTP_COOLDOWN_MS / 1000),
+    });
   } catch (error) {
     console.error('OTP 재발송 오류:', error);
     return sendAuthError(res, 500, 'AUTH_VERIFY_RESEND_INTERNAL_ERROR', 'OTP 재발송 중 오류가 발생했습니다.');
