@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>글쓰기 v2 | 글숲</title>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap"
+    rel="stylesheet"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap"
+    rel="stylesheet"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap"
+    rel="stylesheet"
+  />
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <link
+    href="https://cdn.quilljs.com/1.3.6/quill.snow.css"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="page-editor page-editor2">
+  <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
+    <div class="gls-container">
+      <a class="navbar-brand" href="/index.html">글숲</a>
+
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-gls-toggle="nav"
+        aria-controls="navbarNav"
+        aria-expanded="false"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav gls-ms-auto before-login">
+          <li class="nav-item">
+            <a class="nav-link" href="/html/login.html">로그인</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/html/signup.html">회원가입</a>
+          </li>
+        </ul>
+
+        <ul class="navbar-nav gls-ms-auto after-login is-hidden">
+          <li class="nav-item">
+            <span class="nav-link" id="navUserName"></span>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/html/mypage.html">마이페이지</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/html/editor2.html">글쓰기</a>
+          </li>
+          <li class="nav-item">
+            <button
+              class="user-profile"
+              id="logoutBtn"
+              type="button"
+              aria-label="로그아웃"
+            >
+              <span class="user-profile-inner">
+                <svg
+                  aria-hidden="true"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                >
+                  <g data-name="Layer 2" id="Layer_2">
+                    <path
+                      d="m15.626 11.769a6 6 0 1 0 -7.252 0 9.008 9.008 0 0 0 -5.374 8.231 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 9.008 9.008 0 0 0 -5.374-8.231zm-7.626-4.769a4 4 0 1 1 4 4 4 4 0 0 1 -4-4zm10 14h-12a1 1 0 0 1 -1-1 7 7 0 0 1 14 0 1 1 0 0 1 -1 1z"
+                    ></path>
+                  </g>
+                </svg>
+                <span class="user-profile-label">로그아웃</span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <section class="gls-py-5 gls-mt-5">
+    <div class="gls-container editor-page-container">
+      <div class="gls-flex gls-flex-col gls-md-flex-row gls-justify-between gls-md-items-end gls-mb-4">
+        <div>
+          <h2 class="gls-mb-1">글쓰기 v2</h2>
+          <p class="gls-mb-0 gls-text-muted gls-text-small">
+            글 입력 흐름은 유지하고, 레이아웃 편집 모드에서 제목/본문/푸터 박스를 직접 배치할 수 있어요.
+          </p>
+        </div>
+      </div>
+
+      <div id="editor2NoticeRegion" class="editor-notice-region gls-mb-3" aria-live="polite"></div>
+      <div id="editor2Alert" class="editor-alert gls-hidden gls-mb-3" role="alert" tabindex="-1"></div>
+
+      <div class="editor-main-grid gls-gap-4">
+        <div class="gls-flex gls-flex-col">
+          <div class="card h-100">
+            <div class="card-body">
+              <div class="editor-top-grid gls-mb-3">
+                <div class="editor-top-grid__title">
+                  <label for="postTitle" class="gls-label">제목</label>
+                  <input
+                    type="text"
+                    id="postTitle"
+                    class="gls-input"
+                    placeholder="오늘의 글 제목을 입력하세요"
+                  />
+                </div>
+
+                <div class="editor-top-grid__font">
+                  <label for="fontSelect" class="gls-label">폰트</label>
+                  <select id="fontSelect" class="gls-select gls-select-sm">
+                    <option value="serif">감성 명조체 (기본)</option>
+                    <option value="sans">담백한 고딕체</option>
+                    <option value="hand">손글씨 느낌</option>
+                  </select>
+                </div>
+
+                <div class="editor-top-grid__category">
+                  <label for="categorySelect" class="gls-label">글 종류</label>
+                  <select id="categorySelect" class="gls-select gls-select-sm" required>
+                    <option value="" selected disabled>카테고리 선택</option>
+                    <option value="poem">시</option>
+                    <option value="essay">에세이/일기</option>
+                    <option value="short">짧은 구절</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="gls-mb-3 editor-wrapper gls-relative">
+                <label class="gls-label">내용</label>
+                <div id="editor" class="editor-box editor-box-fixed"></div>
+                <div id="charCounter" class="char-counter gls-text-muted">200/200</div>
+              </div>
+
+              <div class="gls-mb-1">
+                <div class="hashtag-save-grid">
+                  <div class="hashtag-save-grid__input">
+                    <label for="postHashtags" class="gls-label">해시태그</label>
+                    <input
+                      type="text"
+                      id="postHashtags"
+                      class="gls-input"
+                      placeholder="#태그 입력 후 Enter로 추가"
+                    />
+                    <div class="gls-form-help">
+                      예) <code>#힐링 #밤산책 #공부기록</code> — 앞에 <code>#</code>를 붙이고 Enter를 눌러 해시태그를 추가하세요.
+                    </div>
+                  </div>
+                  <div class="hashtag-save-grid__action gls-flex gls-md-justify-end">
+                    <div class="editor2-secondary-actions">
+                      <button id="discardDraftBtn" type="button" class="gls-btn gls-btn-sm gls-btn-secondary">
+                        초안 삭제
+                      </button>
+                      <button id="saveBtn" class="gls-btn gls-btn-primary gls-save-btn gls-px-4">
+                        저장하기
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="gls-flex gls-flex-col">
+          <div class="card gls-mb-3">
+            <div class="card-body">
+              <h4 class="card-title gls-mb-2">피드 카드 미리보기 (v2)</h4>
+              <p class="gls-text-muted gls-text-small gls-mb-0">
+                레이아웃 편집 ON 상태에서 드래그/리사이즈 및 방향키(Shift+방향키=10px) 조정이 가능합니다.
+              </p>
+              <div class="editor-layout-controls gls-mt-3">
+                <button
+                  id="layoutEditToggleBtn"
+                  type="button"
+                  class="gls-btn gls-btn-secondary gls-btn-sm"
+                  aria-pressed="false"
+                >
+                  레이아웃 편집: OFF
+                </button>
+                <button id="layoutResetBtn" type="button" class="gls-btn gls-btn-sm">
+                  레이아웃 초기화
+                </button>
+              </div>
+              <div class="editor2-status-row">
+                <span id="editor2SaveStatus" class="editor2-save-status" aria-live="polite">Saved locally</span>
+                <span id="editor2SaveStatusTime" class="editor2-save-status-time"></span>
+              </div>
+              <p id="layoutSafeAreaHint" class="editor2-safe-hint" hidden>
+                안전 영역 밖입니다. 저장은 가능하지만 일부 기기에서 잘려 보일 수 있어요.
+              </p>
+            </div>
+          </div>
+
+          <div class="card editor-preview-card editor2-preview-card gls-flex-1">
+            <div class="card-body">
+              <div id="previewFeedCardMount" class="editor-preview-feed-card-mount"></div>
+
+              <div id="layoutPanel" class="editor2-layout-panel" hidden>
+                <div class="editor2-layout-item">
+                  <span class="editor2-layout-item__name">제목 박스</span>
+                  <label><input type="checkbox" id="layoutLockTitle"> 잠금</label>
+                  <label><input type="checkbox" id="layoutHideTitle"> 숨김</label>
+                </div>
+                <div class="editor2-layout-item">
+                  <span class="editor2-layout-item__name">본문 박스</span>
+                  <label><input type="checkbox" id="layoutLockBody"> 잠금</label>
+                  <label><input type="checkbox" id="layoutHideBody"> 숨김</label>
+                </div>
+                <div class="editor2-layout-item">
+                  <span class="editor2-layout-item__name">푸터 박스</span>
+                  <label><input type="checkbox" id="layoutLockFooter"> 잠금</label>
+                  <label><input type="checkbox" id="layoutHideFooter"> 숨김</label>
+                </div>
+                <p class="editor2-layout-help">
+                  스냅: 중앙선/안전영역 경계 자동 정렬. <code>Shift</code>를 누른 채 드래그하면 스냅이 꺼집니다.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+  <script src="/js/theme.js" defer></script>
+  <script src="/js/header.js"></script>
+  <script src="/js/analytics.js"></script>
+  <script src="/js/postCard.js"></script>
+  <script src="/js/editor2LayoutEditor.js"></script>
+  <script src="/js/editor2.js"></script>
+</body>
+</html>
