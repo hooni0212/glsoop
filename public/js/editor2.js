@@ -20,7 +20,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     hand: '손글씨 느낌',
   };
 
-  const CUSTOM_LAYOUT_REASONS = new Set(['drag', 'drag_end', 'resize', 'resize_end', 'nudge']);
+  const CUSTOM_LAYOUT_REASONS = new Set([
+    'drag',
+    'drag_end',
+    'resize',
+    'resize_end',
+    'nudge',
+    'style_change',
+  ]);
 
   const postTitleEl = document.getElementById('postTitle');
   const saveBtn = document.getElementById('saveBtn');
@@ -44,6 +51,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const hideTitleEl = document.getElementById('layoutHideTitle');
   const hideBodyEl = document.getElementById('layoutHideBody');
   const hideFooterEl = document.getElementById('layoutHideFooter');
+  const fontScaleTitleEl = document.getElementById('layoutFontScaleTitle');
+  const fontScaleBodyEl = document.getElementById('layoutFontScaleBody');
+  const fontScaleFooterEl = document.getElementById('layoutFontScaleFooter');
+  const fontScaleTitleValueEl = document.getElementById('layoutFontScaleTitleValue');
+  const fontScaleBodyValueEl = document.getElementById('layoutFontScaleBodyValue');
+  const fontScaleFooterValueEl = document.getElementById('layoutFontScaleFooterValue');
 
   if (
     !postTitleEl ||
@@ -482,6 +495,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   function syncLayoutPanelFromModel() {
     if (!layoutModel) return;
     const findBox = (id) => layoutModel.boxes.find((box) => box.id === id) || null;
+    const getStyle = (id) => {
+      if (id === 'title_box') return layoutModel.styles?.title || null;
+      if (id === 'text_box') return layoutModel.styles?.body || null;
+      if (id === 'footer_box') return layoutModel.styles?.footer || null;
+      return null;
+    };
+    const syncScaleControl = (inputEl, valueEl, style) => {
+      if (!inputEl && !valueEl) return;
+      const raw = Number(style?.font_scale);
+      const resolved = Number.isFinite(raw) ? Math.max(0.7, Math.min(1.7, raw)) : 1;
+      if (inputEl) {
+        inputEl.value = resolved.toFixed(2);
+      }
+      if (valueEl) {
+        valueEl.textContent = `${resolved.toFixed(2)}x`;
+      }
+    };
+
     const title = findBox('title_box');
     const body = findBox('text_box');
     const footer = findBox('footer_box');
@@ -492,6 +523,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (hideTitleEl) hideTitleEl.checked = Boolean(title?.hidden);
     if (hideBodyEl) hideBodyEl.checked = Boolean(body?.hidden);
     if (hideFooterEl) hideFooterEl.checked = Boolean(footer?.hidden);
+
+    syncScaleControl(fontScaleTitleEl, fontScaleTitleValueEl, getStyle('title_box'));
+    syncScaleControl(fontScaleBodyEl, fontScaleBodyValueEl, getStyle('text_box'));
+    syncScaleControl(fontScaleFooterEl, fontScaleFooterValueEl, getStyle('footer_box'));
   }
 
   function ensureLayoutEditor(previewCard, previewPost, plainText) {
@@ -1076,6 +1111,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindToggle(hideTitleEl, 'title_box', 'hide');
     bindToggle(hideBodyEl, 'text_box', 'hide');
     bindToggle(hideFooterEl, 'footer_box', 'hide');
+
+    const bindFontScale = (inputEl, valueEl, boxId) => {
+      if (!inputEl) return;
+
+      const applyScale = () => {
+        if (!layoutEditor) return;
+        const raw = Number.parseFloat(inputEl.value);
+        if (!Number.isFinite(raw)) return;
+        const clamped = Math.max(0.7, Math.min(1.7, raw));
+        if (valueEl) {
+          valueEl.textContent = `${clamped.toFixed(2)}x`;
+        }
+        layoutEditor.setBoxStyle(
+          boxId,
+          { font_scale: clamped },
+          { userInitiated: true, reason: 'style_change' }
+        );
+        layoutModel = layoutEditor.getModel();
+        layoutTouched = true;
+        updatePreview();
+        handleEditorMutation('layout_style', { skipPreview: true });
+      };
+
+      inputEl.addEventListener('input', applyScale);
+      inputEl.addEventListener('change', applyScale);
+    };
+
+    bindFontScale(fontScaleTitleEl, fontScaleTitleValueEl, 'title_box');
+    bindFontScale(fontScaleBodyEl, fontScaleBodyValueEl, 'text_box');
+    bindFontScale(fontScaleFooterEl, fontScaleFooterValueEl, 'footer_box');
   }
 
   function cleanupTimers() {

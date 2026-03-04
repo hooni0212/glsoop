@@ -213,16 +213,55 @@
               <div id="layoutPanel" class="editor2-layout-panel" hidden>
                 <div class="editor2-layout-item">
                   <span class="editor2-layout-item__name">제목 박스</span>
+                  <div class="editor2-layout-item__controls">
+                    <label for="layoutFontScaleTitle" class="editor2-layout-item__range-label">글자 크기</label>
+                    <input
+                      id="layoutFontScaleTitle"
+                      class="editor2-layout-item__range"
+                      type="range"
+                      min="0.7"
+                      max="1.7"
+                      step="0.05"
+                      value="1"
+                    />
+                    <span id="layoutFontScaleTitleValue" class="editor2-layout-item__range-value">1.00x</span>
+                  </div>
                   <label><input type="checkbox" id="layoutLockTitle"> 잠금</label>
                   <label><input type="checkbox" id="layoutHideTitle"> 숨김</label>
                 </div>
                 <div class="editor2-layout-item">
                   <span class="editor2-layout-item__name">본문 박스</span>
+                  <div class="editor2-layout-item__controls">
+                    <label for="layoutFontScaleBody" class="editor2-layout-item__range-label">글자 크기</label>
+                    <input
+                      id="layoutFontScaleBody"
+                      class="editor2-layout-item__range"
+                      type="range"
+                      min="0.7"
+                      max="1.7"
+                      step="0.05"
+                      value="1"
+                    />
+                    <span id="layoutFontScaleBodyValue" class="editor2-layout-item__range-value">1.00x</span>
+                  </div>
                   <label><input type="checkbox" id="layoutLockBody"> 잠금</label>
                   <label><input type="checkbox" id="layoutHideBody"> 숨김</label>
                 </div>
                 <div class="editor2-layout-item">
                   <span class="editor2-layout-item__name">푸터 박스</span>
+                  <div class="editor2-layout-item__controls">
+                    <label for="layoutFontScaleFooter" class="editor2-layout-item__range-label">글자 크기</label>
+                    <input
+                      id="layoutFontScaleFooter"
+                      class="editor2-layout-item__range"
+                      type="range"
+                      min="0.7"
+                      max="1.7"
+                      step="0.05"
+                      value="1"
+                    />
+                    <span id="layoutFontScaleFooterValue" class="editor2-layout-item__range-value">1.00x</span>
+                  </div>
                   <label><input type="checkbox" id="layoutLockFooter"> 잠금</label>
                   <label><input type="checkbox" id="layoutHideFooter"> 숨김</label>
                 </div>

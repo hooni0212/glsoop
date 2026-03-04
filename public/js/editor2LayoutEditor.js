@@ -279,6 +279,10 @@
     return model.boxes.find((box) => box.id === boxId) || null;
   }
 
+  function getStyleKeyForBox(boxId) {
+    return BOX_STYLE_KEY[boxId] || '';
+  }
+
   function modelToLayoutJson(rawModel) {
     const model = normalizeModel(rawModel);
     const textBox = findBox(model, 'text_box');
@@ -509,6 +513,27 @@
 
     getLayoutJson() {
       return modelToLayoutJson(this.model);
+    }
+
+    getBoxStyle(boxId) {
+      const styleKey = getStyleKeyForBox(boxId);
+      if (!styleKey) return null;
+      const rawStyle = this.model.styles?.[styleKey];
+      if (!rawStyle) return null;
+      return deepClone(rawStyle);
+    }
+
+    setBoxStyle(boxId, patch = {}, options = {}) {
+      const styleKey = getStyleKeyForBox(boxId);
+      if (!styleKey) return false;
+      const current = this.model.styles?.[styleKey] || DEFAULT_MODEL.styles[styleKey];
+      const merged = { ...current, ...(patch || {}) };
+      this.model.styles[styleKey] = normalizeStyle(merged, DEFAULT_MODEL.styles[styleKey]);
+      this.requestRender();
+      if (options.emit !== false) {
+        this.emitChange(options.reason || 'style_change', Boolean(options.userInitiated));
+      }
+      return true;
     }
 
     selectBox(boxId, options = {}) {
@@ -846,10 +871,19 @@
         boxEl.classList.toggle('is-outside-safe-area', outside);
 
         const previewTextEl = boxEl.querySelector('[data-role="preview-text"]');
+        const styleKey = getStyleKeyForBox(box.id);
+        const style = styleKey ? this.model.styles?.[styleKey] || {} : {};
         if (previewTextEl) {
           if (box.id === 'title_box') previewTextEl.textContent = this.previewText.title;
           if (box.id === 'text_box') previewTextEl.textContent = this.previewText.body;
           if (box.id === 'footer_box') previewTextEl.textContent = this.previewText.footer;
+          const align = normalizeAlign(style.align, 'center');
+          const scale = toFiniteNumber(style.font_scale) || 1;
+          const lineHeight = toFiniteNumber(style.line_height) || 1.15;
+          const baseFontPx = box.id === 'title_box' ? 12 : box.id === 'footer_box' ? 10 : 11;
+          previewTextEl.style.textAlign = align;
+          previewTextEl.style.fontSize = `${round(baseFontPx * scale, 2)}px`;
+          previewTextEl.style.lineHeight = String(round(lineHeight, 2));
         }
       });
     }

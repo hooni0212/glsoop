@@ -71,6 +71,32 @@
   color: #1f2937;
 }
 
+.page-editor2 .editor2-layout-item__controls {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-editor2 .editor2-layout-item__range-label {
+  font-size: 12px;
+  color: #475569;
+  margin: 0;
+}
+
+.page-editor2 .editor2-layout-item__range {
+  width: 100%;
+}
+
+.page-editor2 .editor2-layout-item__range-value {
+  min-width: 46px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
 .page-editor2 .editor2-layout-item label {
   display: inline-flex;
   align-items: center;
