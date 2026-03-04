@@ -460,6 +460,37 @@ function openPostShareModal(post, card) {
   }
 }
 
+function hasTitleBoxLayout(rawLayout) {
+  if (rawLayout == null) return false;
+
+  let parsed = rawLayout;
+  if (typeof parsed === 'string') {
+    const trimmed = parsed.trim();
+    if (!trimmed) return false;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return false;
+  }
+
+  const titleBox = parsed.title_box;
+  if (!titleBox || typeof titleBox !== 'object' || Array.isArray(titleBox)) {
+    return false;
+  }
+
+  return (
+    Number.isFinite(Number(titleBox.x)) &&
+    Number.isFinite(Number(titleBox.y)) &&
+    Number.isFinite(Number(titleBox.w)) &&
+    Number.isFinite(Number(titleBox.h))
+  );
+}
+
 /**
  * 선택된 한 개의 글을 화면 상단에 크게 렌더링
  */
@@ -508,12 +539,15 @@ function renderPostDetail(container, post) {
 
     const feedContent = card.querySelector('.feed-post-content');
     const hasRenderedImage = !!card.querySelector('.feed-rendered-card-image');
+    const hasImageTitleLayout = hasTitleBoxLayout(post.layout_json);
     if (feedContent) {
       feedContent.classList.add('expanded');
       if (hasRenderedImage) {
         feedContent.classList.add('feed-post-content--detail-rendered');
         card.classList.add('is-rendered-detail');
-        applyDetailImageTitleOverlay(card, post.title || '제목 없음');
+        if (!hasImageTitleLayout) {
+          applyDetailImageTitleOverlay(card, post.title || '제목 없음');
+        }
       } else {
         feedContent.classList.add('post-inner-surface', 'post-content-surface');
       }

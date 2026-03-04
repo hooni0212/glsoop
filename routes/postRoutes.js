@@ -29,6 +29,8 @@ const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
+const ALLOWED_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
+const LAYOUT_VALIDATION_ERROR_MESSAGE = '레이아웃 데이터가 올바르지 않습니다.';
 const CATEGORY_SQL =
   "CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END";
 
@@ -67,6 +69,158 @@ function parsePagination(query = {}) {
   }
 
   return { limit, offset };
+}
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function toFiniteNumber(value) {
+  const num =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number.parseFloat(value)
+        : NaN;
+  return Number.isFinite(num) ? num : null;
+}
+
+function normalizeLayoutNumber(value, precision = 4) {
+  const factor = 10 ** precision;
+  return Math.round(value * factor) / factor;
+}
+
+function normalizeLayoutBox(raw, { required = false } = {}) {
+  if (raw === undefined || raw === null || raw === '') {
+    return required ? null : null;
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const x = toFiniteNumber(raw.x);
+  const y = toFiniteNumber(raw.y);
+  const w = toFiniteNumber(raw.w);
+  const h = toFiniteNumber(raw.h);
+
+  if (x == null || y == null || w == null || h == null) {
+    return null;
+  }
+
+  if (x < 0 || x > 1 || y < 0 || y > 1 || w <= 0 || w > 1 || h <= 0 || h > 1) {
+    return null;
+  }
+
+  const normalized = {
+    x: normalizeLayoutNumber(x),
+    y: normalizeLayoutNumber(y),
+    w: normalizeLayoutNumber(w),
+    h: normalizeLayoutNumber(h),
+  };
+
+  if (typeof raw.align === 'string') {
+    const align = raw.align.trim().toLowerCase();
+    if (ALLOWED_LAYOUT_ALIGN.has(align)) {
+      normalized.align = align;
+    } else if (align) {
+      return null;
+    }
+  }
+
+  if (raw.font_scale !== undefined) {
+    const fontScale = toFiniteNumber(raw.font_scale);
+    if (fontScale == null || fontScale <= 0) {
+      return null;
+    }
+    normalized.font_scale = normalizeLayoutNumber(fontScale, 3);
+  }
+
+  if (raw.line_height !== undefined) {
+    const lineHeight = toFiniteNumber(raw.line_height);
+    if (lineHeight == null || lineHeight <= 0) {
+      return null;
+    }
+    normalized.line_height = normalizeLayoutNumber(lineHeight, 3);
+  }
+
+  return normalized;
+}
+
+function normalizeLayoutPayload(raw) {
+  let payload = raw;
+
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim();
+    if (!trimmed) {
+      return { ok: true, value: null };
+    }
+    try {
+      payload = JSON.parse(trimmed);
+    } catch (_error) {
+      return { ok: false };
+    }
+  }
+
+  if (payload == null) {
+    return { ok: true, value: null };
+  }
+
+  if (typeof payload !== 'object' || Array.isArray(payload)) {
+    return { ok: false };
+  }
+
+  const layoutVersion = Number.parseInt(payload.layout_version, 10);
+  if (layoutVersion !== 1) {
+    return { ok: false };
+  }
+
+  const textBox = normalizeLayoutBox(payload.text_box, { required: true });
+  if (!textBox) {
+    return { ok: false };
+  }
+
+  let titleBox = null;
+  if (hasOwn(payload, 'title_box')) {
+    titleBox = normalizeLayoutBox(payload.title_box, { required: false });
+    if (payload.title_box != null && !titleBox) {
+      return { ok: false };
+    }
+  }
+
+  const normalized = {
+    layout_version: 1,
+    text_box: textBox,
+  };
+  if (titleBox) {
+    normalized.title_box = titleBox;
+  }
+
+  return {
+    ok: true,
+    value: JSON.stringify(normalized),
+  };
+}
+
+function parseLayoutInputFromBody(body = {}) {
+  const hasLayoutJson = hasOwn(body, 'layout_json');
+  const hasLayout = hasOwn(body, 'layout');
+
+  if (!hasLayoutJson && !hasLayout) {
+    // layout_json이 없으면 기존 자동 preset 렌더링을 그대로 유지한다.
+    return { provided: false, value: null };
+  }
+
+  const raw = hasLayoutJson ? body.layout_json : body.layout;
+  const normalized = normalizeLayoutPayload(raw);
+
+  if (!normalized.ok) {
+    return { provided: true, error: true };
+  }
+
+  return {
+    provided: true,
+    value: normalized.value,
+  };
 }
 
 function extractTagsFromQuery(query = {}) {
@@ -166,8 +320,15 @@ router.post('/posts', authRequired, (req, res) => {
   const { title, content, hashtags, category } = req.body;
   const userId = req.user.id;
   const normalizedCategory = requireValidCategory(category, res);
+  const layoutInput = parseLayoutInputFromBody(req.body);
 
   if (!normalizedCategory) return;
+  if (layoutInput.error) {
+    return res.status(400).json({
+      ok: false,
+      message: LAYOUT_VALIDATION_ERROR_MESSAGE,
+    });
+  }
 
   if (!title || !content) {
     return res
@@ -179,8 +340,17 @@ router.post('/posts', authRequired, (req, res) => {
 
   // 본문 저장 후 해시태그를 별도 테이블에 기록
   db.run(
-    'INSERT INTO posts (user_id, title, content, category) VALUES (?, ?, ?, ?)',
-    [userId, title, safeContent, normalizedCategory],
+    `
+      INSERT INTO posts (user_id, title, content, category, layout_json)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    [
+      userId,
+      title,
+      safeContent,
+      normalizedCategory,
+      layoutInput.provided ? layoutInput.value : null,
+    ],
     function (err) {
       if (err) {
         console.error(err);
@@ -229,8 +399,15 @@ router.put('/posts/:id', authRequired, (req, res) => {
   const userId = req.user.id;
   const isAdmin = !!req.user.isAdmin;
   const normalizedCategory = requireValidCategory(category, res);
+  const layoutInput = parseLayoutInputFromBody(req.body);
 
   if (!normalizedCategory) return;
+  if (layoutInput.error) {
+    return res.status(400).json({
+      ok: false,
+      message: LAYOUT_VALIDATION_ERROR_MESSAGE,
+    });
+  }
 
   if (!title || !content) {
     return res
@@ -262,9 +439,17 @@ router.put('/posts/:id', authRequired, (req, res) => {
     }
 
     // 본문 갱신 후 해시태그 매핑을 재작성
+    const updateFields = ['title = ?', 'content = ?', 'category = ?'];
+    const updateParams = [title, safeContent, normalizedCategory];
+    if (layoutInput.provided) {
+      updateFields.push('layout_json = ?');
+      updateParams.push(layoutInput.value);
+    }
+    updateParams.push(postId);
+
     db.run(
-      'UPDATE posts SET title = ?, content = ?, category = ? WHERE id = ?',
-      [title, safeContent, normalizedCategory, postId],
+      `UPDATE posts SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateParams,
       function (err2) {
         if (err2) {
           console.error(err2);
@@ -303,6 +488,7 @@ router.get('/posts/my', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
+      p.layout_json,
       ${CATEGORY_SQL} AS category,
       p.created_at,
       p.user_id                AS author_id,
@@ -356,6 +542,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
+      p.layout_json,
       ${CATEGORY_SQL} AS category,
       p.created_at,
       p.user_id                AS author_id,
@@ -432,6 +619,7 @@ function handleFeedRequest(req, res) {
         p.id,
         p.title,
         p.content,
+        p.layout_json,
         p.created_at,
         ${CATEGORY_SQL} AS category,
         u.id       AS author_id,
@@ -616,6 +804,7 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
           p.id,
           p.title,
           p.content,
+          p.layout_json,
           ${CATEGORY_SQL} AS category,
           p.created_at,
           u.id       AS author_id,
@@ -734,6 +923,7 @@ router.get('/posts/:id/edit', authRequired, (req, res) => {
       p.id,
       p.title,
       p.content,
+      p.layout_json,
       ${CATEGORY_SQL} AS category,
       p.created_at,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
@@ -769,6 +959,7 @@ router.get('/posts/:id/edit', authRequired, (req, res) => {
           id: row.id,
           title: row.title,
           content: row.content,
+          layout_json: row.layout_json || null,
           category: row.category,
           created_at: row.created_at,
           hashtags: tags,
@@ -954,6 +1145,7 @@ function handlePublicPostDetail(req, res) {
       p.id,
       p.title,
       p.content,
+      p.layout_json,
       ${CATEGORY_SQL} AS category,
       p.created_at,
       u.id       AS author_id,
@@ -1028,6 +1220,7 @@ function handlePublicPostDetail(req, res) {
         id: row.id,
         title: row.title,
         content: row.content,
+        layout_json: row.layout_json || null,
         category: row.category,
         created_at: row.created_at,
         author_id: row.author_id,

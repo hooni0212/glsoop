@@ -91,6 +91,54 @@ const LAYOUT_PRESETS = {
   },
 };
 
+const FEED_TITLE_BOX_PRESETS = {
+  oneLine: {
+    leftPct: 0.29,
+    topPct: 0.24,
+    widthPct: 0.42,
+    heightPct: 0.125,
+    textAlign: 'center',
+    verticalAlign: 'top',
+    maxLines: 2,
+  },
+  short: {
+    leftPct: 0.336,
+    topPct: 0.256,
+    widthPct: 0.424,
+    heightPct: 0.122,
+    textAlign: 'center',
+    verticalAlign: 'top',
+    maxLines: 2,
+  },
+  medium: {
+    leftPct: 0.354,
+    topPct: 0.268,
+    widthPct: 0.41,
+    heightPct: 0.12,
+    textAlign: 'left',
+    verticalAlign: 'top',
+    maxLines: 2,
+  },
+  long: {
+    leftPct: 0.322,
+    topPct: 0.262,
+    widthPct: 0.452,
+    heightPct: 0.124,
+    textAlign: 'left',
+    verticalAlign: 'top',
+    maxLines: 2,
+  },
+  xlong: {
+    leftPct: 0.299,
+    topPct: 0.258,
+    widthPct: 0.488,
+    heightPct: 0.128,
+    textAlign: 'left',
+    verticalAlign: 'top',
+    maxLines: 2,
+  },
+};
+
 const TEXT_COLOR = '#473f36';
 const TEXT_FONT_WEIGHT = 600;
 const SVG_FONT_FAMILY =
@@ -209,8 +257,36 @@ const SHARE_LAYOUT_PRESETS = {
     },
   },
 };
+
+const CUSTOM_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
+const CUSTOM_LAYOUT_MIN_BOX_SIZE = 0.06;
+const CUSTOM_LAYOUT_FONT_SCALE_RANGE = { min: 0.7, max: 1.7 };
+const CUSTOM_LAYOUT_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.0 };
+const TEXT_CLIP_TOP_PADDING_RATIO = 0.08;
+const TEXT_CLIP_BOTTOM_PADDING_RATIO = 0.14;
 const inFlightRenders = new Map();
 const templateMetaCache = new Map();
+
+function clampNumber(value, min, max) {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+function roundNumber(value, precision = 4) {
+  const factor = 10 ** precision;
+  return Math.round(value * factor) / factor;
+}
+
+function toFiniteNumber(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
 
 function normalizeTemplateKey(input) {
   const key = String(input || 'paper01').trim().toLowerCase();
@@ -280,6 +356,119 @@ function selectShareLayoutPreset(text) {
   if (compactLength <= 170) return 'medium';
   if (compactLength <= 260) return 'long';
   return 'xlong';
+}
+
+function parseLayoutBox(raw, { required = false } = {}) {
+  if (raw == null) {
+    return required ? null : null;
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const xRaw = toFiniteNumber(raw.x);
+  const yRaw = toFiniteNumber(raw.y);
+  const wRaw = toFiniteNumber(raw.w);
+  const hRaw = toFiniteNumber(raw.h);
+
+  if (xRaw == null || yRaw == null || wRaw == null || hRaw == null) {
+    return null;
+  }
+
+  if (xRaw < 0 || xRaw > 1 || yRaw < 0 || yRaw > 1 || wRaw <= 0 || hRaw <= 0) {
+    return null;
+  }
+
+  const normalizedW = clampNumber(wRaw, CUSTOM_LAYOUT_MIN_BOX_SIZE, 1);
+  const normalizedH = clampNumber(hRaw, CUSTOM_LAYOUT_MIN_BOX_SIZE, 1);
+  const normalizedX = clampNumber(xRaw, 0, Math.max(0, 1 - normalizedW));
+  const normalizedY = clampNumber(yRaw, 0, Math.max(0, 1 - normalizedH));
+
+  const normalized = {
+    x: roundNumber(normalizedX, 4),
+    y: roundNumber(normalizedY, 4),
+    w: roundNumber(normalizedW, 4),
+    h: roundNumber(normalizedH, 4),
+  };
+
+  if (typeof raw.align === 'string') {
+    const align = raw.align.trim().toLowerCase();
+    if (CUSTOM_LAYOUT_ALIGN.has(align)) {
+      normalized.align = align;
+    }
+  }
+
+  const fontScaleRaw = toFiniteNumber(raw.font_scale);
+  if (fontScaleRaw != null && fontScaleRaw > 0) {
+    normalized.font_scale = roundNumber(
+      clampNumber(
+        fontScaleRaw,
+        CUSTOM_LAYOUT_FONT_SCALE_RANGE.min,
+        CUSTOM_LAYOUT_FONT_SCALE_RANGE.max
+      ),
+      3
+    );
+  }
+
+  const lineHeightRaw = toFiniteNumber(raw.line_height);
+  if (lineHeightRaw != null && lineHeightRaw > 0) {
+    normalized.line_height = roundNumber(
+      clampNumber(
+        lineHeightRaw,
+        CUSTOM_LAYOUT_LINE_HEIGHT_RANGE.min,
+        CUSTOM_LAYOUT_LINE_HEIGHT_RANGE.max
+      ),
+      3
+    );
+  }
+
+  return normalized;
+}
+
+function parsePostLayout(rawLayoutJson) {
+  if (rawLayoutJson == null) return null;
+
+  let parsed = rawLayoutJson;
+  if (typeof parsed === 'string') {
+    const trimmed = parsed.trim();
+    if (!trimmed) return null;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null;
+  }
+
+  const version = Number.parseInt(parsed.layout_version, 10);
+  if (version !== 1) {
+    return null;
+  }
+
+  const textBox = parseLayoutBox(parsed.text_box, { required: true });
+  if (!textBox) {
+    return null;
+  }
+
+  let titleBox = null;
+  if (Object.prototype.hasOwnProperty.call(parsed, 'title_box')) {
+    titleBox = parseLayoutBox(parsed.title_box, { required: false });
+    if (parsed.title_box != null && !titleBox) {
+      return null;
+    }
+  }
+
+  const normalized = {
+    layout_version: 1,
+    text_box: textBox,
+  };
+  if (titleBox) {
+    normalized.title_box = titleBox;
+  }
+  return normalized;
 }
 
 function isCjkChar(ch) {
@@ -462,6 +651,7 @@ function buildCacheHash({ post, templateKey, scale, renderMode }) {
     title: post?.title || '',
     content: post?.content || '',
     created_at: post?.created_at || '',
+    layout_json: post?.layout_json || '',
   });
 
   return crypto.createHash('sha1').update(payload).digest('hex');
@@ -471,72 +661,118 @@ function buildSvgTextOverlay({
   width,
   height,
   lines,
-  preset,
+  box,
   fontSizePx,
   lineHeightPx,
+  textAlign = 'left',
+  verticalAlign = 'top',
+  title = null,
 }) {
-  const boxX = Math.round(width * preset.leftPct);
-  const boxY = Math.round(height * preset.topPct);
-  const boxWidth = Math.round(width * preset.widthPct);
-  const boxHeight = Math.max(
-    0,
-    height - boxY - Math.round(height * preset.bottomPct)
-  );
+  const safeBox = box || { x: 0, y: 0, width, height };
+  const bodyGroup = buildSvgTextGroup({
+    clipId: 'feed-text-box',
+    box: safeBox,
+    lines,
+    textAlign,
+    verticalAlign,
+    fontSizePx,
+    lineHeightPx,
+    clipPadTopPx: Math.round(safeBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
+    clipPadBottomPx: Math.round(safeBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
+  });
 
-  const rawTextBlockHeight = lineHeightPx * Math.max(lines.length, 1);
-  const shouldCenter = preset.verticalAlign === 'center';
-  const isCenterText = preset.textAlign === 'center';
-  const textX = isCenterText ? boxX + boxWidth / 2 : boxX;
-  const textAnchor = isCenterText ? 'middle' : 'start';
+  const defs = [bodyGroup.defs];
+  const groups = [bodyGroup.group];
 
-  const topOffset = shouldCenter
-    ? Math.max(0, (boxHeight - rawTextBlockHeight) / 2)
-    : 0;
-
-  const firstBaselineY = boxY + topOffset + fontSizePx;
-  const tspans = lines
-    .map((line, index) => {
-      const y = firstBaselineY + index * lineHeightPx;
-      const safeText = line ? escapeXml(line) : ' ';
-      return `<tspan x="${Math.round(textX * 100) / 100}" y="${Math.round(y * 100) / 100}">${safeText}</tspan>`;
-    })
-    .join('');
+  if (title && title.box && Array.isArray(title.lines)) {
+    const titleGroup = buildSvgTextGroup({
+      clipId: 'feed-title-box',
+      box: title.box,
+      lines: title.lines,
+      textAlign: title.textAlign || 'left',
+      verticalAlign: title.verticalAlign || 'top',
+      fontSizePx: title.fontSizePx || fontSizePx,
+      lineHeightPx: title.lineHeightPx || lineHeightPx,
+      clipPadTopPx: Math.round((title.box.height || safeBox.height) * TEXT_CLIP_TOP_PADDING_RATIO),
+      clipPadBottomPx: Math.round((title.box.height || safeBox.height) * TEXT_CLIP_BOTTOM_PADDING_RATIO),
+    });
+    defs.push(titleGroup.defs);
+    groups.push(titleGroup.group);
+  }
 
   return `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <clipPath id="feed-text-box">
-      <rect x="${boxX}" y="${boxY}" width="${boxWidth}" height="${boxHeight}" />
-    </clipPath>
+    ${defs.join('\n    ')}
   </defs>
-  <g clip-path="url(#feed-text-box)">
-    <text
-      fill="${TEXT_COLOR}"
-      font-family="${SVG_FONT_FAMILY}"
-      font-size="${Math.round(fontSizePx * 100) / 100}"
-      font-weight="${TEXT_FONT_WEIGHT}"
-      text-anchor="${textAnchor}"
-      letter-spacing="0"
-      text-rendering="optimizeLegibility"
-    >
-      ${tspans}
-    </text>
-  </g>
+  ${groups.join('\n  ')}
 </svg>
   `.trim();
 }
 
-function resolveBoxFromPreset(width, height, boxPreset) {
-  const boxX = Math.round(width * boxPreset.leftPct);
-  const boxY = Math.round(height * boxPreset.topPct);
-  const boxWidth = Math.round(width * boxPreset.widthPct);
-  const boxHeight = Math.round(height * boxPreset.heightPct);
+function resolveFeedBoxFromPreset(width, height, preset) {
+  const boxX = Math.round(width * preset.leftPct);
+  const boxY = Math.round(height * preset.topPct);
+  const boxWidth = Math.max(1, Math.round(width * preset.widthPct));
+  const boxHeight = Math.max(1, height - boxY - Math.round(height * preset.bottomPct));
   return {
     x: boxX,
     y: boxY,
     width: boxWidth,
     height: boxHeight,
   };
+}
+
+function resolveBoxFromPreset(width, height, boxPreset) {
+  const boxX = Math.round(width * boxPreset.leftPct);
+  const boxY = Math.round(height * boxPreset.topPct);
+  const boxWidth = Math.max(1, Math.round(width * boxPreset.widthPct));
+  const boxHeight = Math.max(1, Math.round(height * boxPreset.heightPct));
+  return {
+    x: boxX,
+    y: boxY,
+    width: boxWidth,
+    height: boxHeight,
+  };
+}
+
+function resolveBoxFromNormalizedLayout(width, height, textBox = {}) {
+  const normalizedW = clampNumber(
+    toFiniteNumber(textBox.w) || CUSTOM_LAYOUT_MIN_BOX_SIZE,
+    CUSTOM_LAYOUT_MIN_BOX_SIZE,
+    1
+  );
+  const normalizedH = clampNumber(
+    toFiniteNumber(textBox.h) || CUSTOM_LAYOUT_MIN_BOX_SIZE,
+    CUSTOM_LAYOUT_MIN_BOX_SIZE,
+    1
+  );
+  const normalizedX = clampNumber(
+    toFiniteNumber(textBox.x) || 0,
+    0,
+    Math.max(0, 1 - normalizedW)
+  );
+  const normalizedY = clampNumber(
+    toFiniteNumber(textBox.y) || 0,
+    0,
+    Math.max(0, 1 - normalizedH)
+  );
+
+  const box = {
+    x: Math.round(width * normalizedX),
+    y: Math.round(height * normalizedY),
+    width: Math.max(1, Math.round(width * normalizedW)),
+    height: Math.max(1, Math.round(height * normalizedH)),
+  };
+
+  if (box.x + box.width > width) {
+    box.x = Math.max(0, width - box.width);
+  }
+  if (box.y + box.height > height) {
+    box.y = Math.max(0, height - box.height);
+  }
+
+  return box;
 }
 
 function resolveFittedMaxLines(boxHeightPx, lineHeightPx, presetMaxLines) {
@@ -556,17 +792,25 @@ function buildSvgTextGroup({
   color = TEXT_COLOR,
   fontFamily = SVG_FONT_FAMILY,
   fontWeight = TEXT_FONT_WEIGHT,
+  clipPadTopPx = 0,
+  clipPadBottomPx = 0,
 }) {
   const safeLines = Array.isArray(lines) && lines.length > 0 ? lines : [' '];
   const rawTextBlockHeight = lineHeightPx * safeLines.length;
   const shouldCenter = verticalAlign === 'center';
   const isCenterText = textAlign === 'center';
-  const textX = isCenterText ? box.x + box.width / 2 : box.x;
-  const textAnchor = isCenterText ? 'middle' : 'start';
+  const isRightText = textAlign === 'right';
+  const textX = isCenterText ? box.x + box.width / 2 : isRightText ? box.x + box.width : box.x;
+  const textAnchor = isCenterText ? 'middle' : isRightText ? 'end' : 'start';
   const topOffset = shouldCenter
     ? Math.max(0, (box.height - rawTextBlockHeight) / 2)
     : 0;
   const firstBaselineY = box.y + topOffset + fontSizePx;
+  const clipY = Math.max(0, box.y - Math.max(0, clipPadTopPx));
+  const clipHeight = Math.max(
+    1,
+    box.height + Math.max(0, clipPadTopPx) + Math.max(0, clipPadBottomPx)
+  );
 
   const tspans = safeLines
     .map((line, index) => {
@@ -577,7 +821,7 @@ function buildSvgTextGroup({
     .join('');
 
   return {
-    defs: `<clipPath id="${clipId}"><rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" /></clipPath>`,
+    defs: `<clipPath id="${clipId}"><rect x="${box.x}" y="${clipY}" width="${box.width}" height="${clipHeight}" /></clipPath>`,
     group: `
   <g clip-path="url(#${clipId})">
     <text
@@ -627,28 +871,38 @@ function buildSvgShareOverlay({
   layoutPreset,
   fontSizePx,
   lineHeightPx,
+  titleBoxOverride = null,
+  titleTextAlignOverride = '',
+  titleFontSizeOverridePx = null,
+  titleLineHeightOverridePx = null,
+  bodyBoxOverride = null,
+  bodyTextAlignOverride = '',
 }) {
-  const titleBox = resolveBoxFromPreset(width, height, layoutPreset.title);
-  const bodyBox = resolveBoxFromPreset(width, height, layoutPreset.body);
+  const titleBox = titleBoxOverride || resolveBoxFromPreset(width, height, layoutPreset.title);
+  const bodyBox = bodyBoxOverride || resolveBoxFromPreset(width, height, layoutPreset.body);
 
   const titleGroup = buildSvgTextGroup({
     clipId: 'share-title-box',
     box: titleBox,
     lines: titleLines,
-    textAlign: layoutPreset.title.textAlign,
+    textAlign: titleTextAlignOverride || layoutPreset.title.textAlign,
     verticalAlign: layoutPreset.title.verticalAlign,
-    fontSizePx,
-    lineHeightPx,
+    fontSizePx: titleFontSizeOverridePx || fontSizePx,
+    lineHeightPx: titleLineHeightOverridePx || lineHeightPx,
+    clipPadTopPx: Math.round(titleBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
+    clipPadBottomPx: Math.round(titleBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
 
   const bodyGroup = buildSvgTextGroup({
     clipId: 'share-body-box',
     box: bodyBox,
     lines: bodyLines,
-    textAlign: layoutPreset.body.textAlign,
+    textAlign: bodyTextAlignOverride || layoutPreset.body.textAlign,
     verticalAlign: layoutPreset.body.verticalAlign,
     fontSizePx,
     lineHeightPx,
+    clipPadTopPx: Math.round(bodyBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
+    clipPadBottomPx: Math.round(bodyBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
 
   const brandSignature = buildSvgBrandSignature({ width, height });
@@ -673,38 +927,121 @@ async function renderFeedModeImageBuffer({
   outputHeight,
   scale,
 }) {
-  const text =
-    normalizePostText(post?.content) ||
-    normalizePostText(post?.title) ||
-    ' ';
-  const presetKey = selectLengthPreset(text.length);
+  const titleText = normalizePostText(post?.title) || '';
+  const bodyText = normalizePostText(post?.content) || titleText || ' ';
+  const presetKey = selectLengthPreset(bodyText.length);
   const preset = LAYOUT_PRESETS[presetKey];
+  const parsedLayout = parsePostLayout(post?.layout_json);
+  const customBodyBox = parsedLayout?.text_box || null;
+  const customTitleBox = parsedLayout?.title_box || null;
+  const hasCustomBodyLayout = !!customBodyBox;
+  const hasCustomTitleLayout = !!customTitleBox;
+  const shouldRenderTitleInImage = hasCustomTitleLayout && Boolean(titleText);
+  const bodyFontScale = customBodyBox?.font_scale || 1;
+  const bodyLineHeightRatio = customBodyBox?.line_height || preset.lineHeightRatio;
   const minFontSizePx = scale === 2 ? 20 : 12;
-  const fontSizePx = Math.max(minFontSizePx, outputWidth * preset.fontSizeRatio);
-  const lineHeightPx = fontSizePx * preset.lineHeightRatio;
-  const maxTextWidthPx = Math.max(20, outputWidth * preset.widthPct);
-  const lines = layoutTextLines(text, maxTextWidthPx, fontSizePx, preset.maxLines);
-  const nonEmptyLineCount = lines.filter((line) => String(line || '').trim().length > 0).length;
-  const effectivePreset =
-    nonEmptyLineCount <= 1
-      ? {
-          ...preset,
-          topPct: 0.34,
-          leftPct: 0.26,
-          widthPct: 0.48,
-          bottomPct: 0.34,
-          textAlign: 'center',
-          verticalAlign: 'center',
-        }
-      : preset;
+  let effectivePreset = preset;
+  let fontSizePx = Math.max(
+    minFontSizePx,
+    outputWidth * preset.fontSizeRatio * bodyFontScale
+  );
+  let lineHeightPx = fontSizePx * bodyLineHeightRatio;
+  let box = hasCustomBodyLayout
+    ? resolveBoxFromNormalizedLayout(outputWidth, outputHeight, customBodyBox)
+    : resolveFeedBoxFromPreset(outputWidth, outputHeight, effectivePreset);
+  let maxLines = hasCustomBodyLayout
+    ? resolveFittedMaxLines(box.height, lineHeightPx, Math.max(preset.maxLines, 24))
+    : preset.maxLines;
+  let lines = layoutTextLines(
+    bodyText,
+    Math.max(20, box.width),
+    fontSizePx,
+    maxLines
+  );
+
+  if (!hasCustomBodyLayout) {
+    const nonEmptyLineCount = lines.filter(
+      (line) => String(line || '').trim().length > 0
+    ).length;
+    if (nonEmptyLineCount <= 1) {
+      effectivePreset = {
+        ...preset,
+        topPct: 0.34,
+        leftPct: 0.26,
+        widthPct: 0.48,
+        bottomPct: 0.34,
+        textAlign: 'center',
+        verticalAlign: 'center',
+      };
+      fontSizePx = Math.max(
+        minFontSizePx,
+        outputWidth * effectivePreset.fontSizeRatio * bodyFontScale
+      );
+      lineHeightPx = fontSizePx * bodyLineHeightRatio;
+      box = resolveFeedBoxFromPreset(outputWidth, outputHeight, effectivePreset);
+      maxLines = effectivePreset.maxLines;
+      lines = layoutTextLines(
+        bodyText,
+        Math.max(20, box.width),
+        fontSizePx,
+        maxLines
+      );
+    }
+  }
+
+  let titleConfig = null;
+  if (shouldRenderTitleInImage) {
+    const titlePreset =
+      FEED_TITLE_BOX_PRESETS[presetKey] || FEED_TITLE_BOX_PRESETS.medium;
+    const titleBox = resolveBoxFromNormalizedLayout(
+      outputWidth,
+      outputHeight,
+      customTitleBox
+    );
+    const titleFontScale = customTitleBox?.font_scale || 1;
+    const titleLineHeightRatio =
+      customTitleBox?.line_height || bodyLineHeightRatio;
+    const titleBaseFontSize = Math.max(
+      minFontSizePx,
+      outputWidth * preset.fontSizeRatio * 0.9
+    );
+    const titleFontSizePx = Math.max(
+      minFontSizePx,
+      titleBaseFontSize * titleFontScale
+    );
+    const titleLineHeightPx = titleFontSizePx * titleLineHeightRatio;
+    const titleMaxLines = resolveFittedMaxLines(
+      titleBox.height,
+      titleLineHeightPx,
+      titlePreset.maxLines || 2
+    );
+    const titleLines = layoutTextLines(
+      titleText,
+      Math.max(20, titleBox.width),
+      titleFontSizePx,
+      titleMaxLines
+    );
+
+    titleConfig = {
+      box: titleBox,
+      lines: titleLines,
+      textAlign: customTitleBox?.align || titlePreset.textAlign,
+      verticalAlign: titlePreset.verticalAlign,
+      fontSizePx: titleFontSizePx,
+      lineHeightPx: titleLineHeightPx,
+    };
+  }
 
   const svgOverlay = buildSvgTextOverlay({
     width: outputWidth,
     height: outputHeight,
     lines,
-    preset: effectivePreset,
+    box,
     fontSizePx,
     lineHeightPx,
+    textAlign: customBodyBox?.align || effectivePreset.textAlign,
+    verticalAlign: effectivePreset.verticalAlign,
+    title: titleConfig,
   });
 
   const imageBuffer = await sharp(template.filePath)
@@ -727,7 +1064,9 @@ async function renderFeedModeImageBuffer({
 
   return {
     buffer: imageBuffer,
-    layout: presetKey,
+    layout: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}${
+      shouldRenderTitleInImage ? '-with-title' : ''
+    }`,
   };
 }
 
@@ -742,33 +1081,54 @@ async function renderShareModeImageBuffer({
   const bodyText = normalizePostText(post?.content) || titleText || ' ';
   const layoutKey = selectShareLayoutPreset(bodyText);
   const layoutPreset = SHARE_LAYOUT_PRESETS[layoutKey] || SHARE_LAYOUT_PRESETS.medium;
+  const parsedLayout = parsePostLayout(post?.layout_json);
+  const customBodyBox = parsedLayout?.text_box || null;
+  const customTitleBox = parsedLayout?.title_box || null;
+  const hasCustomBodyLayout = !!customBodyBox;
+  const hasCustomTitleLayout = !!customTitleBox;
+  const fontScale = customBodyBox?.font_scale || 1;
+  const lineHeightRatio = customBodyBox?.line_height || layoutPreset.lineHeightRatio;
   const minFontSizePx = scale === 2 ? 20 : 12;
-  const fontSizePx = Math.max(minFontSizePx, outputWidth * layoutPreset.fontSizeRatio);
-  const lineHeightPx = fontSizePx * layoutPreset.lineHeightRatio;
+  const bodyFontSizePx = Math.max(
+    minFontSizePx,
+    outputWidth * layoutPreset.fontSizeRatio * fontScale
+  );
+  const bodyLineHeightPx = bodyFontSizePx * lineHeightRatio;
+  const titleFontScale = customTitleBox?.font_scale || 1;
+  const titleLineHeightRatio = customTitleBox?.line_height || lineHeightRatio;
+  const titleFontSizePx = Math.max(
+    minFontSizePx,
+    outputWidth * layoutPreset.fontSizeRatio * 0.9 * titleFontScale
+  );
+  const titleLineHeightPx = titleFontSizePx * titleLineHeightRatio;
 
-  const titleBox = resolveBoxFromPreset(outputWidth, outputHeight, layoutPreset.title);
-  const bodyBox = resolveBoxFromPreset(outputWidth, outputHeight, layoutPreset.body);
+  const titleBox = hasCustomTitleLayout
+    ? resolveBoxFromNormalizedLayout(outputWidth, outputHeight, customTitleBox)
+    : resolveBoxFromPreset(outputWidth, outputHeight, layoutPreset.title);
+  const bodyBox = hasCustomBodyLayout
+    ? resolveBoxFromNormalizedLayout(outputWidth, outputHeight, customBodyBox)
+    : resolveBoxFromPreset(outputWidth, outputHeight, layoutPreset.body);
   const titleMaxLines = resolveFittedMaxLines(
     titleBox.height,
-    lineHeightPx,
+    titleLineHeightPx,
     layoutPreset.title.maxLines
   );
   const bodyMaxLines = resolveFittedMaxLines(
     bodyBox.height,
-    lineHeightPx,
-    layoutPreset.body.maxLines
+    bodyLineHeightPx,
+    hasCustomBodyLayout ? Math.max(layoutPreset.body.maxLines, 24) : layoutPreset.body.maxLines
   );
 
   const titleLines = layoutTextLines(
     titleText,
     Math.max(20, titleBox.width),
-    fontSizePx,
+    titleFontSizePx,
     titleMaxLines
   );
   const bodyLines = layoutTextLines(
     bodyText,
     Math.max(20, bodyBox.width),
-    fontSizePx,
+    bodyFontSizePx,
     bodyMaxLines
   );
 
@@ -778,8 +1138,14 @@ async function renderShareModeImageBuffer({
     titleLines,
     bodyLines,
     layoutPreset,
-    fontSizePx,
-    lineHeightPx,
+    fontSizePx: bodyFontSizePx,
+    lineHeightPx: bodyLineHeightPx,
+    titleBoxOverride: hasCustomTitleLayout ? titleBox : null,
+    titleTextAlignOverride: customTitleBox?.align || '',
+    titleFontSizeOverridePx: titleFontSizePx,
+    titleLineHeightOverridePx: titleLineHeightPx,
+    bodyBoxOverride: hasCustomBodyLayout ? bodyBox : null,
+    bodyTextAlignOverride: customBodyBox?.align || '',
   });
 
   const imageBuffer = await sharp(template.filePath)
@@ -802,7 +1168,7 @@ async function renderShareModeImageBuffer({
 
   return {
     buffer: imageBuffer,
-    layout: `share-${layoutKey}`,
+    layout: `share-${layoutKey}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}`,
   };
 }
 
@@ -916,4 +1282,5 @@ module.exports = {
   renderFeedCardImage,
   normalizeScale,
   normalizeTemplateKey,
+  parsePostLayout,
 };

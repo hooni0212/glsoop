@@ -142,11 +142,18 @@ function detectCardLengthVariant(rawContent) {
 }
 
 function buildFeedImageVersion(post) {
+  const layoutSeed =
+    typeof post?.layout_json === 'string'
+      ? post.layout_json
+      : post?.layout_json && typeof post.layout_json === 'object'
+        ? JSON.stringify(post.layout_json)
+        : '';
   const seed = [
     'feed-render-v7',
     post?.id || '',
     post?.title || '',
     post?.content || '',
+    layoutSeed,
     post?.created_at || '',
   ].join('|');
 
@@ -164,6 +171,38 @@ function buildFeedRenderedImageUrl(post, template = 'paper01') {
   return `/api/feed-images/post/${postId}?template=${encodeURIComponent(
     template
   )}&scale=2&v=${encodeURIComponent(version)}`;
+}
+
+function hasLayoutTitleBox(post) {
+  const raw = post?.layout_json;
+  if (raw == null) return false;
+
+  let parsed = raw;
+  if (typeof parsed === 'string') {
+    const trimmed = parsed.trim();
+    if (!trimmed) return false;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return false;
+  }
+
+  const box = parsed.title_box;
+  if (!box || typeof box !== 'object' || Array.isArray(box)) {
+    return false;
+  }
+
+  return (
+    Number.isFinite(Number(box.x)) &&
+    Number.isFinite(Number(box.y)) &&
+    Number.isFinite(Number(box.w)) &&
+    Number.isFinite(Number(box.h))
+  );
 }
 
 function buildRenderedImageCardHtml(post, fallbackHtml, renderedImageSrc = '') {
@@ -218,6 +257,7 @@ function buildStandardPostCardHTML(post, options = {}) {
   const resolvedLengthVariant =
     normalizedVariant || detectCardLengthVariant(cleanHtml || post?.title || '');
   const useRenderedImage = true;
+  const hasImageTitleLayout = useRenderedImage && hasLayoutTitleBox(post);
   const bookmarkIcon = `
     <svg
       class="post-bookmark-icon"
@@ -313,7 +353,7 @@ function buildStandardPostCardHTML(post, options = {}) {
         </div>
 
         <!-- 제목 -->
-        <h5 class="card-title gls-mb-2">
+        <h5 class="card-title gls-mb-2${hasImageTitleLayout ? ' gls-hidden' : ''}">
           ${escapeHtml(post.title || '')}
         </h5>
 
@@ -585,6 +625,7 @@ function cacheDetailData(post, cardEl) {
       id: post.id,
       title: post.title,
       content: post.content,
+      layout_json: post.layout_json || null,
       created_at: post.created_at,
       hashtags: post.hashtags,
       category: post.category || null,

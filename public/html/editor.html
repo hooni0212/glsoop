@@ -232,6 +232,26 @@
               <p class="gls-text-muted gls-text-small gls-mb-0">
                 홈 피드 카드에서 아래와 같이 보여요.
               </p>
+              <div class="editor-layout-controls gls-mt-3">
+                <button
+                  id="layoutEditToggleBtn"
+                  type="button"
+                  class="gls-btn gls-btn-secondary gls-btn-sm"
+                  aria-pressed="false"
+                >
+                  레이아웃 편집: OFF
+                </button>
+                <button
+                  id="layoutResetBtn"
+                  type="button"
+                  class="gls-btn gls-btn-sm"
+                >
+                  레이아웃 초기화
+                </button>
+              </div>
+              <p id="layoutSafeAreaHint" class="editor-layout-hint gls-text-small gls-mb-0" hidden>
+                안전 영역 밖입니다. 저장은 가능하지만 일부 기기에서 잘려 보일 수 있어요.
+              </p>
             </div>
           </div>
 
@@ -265,6 +285,7 @@
   <script src="../js/header.js"></script>
   <script src="../js/analytics.js"></script>
   <script src="../js/postCard.js"></script>
+  <script src="../js/feedLayoutEditor.js"></script>
 
   <!-- 5) 글쓰기 페이지 전용 스크립트(에디터 초기화, 글자 수 제한, 저장/수정 로직 등) -->
   <script src="../js/editor.js"></script>
