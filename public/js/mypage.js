@@ -7,6 +7,7 @@ let myPostsLoaded = false;
 let likedPostsLoaded = false;
 let followingsLoaded = false;
 let rememberLoginEnabledInitial = false;
+let marketingEmailOptInInitial = false;
 let mypageSafeAreaGuidesEnabled = false;
 
 function trackUxEvent(eventName, properties = {}, options = {}) {
@@ -419,6 +420,7 @@ async function loadMyPage() {
     const bioInput = document.getElementById('bioInput');
     const aboutInput = document.getElementById('aboutInput');
     const rememberLoginEnabledInput = document.getElementById('rememberLoginEnabledInput');
+    const marketingEmailOptInInput = document.getElementById('marketingEmailOptInInput');
 
     if (nicknameInput) nicknameInput.value = meData.nickname || '';
     if (bioInput) bioInput.value = meData.bio || '';
@@ -427,6 +429,11 @@ async function loadMyPage() {
       const rememberEnabled = Boolean(meData.remember_login_enabled);
       rememberLoginEnabledInput.checked = rememberEnabled;
       rememberLoginEnabledInitial = rememberEnabled;
+    }
+    if (marketingEmailOptInInput) {
+      const marketingOptIn = Boolean(meData.marketing_email_opt_in);
+      marketingEmailOptInInput.checked = marketingOptIn;
+      marketingEmailOptInInitial = marketingOptIn;
     }
 
     await loadGrowthMiniWidget();
@@ -1070,6 +1077,7 @@ function setupUserEditForm() {
   const newPwInput = document.getElementById('newPwInput');
   const newPwConfirmInput = document.getElementById('newPwConfirmInput');
   const rememberLoginEnabledInput = document.getElementById('rememberLoginEnabledInput');
+  const marketingEmailOptInInput = document.getElementById('marketingEmailOptInInput');
   const logoutAllBtn = document.getElementById('logoutAllSessionsBtn');
   const messageSpan = document.getElementById('userEditMessage');
 
@@ -1098,6 +1106,12 @@ function setupUserEditForm() {
       : false;
     const rememberPolicyChanged = rememberLoginEnabledInput
       ? rememberLoginEnabled !== rememberLoginEnabledInitial
+      : false;
+    const marketingEmailOptIn = marketingEmailOptInInput
+      ? !!marketingEmailOptInInput.checked
+      : false;
+    const marketingPolicyChanged = marketingEmailOptInInput
+      ? marketingEmailOptIn !== marketingEmailOptInInitial
       : false;
 
     if (messageSpan) {
@@ -1139,7 +1153,7 @@ function setupUserEditForm() {
       }
     }
 
-    if (!nickname && !bio && !about && !newPw && !rememberPolicyChanged) {
+    if (!nickname && !bio && !about && !newPw && !rememberPolicyChanged && !marketingPolicyChanged) {
       if (messageSpan) {
         messageSpan.classList.add('text-danger');
         messageSpan.textContent = '변경할 내용을 입력해주세요.';
@@ -1158,6 +1172,9 @@ function setupUserEditForm() {
 
       if (rememberPolicyChanged) {
         payload.remember_login_enabled = rememberLoginEnabled;
+      }
+      if (marketingPolicyChanged) {
+        payload.marketing_email_opt_in = marketingEmailOptIn;
       }
 
       const res = await fetch('/api/me', {
@@ -1186,6 +1203,9 @@ function setupUserEditForm() {
 
       if (rememberPolicyChanged) {
         rememberLoginEnabledInitial = rememberLoginEnabled;
+      }
+      if (marketingPolicyChanged) {
+        marketingEmailOptInInitial = marketingEmailOptIn;
       }
 
       closeUserEditModal();

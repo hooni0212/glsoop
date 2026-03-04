@@ -5,6 +5,12 @@ const nodemailer = require('nodemailer');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const baseUrl = process.env.BASE_URL ? process.env.BASE_URL.trim() : '';
+const getTrimmedEnv = (key, fallback = '') => {
+  const raw = process.env[key];
+  if (typeof raw !== 'string') return fallback;
+  const trimmed = raw.trim();
+  return trimmed || fallback;
+};
 const rawJwtAlgorithm = process.env.JWT_ALGORITHM
   ? process.env.JWT_ALGORITHM.trim()
   : '';
@@ -101,6 +107,25 @@ if (!JWT_ISSUER) {
 const JWT_AUDIENCE = parseJwtAudience(rawJwtAudience) || 'glsoop-client';
 const LEGACY_TOKEN_SUNSET_AT = rawLegacyTokenSunsetAt;
 const LEGACY_TOKEN_SUNSET_AT_MS = new Date(LEGACY_TOKEN_SUNSET_AT).getTime();
+const LEGAL_CONFIG = {
+  versions: {
+    terms: getTrimmedEnv('LEGAL_TERMS_VERSION', '2026-02-27.terms.v1'),
+    privacy: getTrimmedEnv('LEGAL_PRIVACY_VERSION', '2026-02-27.privacy.v1'),
+    marketing: getTrimmedEnv('LEGAL_MARKETING_VERSION', '2026-02-27.marketing.v1'),
+    guidelines: getTrimmedEnv('LEGAL_GUIDELINES_VERSION', '2026-02-27.guidelines.v1'),
+  },
+  effective_dates: {
+    terms: getTrimmedEnv('LEGAL_TERMS_EFFECTIVE_DATE', '2026-02-27'),
+    privacy: getTrimmedEnv('LEGAL_PRIVACY_EFFECTIVE_DATE', '2026-02-27'),
+    guidelines: getTrimmedEnv('LEGAL_GUIDELINES_EFFECTIVE_DATE', '2026-02-27'),
+  },
+  contacts: {
+    department: getTrimmedEnv('PRIVACY_CONTACT_DEPARTMENT', '글숲 개인정보보호팀'),
+    email: getTrimmedEnv('PRIVACY_CONTACT_EMAIL', 'privacy@glsoop.com'),
+    phone: getTrimmedEnv('PRIVACY_CONTACT_PHONE', '0000-0000'),
+    dpo_name: getTrimmedEnv('PRIVACY_DPO_NAME', '개인정보 보호책임자 미지정'),
+  },
+};
 
 if (Number.isNaN(LEGACY_TOKEN_SUNSET_AT_MS)) {
   throw new Error('[FATAL] LEGACY_TOKEN_SUNSET_AT 형식이 올바르지 않습니다. ISO datetime을 사용하세요.');
@@ -130,4 +155,5 @@ module.exports = {
   LEGACY_TOKEN_SUNSET_AT,
   LEGACY_TOKEN_SUNSET_AT_MS,
   AUTH_COOKIE_DOMAIN,
+  LEGAL_CONFIG,
 };

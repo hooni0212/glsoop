@@ -35,8 +35,6 @@
 
       <!-- 실제 네비게이션 메뉴 -->
       <div class="collapse navbar-collapse" id="navbarNav">
-          </li>
-        </ul>
         <!-- 로그인 전 메뉴 (header.js에서 /api/me 결과로 보이도록 제어) -->
         <ul class="navbar-nav gls-ms-auto before-login">
           <li class="nav-item">
@@ -123,7 +121,13 @@
           <!-- [필수] 만 14세 이상 -->
           <!-- .agree-required 클래스로 JS에서 필수 항목으로 묶어서 처리 -->
           <div class="gls-check gls-mb-2">
-            <input class="gls-check-input agree-required" type="checkbox" id="agreeAge" required>
+            <input
+              class="gls-check-input agree-required"
+              type="checkbox"
+              id="agreeAge"
+              name="age_confirmed"
+              required
+            >
             <label class="gls-check-label" for="agreeAge">
               [필수] 만 14세 이상입니다.
             </label>
@@ -131,28 +135,45 @@
 
           <!-- [필수] 서비스 이용약관 동의 -->
           <div class="gls-check gls-mb-2">
-            <input class="gls-check-input agree-required" type="checkbox" id="agreeTerms" required>
+            <input
+              class="gls-check-input agree-required"
+              type="checkbox"
+              id="agreeTerms"
+              name="terms_agreed"
+              required
+            >
             <label class="gls-check-label" for="agreeTerms">
               [필수] 서비스 이용약관에 동의합니다.
               <!-- 약관 상세 페이지 새 창에서 열기 -->
-              <a href="/html/terms.html" target="_blank" class="ms-1">약관 보기</a>
+              <a href="/html/terms.html" target="_blank" rel="noopener noreferrer" class="ms-1">약관 보기</a>
             </label>
           </div>
 
           <!-- [필수] 개인정보 수집·이용 동의 -->
           <div class="gls-check gls-mb-2">
-            <input class="gls-check-input agree-required" type="checkbox" id="agreePrivacy" required>
+            <input
+              class="gls-check-input agree-required"
+              type="checkbox"
+              id="agreePrivacy"
+              name="privacy_agreed"
+              required
+            >
             <label class="gls-check-label" for="agreePrivacy">
               [필수] 개인정보 수집 및 이용에 동의합니다.
               <!-- 개인정보 처리 내용 상세 페이지 새 창에서 열기 -->
-              <a href="/html/privacy.html" target="_blank" class="ms-1">자세히</a>
+              <a href="/html/privacy.html" target="_blank" rel="noopener noreferrer" class="ms-1">자세히</a>
             </label>
           </div>
 
           <!-- [선택] 마케팅 이메일 수신 동의 -->
           <!-- .agree-optional 클래스로 필수와 분리해서 관리 -->
           <div class="gls-check gls-mb-1">
-            <input class="gls-check-input agree-optional" type="checkbox" id="agreeMarketing">
+            <input
+              class="gls-check-input agree-optional"
+              type="checkbox"
+              id="agreeMarketing"
+              name="marketing_email_opt_in"
+            >
             <label class="gls-check-label" for="agreeMarketing">
               [선택] 이벤트/소식 등 이메일 수신에 동의합니다.
             </label>
@@ -161,6 +182,18 @@
           <!-- 약관 안내 문구 -->
           <small class="gls-text-muted gls-block gls-mt-2">
             필수 항목에 동의하지 않으시면 회원가입이 어렵습니다.
+          </small>
+          <small class="gls-text-muted gls-block gls-mt-1">
+            커뮤니티 운영 기준은
+            <button
+              type="button"
+              class="auth-guideline-trigger"
+              data-bs-toggle="modal"
+              data-bs-target="#signupGuidelineModal"
+            >
+              가이드라인
+            </button>
+            에서 확인할 수 있습니다.
           </small>
         </div>
 
@@ -199,6 +232,42 @@
       </form>
     </div>
   </section>
+
+  <div
+    class="modal fade"
+    id="signupGuidelineModal"
+    tabindex="-1"
+    aria-labelledby="signupGuidelineModalLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="signupGuidelineModalLabel">글숲 커뮤니티 가이드라인 요약</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+        </div>
+        <div class="modal-body">
+          <p>글숲은 글을 통해 마음을 나누고 서로를 존중하는 조용한 공간을 지향합니다.</p>
+          <ol class="gls-mb-0">
+            <li>권장 활동: 경험과 감정 기록, 공감과 존중, 건강한 의견 교환</li>
+            <li>금지 항목: 혐오·공격 표현, 불법 콘텐츠, 무단 복제, 반복 광고/홍보</li>
+            <li>운영 조치: 신고 접수 후 운영 정책에 따라 경고/이용 제한 조치 가능</li>
+          </ol>
+        </div>
+        <div class="modal-footer">
+          <a
+            class="gls-btn gls-btn-secondary gls-btn-sm"
+            href="/html/community-guidelines.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            전체 문서 보기
+          </a>
+          <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" data-bs-dismiss="modal">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- 글숲 푸터 (사이트 공통 하단 영역) -->
   <footer class="custom-footer">
