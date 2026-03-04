@@ -913,11 +913,11 @@ function bindAuthorPostOpenTracking(card, post) {
 function setupAuthorPostInteractions(card, post) {
   if (!card || !post) return;
 
-  if (typeof window.enhanceStandardPostCard === 'function') {
-    window.enhanceStandardPostCard(card, buildAuthorCardSourcePost(post));
-  } else if (typeof window.setupCardInteractions === 'function') {
-    window.setupCardInteractions(card, buildAuthorCardSourcePost(post));
+  if (typeof window.enhanceStandardPostCard !== 'function') {
+    console.warn('[author] postCard SSOT is unavailable: enhanceStandardPostCard');
+    return;
   }
+  window.enhanceStandardPostCard(card, buildAuthorCardSourcePost(post));
 
   bindAuthorPostOpenTracking(card, post);
 }

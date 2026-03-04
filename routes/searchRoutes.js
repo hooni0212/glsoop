@@ -18,6 +18,24 @@ const dbAll = (sql, params = []) =>
     });
   });
 
+function logRouteUsage(req, res) {
+  const payload = {
+    path: String(req.originalUrl || req.path || '').split('?')[0],
+    status: Number(res.statusCode || 0),
+    method: String(req.method || 'GET').toUpperCase(),
+    authenticated: Boolean(req.user && req.user.id),
+    ts: new Date().toISOString(),
+  };
+  console.info('[api-observe][search]', JSON.stringify(payload));
+}
+
+router.use((req, res, next) => {
+  res.on('finish', () => {
+    logRouteUsage(req, res);
+  });
+  next();
+});
+
 function sendSearchError(res, status, code, message) {
   return res.status(status).json({ ok: false, code, message });
 }

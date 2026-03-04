@@ -304,30 +304,10 @@ const HomeCuration = (() => {
   }
 
 
-  function buildCurationImageVersion(post) {
-    const seed = [
-      'home-curation-v1',
-      post?.id || '',
-      post?.title || '',
-      post?.content || '',
-      post?.created_at || '',
-    ].join('|');
-
-    let hash = 0;
-    for (let i = 0; i < seed.length; i += 1) {
-      hash = (hash << 5) - hash + seed.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash).toString(36);
-  }
-
   function buildCurationImageUrl(post, template = 'paper01') {
-    const postId = encodeURIComponent(post?.id || '');
-    if (!postId) return '';
-    const version = buildCurationImageVersion(post);
-    return `/api/feed-images/post/${postId}?template=${encodeURIComponent(
-      template
-    )}&scale=2&v=${encodeURIComponent(version)}`;
+    if (!post || !post.id) return '';
+    if (typeof window.buildFeedRenderedImageUrl !== 'function') return '';
+    return window.buildFeedRenderedImageUrl(post, template);
   }
 
   function bindCurationImageFallback(scope) {
