@@ -5,6 +5,36 @@
   transition: var(--gls-transition-lift);
 }
 
+/* Card SSOT roles:
+   - CardPrimary: core content card
+   - CardSoft: supporting panel card
+   - CardFlat: lightweight list/action row */
+.CardPrimary,
+.CardSoft,
+.CardFlat {
+  position: relative;
+  border: 1px solid var(--gls-surface-stroke, rgba(30, 42, 51, 0.16));
+  transition: var(--gls-transition-lift-ui, 180ms ease);
+}
+
+.CardPrimary {
+  border-radius: var(--gls-radius-card, 16px);
+  background: var(--gls-card-primary-bg, rgba(255, 255, 255, 0.72));
+  box-shadow: var(--gls-card-primary-shadow, var(--gls-shadow-sm, 0 9px 22px rgba(20, 24, 32, 0.08)));
+}
+
+.CardSoft {
+  border-radius: var(--gls-card-soft-radius, var(--gls-radius-lg, 18px));
+  background: var(--gls-card-soft-bg, rgba(255, 255, 255, 0.64));
+  box-shadow: var(--gls-card-soft-shadow, 0 10px 24px rgba(20, 24, 32, 0.1));
+}
+
+.CardFlat {
+  border-radius: var(--gls-card-flat-radius, 12px);
+  background: var(--gls-card-flat-bg, rgba(255, 255, 255, 0.44));
+  box-shadow: none;
+}
+
 .card-title {
     font-size: var(--gls-fs-lg, 1.125rem);
     line-height: var(--gls-lh-tight, 1.25);

@@ -86,9 +86,9 @@
     </div>
   </nav>
 
-  <main class="page-shell">
-    <div class="gls-container">
-      <section class="mpd-hero page-hero-card gls-surface-veil">
+  <main class="page-shell AppShell-main">
+    <div class="gls-container PageContainer">
+      <section class="mpd-hero page-hero-card CardSoft gls-surface-veil">
         <div class="mpd-hero-head">
           <div>
             <p class="mpd-eyebrow gls-mb-1">MY DASHBOARD</p>
@@ -99,13 +99,13 @@
         </div>
       </section>
 
-      <section class="mpd-layout" aria-label="내 계정 대시보드">
-        <aside class="mpd-sidebar" aria-label="내 정보 요약">
-          <div id="userInfo" class="mpd-panel mpd-panel--profile">
+      <section class="mpd-layout MainGrid has-aside is-aside-left" aria-label="내 계정 대시보드">
+        <aside class="mpd-sidebar MainGrid-aside" aria-label="내 정보 요약">
+          <div id="userInfo" class="mpd-panel mpd-panel--profile CardSoft">
             <p class="gls-text-muted gls-mb-0">내 정보를 불러오는 중입니다...</p>
           </div>
 
-          <div id="mypageGrowthMini" class="mpd-panel mpd-panel--growth gls-hidden" aria-live="polite">
+          <div id="mypageGrowthMini" class="mpd-panel mpd-panel--growth CardSoft gls-hidden" aria-live="polite">
             <div class="mpd-growth-row">
               <p class="mpd-growth-summary-text mypage-growth-summary-text gls-mb-0">성장 정보를 불러오는 중...</p>
               <a href="/html/growth.html" class="mypage-growth-link mpd-growth-link">숲 지도에서 더 보기</a>
@@ -113,7 +113,7 @@
           </div>
         </aside>
 
-        <section class="mpd-panel mpd-panel--content" aria-label="내 기록 관리">
+        <section class="mpd-panel mpd-panel--content CardSoft MainGrid-main" aria-label="내 기록 관리">
           <div class="mpd-content-head">
             <h2 class="mpd-section-title gls-mb-0">내 기록</h2>
             <p class="gls-text-small gls-text-muted gls-mb-0">탭을 전환해 작성글, 공감글, 팔로잉을 관리하세요.</p>
@@ -166,7 +166,7 @@
           <div class="mpd-tab-panels">
             <section
               id="myPostsSection"
-              class="mpd-tab-panel"
+              class="mpd-tab-panel CardFlat"
               role="tabpanel"
               aria-labelledby="tabMyPosts"
               tabindex="0"
@@ -178,7 +178,7 @@
 
             <section
               id="likedPostsSection"
-              class="mpd-tab-panel gls-hidden"
+              class="mpd-tab-panel CardFlat gls-hidden"
               role="tabpanel"
               aria-labelledby="tabLikedPosts"
               tabindex="-1"
@@ -191,7 +191,7 @@
 
             <section
               id="followingsSection"
-              class="mpd-tab-panel gls-hidden"
+              class="mpd-tab-panel CardFlat gls-hidden"
               role="tabpanel"
               aria-labelledby="tabFollowings"
               tabindex="-1"

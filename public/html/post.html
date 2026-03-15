@@ -78,8 +78,8 @@
   </nav>
 
   <!-- 글 상세 (옵션 B: 데스크탑 2컬럼) -->
-  <section class="page-section post-page post-veil">
-    <div class="gls-container post-shell">
+  <section class="page-section post-page post-veil AppShell-main">
+    <div class="gls-container post-shell PageContainer">
       <header class="post-page-intro">
         <div class="post-page-intro-row">
           <div class="post-page-intro-copy">
@@ -96,10 +96,10 @@
           </div>
         </div>
       </header>
-      <div class="post-layout">
+      <div class="post-layout MainGrid has-aside">
         <!-- 좌측: 본문(읽기) -->
-        <main class="post-main" aria-label="글 본문">
-          <div class="post-panel gls-surface-panel gls-surface-veil post-content-panel post-glass-panel">
+        <main class="post-main MainGrid-main" aria-label="글 본문">
+          <div class="post-panel CardSoft gls-surface-panel gls-surface-veil post-content-panel post-glass-panel">
             <div id="postDetail">
               <p class="gls-text-muted">글을 불러오는 중입니다...</p>
             </div>
@@ -120,10 +120,10 @@
         </main>
 
         <!-- 우측: 액션 + 관련 글(시안 A) -->
-        <aside class="post-side" aria-label="상세 도구 및 관련 글">
+        <aside class="post-side MainGrid-aside" aria-label="상세 도구 및 관련 글">
           <div class="post-side-inner">
             <div class="post-action-dock" data-post-action-dock="1">
-              <div class="post-actions-panel gls-surface-panel post-toolbar">
+              <div class="post-actions-panel CardFlat gls-surface-panel post-toolbar">
                 <div class="post-actions-grid">
                   <button id="sideLikeBtn" type="button" class="post-side-btn post-side-like gls-action-tile" aria-label="좋아요">
                     <span class="gls-action-tile__content">
@@ -138,7 +138,7 @@
               </div>
             </div>
 
-            <div class="post-related-panel gls-surface-panel">
+            <div class="post-related-panel CardSoft gls-surface-panel">
               <div class="post-related-head">
                 <h4 class="post-related-title">관련 글</h4>
                 <button id="relatedMoreBtn" type="button" class="gls-btn gls-btn-secondary gls-btn-xs post-related-more gls-action-pill gls-action-pill--sm">더 보기</button>
