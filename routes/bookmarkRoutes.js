@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authRequired } = require('../middleware/auth');
-const { handleBookmarkAdded } = require('../utils/growth');
+const { handleBookmarkAdded } = require('../utils/growth-service');
 
 const router = express.Router();
 
