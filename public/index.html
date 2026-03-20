@@ -129,11 +129,11 @@
     </div>
   </nav>
 
-  <main class="home-hub">
-    <div class="container gls-container">
-      <div class="home-layout">
-        <section class="home-main">
-          <div class="home-hero">
+  <main class="home-hub AppShell-main">
+    <div class="container gls-container PageContainer">
+      <div class="home-layout MainGrid has-aside">
+        <section class="home-main MainGrid-main">
+          <div class="home-hero CardSoft">
             <p class="home-hero-kicker">GLSOOP CURATION</p>
             <h1 class="home-hero-title">글숲</h1>
             <p class="home-hero-copy">
@@ -182,15 +182,15 @@
           </section>
         </section>
 
-        <aside class="home-side" data-home-side="1">
-          <section class="home-side-block home-side-pick">
+        <aside class="home-side MainGrid-aside" data-home-side="1">
+          <section class="home-side-block home-side-pick CardSoft is-aside">
             <h4>오늘의 추천</h4>
             <p class="home-side-title" id="todayPickTitle">추천 글을 고르는 중입니다</p>
             <p class="home-side-copy" id="todayPickExcerpt">잠시만 기다려주세요.</p>
             <a class="gls-btn gls-btn-secondary" id="todayPickLink" href="/explore">읽기</a>
           </section>
 
-          <section class="home-side-block home-side-author" data-home-foldable="1" data-home-folded="false">
+          <section class="home-side-block home-side-author CardSoft is-aside" data-home-foldable="1" data-home-folded="false">
             <div class="home-side-head">
               <h4>이달의 작가</h4>
               <button
@@ -211,7 +211,7 @@
             </div>
           </section>
 
-          <section class="home-side-block home-side-quick" data-home-mobile-quick="1">
+          <section class="home-side-block home-side-quick CardFlat is-aside" data-home-mobile-quick="1">
             <h4>조용한 동선</h4>
             <div class="home-side-links">
               <a class="home-side-link-card" href="/explore">
@@ -263,6 +263,7 @@
   <!-- 헤더 로그인 상태 관리 (before-login / after-login 토글, 로그아웃 처리) -->
   <script src="/js/theme.js" defer></script>
   <script src="./js/header.js"></script>
+  <script src="/js/postCard.js"></script>
 
   <!-- 홈 큐레이션 허브 로직 -->
   <script src="/js/home.js"></script>

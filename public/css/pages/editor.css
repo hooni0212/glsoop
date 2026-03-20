@@ -237,6 +237,11 @@
   position: relative;
 }
 
+.editor-preview-feed-card-mount.is-layout-editing .feed-rendered-card-image {
+  opacity: 0.22;
+  filter: saturate(0.82) contrast(0.92);
+}
+
 .editor-layout-controls {
   display: flex;
   align-items: center;
@@ -318,12 +323,13 @@
   color: #14532d;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 8px;
   cursor: grab;
   user-select: none;
   touch-action: none;
   min-height: 40px;
+  overflow: visible;
 }
 
 .editor-preview-feed-card-mount .gls-layout-box.is-dragging {
@@ -345,32 +351,53 @@
 }
 
 .editor-preview-feed-card-mount .gls-layout-box__label {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
   font-size: 10px;
   line-height: 1;
   font-weight: 700;
   letter-spacing: 0.02em;
-  opacity: 0.8;
-  margin-bottom: 4px;
+  opacity: 0.96;
+  background: rgba(236, 253, 245, 0.95);
+  border: 1px solid currentColor;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08);
+  white-space: nowrap;
 }
 
 .editor-preview-feed-card-mount .gls-layout-box__title {
-  font-size: 11px;
+  font-size: calc(11px * var(--gls-layout-font-scale, 1));
   font-weight: 700;
-  line-height: 1.2;
-  opacity: 0.85;
+  line-height: var(--gls-layout-line-height, 1.15);
+  opacity: 0.9;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: var(--gls-layout-align, center);
+  width: 100%;
+  margin-top: 0;
 }
 
 .editor-preview-feed-card-mount .gls-layout-box__body {
-  font-size: 11px;
-  line-height: 1.35;
-  opacity: 0.75;
+  font-size: calc(11px * var(--gls-layout-font-scale, 1));
+  line-height: var(--gls-layout-line-height, 1.15);
+  opacity: 0.82;
   overflow: hidden;
+  text-align: var(--gls-layout-align, center);
+  width: 100%;
+  white-space: pre-wrap;
+  text-wrap: pretty;
 }
 
 .editor-preview-feed-card-mount .gls-layout-box__warning {
+  position: absolute;
+  left: 0;
+  bottom: -24px;
   align-self: flex-start;
   font-size: 10px;
   line-height: 1;
@@ -379,6 +406,7 @@
   background: rgba(185, 28, 28, 0.92);
   color: #fff;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .editor-preview-feed-card-mount .gls-layout-box.is-outside-safe-area {

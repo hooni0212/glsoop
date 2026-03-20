@@ -259,6 +259,7 @@ const SHARE_LAYOUT_PRESETS = {
 };
 
 const CUSTOM_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
+const LAYOUT_UNIT_NORMALIZED = 'normalized';
 const CUSTOM_LAYOUT_MIN_BOX_SIZE = 0.06;
 const CUSTOM_LAYOUT_FONT_SCALE_RANGE = { min: 0.7, max: 1.7 };
 const CUSTOM_LAYOUT_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.0 };
@@ -426,6 +427,7 @@ function parseLayoutBox(raw, { required = false } = {}) {
 }
 
 function parsePostLayout(rawLayoutJson) {
+  // `null` 반환은 "커스텀 레이아웃 미적용" 의미이며, 호출부는 legacy preset을 그대로 사용한다.
   if (rawLayoutJson == null) return null;
 
   let parsed = rawLayoutJson;
@@ -448,6 +450,13 @@ function parsePostLayout(rawLayoutJson) {
     return null;
   }
 
+  const unit = Object.prototype.hasOwnProperty.call(parsed, 'unit')
+    ? String(parsed.unit || '').trim().toLowerCase()
+    : LAYOUT_UNIT_NORMALIZED;
+  if (unit !== LAYOUT_UNIT_NORMALIZED) {
+    return null;
+  }
+
   const textBox = parseLayoutBox(parsed.text_box, { required: true });
   if (!textBox) {
     return null;
@@ -461,12 +470,24 @@ function parsePostLayout(rawLayoutJson) {
     }
   }
 
+  let footerBox = null;
+  if (Object.prototype.hasOwnProperty.call(parsed, 'footer_box')) {
+    footerBox = parseLayoutBox(parsed.footer_box, { required: false });
+    if (parsed.footer_box != null && !footerBox) {
+      return null;
+    }
+  }
+
   const normalized = {
     layout_version: 1,
+    unit: LAYOUT_UNIT_NORMALIZED,
     text_box: textBox,
   };
   if (titleBox) {
     normalized.title_box = titleBox;
+  }
+  if (footerBox) {
+    normalized.footer_box = footerBox;
   }
   return normalized;
 }
@@ -667,6 +688,7 @@ function buildSvgTextOverlay({
   textAlign = 'left',
   verticalAlign = 'top',
   title = null,
+  footerSignature = '',
 }) {
   const safeBox = box || { x: 0, y: 0, width, height };
   const bodyGroup = buildSvgTextGroup({
@@ -706,6 +728,7 @@ function buildSvgTextOverlay({
     ${defs.join('\n    ')}
   </defs>
   ${groups.join('\n  ')}
+  ${footerSignature || ''}
 </svg>
   `.trim();
 }
@@ -840,11 +863,47 @@ function buildSvgTextGroup({
   };
 }
 
-function buildSvgBrandSignature({ width, height }) {
-  const safeBottomGap = Math.max(24, Math.round(height * 0.035));
-  const fontSizePx = Math.max(15, Math.round(width * 0.025));
-  const textX = Math.round(width / 2);
-  const textY = Math.round(height - safeBottomGap);
+function buildSvgBrandSignature({
+  width,
+  height,
+  footerBox = null,
+  textAlign = 'center',
+  fontScale = 1,
+  lineHeightRatio = 1.1,
+}) {
+  const normalizedScale = Number.isFinite(Number(fontScale)) && Number(fontScale) > 0
+    ? Number(fontScale)
+    : 1;
+  const normalizedLineHeightRatio =
+    Number.isFinite(Number(lineHeightRatio)) && Number(lineHeightRatio) > 0
+      ? Number(lineHeightRatio)
+      : 1.1;
+  const baseFontSizePx = Math.max(15, Math.round(width * 0.025));
+  const fontSizePx = Math.max(12, baseFontSizePx * normalizedScale);
+  const lineHeightPx = fontSizePx * normalizedLineHeightRatio;
+
+  let textAnchor = 'middle';
+  let textX = Math.round(width / 2);
+  let textY = Math.round(height - Math.max(24, Math.round(height * 0.035)));
+
+  if (footerBox) {
+    const align = String(textAlign || '').trim().toLowerCase();
+    if (align === 'left') {
+      textAnchor = 'start';
+      textX = footerBox.x;
+    } else if (align === 'right') {
+      textAnchor = 'end';
+      textX = footerBox.x + footerBox.width;
+    } else {
+      textAnchor = 'middle';
+      textX = footerBox.x + footerBox.width / 2;
+    }
+
+    const topOffset = Math.max(0, (footerBox.height - lineHeightPx) / 2);
+    const baseline = footerBox.y + topOffset + fontSizePx;
+    const maxBaseline = footerBox.y + footerBox.height - 2;
+    textY = Math.max(footerBox.y + fontSizePx, Math.min(baseline, maxBaseline));
+  }
 
   return `
   <g aria-label="brand-signature">
@@ -853,10 +912,10 @@ function buildSvgBrandSignature({ width, height }) {
       y="${textY}"
       fill="rgba(71, 63, 54, ${SHARE_SIGNATURE_OPACITY})"
       font-family="${SVG_FONT_FAMILY}"
-      font-size="${fontSizePx}"
+      font-size="${Math.round(fontSizePx * 100) / 100}"
       font-weight="500"
       letter-spacing="0.04em"
-      text-anchor="middle"
+      text-anchor="${textAnchor}"
       text-rendering="optimizeLegibility"
     >${SHARE_LOGO_TEXT}</text>
   </g>
@@ -877,6 +936,7 @@ function buildSvgShareOverlay({
   titleLineHeightOverridePx = null,
   bodyBoxOverride = null,
   bodyTextAlignOverride = '',
+  brandSignatureOverride = '',
 }) {
   const titleBox = titleBoxOverride || resolveBoxFromPreset(width, height, layoutPreset.title);
   const bodyBox = bodyBoxOverride || resolveBoxFromPreset(width, height, layoutPreset.body);
@@ -905,7 +965,7 @@ function buildSvgShareOverlay({
     clipPadBottomPx: Math.round(bodyBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
 
-  const brandSignature = buildSvgBrandSignature({ width, height });
+  const brandSignature = brandSignatureOverride || buildSvgBrandSignature({ width, height });
 
   return `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -934,8 +994,10 @@ async function renderFeedModeImageBuffer({
   const parsedLayout = parsePostLayout(post?.layout_json);
   const customBodyBox = parsedLayout?.text_box || null;
   const customTitleBox = parsedLayout?.title_box || null;
+  const customFooterBox = parsedLayout?.footer_box || null;
   const hasCustomBodyLayout = !!customBodyBox;
   const hasCustomTitleLayout = !!customTitleBox;
+  const hasCustomFooterLayout = !!customFooterBox;
   const shouldRenderTitleInImage = hasCustomTitleLayout && Boolean(titleText);
   const bodyFontScale = customBodyBox?.font_scale || 1;
   const bodyLineHeightRatio = customBodyBox?.line_height || preset.lineHeightRatio;
@@ -1032,6 +1094,23 @@ async function renderFeedModeImageBuffer({
     };
   }
 
+  let footerSignature = '';
+  if (hasCustomFooterLayout) {
+    const footerBox = resolveBoxFromNormalizedLayout(
+      outputWidth,
+      outputHeight,
+      customFooterBox
+    );
+    footerSignature = buildSvgBrandSignature({
+      width: outputWidth,
+      height: outputHeight,
+      footerBox,
+      textAlign: customFooterBox?.align || 'center',
+      fontScale: customFooterBox?.font_scale || 1,
+      lineHeightRatio: customFooterBox?.line_height || 1.1,
+    });
+  }
+
   const svgOverlay = buildSvgTextOverlay({
     width: outputWidth,
     height: outputHeight,
@@ -1042,6 +1121,7 @@ async function renderFeedModeImageBuffer({
     textAlign: customBodyBox?.align || effectivePreset.textAlign,
     verticalAlign: effectivePreset.verticalAlign,
     title: titleConfig,
+    footerSignature,
   });
 
   const imageBuffer = await sharp(template.filePath)
@@ -1066,7 +1146,7 @@ async function renderFeedModeImageBuffer({
     buffer: imageBuffer,
     layout: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}${
       shouldRenderTitleInImage ? '-with-title' : ''
-    }`,
+    }${hasCustomFooterLayout ? '-with-footer' : ''}`,
   };
 }
 
@@ -1084,8 +1164,10 @@ async function renderShareModeImageBuffer({
   const parsedLayout = parsePostLayout(post?.layout_json);
   const customBodyBox = parsedLayout?.text_box || null;
   const customTitleBox = parsedLayout?.title_box || null;
+  const customFooterBox = parsedLayout?.footer_box || null;
   const hasCustomBodyLayout = !!customBodyBox;
   const hasCustomTitleLayout = !!customTitleBox;
+  const hasCustomFooterLayout = !!customFooterBox;
   const fontScale = customBodyBox?.font_scale || 1;
   const lineHeightRatio = customBodyBox?.line_height || layoutPreset.lineHeightRatio;
   const minFontSizePx = scale === 2 ? 20 : 12;
@@ -1108,6 +1190,9 @@ async function renderShareModeImageBuffer({
   const bodyBox = hasCustomBodyLayout
     ? resolveBoxFromNormalizedLayout(outputWidth, outputHeight, customBodyBox)
     : resolveBoxFromPreset(outputWidth, outputHeight, layoutPreset.body);
+  const footerBox = hasCustomFooterLayout
+    ? resolveBoxFromNormalizedLayout(outputWidth, outputHeight, customFooterBox)
+    : null;
   const titleMaxLines = resolveFittedMaxLines(
     titleBox.height,
     titleLineHeightPx,
@@ -1132,6 +1217,17 @@ async function renderShareModeImageBuffer({
     bodyMaxLines
   );
 
+  const brandSignatureOverride = hasCustomFooterLayout
+    ? buildSvgBrandSignature({
+      width: outputWidth,
+      height: outputHeight,
+      footerBox,
+      textAlign: customFooterBox?.align || 'center',
+      fontScale: customFooterBox?.font_scale || 1,
+      lineHeightRatio: customFooterBox?.line_height || 1.1,
+    })
+    : '';
+
   const svgOverlay = buildSvgShareOverlay({
     width: outputWidth,
     height: outputHeight,
@@ -1146,6 +1242,7 @@ async function renderShareModeImageBuffer({
     titleLineHeightOverridePx: titleLineHeightPx,
     bodyBoxOverride: hasCustomBodyLayout ? bodyBox : null,
     bodyTextAlignOverride: customBodyBox?.align || '',
+    brandSignatureOverride,
   });
 
   const imageBuffer = await sharp(template.filePath)
@@ -1168,7 +1265,7 @@ async function renderShareModeImageBuffer({
 
   return {
     buffer: imageBuffer,
-    layout: `share-${layoutKey}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}`,
+    layout: `share-${layoutKey}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}`,
   };
 }
 

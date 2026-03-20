@@ -306,8 +306,12 @@ const HomeCuration = (() => {
 
   function buildCurationImageUrl(post, template = 'paper01') {
     if (!post || !post.id) return '';
-    if (typeof window.buildFeedRenderedImageUrl !== 'function') return '';
-    return window.buildFeedRenderedImageUrl(post, template);
+    if (typeof window.buildFeedRenderedImageUrl === 'function') {
+      return window.buildFeedRenderedImageUrl(post, template);
+    }
+
+    // postCard.js가 선로드되지 않은 경우에도 홈 큐레이션 이미지는 표시되도록 최소 fallback URL을 유지한다.
+    return `/api/feed-images/post/${encodeURIComponent(post.id)}?template=${encodeURIComponent(template)}&scale=2`;
   }
 
   function bindCurationImageFallback(scope) {

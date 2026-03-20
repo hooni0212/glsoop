@@ -1,0 +1,189 @@
+.gls-reading-card-frame {
+  display: grid;
+  place-items: center;
+}
+
+.gls-reading-card {
+  width: min(100%, 680px);
+  aspect-ratio: 4 / 5;
+  color: var(--gls-color-text, #172019);
+}
+
+.gls-reading-card__paper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: clamp(26px, 3vw, 34px);
+  border: 1px solid color-mix(in srgb, var(--gls-color-border, #c8beab) 68%, rgba(255, 255, 255, 0.46));
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.84), transparent 26%),
+    radial-gradient(circle at 82% 20%, rgba(222, 205, 172, 0.22), transparent 28%),
+    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(242, 234, 220, 0.98));
+  box-shadow:
+    0 28px 60px rgba(18, 30, 24, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.gls-reading-card__paper::before,
+.gls-reading-card__paper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.gls-reading-card__paper::before {
+  opacity: 0.34;
+  background-image:
+    linear-gradient(120deg, rgba(42, 27, 12, 0.03) 0 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+  background-size: 18px 18px, auto;
+}
+
+.gls-reading-card__paper::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(94, 74, 45, 0.08));
+}
+
+.gls-reading-card__wash {
+  position: absolute;
+  inset: auto auto 8% 8%;
+  width: 42%;
+  height: 18%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0));
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+.gls-reading-card__inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(54px, 8vw, 84px) clamp(40px, 8vw, 96px) clamp(48px, 8vw, 72px);
+}
+
+.gls-reading-card.is-type-short .gls-reading-card__inner {
+  justify-content: center;
+  padding-top: clamp(72px, 12vw, 116px);
+  padding-bottom: clamp(72px, 12vw, 116px);
+}
+
+.gls-reading-card.is-type-poem .gls-reading-card__inner,
+.gls-reading-card.is-type-prose .gls-reading-card__inner {
+  justify-content: flex-start;
+}
+
+.gls-reading-card__header {
+  margin-bottom: clamp(18px, 2.6vw, 28px);
+}
+
+.gls-reading-card__title {
+  margin: 0;
+  font-family: var(--gls-font-serif, 'Hahmlet', serif);
+  font-size: clamp(1.2rem, 2vw, 1.56rem);
+  font-weight: 700;
+  line-height: 1.28;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.gls-reading-card__body {
+  font-size: clamp(1.02rem, 2vw, 1.24rem);
+  line-height: 1.92;
+  letter-spacing: -0.012em;
+}
+
+.gls-reading-card__body p {
+  margin: 0;
+}
+
+.gls-reading-card__body p + p {
+  margin-top: 1.15em;
+}
+
+.gls-reading-card__body br {
+  content: "";
+}
+
+.gls-reading-card.is-type-short .gls-reading-card__body {
+  font-size: clamp(1.36rem, 2.7vw, 1.82rem);
+  line-height: 1.84;
+}
+
+.gls-reading-card.is-type-poem .gls-reading-card__body {
+  font-size: clamp(1.08rem, 2.1vw, 1.3rem);
+  line-height: 2;
+}
+
+.gls-reading-card.is-type-prose .gls-reading-card__body {
+  font-size: clamp(1rem, 1.9vw, 1.16rem);
+  line-height: 1.94;
+}
+
+.gls-reading-card.is-font-serif .gls-reading-card__body,
+.gls-reading-card.is-font-serif .gls-reading-card__title {
+  font-family: 'Nanum Myeongjo', 'Hahmlet', serif;
+}
+
+.gls-reading-card.is-font-sans .gls-reading-card__body,
+.gls-reading-card.is-font-sans .gls-reading-card__title {
+  font-family: 'Noto Sans KR', 'IBM Plex Sans KR', sans-serif;
+}
+
+.gls-reading-card.is-font-hand .gls-reading-card__body,
+.gls-reading-card.is-font-hand .gls-reading-card__title {
+  font-family: 'Nanum Pen Script', 'Gaegu', cursive;
+  letter-spacing: 0.01em;
+}
+
+.gls-reading-card.is-align-left .gls-reading-card__body,
+.gls-reading-card.is-align-left .gls-reading-card__title {
+  text-align: left;
+}
+
+.gls-reading-card.is-align-center .gls-reading-card__body,
+.gls-reading-card.is-align-center .gls-reading-card__title {
+  text-align: center;
+}
+
+.gls-reading-card__badge {
+  position: absolute;
+  right: clamp(18px, 3vw, 26px);
+  bottom: clamp(18px, 3vw, 24px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(36, 28, 20, 0.72);
+  color: rgba(255, 248, 239, 0.96);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+@media (max-width: 768px) {
+  .gls-reading-card {
+    width: min(100%, 520px);
+  }
+
+  .gls-reading-card__inner {
+    padding-inline: clamp(26px, 8vw, 48px);
+    padding-top: clamp(44px, 12vw, 68px);
+    padding-bottom: clamp(40px, 10vw, 60px);
+  }
+
+  .gls-reading-card.is-type-short .gls-reading-card__inner {
+    padding-top: clamp(64px, 16vw, 96px);
+    padding-bottom: clamp(64px, 16vw, 96px);
+  }
+}

@@ -30,6 +30,7 @@ const { sanitizeForStorage } = require('../utils/sanitize');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
 const ALLOWED_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
+const LAYOUT_UNIT_NORMALIZED = 'normalized';
 const LAYOUT_VALIDATION_ERROR_MESSAGE = '레이아웃 데이터가 올바르지 않습니다.';
 const CATEGORY_SQL =
   "CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END";
@@ -174,6 +175,13 @@ function normalizeLayoutPayload(raw) {
     return { ok: false };
   }
 
+  const layoutUnit = hasOwn(payload, 'unit')
+    ? String(payload.unit || '').trim().toLowerCase()
+    : LAYOUT_UNIT_NORMALIZED;
+  if (layoutUnit !== LAYOUT_UNIT_NORMALIZED) {
+    return { ok: false };
+  }
+
   const textBox = normalizeLayoutBox(payload.text_box, { required: true });
   if (!textBox) {
     return { ok: false };
@@ -187,12 +195,24 @@ function normalizeLayoutPayload(raw) {
     }
   }
 
+  let footerBox = null;
+  if (hasOwn(payload, 'footer_box')) {
+    footerBox = normalizeLayoutBox(payload.footer_box, { required: false });
+    if (payload.footer_box != null && !footerBox) {
+      return { ok: false };
+    }
+  }
+
   const normalized = {
     layout_version: 1,
+    unit: LAYOUT_UNIT_NORMALIZED,
     text_box: textBox,
   };
   if (titleBox) {
     normalized.title_box = titleBox;
+  }
+  if (footerBox) {
+    normalized.footer_box = footerBox;
   }
 
   return {

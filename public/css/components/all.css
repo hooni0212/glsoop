@@ -15,6 +15,7 @@
 @import url("./card.css");
 @import url("./feed-preview.css");
 @import url("./quote-card.css");
+@import url("./reading-card.css");
 
 /* Interactions */
 @import url("./segmented.css");

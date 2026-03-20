@@ -842,34 +842,24 @@ function detectAuthorCardLengthVariant(rawContent) {
 function buildAuthorPostCardHtml(post) {
   const sourcePost = buildAuthorCardSourcePost(post);
 
-  if (typeof window.buildStandardPostCardHTML === 'function') {
-    const html = window.buildStandardPostCardHTML(sourcePost, {
-      showMoreButton: true,
-      forceRenderedImage: true,
-      cardExtraClass: 'author-post-card',
-      cardLengthVariant: sourcePost.card_length_variant || '',
-      cardClickable: true,
-    });
-
-    // 테스트/기존 셀렉터 호환: author-post-title 클래스 유지
-    return html.replace(
-      'class="card-title gls-mb-2"',
-      'class="card-title gls-mb-2 author-post-title"'
-    );
+  if (typeof window.buildStandardPostCardHTML !== 'function') {
+    console.error('[author] postCard SSOT is unavailable: buildStandardPostCardHTML');
+    return '';
   }
 
-  const safeTitle =
-    typeof escapeHtml === 'function'
-      ? escapeHtml(sourcePost.title || '제목 없음')
-      : String(sourcePost.title || '제목 없음');
+  const html = window.buildStandardPostCardHTML(sourcePost, {
+    showMoreButton: true,
+    forceRenderedImage: true,
+    cardExtraClass: 'author-post-card',
+    cardLengthVariant: sourcePost.card_length_variant || '',
+    cardClickable: true,
+  });
 
-  return `
-    <div class="card gls-post-card author-post-card" data-post-id="${sourcePost.id}">
-      <div class="card-body">
-        <h5 class="card-title gls-mb-2 author-post-title">${safeTitle}</h5>
-      </div>
-    </div>
-  `;
+  // 테스트/기존 셀렉터 호환: author-post-title 클래스 유지
+  return html.replace(
+    'class="card-title gls-mb-2',
+    'class="card-title gls-mb-2 author-post-title'
+  );
 }
 
 function shouldIgnoreAuthorPostOpenTracking(target) {

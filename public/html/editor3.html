@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>글쓰기 시안 | 글숲</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700&family=Nanum+Pen+Script&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body class="page-editor page-editor3">
+  <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
+    <div class="gls-container">
+      <a class="navbar-brand" href="/index.html">글숲</a>
+      <button class="navbar-toggler" type="button" data-gls-toggle="nav" aria-controls="navbarNav" aria-expanded="false">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav gls-ms-auto before-login">
+          <li class="nav-item"><a class="nav-link" href="/html/login.html">로그인</a></li>
+          <li class="nav-item"><a class="nav-link" href="/html/signup.html">회원가입</a></li>
+        </ul>
+        <ul class="navbar-nav gls-ms-auto after-login is-hidden">
+          <li class="nav-item"><span class="nav-link" id="navUserName"></span></li>
+          <li class="nav-item"><a class="nav-link" href="/html/mypage.html">마이페이지</a></li>
+          <li class="nav-item"><a class="nav-link" href="/html/editor3.html">글쓰기 시안</a></li>
+          <li class="nav-item">
+            <button class="user-profile" id="logoutBtn" type="button" aria-label="로그아웃">
+              <span class="user-profile-inner">
+                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <g data-name="Layer 2" id="Layer_2">
+                    <path d="m15.626 11.769a6 6 0 1 0 -7.252 0 9.008 9.008 0 0 0 -5.374 8.231 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 9.008 9.008 0 0 0 -5.374-8.231zm-7.626-4.769a4 4 0 1 1 4 4 4 4 0 0 1 -4-4zm10 14h-12a1 1 0 0 1 -1-1 7 7 0 0 1 14 0 1 1 0 0 1 -1 1z"></path>
+                  </g>
+                </svg>
+                <span class="user-profile-label">로그아웃</span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <section class="editor3-shell gls-mt-5 gls-py-5">
+    <div class="gls-container">
+      <header class="editor3-hero">
+        <div class="editor3-hero__copy">
+          <p class="editor3-kicker">WRITING STUDIO</p>
+          <h1 class="editor3-title">읽고 싶게 나오는 글쓰기</h1>
+          <p class="editor3-description">
+            글을 쓰는 흐름은 가볍게 두고, 결과물은 출판형 카드처럼 차분하게 다듬어 보여줍니다.
+          </p>
+        </div>
+        <div class="editor3-hero__meta">
+          <div class="editor3-status-row">
+            <span id="editor3SaveStatus" class="editor3-save-status" aria-live="polite">Saved locally</span>
+            <span id="editor3SaveStatusTime" class="editor3-save-time"></span>
+          </div>
+          <a id="editor3OpenPostLink" class="editor3-link-chip is-disabled" href="#" aria-disabled="true">새 읽기 화면 보기</a>
+        </div>
+      </header>
+
+      <div id="editor3NoticeRegion" class="editor-notice-region gls-mb-3" aria-live="polite"></div>
+      <div id="editor3Alert" class="editor-alert gls-hidden gls-mb-3" role="alert" tabindex="-1"></div>
+
+      <div class="editor3-grid">
+        <section class="editor3-panel editor3-panel--input">
+          <div class="editor3-card">
+            <div class="editor3-card__body">
+              <div class="editor3-input-head">
+                <div>
+                  <div class="editor3-field-label">해석 모드</div>
+                  <div class="editor3-mode-group" id="editor3ModeGroup">
+                    <button type="button" class="editor3-pill is-active" data-mode-value="auto">자동 감지</button>
+                    <button type="button" class="editor3-pill" data-mode-value="short">한 구절</button>
+                    <button type="button" class="editor3-pill" data-mode-value="poem">운문</button>
+                    <button type="button" class="editor3-pill" data-mode-value="essay">산문</button>
+                  </div>
+                </div>
+                <div class="editor3-analysis" id="editor3Analysis">
+                  <span class="editor3-badge" id="editor3DetectedModeBadge">자동 감지</span>
+                  <p class="editor3-analysis__text" id="editor3DetectedModeNote">글을 입력하면 읽기 방식과 페이지 호흡을 추천해드릴게요.</p>
+                </div>
+              </div>
+
+              <div class="editor3-field">
+                <label for="postTitle" class="editor3-field-label">제목</label>
+                <input type="text" id="postTitle" class="gls-input editor3-title-input" placeholder="짧고 또렷한 제목이면 더 잘 읽혀요" />
+              </div>
+
+              <div class="editor3-field">
+                <label class="editor3-field-label" for="editor">본문</label>
+                <div id="editor" class="editor-box editor-box-fixed editor3-editor"></div>
+                <div id="charCounter" class="editor3-char-counter gls-text-muted">200/200</div>
+              </div>
+
+              <div class="editor3-subgrid">
+                <div class="editor3-field">
+                  <label for="fontSelect" class="editor3-field-label">폰트 스타일</label>
+                  <div class="editor3-preset-grid" id="editor3PresetGrid">
+                    <button type="button" class="editor3-preset is-active" data-preset-key="serif">
+                      <strong>명조</strong>
+                    </button>
+                    <button type="button" class="editor3-preset" data-preset-key="sans">
+                      <strong>고딕</strong>
+                    </button>
+                    <button type="button" class="editor3-preset" data-preset-key="hand">
+                      <strong>손글씨</strong>
+                    </button>
+                  </div>
+                  <select id="fontSelect" class="gls-select gls-hidden" aria-hidden="true" tabindex="-1">
+                    <option value="serif">명조</option>
+                    <option value="sans">고딕</option>
+                    <option value="hand">손글씨</option>
+                  </select>
+                </div>
+
+                <div class="editor3-field">
+                  <label class="editor3-field-label">정렬</label>
+                  <div class="editor3-preset-grid" id="editor3AlignGrid">
+                    <button type="button" class="editor3-preset is-active" data-align-value="auto">
+                      <strong>추천</strong>
+                    </button>
+                    <button type="button" class="editor3-preset" data-align-value="left">
+                      <strong>왼쪽</strong>
+                    </button>
+                    <button type="button" class="editor3-preset" data-align-value="center">
+                      <strong>가운데</strong>
+                    </button>
+                  </div>
+                  <p class="editor3-inline-help" id="editor3AlignHelp">현재 글 유형에 맞는 정렬을 자동으로 추천합니다.</p>
+                </div>
+
+                <div class="editor3-field">
+                  <label for="postHashtags" class="editor3-field-label">해시태그</label>
+                  <input type="text" id="postHashtags" class="gls-input" placeholder="#밤산책 #문장수집" />
+                  <div class="gls-form-help">공백이나 Enter로 태그를 추가할 수 있어요.</div>
+                </div>
+              </div>
+
+              <select id="categorySelect" class="gls-hidden" aria-hidden="true" tabindex="-1">
+                <option value="short">짧은 구절</option>
+                <option value="poem">시</option>
+                <option value="essay">에세이/일기</option>
+              </select>
+
+              <div class="editor3-actions">
+                <button id="discardDraftBtn" type="button" class="gls-btn gls-btn-secondary">초안 삭제</button>
+                <a class="editor3-secondary-link" href="/html/editor2.html">기존 에디터 보기</a>
+                <button id="saveBtn" type="button" class="gls-btn gls-btn-primary">저장하기</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="editor3-panel editor3-panel--preview">
+          <div class="editor3-card editor3-preview-card">
+            <div class="editor3-card__body">
+              <div class="editor3-preview-head">
+                <div>
+                  <p class="editor3-preview-kicker">CARD PREVIEW</p>
+                  <h2 class="editor3-preview-title"><span id="editor3PresetName">명조</span> 톤의 카드 미리보기</h2>
+                </div>
+                <div class="editor3-preview-meta">
+                  <span class="editor3-preview-chip"><strong id="editor3PageCount">1</strong>장</span>
+                  <span class="editor3-preview-chip"><span id="editor3CurrentPage">1</span> / <span id="editor3CurrentTotal">1</span></span>
+                </div>
+              </div>
+
+              <div class="editor3-feedback-box">
+                <ul id="editor3FeedbackList" class="editor3-feedback-list">
+                  <li>글을 입력하면 이 자리에서 페이지 호흡과 품질 피드백을 보여드릴게요.</li>
+                </ul>
+              </div>
+
+              <div class="editor3-stage">
+                <button type="button" id="editor3PrevPageBtn" class="editor3-nav-btn" aria-label="이전 페이지">
+                  <span aria-hidden="true">‹</span>
+                </button>
+                <div class="editor3-stage-window" id="editor3StageWindow">
+                  <div id="editor3PreviewCarousel" class="editor3-preview-carousel"></div>
+                </div>
+                <button type="button" id="editor3NextPageBtn" class="editor3-nav-btn" aria-label="다음 페이지">
+                  <span aria-hidden="true">›</span>
+                </button>
+              </div>
+
+              <div id="editor3PreviewThumbs" class="editor3-preview-thumbs" aria-label="페이지 미리보기 목록"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+  <script src="/js/theme.js" defer></script>
+  <script src="/js/header.js"></script>
+  <script src="/js/analytics.js"></script>
+  <script src="/js/postCard.js"></script>
+  <script src="/js/readingMode.js"></script>
+  <script src="/js/cardRenderer.js"></script>
+  <script src="/js/editor3.js"></script>
+</body>
+</html>

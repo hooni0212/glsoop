@@ -9,6 +9,7 @@ const {
 
 const router = express.Router();
 const PREVIEW_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
+const LAYOUT_UNIT_NORMALIZED = 'normalized';
 
 function dbGetAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -149,12 +150,17 @@ function parsePreviewLayoutFromQuery(query = {}) {
     baseKey: 'title',
     required: false,
   });
+  const footerBoxResult = parsePreviewLayoutBox({
+    query,
+    baseKey: 'footer',
+    required: false,
+  });
 
-  if (textBoxResult.error || titleBoxResult.error) {
+  if (textBoxResult.error || titleBoxResult.error || footerBoxResult.error) {
     return { provided: true, error: true };
   }
 
-  if (!textBoxResult.provided && !titleBoxResult.provided) {
+  if (!textBoxResult.provided && !titleBoxResult.provided && !footerBoxResult.provided) {
     return { provided: false, value: null };
   }
 
@@ -164,10 +170,14 @@ function parsePreviewLayoutFromQuery(query = {}) {
 
   const layoutPayload = {
     layout_version: 1,
+    unit: LAYOUT_UNIT_NORMALIZED,
     text_box: textBoxResult.value,
   };
   if (titleBoxResult.provided) {
     layoutPayload.title_box = titleBoxResult.value;
+  }
+  if (footerBoxResult.provided) {
+    layoutPayload.footer_box = footerBoxResult.value;
   }
 
   return {

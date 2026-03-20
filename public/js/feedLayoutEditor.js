@@ -431,6 +431,9 @@
           boxEl.style.top = `${round(box.y * 100, 4)}%`;
           boxEl.style.width = `${round(box.w * 100, 4)}%`;
           boxEl.style.height = `${round(box.h * 100, 4)}%`;
+          boxEl.style.setProperty('--gls-layout-align', box.align || 'center');
+          boxEl.style.setProperty('--gls-layout-font-scale', String(box.font_scale || 1));
+          boxEl.style.setProperty('--gls-layout-line-height', String(box.line_height || 1.15));
 
           const outside = this.isOutsideSafeAreaForBox(key);
           boxEl.classList.toggle('is-outside-safe-area', outside);
