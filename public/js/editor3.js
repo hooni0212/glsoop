@@ -46,7 +46,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     !fontSelectEl ||
     !categorySelectEl ||
     !window.Quill ||
-    !window.GlsReadingMode
+    !window.GlsReadingMode ||
+    !window.GlsCardRenderer
   ) {
     return;
   }
@@ -373,38 +374,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return quill.getText().replace(/\r/g, '').trim();
   }
 
-  function buildPreviewImageUrl(page) {
-    const params = new URLSearchParams();
-    params.set('title', page?.title || '');
-    params.set('content', page?.contentHtml || '');
-    params.set('category', page?.category || 'short');
-    params.set('template', 'paper01');
-    params.set('scale', '1');
-    const layout = buildLayoutPayload(page?.align || 'center', preservedLayoutJson);
-    params.set('layout_x', String(layout.text_box.x));
-    params.set('layout_y', String(layout.text_box.y));
-    params.set('layout_w', String(layout.text_box.w));
-    params.set('layout_h', String(layout.text_box.h));
-    params.set('layout_align', String(layout.text_box.align));
-    params.set('layout_font_scale', String(layout.text_box.font_scale));
-    params.set('layout_line_height', String(layout.text_box.line_height));
-    params.set('layout_title_x', String(layout.title_box.x));
-    params.set('layout_title_y', String(layout.title_box.y));
-    params.set('layout_title_w', String(layout.title_box.w));
-    params.set('layout_title_h', String(layout.title_box.h));
-    params.set('layout_title_align', String(layout.title_box.align));
-    params.set('layout_title_font_scale', String(layout.title_box.font_scale));
-    params.set('layout_title_line_height', String(layout.title_box.line_height));
-    params.set('layout_footer_x', String(layout.footer_box.x));
-    params.set('layout_footer_y', String(layout.footer_box.y));
-    params.set('layout_footer_w', String(layout.footer_box.w));
-    params.set('layout_footer_h', String(layout.footer_box.h));
-    params.set('layout_footer_align', String(layout.footer_box.align));
-    params.set('layout_footer_font_scale', String(layout.footer_box.font_scale));
-    params.set('layout_footer_line_height', String(layout.footer_box.line_height));
-    return `/api/feed-images/preview?${params.toString()}`;
-  }
-
   function truncateText(value, maxLength = 38) {
     const text = String(value || '').replace(/\s+/g, ' ').trim();
     if (text.length <= maxLength) return text;
@@ -445,19 +414,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     previewCarouselEl.innerHTML = pages
       .map((page, index) => {
-        const plainText = String(page?.plainText || '').trim();
-        const underlayText = plainText || '여기에 문장이 들어오면 카드의 여백과 호흡이 바로 잡혀요.';
-        const title = page?.title ? `<div class="editor3-page-underlay__title">${escapeHtml(page.title)}</div>` : '';
         return `
           <article class="editor3-page${index === currentPreviewIndex ? ' is-active' : ''}" data-preview-page="${index}">
-            <div class="editor3-page-frame">
-              <div class="editor3-page-underlay editor3-page-underlay--${escapeHtml(page.category || 'short')}" style="text-align:${escapeHtml(page.align || 'center')}">
-                ${title}
-                <div class="editor3-page-underlay__body">${escapeHtml(underlayText)}</div>
-              </div>
-              <img src="${buildPreviewImageUrl(page)}" alt="${escapeHtml(`${page.pageNumber}페이지 미리보기`)}" loading="${index === currentPreviewIndex ? 'eager' : 'lazy'}" />
-              <div class="editor3-page-badge">${page.pageNumber} / ${page.totalPages}</div>
-            </div>
+            ${window.GlsCardRenderer.renderPage(page, {
+              fontKey: fontSelectEl.value || page?.fontKey || 'serif',
+              frameClass: 'editor3-page-frame',
+              cardClass: 'editor3-render-card',
+              showBadge: true,
+            })}
           </article>
         `;
       })
@@ -481,15 +445,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderPreviewPages(pages);
         syncPreviewMeta(pages);
       });
-    });
-
-    previewCarouselEl.querySelectorAll('.editor3-page-frame img').forEach((img, index) => {
-      img.addEventListener('error', () => {
-        const page = pages[index];
-        const frame = img.closest('.editor3-page-frame');
-        if (!frame) return;
-        frame.innerHTML = `<div class="editor3-page-fallback">${escapeHtml(page?.plainText || '')}</div>`;
-      }, { once: true });
     });
   }
 
@@ -687,7 +642,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       categorySelectEl.value = recommended.category;
     }
 
-    currentAnalysis = window.GlsReadingMode.analyzeReading({
+    currentAnalysis = window.GlsCardRenderer.buildDocument({
       title,
       plainText,
       category: getSelectedCategory(),
@@ -703,8 +658,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       detectedModeNoteEl.textContent = currentAnalysis?.recommendedReason || '글을 입력하면 추천 모드를 안내해드릴게요.';
     }
     if (alignHelpEl) {
-      const recommendedAlignLabel = currentAnalysis?.recommendedAlign === 'center' ? '가운데' : '왼쪽';
-      const activeAlign = currentAnalysis?.alignment === 'center' ? '가운데' : '왼쪽';
+      const recommendedAlignLabel = currentAnalysis?.recommendedAlignment === 'center' ? '가운데' : '왼쪽';
+      const activeAlign = currentAnalysis?.resolvedAlignment === 'center' ? '가운데' : '왼쪽';
       alignHelpEl.textContent = getSelectedAlignmentMode() === 'auto'
         ? `현재 글에는 ${recommendedAlignLabel} 정렬을 추천하고 있어요.`
         : `지금은 ${activeAlign} 정렬로 고정해서 보고 있어요.`;

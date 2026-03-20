@@ -261,6 +261,7 @@ body.page-growth .growth-today-pill .sub {
 body.page-growth .growth-stat-grid {
   display: grid;
   gap: var(--gls-space-4);
+  align-items: stretch;
 }
 
 @media (min-width: 768px) {
@@ -275,6 +276,19 @@ body.page-growth .growth-today-list {
   margin: 0;
   display: grid;
   gap: 6px;
+}
+
+body.page-growth .growth-today-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--gls-text);
+}
+
+body.page-growth .growth-today-list strong {
+  white-space: nowrap;
 }
 
 body.page-growth .growth-stat-rows {
@@ -618,6 +632,10 @@ body.page-growth .forest-map-detail-progress-bar {
 
 body.page-growth .growth-achievement-list {
   padding: var(--gls-space-4);
+}
+
+body.page-growth .achievement-list-header {
+  align-items: flex-start;
 }
 
 body.page-growth .achievement-filters {

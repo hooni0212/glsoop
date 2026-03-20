@@ -714,20 +714,16 @@ function renderPostCard(post, options = {}) {
   const postId = post && post.id != null ? String(post.id) : '';
   const dateText = safeEscape(formatDateTime(post && post.created_at));
   const categoryLabel = getCategoryLabel(post && post.category);
-  const titleText = post && post.title ? String(post.title) : '제목 없음';
   if (typeof buildStandardPostCardHTML !== 'function') {
     console.error('[mypage] postCard SSOT is unavailable: buildStandardPostCardHTML');
     return '';
   }
-  const cardHtml = injectMypageImageTitle(
-    buildStandardPostCardHTML(post, {
-      showMoreButton: false,
-      contentExpanded: true,
-      showEngagementActions: false,
-      cardClickable: false,
-    }),
-    titleText
-  );
+  const cardHtml = buildStandardPostCardHTML(post, {
+    showMoreButton: false,
+    contentExpanded: true,
+    showEngagementActions: false,
+    cardClickable: false,
+  });
 
   const actionsHtml = editable
     ? `

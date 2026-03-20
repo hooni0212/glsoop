@@ -632,6 +632,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       created_at: new Date().toISOString(),
       like_count: 0,
       user_liked: 0,
+      layout_json: manualLayoutState ? cloneLayout(manualLayoutState) : null,
     };
   }
 
@@ -706,6 +707,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!layoutEditToggleBtn) return;
     layoutEditToggleBtn.setAttribute('aria-pressed', layoutEditEnabled ? 'true' : 'false');
     layoutEditToggleBtn.textContent = `레이아웃 편집: ${layoutEditEnabled ? 'ON' : 'OFF'}`;
+    previewFeedCardMountEl?.classList.toggle('is-layout-editing', layoutEditEnabled);
   }
 
   function updateLayoutSafeAreaHint(shouldShow) {

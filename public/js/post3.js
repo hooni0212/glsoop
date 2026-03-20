@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const relatedListEl = document.getElementById('post3RelatedList');
   const modeButtons = Array.from(document.querySelectorAll('[data-read-mode]'));
 
-  if (!postId || !window.GlsReadingMode || !stageEl) {
+  if (!postId || !window.GlsReadingMode || !window.GlsCardRenderer || !stageEl) {
     if (stageEl) {
       stageEl.innerHTML = '<p class="gls-text-muted">글 정보를 찾을 수 없습니다.</p>';
     }
@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let post = null;
   let pages = [];
+  let documentModel = null;
   let currentPageIndex = 0;
   let readMode = 'cards';
   let fontKey = 'serif';
@@ -276,14 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderFeedback() {
     if (!feedbackEl) return;
-    const analysis = window.GlsReadingMode.analyzeReading({
-      title: post?.title || '',
-      plainText: window.GlsReadingMode.decodeHtmlToText(post?.content || ''),
-      category: post?.category || 'short',
-      fontKey,
-      alignment: alignmentMode,
-    });
-    feedbackEl.innerHTML = (analysis.feedback || []).slice(0, 1)
+    feedbackEl.innerHTML = (documentModel?.feedback || []).slice(0, 1)
       .map((item) => `<div>${escapeHtml(item)}</div>`)
       .join('');
   }
@@ -300,19 +294,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     stageEl.innerHTML = pages
       .map((page, index) => {
-        const plainText = String(page?.plainText || '').trim();
-        const underlayText = plainText || '이 페이지의 문장이 여기에 놓입니다.';
-        const title = page?.title ? `<div class="post3-page-underlay__title">${escapeHtml(page.title)}</div>` : '';
         return `
         <article class="post3-page${index === currentPageIndex ? ' is-active' : ''}" data-page-index="${index}">
-          <div class="post3-page-frame">
-            <div class="post3-page-underlay post3-page-underlay--${escapeHtml(page.category || 'short')}" style="text-align:${escapeHtml(page.align || 'center')}">
-              ${title}
-              <div class="post3-page-underlay__body">${escapeHtml(underlayText)}</div>
-            </div>
-            <img src="${buildPreviewImageUrl(page)}" alt="${escapeHtml(`${page.pageNumber}페이지 카드`)}" loading="${index === currentPageIndex ? 'eager' : 'lazy'}" />
-            <div class="post3-page-badge">${page.pageNumber} / ${page.totalPages}</div>
-          </div>
+          ${window.GlsCardRenderer.renderPage(page, {
+            fontKey,
+            frameClass: 'post3-page-frame',
+            cardClass: 'post3-render-card',
+            showBadge: true,
+          })}
         </article>
       `;
       })
@@ -336,15 +325,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
-    stageEl.querySelectorAll('.post3-page-frame img').forEach((img, index) => {
-      img.addEventListener('error', () => {
-        const page = pages[index];
-        const frame = img.closest('.post3-page-frame');
-        if (!frame) return;
-        frame.innerHTML = `<div class="post3-page-fallback">${escapeHtml(page?.plainText || '')}</div>`;
-      }, { once: true });
-    });
-
     syncStageState();
   }
 
@@ -352,32 +332,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!linearViewEl) return;
     linearViewEl.innerHTML = pages
       .map((page) => {
-        const plainText = String(page?.plainText || '').trim();
-        const underlayText = plainText || '이 페이지의 문장이 여기에 놓입니다.';
-        const title = page?.title ? `<div class="post3-page-underlay__title">${escapeHtml(page.title)}</div>` : '';
         return `
         <article class="post3-linear-item">
-          <div class="post3-page-frame">
-            <div class="post3-page-underlay post3-page-underlay--${escapeHtml(page.category || 'short')}" style="text-align:${escapeHtml(page.align || 'center')}">
-              ${title}
-              <div class="post3-page-underlay__body">${escapeHtml(underlayText)}</div>
-            </div>
-            <img src="${buildPreviewImageUrl(page)}" alt="${escapeHtml(`${page.pageNumber}페이지 카드`)}" loading="eager" />
-            <div class="post3-page-badge">${page.pageNumber} / ${page.totalPages}</div>
-          </div>
+          ${window.GlsCardRenderer.renderPage(page, {
+            fontKey,
+            frameClass: 'post3-page-frame',
+            cardClass: 'post3-render-card',
+            showBadge: true,
+          })}
         </article>
       `;
       })
       .join('');
-
-    linearViewEl.querySelectorAll('.post3-page-frame img').forEach((img, index) => {
-      img.addEventListener('error', () => {
-        const page = pages[index];
-        const frame = img.closest('.post3-page-frame');
-        if (!frame) return;
-        frame.innerHTML = `<div class="post3-page-fallback">${escapeHtml(page?.plainText || '')}</div>`;
-      }, { once: true });
-    });
   }
 
   function renderReader() {
@@ -434,21 +400,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const parsedLayout = parseLayoutJson(post.layout_json);
     const currentAlign = String(parsedLayout?.text_box?.align || '').trim().toLowerCase();
     alignmentMode = currentAlign === 'left' || currentAlign === 'center' ? currentAlign : 'auto';
-    pages = window.GlsReadingMode.splitIntoPages({
+    documentModel = window.GlsCardRenderer.buildDocument({
       title: post.title || '',
       plainText: window.GlsReadingMode.decodeHtmlToText(extracted.cleanHtml || ''),
       category: post.category || 'short',
       fontKey,
       alignment: alignmentMode,
     });
+    pages = Array.isArray(documentModel.pages) ? documentModel.pages : [];
     if (!pages.length) {
-      pages = window.GlsReadingMode.splitIntoPages({
+      documentModel = window.GlsCardRenderer.buildDocument({
         title: post.title || '',
         plainText: window.GlsReadingMode.decodeHtmlToText(post.content || ''),
         category: post.category || 'short',
         fontKey,
         alignment: alignmentMode,
       });
+      pages = Array.isArray(documentModel.pages) ? documentModel.pages : [];
     }
     return true;
   }

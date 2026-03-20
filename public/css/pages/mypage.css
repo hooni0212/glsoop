@@ -465,21 +465,30 @@ body.page-mypage .mpd-post-canvas .post-bottom-meta {
 body.page-mypage .mpd-post-foot {
   margin-top: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
+  padding-inline: 2px;
 }
 
 body.page-mypage .mpd-post-foot-meta {
   color: var(--mpd-muted);
   font-size: 0.82rem;
   font-weight: 600;
+  flex: 1 1 220px;
 }
 
 body.page-mypage .mpd-post-actions {
   display: inline-flex;
   gap: 6px;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+body.page-mypage .mpd-post-actions .gls-btn,
+body.page-mypage .mpd-post-foot > .gls-btn {
+  min-width: 58px;
 }
 
 body.page-mypage .mpd-following-card {

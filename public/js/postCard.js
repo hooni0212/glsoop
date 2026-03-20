@@ -225,6 +225,188 @@ function buildRenderedImageCardHtml(post, fallbackHtml, renderedImageSrc = '') {
   `;
 }
 
+const GLS_BOOKMARK_SYNC_EVENT = 'glsoop:bookmark-state-changed';
+const GLS_LIKE_SYNC_EVENT = 'glsoop:like-state-changed';
+const bookmarkStateCache = new Map();
+const bookmarkStateRequests = new Map();
+let postCardGlobalSyncBound = false;
+let bookmarkStateAuthUnavailable = false;
+
+function normalizePostId(postId) {
+  if (postId == null) return '';
+  return String(postId);
+}
+
+function escapeSelectorValue(value) {
+  const raw = normalizePostId(value);
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(raw);
+  }
+  return raw.replace(/["\\]/g, '\\$&');
+}
+
+function buildBookmarkState(selectedIds = []) {
+  const uniqueIds = Array.from(
+    new Set(
+      (Array.isArray(selectedIds) ? selectedIds : [])
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0)
+    )
+  );
+
+  return {
+    selectedIds: uniqueIds,
+    count: uniqueIds.length,
+    active: uniqueIds.length > 0,
+  };
+}
+
+function dispatchBookmarkStateChanged(postId, state) {
+  if (typeof document === 'undefined') return;
+  document.dispatchEvent(
+    new CustomEvent(GLS_BOOKMARK_SYNC_EVENT, {
+      detail: {
+        postId: normalizePostId(postId),
+        state: state || buildBookmarkState([]),
+      },
+    })
+  );
+}
+
+function dispatchLikeStateChanged(postId, state) {
+  if (typeof document === 'undefined') return;
+  document.dispatchEvent(
+    new CustomEvent(GLS_LIKE_SYNC_EVENT, {
+      detail: {
+        postId: normalizePostId(postId),
+        state,
+      },
+    })
+  );
+}
+
+function syncBookmarkButtonsForPost(postId, state) {
+  const normalizedId = normalizePostId(postId);
+  if (!normalizedId || typeof document === 'undefined') return;
+
+  const resolvedState = state || buildBookmarkState([]);
+  bookmarkStateCache.set(normalizedId, resolvedState);
+
+  const buttons = document.querySelectorAll(
+    `.post-bookmark-toggle[data-post-id="${escapeSelectorValue(normalizedId)}"]`
+  );
+
+  buttons.forEach((button) => {
+    const count = Number(resolvedState.count) || 0;
+    const active = Boolean(resolvedState.active);
+    const countEl = button.querySelector('.post-bookmark-count');
+
+    button.classList.toggle('is-bookmarked', active);
+    button.setAttribute('data-bookmark-active', active ? '1' : '0');
+    button.setAttribute('data-bookmark-count', String(count));
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+
+    const label = active
+      ? count > 1
+        ? `북마크 ${count}개 폴더에 저장됨`
+        : '북마크됨'
+      : '북마크 추가';
+    button.setAttribute('aria-label', label);
+    button.setAttribute('title', label);
+
+    if (countEl) {
+      countEl.textContent = active ? String(count) : '';
+      countEl.hidden = !active;
+    }
+  });
+}
+
+function syncLikeButtonsForPost(postId, state) {
+  const normalizedId = normalizePostId(postId);
+  if (!normalizedId || typeof document === 'undefined' || !state) return;
+
+  const buttons = document.querySelectorAll(
+    `.like-btn[data-post-id="${escapeSelectorValue(normalizedId)}"]`
+  );
+
+  buttons.forEach((button) => {
+    const liked = Boolean(state.liked);
+    const likeCount = Number.isFinite(Number(state.likeCount))
+      ? Number(state.likeCount)
+      : 0;
+    button.setAttribute('data-liked', liked ? '1' : '0');
+    button.classList.toggle('liked', liked);
+    button.setAttribute('aria-pressed', liked ? 'true' : 'false');
+
+    const heartEl = button.querySelector('.like-heart');
+    const countEl = button.querySelector('.like-count');
+    if (heartEl) heartEl.textContent = liked ? '♥' : '♡';
+    if (countEl) countEl.textContent = String(likeCount);
+  });
+}
+
+async function fetchBookmarkState(postId, options = {}) {
+  const normalizedId = normalizePostId(postId);
+  if (!normalizedId) return buildBookmarkState([]);
+
+  if (bookmarkStateAuthUnavailable && !options.force) {
+    return buildBookmarkState([]);
+  }
+
+  if (!options.force && bookmarkStateCache.has(normalizedId)) {
+    return bookmarkStateCache.get(normalizedId);
+  }
+
+  if (!options.force && bookmarkStateRequests.has(normalizedId)) {
+    return bookmarkStateRequests.get(normalizedId);
+  }
+
+  const request = fetch(`/api/posts/${encodeURIComponent(normalizedId)}/bookmarks`, {
+    cache: 'no-store',
+  })
+    .then(async (res) => {
+      if (res.status === 401) {
+        bookmarkStateAuthUnavailable = true;
+        const emptyState = buildBookmarkState([]);
+        bookmarkStateCache.set(normalizedId, emptyState);
+        return emptyState;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || '북마크 정보를 불러오지 못했습니다.');
+      }
+
+      const selectedIds = Array.isArray(data.lists)
+        ? data.lists.filter((item) => item && item.contains).map((item) => item.id)
+        : [];
+      const nextState = buildBookmarkState(selectedIds);
+      bookmarkStateCache.set(normalizedId, nextState);
+      return nextState;
+    })
+    .finally(() => {
+      bookmarkStateRequests.delete(normalizedId);
+    });
+
+  bookmarkStateRequests.set(normalizedId, request);
+  return request;
+}
+
+function ensurePostCardGlobalSync() {
+  if (postCardGlobalSyncBound || typeof document === 'undefined') return;
+  postCardGlobalSyncBound = true;
+
+  document.addEventListener(GLS_BOOKMARK_SYNC_EVENT, (event) => {
+    const detail = event.detail || {};
+    syncBookmarkButtonsForPost(detail.postId, detail.state);
+  });
+
+  document.addEventListener(GLS_LIKE_SYNC_EVENT, (event) => {
+    const detail = event.detail || {};
+    syncLikeButtonsForPost(detail.postId, detail.state);
+  });
+}
+
 /**
  * ⭐ 공통 카드 HTML 생성 함수
  * - 인덱스 피드 / 관련 글 / 마이페이지 등에서 모두 같은 구조를 쓰기 위해 사용
@@ -284,9 +466,13 @@ function buildStandardPostCardHTML(post, options = {}) {
       type="button"
       class="gls-btn gls-btn-sm post-bookmark-toggle"
       data-post-id="${post.id}"
+      data-bookmark-active="0"
+      data-bookmark-count="0"
       aria-label="북마크 추가"
+      aria-pressed="false"
     >
       ${bookmarkIcon}
+      <span class="post-bookmark-count" hidden></span>
     </button>`;
 
   // 카드에 붙일 추가 클래스
@@ -407,6 +593,7 @@ function buildStandardPostCardHTML(post, options = {}) {
  */
 function enhanceStandardPostCard(cardElement, post, options = {}) {
   if (!cardElement) return;
+  ensurePostCardGlobalSync();
 
   const quoteEl = cardElement.querySelector('.quote-card');
   const isRenderedImageCard = !!cardElement.querySelector('.feed-rendered-card-image');
@@ -423,6 +610,15 @@ function enhanceStandardPostCard(cardElement, post, options = {}) {
   }
   if (typeof setupCardInteractions === 'function') {
     setupCardInteractions(cardElement, post, options);
+  }
+
+  const postId = post?.id;
+  if (postId != null) {
+    fetchBookmarkState(postId)
+      .then((state) => {
+        syncBookmarkButtonsForPost(postId, state);
+      })
+      .catch(() => {});
   }
 }
 
@@ -491,6 +687,9 @@ async function toggleLike(postId, likeBtn) {
     }
 
     likeBtn.classList.toggle('liked', liked);
+    likeBtn.setAttribute('aria-pressed', liked ? 'true' : 'false');
+    syncLikeButtonsForPost(postId, { liked, likeCount });
+    dispatchLikeStateChanged(postId, { liked, likeCount });
 
     if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
       window.glsoopUi.showPageNotice(
@@ -664,6 +863,10 @@ function setupCardInteractions(cardEl, post, options = {}) {
   const likeBtn = cardEl.querySelector('.like-btn');
   if (likeBtn && likeBtn.dataset.likeBound !== '1') {
     likeBtn.dataset.likeBound = '1';
+    likeBtn.setAttribute(
+      'aria-pressed',
+      likeBtn.getAttribute('data-liked') === '1' ? 'true' : 'false'
+    );
     likeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const pid = likeBtn.getAttribute('data-post-id') || post.id;
