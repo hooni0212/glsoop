@@ -34,6 +34,38 @@
   color: var(--gls-action-accent, var(--gls-color-primary, #2e8b57));
 }
 
+.post-bookmark-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.post-bookmark-toggle .post-bookmark-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gls-color-primary, #2e8b57) 18%, #ffffff 82%);
+  color: color-mix(in srgb, var(--gls-color-primary-strong, #1f6f58) 88%, #143f33 12%);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.post-bookmark-toggle.is-bookmarked {
+  background: var(--gls-action-surface-strong, rgba(238, 252, 245, 0.62));
+  border-color: var(--gls-action-border-strong, rgba(46, 139, 87, 0.3));
+  box-shadow: var(--gls-action-glow, 0 10px 26px rgba(46, 139, 87, 0.16));
+}
+
+.post-bookmark-toggle.is-bookmarked .post-bookmark-icon {
+  color: color-mix(in srgb, var(--gls-color-primary-strong, #1f6f58) 88%, #163428 12%);
+}
+
 /* IG export (⋯) button in card header */
 .ig-share-btn {
   padding: 2px 10px;

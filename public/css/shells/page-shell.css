@@ -5,6 +5,62 @@
    - 사용: body에 page-XXXX 클래스 + main.page-shell 구조
    ============================================================= */
 
+/* =============================================================
+   AppShell / MainGrid SSOT
+   - 구조 문서: docs/ui/GLSOOP-UI-REFACTOR-STRUCTURE-DIAGRAM.md
+   ============================================================= */
+
+:root {
+  --gls-z-base: 0;
+  --gls-z-header: 10;
+  --gls-z-dropdown: 20;
+  --gls-z-modal: 100;
+}
+
+.AppShell-main {
+  position: relative;
+  z-index: var(--gls-z-base);
+}
+
+.PageContainer {
+  width: 100%;
+}
+
+.MainGrid {
+  display: grid;
+  gap: var(--gls-main-grid-gap, clamp(14px, 2vw, 24px));
+  align-items: start;
+}
+
+.MainGrid > .MainGrid-main,
+.MainGrid > .MainGrid-aside {
+  min-width: 0;
+}
+
+.MainGrid.has-aside {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 1024px) {
+  .MainGrid.has-aside {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  }
+
+  .MainGrid.has-aside.is-aside-left {
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .MainGrid.has-aside .MainGrid-main {
+    order: 1;
+  }
+
+  .MainGrid.has-aside .MainGrid-aside {
+    order: 2;
+  }
+}
+
 /* =========================
    1) 배경 / 기본 레이아웃
 ========================= */
@@ -333,4 +389,3 @@ body.page-mypage .mypage-growth-mini {
     width: 100%;
   }
 }
-

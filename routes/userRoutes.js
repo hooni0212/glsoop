@@ -332,6 +332,7 @@ router.get('/users/:id/posts', authOptional, async (req, res) => {
       p.id,
       p.title,
       p.content,
+      p.layout_json,
       p.created_at,
       (CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END) AS category,
       p.user_id AS author_id,

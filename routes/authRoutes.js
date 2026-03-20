@@ -13,6 +13,7 @@ const {
   JWT_ISSUER,
   JWT_AUDIENCE,
   RESET_TOKEN_HMAC_SECRET,
+  LEGAL_CONFIG,
 } = require('../config');
 const { sendPasswordResetEmail } = require('../services/mailer');
 const { authRequired } = require('../middleware/auth');
@@ -111,6 +112,69 @@ function normalizeBoolean(value) {
   }
   if (typeof value === 'number') return value === 1;
   return false;
+}
+
+function normalizeVersion(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+}
+
+function isBooleanLike(value) {
+  return (
+    typeof value === 'boolean' ||
+    typeof value === 'string' ||
+    typeof value === 'number'
+  );
+}
+
+function getLegalVersions() {
+  return {
+    terms: LEGAL_CONFIG?.versions?.terms || '',
+    privacy: LEGAL_CONFIG?.versions?.privacy || '',
+    marketing: LEGAL_CONFIG?.versions?.marketing || '',
+  };
+}
+
+const SIGNUP_EMAIL_DRY_RUN = normalizeBoolean(
+  process.env.AUTH_SIGNUP_EMAIL_DRY_RUN
+);
+
+async function insertUserConsentEvent({
+  userId,
+  consentType,
+  consentVersion,
+  isGranted,
+  source,
+  ipHash = null,
+  userAgent = null,
+  createdAt = null,
+}) {
+  const createdAtValue = createdAt ? String(createdAt) : toIso(Date.now());
+  await dbRun(
+    `
+    INSERT INTO user_consent_events (
+      user_id,
+      consent_type,
+      consent_version,
+      is_granted,
+      source,
+      ip_hash,
+      user_agent,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      userId,
+      consentType,
+      consentVersion,
+      isGranted ? 1 : 0,
+      source,
+      ipHash,
+      userAgent,
+      createdAtValue,
+    ]
+  );
 }
 
 function isStrongPassword(password) {
@@ -449,58 +513,98 @@ async function backfillUserAchievementStates(userId) {
 }
 
 async function commitPendingSignup(pending) {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run('BEGIN IMMEDIATE', (beginErr) => {
-        if (beginErr) return reject(beginErr);
+  const legalVersions = getLegalVersions();
+  const marketingOptIn = normalizeBoolean(pending?.marketing_email_opt_in);
+  const consentAt = pending?.consent_recorded_at || toIso(Date.now());
+  const consentIpHash = pending?.consent_ip_hash || null;
+  const consentUserAgent = pending?.consent_user_agent || null;
+  const termsVersion = normalizeVersion(pending?.terms_version) || legalVersions.terms;
+  const privacyVersion = normalizeVersion(pending?.privacy_version) || legalVersions.privacy;
+  const marketingVersion =
+    normalizeVersion(pending?.marketing_version) || legalVersions.marketing;
 
-        db.run(
-          `
-          INSERT INTO users (
-            name,
-            nickname,
-            email,
-            pw,
-            is_admin,
-            is_verified,
-            verification_token,
-            verification_expires
-          )
-          VALUES (?, ?, ?, ?, 0, 1, NULL, NULL)
-          `,
-          [pending.name, pending.nickname, pending.email, pending.pw_hash],
-          function onInsert(insertErr) {
-            if (insertErr) {
-              return db.run('ROLLBACK', () => reject(insertErr));
-            }
+  await dbRun('BEGIN IMMEDIATE');
+  try {
+    const userInsert = await dbRun(
+      `
+      INSERT INTO users (
+        name,
+        nickname,
+        email,
+        pw,
+        is_admin,
+        is_verified,
+        verification_token,
+        verification_expires,
+        marketing_email_opt_in,
+        marketing_opt_in_updated_at
+      )
+      VALUES (?, ?, ?, ?, 0, 1, NULL, NULL, ?, ?)
+      `,
+      [
+        pending.name,
+        pending.nickname,
+        pending.email,
+        pending.pw_hash,
+        marketingOptIn ? 1 : 0,
+        consentAt,
+      ]
+    );
 
-            const newUserId = this.lastID;
+    const newUserId = userInsert.lastID;
 
-            seedDefaultCosmeticsForSignup(newUserId, (cosmeticErr) => {
-              if (cosmeticErr) {
-                return db.run('ROLLBACK', () => reject(cosmeticErr));
-              }
-
-              db.run(
-                'DELETE FROM pending_signups WHERE id = ?',
-                [pending.id],
-                (deleteErr) => {
-                  if (deleteErr) {
-                    return db.run('ROLLBACK', () => reject(deleteErr));
-                  }
-
-                  db.run('COMMIT', (commitErr) => {
-                    if (commitErr) return reject(commitErr);
-                    resolve(newUserId);
-                  });
-                }
-              );
-            });
-          }
-        );
+    await new Promise((resolve, reject) => {
+      seedDefaultCosmeticsForSignup(newUserId, (cosmeticErr) => {
+        if (cosmeticErr) {
+          reject(cosmeticErr);
+          return;
+        }
+        resolve();
       });
     });
-  });
+
+    await insertUserConsentEvent({
+      userId: newUserId,
+      consentType: 'terms',
+      consentVersion: termsVersion,
+      isGranted: true,
+      source: 'signup',
+      ipHash: consentIpHash,
+      userAgent: consentUserAgent,
+      createdAt: consentAt,
+    });
+    await insertUserConsentEvent({
+      userId: newUserId,
+      consentType: 'privacy',
+      consentVersion: privacyVersion,
+      isGranted: true,
+      source: 'signup',
+      ipHash: consentIpHash,
+      userAgent: consentUserAgent,
+      createdAt: consentAt,
+    });
+    await insertUserConsentEvent({
+      userId: newUserId,
+      consentType: 'marketing',
+      consentVersion: marketingVersion,
+      isGranted: marketingOptIn,
+      source: 'signup',
+      ipHash: consentIpHash,
+      userAgent: consentUserAgent,
+      createdAt: consentAt,
+    });
+
+    await dbRun('DELETE FROM pending_signups WHERE id = ?', [pending.id]);
+    await dbRun('COMMIT');
+    return newUserId;
+  } catch (error) {
+    try {
+      await dbRun('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('[commitPendingSignup] rollback failed:', rollbackError);
+    }
+    throw error;
+  }
 }
 
 async function verifyJwtOrNull(token) {
@@ -527,11 +631,31 @@ async function verifyJwtOrNull(token) {
 
 // 6-1) 회원가입 + 이메일 OTP 발송
 router.post('/signup', signupLimiter, async (req, res) => {
-  const { name, nickname, email, pw } = req.body || {};
+  const {
+    name,
+    nickname,
+    email,
+    pw,
+    age_confirmed: ageConfirmedRaw,
+    terms_agreed: termsAgreedRaw,
+    privacy_agreed: privacyAgreedRaw,
+    marketing_email_opt_in: marketingEmailOptInRaw,
+    terms_version: termsVersionRaw,
+    privacy_version: privacyVersionRaw,
+    marketing_version: marketingVersionRaw,
+  } = req.body || {};
 
   const trimmedName = typeof name === 'string' ? name.trim() : '';
   const trimmedNickname = typeof nickname === 'string' ? nickname.trim() : '';
   const normalizedEmail = normalizeEmail(email);
+  const ageConfirmed = normalizeBoolean(ageConfirmedRaw);
+  const termsAgreed = normalizeBoolean(termsAgreedRaw);
+  const privacyAgreed = normalizeBoolean(privacyAgreedRaw);
+  const marketingEmailOptIn = normalizeBoolean(marketingEmailOptInRaw);
+  const termsVersion = normalizeVersion(termsVersionRaw);
+  const privacyVersion = normalizeVersion(privacyVersionRaw);
+  const marketingVersion = normalizeVersion(marketingVersionRaw);
+  const legalVersions = getLegalVersions();
 
   if (!trimmedName || !trimmedNickname || !normalizedEmail || !pw) {
     return sendAuthError(
@@ -549,6 +673,63 @@ router.post('/signup', signupLimiter, async (req, res) => {
       }
     );
   }
+
+  if (!ageConfirmed) {
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_SIGNUP_AGE_REQUIRED',
+      '만 14세 이상만 가입할 수 있습니다.',
+      {
+        field_errors: {
+          age_confirmed: '만 14세 이상 여부를 확인해주세요.',
+        },
+      }
+    );
+  }
+
+  const consentFieldErrors = {};
+  if (!termsAgreed) {
+    consentFieldErrors.terms_agreed = '서비스 이용약관 동의가 필요합니다.';
+  }
+  if (!privacyAgreed) {
+    consentFieldErrors.privacy_agreed = '개인정보 수집 및 이용 동의가 필요합니다.';
+  }
+
+  if (Object.keys(consentFieldErrors).length > 0) {
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_SIGNUP_REQUIRED_CONSENTS',
+      '필수 약관 동의를 완료해주세요.',
+      { field_errors: consentFieldErrors }
+    );
+  }
+
+  const legalFieldErrors = {};
+  if (termsVersion !== legalVersions.terms) {
+    legalFieldErrors.terms_version = '이용약관 버전이 변경되었습니다. 페이지를 새로고침 해주세요.';
+  }
+  if (privacyVersion !== legalVersions.privacy) {
+    legalFieldErrors.privacy_version =
+      '개인정보 처리방침 버전이 변경되었습니다. 페이지를 새로고침 해주세요.';
+  }
+  if (marketingVersion && marketingVersion !== legalVersions.marketing) {
+    legalFieldErrors.marketing_version =
+      '마케팅 동의 문서 버전이 변경되었습니다. 페이지를 새로고침 해주세요.';
+  }
+
+  if (Object.keys(legalFieldErrors).length > 0) {
+    return sendAuthError(
+      res,
+      409,
+      'AUTH_SIGNUP_LEGAL_VERSION_MISMATCH',
+      '약관 버전이 변경되었습니다. 페이지를 새로고침 후 다시 시도해주세요.',
+      { field_errors: legalFieldErrors }
+    );
+  }
+
+  const resolvedMarketingVersion = marketingVersion || legalVersions.marketing;
 
   const passwordValidation = isStrongPassword(pw);
   if (!passwordValidation.ok) {
@@ -604,13 +785,44 @@ router.post('/signup', signupLimiter, async (req, res) => {
     const otpHash = await bcrypt.hash(otpCode, 10);
     const otpExpiresAt = toIso(Date.now() + 1000 * 60 * OTP_TTL_MINUTES);
     const pendingExpiresAt = toIso(Date.now() + 1000 * 60 * 60 * PENDING_TTL_HOURS);
+    const consentRecordedAt = toIso(Date.now());
+    const consentIpHash = getIpHashFromRequest(req);
+    const consentUserAgent = getUserAgent(req);
 
     const pendingResult = await dbRun(
       `
-      INSERT INTO pending_signups (name, nickname, email, pw_hash, expires_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO pending_signups (
+        name,
+        nickname,
+        email,
+        pw_hash,
+        expires_at,
+        age_confirmed,
+        terms_version,
+        privacy_version,
+        marketing_version,
+        marketing_email_opt_in,
+        consent_ip_hash,
+        consent_user_agent,
+        consent_recorded_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [trimmedName, trimmedNickname, normalizedEmail, hashed, pendingExpiresAt]
+      [
+        trimmedName,
+        trimmedNickname,
+        normalizedEmail,
+        hashed,
+        pendingExpiresAt,
+        1,
+        legalVersions.terms,
+        legalVersions.privacy,
+        resolvedMarketingVersion,
+        marketingEmailOptIn ? 1 : 0,
+        consentIpHash,
+        consentUserAgent,
+        consentRecordedAt,
+      ]
     );
 
     const pendingId = pendingResult.lastID;
@@ -624,23 +836,25 @@ router.post('/signup', signupLimiter, async (req, res) => {
     );
 
     try {
-      await sendMail({
-        from: `"글숲" <${process.env.GMAIL_USER}>`,
-        to: normalizedEmail,
-        subject: '[글숲] 이메일 인증 번호를 확인해주세요',
-        html: `
-          <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-            <p><strong>${trimmedNickname || trimmedName}님, 안녕하세요.</strong></p>
-            <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
-            <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
-              ${otpCode}
-            </p>
-            <p style="font-size: 0.9rem; color:#888;">
-              인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
-            </p>
-          </div>
-        `,
-      });
+      if (!SIGNUP_EMAIL_DRY_RUN) {
+        await sendMail({
+          from: `"글숲" <${process.env.GMAIL_USER}>`,
+          to: normalizedEmail,
+          subject: '[글숲] 이메일 인증 번호를 확인해주세요',
+          html: `
+            <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
+              <p><strong>${trimmedNickname || trimmedName}님, 안녕하세요.</strong></p>
+              <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
+              <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
+                ${otpCode}
+              </p>
+              <p style="font-size: 0.9rem; color:#888;">
+                인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
+              </p>
+            </div>
+          `,
+        });
+      }
     } catch (mailErr) {
       console.error('인증 메일 발송 오류:', getMailErrorDetails(mailErr));
       try {
@@ -705,7 +919,20 @@ router.post('/verify-email', async (req, res) => {
 
     const pending = await dbGet(
       `
-      SELECT id, name, nickname, email, pw_hash
+      SELECT
+        id,
+        name,
+        nickname,
+        email,
+        pw_hash,
+        age_confirmed,
+        terms_version,
+        privacy_version,
+        marketing_version,
+        marketing_email_opt_in,
+        consent_ip_hash,
+        consent_user_agent,
+        consent_recorded_at
       FROM pending_signups
       WHERE id = ?
       `,
@@ -718,6 +945,20 @@ router.post('/verify-email', async (req, res) => {
         404,
         'AUTH_VERIFY_PENDING_NOT_FOUND',
         '가입 정보를 찾을 수 없습니다. 회원가입을 다시 진행해 주세요.'
+      );
+    }
+
+    if (
+      Number(pending.age_confirmed) !== 1 ||
+      !normalizeVersion(pending.terms_version) ||
+      !normalizeVersion(pending.privacy_version)
+    ) {
+      await dbRun('DELETE FROM pending_signups WHERE id = ?', [pendingId]);
+      return sendAuthError(
+        res,
+        400,
+        'AUTH_VERIFY_PENDING_CONSENT_REQUIRED',
+        '약관 동의 정보가 만료되었습니다. 회원가입을 다시 진행해 주세요.'
       );
     }
 
@@ -901,23 +1142,25 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
     );
 
     try {
-      await sendMail({
-        from: `"글숲" <${process.env.GMAIL_USER}>`,
-        to: pending.email,
-        subject: '[글숲] 이메일 인증 번호를 다시 확인해주세요',
-        html: `
-          <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-            <p><strong>${pending.nickname || pending.name}님, 안녕하세요.</strong></p>
-            <p>요청하신 인증 번호를 다시 보내드립니다. 아래 번호를 입력해 이메일 인증을 완료해주세요.</p>
-            <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
-              ${otpCode}
-            </p>
-            <p style="font-size: 0.9rem; color:#888;">
-              인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
-            </p>
-          </div>
-        `,
-      });
+      if (!SIGNUP_EMAIL_DRY_RUN) {
+        await sendMail({
+          from: `"글숲" <${process.env.GMAIL_USER}>`,
+          to: pending.email,
+          subject: '[글숲] 이메일 인증 번호를 다시 확인해주세요',
+          html: `
+            <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
+              <p><strong>${pending.nickname || pending.name}님, 안녕하세요.</strong></p>
+              <p>요청하신 인증 번호를 다시 보내드립니다. 아래 번호를 입력해 이메일 인증을 완료해주세요.</p>
+              <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
+                ${otpCode}
+              </p>
+              <p style="font-size: 0.9rem; color:#888;">
+                인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
+              </p>
+            </div>
+          `,
+        });
+      }
     } catch (mailErr) {
       console.error('인증 메일 재발송 오류:', getMailErrorDetails(mailErr));
       try {
@@ -1413,6 +1656,7 @@ router.get('/me', authRequired, (req, res) => {
       is_admin,
       is_verified,
       COALESCE(remember_login_enabled, 0) AS remember_login_enabled,
+      COALESCE(marketing_email_opt_in, 0) AS marketing_email_opt_in,
       COALESCE(level, 1) AS level,
       COALESCE(xp, 0) AS xp,
       COALESCE(streak_days, 0) AS streak_days,
@@ -1445,6 +1689,7 @@ router.get('/me', authRequired, (req, res) => {
         is_admin: !!row.is_admin,
         is_verified: !!row.is_verified,
         remember_login_enabled: Number(row.remember_login_enabled) === 1,
+        marketing_email_opt_in: Number(row.marketing_email_opt_in) === 1,
         level: row.level || 1,
         xp: row.xp || 0,
         streak_days: row.streak_days || 0,
@@ -1507,12 +1752,29 @@ router.get('/me/followings', authRequired, (req, res) => {
 });
 
 // 7-2) 내 정보 수정
-router.put('/me', authRequired, (req, res) => {
+router.put('/me', authRequired, async (req, res) => {
   const userId = req.user.id;
-  const { nickname, currentPw, newPw, bio, about, remember_login_enabled } = req.body || {};
+  const {
+    nickname,
+    currentPw,
+    newPw,
+    bio,
+    about,
+    remember_login_enabled,
+    marketing_email_opt_in,
+    marketing_version,
+  } = req.body || {};
 
   const fields = [];
   const params = [];
+  const legalVersions = getLegalVersions();
+  const requestedMarketingVersion =
+    normalizeVersion(marketing_version) || legalVersions.marketing;
+  const wantsPwChange = !!newPw;
+  const hasMarketingInput = marketing_email_opt_in !== undefined;
+  let marketingChanged = false;
+  let nextMarketingOptIn = false;
+  let userRow = null;
 
   if (nickname !== undefined && nickname !== null) {
     fields.push('nickname = ?');
@@ -1530,11 +1792,7 @@ router.put('/me', authRequired, (req, res) => {
   }
 
   if (remember_login_enabled !== undefined) {
-    if (
-      typeof remember_login_enabled !== 'boolean' &&
-      typeof remember_login_enabled !== 'string' &&
-      typeof remember_login_enabled !== 'number'
-    ) {
+    if (!isBooleanLike(remember_login_enabled)) {
       return sendAuthError(
         res,
         400,
@@ -1546,109 +1804,159 @@ router.put('/me', authRequired, (req, res) => {
     params.push(normalizeBoolean(remember_login_enabled) ? 1 : 0);
   }
 
-  const wantsPwChange = !!newPw;
+  if (hasMarketingInput && !isBooleanLike(marketing_email_opt_in)) {
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_PROFILE_INVALID_MARKETING_POLICY',
+      'marketing_email_opt_in 값이 올바르지 않습니다.'
+    );
+  }
 
-  if (!wantsPwChange) {
+  if (
+    normalizeVersion(marketing_version) &&
+    requestedMarketingVersion !== legalVersions.marketing
+  ) {
+    return sendAuthError(
+      res,
+      409,
+      'AUTH_SIGNUP_LEGAL_VERSION_MISMATCH',
+      '약관 버전이 변경되었습니다. 페이지를 새로고침 후 다시 시도해주세요.',
+      {
+        field_errors: {
+          marketing_version:
+            '마케팅 동의 문서 버전이 변경되었습니다. 페이지를 새로고침 해주세요.',
+        },
+      }
+    );
+  }
+
+  try {
+    if (wantsPwChange || hasMarketingInput) {
+      userRow = await dbGet(
+        `
+        SELECT
+          pw,
+          COALESCE(marketing_email_opt_in, 0) AS marketing_email_opt_in
+        FROM users
+        WHERE id = ?
+        `,
+        [userId]
+      );
+
+      if (!userRow) {
+        return sendAuthError(res, 404, 'AUTH_USER_NOT_FOUND', '사용자를 찾을 수 없습니다.');
+      }
+    }
+
+    if (hasMarketingInput) {
+      const currentMarketingOptIn = Number(userRow.marketing_email_opt_in) === 1;
+      nextMarketingOptIn = normalizeBoolean(marketing_email_opt_in);
+      marketingChanged = currentMarketingOptIn !== nextMarketingOptIn;
+
+      if (marketingChanged) {
+        fields.push('marketing_email_opt_in = ?');
+        params.push(nextMarketingOptIn ? 1 : 0);
+        fields.push('marketing_opt_in_updated_at = ?');
+        params.push(toIso(Date.now()));
+      }
+    }
+
+    if (wantsPwChange) {
+      if (!currentPw) {
+        return sendAuthError(
+          res,
+          400,
+          'AUTH_CURRENT_PASSWORD_REQUIRED',
+          '비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.',
+          { field_errors: { currentPw: '현재 비밀번호를 입력해주세요.' } }
+        );
+      }
+
+      const passwordValidation = isStrongPassword(newPw);
+      if (!passwordValidation.ok) {
+        return sendAuthError(
+          res,
+          400,
+          passwordValidation.code,
+          passwordValidation.message,
+          { field_errors: { newPw: passwordValidation.fieldErrors.pw } }
+        );
+      }
+
+      const okPw = await bcrypt.compare(currentPw, userRow.pw);
+      if (!okPw) {
+        return sendAuthError(
+          res,
+          400,
+          'AUTH_CURRENT_PASSWORD_MISMATCH',
+          '현재 비밀번호가 일치하지 않습니다.',
+          { field_errors: { currentPw: '현재 비밀번호가 올바르지 않습니다.' } }
+        );
+      }
+
+      const newHashedPw = await bcrypt.hash(passwordValidation.normalized, 10);
+      fields.push('pw = ?');
+      params.push(newHashedPw);
+    }
+
     if (fields.length === 0) {
       return sendAuthError(res, 400, 'AUTH_PROFILE_NO_CHANGES', '변경할 내용을 입력하세요.');
     }
 
     params.push(userId);
 
-    db.run(
-      `
-      UPDATE users
-      SET ${fields.join(', ')}
-      WHERE id = ?
-      `,
-      params,
-      (updateErr) => {
-        if (updateErr) {
-          console.error(updateErr);
-          return sendAuthError(res, 500, 'AUTH_PROFILE_UPDATE_FAILED', '내 정보 수정 중 오류가 발생했습니다.');
-        }
+    if (marketingChanged) {
+      await dbRun('BEGIN IMMEDIATE');
+      try {
+        await dbRun(
+          `
+          UPDATE users
+          SET ${fields.join(', ')}
+          WHERE id = ?
+          `,
+          params
+        );
 
-        return res.json({
-          ok: true,
-          message: '정보가 성공적으로 수정되었습니다.',
+        await insertUserConsentEvent({
+          userId,
+          consentType: 'marketing',
+          consentVersion: requestedMarketingVersion,
+          isGranted: nextMarketingOptIn,
+          source: 'mypage',
+          ipHash: getIpHashFromRequest(req),
+          userAgent: getUserAgent(req),
+          createdAt: toIso(Date.now()),
         });
+
+        await dbRun('COMMIT');
+      } catch (transactionError) {
+        try {
+          await dbRun('ROLLBACK');
+        } catch (rollbackError) {
+          console.error('[profile/update] rollback failed:', rollbackError);
+        }
+        throw transactionError;
       }
-    );
-    return;
-  }
-
-  if (!currentPw) {
-    return sendAuthError(
-      res,
-      400,
-      'AUTH_CURRENT_PASSWORD_REQUIRED',
-      '비밀번호를 변경하려면 현재 비밀번호를 입력해주세요.',
-      { field_errors: { currentPw: '현재 비밀번호를 입력해주세요.' } }
-    );
-  }
-
-  const passwordValidation = isStrongPassword(newPw);
-  if (!passwordValidation.ok) {
-    return sendAuthError(
-      res,
-      400,
-      passwordValidation.code,
-      passwordValidation.message,
-      { field_errors: { newPw: passwordValidation.fieldErrors.pw } }
-    );
-  }
-
-  db.get('SELECT pw FROM users WHERE id = ?', [userId], async (err, user) => {
-    if (err) {
-      console.error(err);
-      return sendAuthError(res, 500, 'AUTH_PROFILE_FETCH_FAILED', 'DB 오류가 발생했습니다.');
-    }
-
-    if (!user) {
-      return sendAuthError(res, 404, 'AUTH_USER_NOT_FOUND', '사용자를 찾을 수 없습니다.');
-    }
-
-    const okPw = await bcrypt.compare(currentPw, user.pw);
-    if (!okPw) {
-      return sendAuthError(
-        res,
-        400,
-        'AUTH_CURRENT_PASSWORD_MISMATCH',
-        '현재 비밀번호가 일치하지 않습니다.',
-        { field_errors: { currentPw: '현재 비밀번호가 올바르지 않습니다.' } }
+    } else {
+      await dbRun(
+        `
+        UPDATE users
+        SET ${fields.join(', ')}
+        WHERE id = ?
+        `,
+        params
       );
     }
 
-    const newHashedPw = await bcrypt.hash(passwordValidation.normalized, 10);
-    fields.push('pw = ?');
-    params.push(newHashedPw);
-
-    if (fields.length === 0) {
-      return sendAuthError(res, 400, 'AUTH_PROFILE_NO_CHANGES', '변경할 내용을 입력하세요.');
-    }
-
-    params.push(userId);
-
-    db.run(
-      `
-      UPDATE users
-      SET ${fields.join(', ')}
-      WHERE id = ?
-      `,
-      params,
-      (updateErr) => {
-        if (updateErr) {
-          console.error(updateErr);
-          return sendAuthError(res, 500, 'AUTH_PROFILE_UPDATE_FAILED', '내 정보 수정 중 오류가 발생했습니다.');
-        }
-
-        return res.json({
-          ok: true,
-          message: '정보가 성공적으로 수정되었습니다.',
-        });
-      }
-    );
-  });
+    return res.json({
+      ok: true,
+      message: '정보가 성공적으로 수정되었습니다.',
+    });
+  } catch (error) {
+    console.error(error);
+    return sendAuthError(res, 500, 'AUTH_PROFILE_UPDATE_FAILED', '내 정보 수정 중 오류가 발생했습니다.');
+  }
 });
 
 module.exports = router;

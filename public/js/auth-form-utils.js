@@ -5,6 +5,10 @@
     AUTH_INVALID_CREDENTIALS: '이메일 또는 비밀번호가 올바르지 않습니다.',
     AUTH_LOGIN_REQUIRED_FIELDS: '이메일과 비밀번호를 입력하세요.',
     AUTH_SIGNUP_REQUIRED_FIELDS: '필수 입력값을 확인해주세요.',
+    AUTH_SIGNUP_AGE_REQUIRED: '만 14세 이상만 가입할 수 있습니다.',
+    AUTH_SIGNUP_REQUIRED_CONSENTS: '필수 약관 동의를 완료해주세요.',
+    AUTH_SIGNUP_LEGAL_VERSION_MISMATCH:
+      '약관 버전이 변경되었습니다. 페이지를 새로고침 후 다시 시도해주세요.',
     AUTH_EMAIL_ALREADY_REGISTERED: '이미 가입된 이메일입니다.',
     AUTH_PENDING_EMAIL_EXISTS: '이미 가입 진행 중인 이메일입니다.',
     AUTH_SIGNUP_EMAIL_SEND_FAILED: '인증 메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.',
@@ -17,6 +21,8 @@
     AUTH_RESET_REQUIRED_FIELDS: '토큰과 새 비밀번호를 모두 입력해주세요.',
     AUTH_RESET_EMAIL_REQUIRED: '이메일을 입력해주세요.',
     AUTH_VERIFY_REQUIRED_FIELDS: '인증에 필요한 정보가 누락되었습니다.',
+    AUTH_VERIFY_PENDING_CONSENT_REQUIRED:
+      '약관 동의 정보가 만료되었습니다. 회원가입을 다시 진행해주세요.',
     AUTH_VERIFY_CODE_MISMATCH: '인증 번호가 올바르지 않습니다.',
     AUTH_VERIFY_ATTEMPTS_EXCEEDED: '인증 시도 횟수를 초과했습니다.',
     AUTH_VERIFY_RESEND_COOLDOWN: '재발송은 잠시 후 다시 시도해주세요.',

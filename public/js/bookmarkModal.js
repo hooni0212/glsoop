@@ -5,6 +5,7 @@
   let createInput = null;
   let createBtn = null;
   let statusText = null;
+  let selectedIds = new Set();
   const showNotice = (message, type = 'info', autoHideMs = 2200) => {
     if (!message) return;
     if (window.glsoopUi && typeof window.glsoopUi.showPageNotice === 'function') {
@@ -108,6 +109,26 @@
     return data.lists || [];
   }
 
+  function buildSelectedState(ids) {
+    return {
+      selectedIds: Array.from(ids || []).map((value) => Number(value)).filter((value) => Number.isFinite(value)),
+      count: ids ? ids.size : 0,
+      active: Boolean(ids && ids.size > 0),
+    };
+  }
+
+  function syncBookmarkStateToCards() {
+    if (!currentPostId || typeof document === 'undefined') return;
+    document.dispatchEvent(
+      new CustomEvent('glsoop:bookmark-state-changed', {
+        detail: {
+          postId: String(currentPostId),
+          state: buildSelectedState(selectedIds),
+        },
+      })
+    );
+  }
+
   function renderLists(lists, selectedIds = new Set()) {
     if (!listContainer) return;
     if (!lists.length) {
@@ -152,6 +173,12 @@
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || '북마크 업데이트에 실패했습니다.');
       }
+      if (shouldContain) {
+        selectedIds.add(Number(listId));
+      } else {
+        selectedIds.delete(Number(listId));
+      }
+      syncBookmarkStateToCards();
       setStatus('북마크가 업데이트되었습니다.');
       showNotice(
         shouldContain ? '북마크에 추가했습니다.' : '북마크에서 제거했습니다.',
@@ -218,9 +245,18 @@
         fetchLists(),
         fetchPostMembership(currentPostId),
       ]);
-      const selected = new Set((membership || []).filter((m) => m.contains).map((m) => m.id));
-      renderLists(lists, selected);
-      setStatus('북마크 폴더를 선택해주세요.');
+      selectedIds = new Set((membership || []).filter((m) => m.contains).map((m) => Number(m.id)));
+      renderLists(lists, selectedIds);
+      syncBookmarkStateToCards();
+      if (selectedIds.size > 0) {
+        setStatus(
+          selectedIds.size > 1
+            ? `${selectedIds.size}개 폴더에 저장되어 있습니다.`
+            : '북마크된 글입니다.'
+        );
+      } else {
+        setStatus('북마크 폴더를 선택해주세요.');
+      }
     } catch (e) {
       console.error(e);
       setStatus('북마크 정보를 불러오지 못했습니다.', { type: 'error' });

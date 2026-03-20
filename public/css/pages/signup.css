@@ -85,8 +85,32 @@ body.page-signup {
   color: color-mix(in srgb, var(--gls-color-text) 82%, rgba(255, 255, 255, 0.12));
 }
 
+.page-signup .auth-agreement-box .gls-check.is-invalid .gls-check-label {
+  color: color-mix(in srgb, #b91c1c 82%, var(--gls-color-text) 18%);
+  font-weight: 700;
+}
+
+.page-signup .auth-agreement-box .gls-check-input.is-invalid {
+  outline: 2px solid color-mix(in srgb, #b91c1c 74%, transparent);
+  outline-offset: 2px;
+}
+
 .page-signup .auth-agreement-box a {
   color: var(--gls-color-primary-strong);
+}
+
+.page-signup .auth-guideline-trigger {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--gls-color-primary-strong);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.page-signup .auth-guideline-trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--gls-color-primary) 55%, transparent);
+  outline-offset: 2px;
 }
 
 @media (max-width: 576px) {

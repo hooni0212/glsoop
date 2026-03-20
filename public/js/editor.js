@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const MAX_CONTENT_LENGTH = 200;
   const DRAFT_KEY_PREFIX = 'glsoop:editor:draft:v1';
   const DRAFT_SAVE_DEBOUNCE_MS = 900;
-  const PREVIEW_IMAGE_DEBOUNCE_MS = 420;
+  const PREVIEW_IMAGE_DEBOUNCE_MS = 200;
 
   // 해시태그 칩용 내부 리스트
   // ex) ['힐링', '위로']
@@ -24,6 +24,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isSaving = false;
   let previewImageTimer = null;
   let previewImageRequestSeq = 0;
+  let layoutEditor = null;
+  let layoutEditEnabled = false;
+  let manualLayoutState = null;
+  let pendingLoadedLayout = null;
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -130,6 +134,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ✅ 미리보기 요소
   const previewFeedCardMountEl = document.getElementById('previewFeedCardMount');
+  const layoutEditToggleBtn = document.getElementById('layoutEditToggleBtn');
+  const layoutResetBtn = document.getElementById('layoutResetBtn');
+  const layoutSafeAreaHintEl = document.getElementById('layoutSafeAreaHint');
 
   // ✅ 남은 글자 수 표시 요소 (에디터 박스 오른쪽 아래)
   const charCounterEl = document.getElementById('charCounter');
@@ -154,6 +161,124 @@ document.addEventListener('DOMContentLoaded', async () => {
     sans: '담백한 고딕체',
     hand: '손글씨 느낌',
   };
+
+  function cloneLayout(layout) {
+    if (!layout || typeof layout !== 'object') return null;
+    try {
+      return JSON.parse(JSON.stringify(layout));
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function buildDefaultLayout() {
+    return {
+      layout_version: 1,
+      title_box: {
+        x: 0.336,
+        y: 0.256,
+        w: 0.424,
+        h: 0.122,
+        align: 'center',
+        font_scale: 1,
+        line_height: 1.15,
+      },
+      text_box: {
+        x: 0.336,
+        y: 0.364,
+        w: 0.424,
+        h: 0.346,
+        align: 'center',
+        font_scale: 1,
+        line_height: 1.15,
+      },
+    };
+  }
+
+  function parseLayoutJson(raw) {
+    if (raw == null) return null;
+    let parsed = raw;
+    if (typeof parsed === 'string') {
+      const trimmed = parsed.trim();
+      if (!trimmed) return null;
+      try {
+        parsed = JSON.parse(trimmed);
+      } catch (_error) {
+        return null;
+      }
+    }
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+
+    const version =
+      parsed.layout_version === undefined
+        ? 1
+        : Number.parseInt(parsed.layout_version, 10);
+    if (version !== 1) {
+      return null;
+    }
+
+    const toNumber = (value) => {
+      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+      if (typeof value === 'string') {
+        const parsedNumber = Number.parseFloat(value.trim());
+        return Number.isFinite(parsedNumber) ? parsedNumber : null;
+      }
+      return null;
+    };
+
+    const parseLayoutBox = (boxRaw, { required = false } = {}) => {
+      if (boxRaw == null) {
+        return required ? null : null;
+      }
+      if (!boxRaw || typeof boxRaw !== 'object' || Array.isArray(boxRaw)) {
+        return null;
+      }
+
+      const x = toNumber(boxRaw.x);
+      const y = toNumber(boxRaw.y);
+      const w = toNumber(boxRaw.w);
+      const h = toNumber(boxRaw.h);
+      if (x == null || y == null || w == null || h == null) return null;
+      if (x < 0 || x > 1 || y < 0 || y > 1 || w <= 0 || w > 1 || h <= 0 || h > 1) {
+        return null;
+      }
+
+      const alignRaw = typeof boxRaw.align === 'string' ? boxRaw.align.trim().toLowerCase() : '';
+      const align = alignRaw === 'left' || alignRaw === 'center' || alignRaw === 'right'
+        ? alignRaw
+        : 'center';
+
+      const fontScale = toNumber(boxRaw.font_scale);
+      const lineHeight = toNumber(boxRaw.line_height);
+
+      return {
+        x,
+        y,
+        w,
+        h,
+        align,
+        font_scale: fontScale != null && fontScale > 0 ? fontScale : 1,
+        line_height: lineHeight != null && lineHeight > 0 ? lineHeight : 1.15,
+      };
+    };
+
+    const textBox = parseLayoutBox(parsed.text_box, { required: true });
+    if (!textBox) return null;
+    const titleBox = parseLayoutBox(parsed.title_box, { required: false });
+    if (parsed.title_box != null && !titleBox) return null;
+
+    const normalized = {
+      layout_version: 1,
+      text_box: textBox,
+    };
+    if (titleBox) {
+      normalized.title_box = titleBox;
+    }
+    return normalized;
+  }
 
   /**
    * ✅ 에디터 + 미리보기 카드에 폰트 적용
@@ -192,6 +317,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('postTitle 또는 saveBtn 요소를 찾을 수 없습니다.');
     return;
   }
+
+  if (layoutEditToggleBtn) {
+    layoutEditToggleBtn.addEventListener('click', () => {
+      setLayoutEditMode(!layoutEditEnabled);
+      updatePreview();
+    });
+  }
+
+  if (layoutResetBtn) {
+    layoutResetBtn.addEventListener('click', () => {
+      manualLayoutState = null;
+      pendingLoadedLayout = null;
+      if (layoutEditor) {
+        layoutEditor.setLayout(buildDefaultLayout());
+      }
+      updateLayoutSafeAreaHint(false);
+      updatePreview();
+      onEditorUserMutation('layout_reset');
+    });
+  }
+
+  updateLayoutToggleUi();
+  updateLayoutSafeAreaHint(false);
 
   /* -----------------------
      해시태그 칩 유틸 함수들
@@ -449,13 +597,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         contentHtml,
         plainText,
       });
+      const layoutForPreview = manualLayoutState ? cloneLayout(manualLayoutState) : null;
       const previewImageUrl = buildEditorPreviewRenderedImageUrl({
         title: previewPost.title,
         content: previewPost.content,
         category: previewPost.category,
+        layout: layoutForPreview,
       });
       const previewCard = ensureEditorPreviewCard(previewPost, previewImageUrl);
       syncEditorPreviewCardMeta(previewCard, previewPost);
+      ensureEditorLayoutEditor(previewCard, previewPost, plainText);
       scheduleEditorPreviewImageUpdate(previewCard, previewImageUrl);
     }
 
@@ -481,10 +632,44 @@ document.addEventListener('DOMContentLoaded', async () => {
       created_at: new Date().toISOString(),
       like_count: 0,
       user_liked: 0,
+      layout_json: manualLayoutState ? cloneLayout(manualLayoutState) : null,
     };
   }
 
-  function buildEditorPreviewRenderedImageUrl({ title, content, category }) {
+  function appendPreviewLayoutParams(params, layout) {
+    if (!layout || typeof layout !== 'object' || !layout.text_box) return;
+
+    const appendBox = (box, prefix = '') => {
+      if (!box || typeof box !== 'object') return;
+      const x = Number(box.x);
+      const y = Number(box.y);
+      const w = Number(box.w);
+      const h = Number(box.h);
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h)) {
+        return;
+      }
+      const key = prefix ? `layout_${prefix}_` : 'layout_';
+      params.set(`${key}x`, String(x));
+      params.set(`${key}y`, String(y));
+      params.set(`${key}w`, String(w));
+      params.set(`${key}h`, String(h));
+
+      if (typeof box.align === 'string' && box.align.trim()) {
+        params.set(`${key}align`, box.align.trim());
+      }
+      if (Number.isFinite(Number(box.font_scale))) {
+        params.set(`${key}font_scale`, String(Number(box.font_scale)));
+      }
+      if (Number.isFinite(Number(box.line_height))) {
+        params.set(`${key}line_height`, String(Number(box.line_height)));
+      }
+    };
+
+    appendBox(layout.text_box, '');
+    appendBox(layout.title_box, 'title');
+  }
+
+  function buildEditorPreviewRenderedImageUrl({ title, content, category, layout }) {
     const params = new URLSearchParams();
     params.set('title', title || '');
     params.set('content', content || '');
@@ -492,6 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     params.set('template', 'paper01');
     // 에디터 프리뷰는 반응성을 우선해서 경량 렌더 스케일 사용
     params.set('scale', '1');
+    appendPreviewLayoutParams(params, layout);
     return `/api/feed-images/preview?${params.toString()}`;
   }
 
@@ -517,12 +703,102 @@ document.addEventListener('DOMContentLoaded', async () => {
     return previewCard;
   }
 
+  function updateLayoutToggleUi() {
+    if (!layoutEditToggleBtn) return;
+    layoutEditToggleBtn.setAttribute('aria-pressed', layoutEditEnabled ? 'true' : 'false');
+    layoutEditToggleBtn.textContent = `레이아웃 편집: ${layoutEditEnabled ? 'ON' : 'OFF'}`;
+    previewFeedCardMountEl?.classList.toggle('is-layout-editing', layoutEditEnabled);
+  }
+
+  function updateLayoutSafeAreaHint(shouldShow) {
+    if (!layoutSafeAreaHintEl) return;
+    layoutSafeAreaHintEl.hidden = !shouldShow;
+  }
+
+  function getLayoutWarningState() {
+    if (!layoutEditEnabled || !layoutEditor || !layoutEditor.isEnabled()) {
+      return false;
+    }
+    return !!layoutEditor.isOutsideSafeArea();
+  }
+
+  function ensureEditorLayoutEditor(previewCard, previewPost, plainText = '') {
+    if (!previewCard || typeof window.GlsFeedLayoutEditor !== 'function') return;
+
+    if (!layoutEditor) {
+      layoutEditor = new window.GlsFeedLayoutEditor({
+        onChange: ({ reason, layout, outsideSafeArea, enabled }) => {
+          if (reason === 'escape') {
+            layoutEditEnabled = false;
+            updateLayoutToggleUi();
+            updateLayoutSafeAreaHint(false);
+            return;
+          }
+
+          if (!enabled) return;
+          if (layout && reason === 'drag') {
+            manualLayoutState = cloneLayout(layout);
+            updateLayoutSafeAreaHint(Boolean(outsideSafeArea));
+            updatePreview();
+            onEditorUserMutation('layout_drag');
+          }
+        },
+      });
+    }
+
+    const mounted = layoutEditor.mount(previewCard);
+    if (!mounted) return;
+
+    if (pendingLoadedLayout) {
+      layoutEditor.setLayout(pendingLoadedLayout);
+      pendingLoadedLayout = null;
+    } else if (manualLayoutState) {
+      layoutEditor.setLayout(manualLayoutState);
+    } else {
+      layoutEditor.setLayout(buildDefaultLayout());
+    }
+
+    layoutEditor.setEnabled(layoutEditEnabled);
+    layoutEditor.setPreviewText({
+      title: previewPost?.title || '제목',
+      body: plainText || '본문',
+    });
+    updateLayoutSafeAreaHint(getLayoutWarningState());
+  }
+
+  function setLayoutEditMode(nextEnabled) {
+    layoutEditEnabled = Boolean(nextEnabled);
+    if (layoutEditEnabled) {
+      if (!manualLayoutState) {
+        manualLayoutState = buildDefaultLayout();
+        pendingLoadedLayout = cloneLayout(manualLayoutState);
+      } else if (!manualLayoutState.title_box) {
+        const defaults = buildDefaultLayout();
+        manualLayoutState = {
+          ...manualLayoutState,
+          title_box: defaults.title_box,
+        };
+        pendingLoadedLayout = cloneLayout(manualLayoutState);
+      }
+    }
+    if (layoutEditor) {
+      layoutEditor.setEnabled(layoutEditEnabled);
+      if (layoutEditEnabled && manualLayoutState) {
+        layoutEditor.setLayout(manualLayoutState);
+      }
+    }
+    updateLayoutToggleUi();
+    updateLayoutSafeAreaHint(getLayoutWarningState());
+  }
+
   function syncEditorPreviewCardMeta(previewCard, previewPost) {
     if (!previewCard) return;
 
     const titleEl = previewCard.querySelector('.card-title');
     if (titleEl) {
       titleEl.textContent = previewPost.title || '';
+      const shouldHideTitle = !!(manualLayoutState && manualLayoutState.title_box);
+      titleEl.classList.toggle('gls-hidden', shouldHideTitle);
     }
 
     const categoryHtml = renderCategoryBadge(previewPost);
@@ -590,6 +866,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (imageShellEl) {
           imageShellEl.classList.remove('is-preview-loading');
         }
+        if (layoutEditor) {
+          layoutEditor.mount(previewCard);
+          layoutEditor.setEnabled(layoutEditEnabled);
+          updateLayoutSafeAreaHint(getLayoutWarningState());
+        }
       };
 
       loader.onerror = () => {
@@ -603,6 +884,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (imageShellEl) {
           imageShellEl.classList.remove('is-preview-loading');
         }
+        updateLayoutSafeAreaHint(false);
       };
 
       loader.src = previewImageUrl;
@@ -615,12 +897,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const category = categorySelectEl ? categorySelectEl.value || '' : '';
     const fontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
     const hashtags = Array.isArray(hashtagList) ? [...hashtagList] : [];
+    const layoutJson = manualLayoutState ? cloneLayout(manualLayoutState) : null;
     return {
       title,
       content_html: contentHtml,
       category,
       font_key: fontKey,
       hashtags,
+      layout_json: layoutJson,
     };
   }
 
@@ -632,6 +916,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       category: state.category || '',
       font_key: state.font_key || 'serif',
       hashtags: Array.isArray(state.hashtags) ? state.hashtags : [],
+      layout_json:
+        state.layout_json && typeof state.layout_json === 'object'
+          ? state.layout_json
+          : null,
     });
   }
 
@@ -644,6 +932,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (Array.isArray(state.hashtags) && state.hashtags.length > 0) return true;
     if (typeof state.category === 'string' && state.category.trim().length > 0) return true;
+    if (state.layout_json && typeof state.layout_json === 'object') return true;
     return false;
   }
 
@@ -731,6 +1020,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.hashtags.forEach((tag) => addTag(tag, { requireHash: false, markDirty: false }));
       } else {
         renderHashtagChips();
+      }
+
+      const restoredLayout = parseLayoutJson(state.layout_json);
+      manualLayoutState = restoredLayout ? cloneLayout(restoredLayout) : null;
+      pendingLoadedLayout = manualLayoutState ? cloneLayout(manualLayoutState) : null;
+      if (layoutEditor) {
+        layoutEditor.setLayout(manualLayoutState || buildDefaultLayout());
       }
 
       const plainText = quill.getText().trim();
@@ -843,6 +1139,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             hashtagsInput.value = post.hashtags;
             parseHashtagInputToList(false);
           }
+        }
+
+        const loadedLayout = parseLayoutJson(post.layout_json);
+        manualLayoutState = loadedLayout ? cloneLayout(loadedLayout) : null;
+        pendingLoadedLayout = manualLayoutState ? cloneLayout(manualLayoutState) : null;
+        if (layoutEditor) {
+          layoutEditor.setLayout(manualLayoutState || buildDefaultLayout());
         }
 
         // 글자 수/미리보기 초기 상태 갱신
@@ -1032,6 +1335,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           content: contentWithFontMeta,
           hashtags: hashtagsRaw, // ✅ 서버로 해시태그 문자열 함께 전송
           category: selectedCategory,
+          layout_json: manualLayoutState ? cloneLayout(manualLayoutState) : null,
         }),
       });
 

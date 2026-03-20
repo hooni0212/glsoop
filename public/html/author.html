@@ -83,9 +83,9 @@
     </div>
   </nav>
 
-  <section class="author-page-section" data-author-feed-state="idle">
-    <div class="author-page-shell">
-      <header class="author-page-header gls-surface-panel gls-surface-veil" aria-labelledby="authorPageTitle">
+  <section class="author-page-section AppShell-main" data-author-feed-state="idle">
+    <div class="author-page-shell PageContainer">
+      <header class="author-page-header CardSoft gls-surface-panel gls-surface-veil" aria-labelledby="authorPageTitle">
         <p class="author-hero-kicker">AUTHOR ARCHIVE</p>
         <h2 id="authorPageTitle" class="gls-mb-1">작가님의 글숲</h2>
         <p id="authorHeroSubtitle" class="author-hero-subtitle gls-mb-0">
@@ -93,9 +93,9 @@
         </p>
       </header>
 
-      <div class="author-page-main-row gls-items-start">
-        <aside class="author-left-col">
-          <div class="card author-profile-card gls-surface-panel gls-surface-veil">
+      <div class="author-page-main-row MainGrid has-aside is-aside-left gls-items-start">
+        <aside class="author-left-col MainGrid-aside">
+          <div class="card author-profile-card CardSoft gls-surface-panel gls-surface-veil">
             <div class="card-body gls-flex gls-flex-col">
               <div class="author-card-header">
                 <span class="author-card-title">작가 아이덴티티</span>
@@ -186,8 +186,8 @@
           </div>
         </aside>
 
-        <div class="author-right-col">
-          <div class="author-feed-toolbar gls-surface-panel gls-surface-veil">
+        <div class="author-right-col MainGrid-main">
+          <div class="author-feed-toolbar CardSoft gls-surface-panel gls-surface-veil">
             <div class="author-feed-toolbar-text">
               <h4 class="gls-mb-1">이 작가의 글</h4>
               <p class="gls-text-muted gls-text-small gls-mb-0">
@@ -223,7 +223,7 @@
             </div>
           </div>
 
-          <div class="author-posts-card gls-surface-panel gls-surface-veil">
+          <div class="author-posts-card CardSoft gls-surface-panel gls-surface-veil">
             <div class="author-posts-card-body">
               <div id="authorPostsList"></div>
 

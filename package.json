@@ -7,6 +7,7 @@
     "test:e2e": "playwright test",
     "e2e:ui": "playwright test tests/e2e/ui-snapshots.spec.js && node scripts/build-snapshot-gallery.mjs",
     "e2e:ui:show": "node scripts/build-snapshot-gallery.mjs",
+    "check:orphans": "node scripts/check-orphans.mjs",
     "start": "node server.js",
     "verify:phase2": "node scripts/verify-phase2.mjs",
     "verify:phase3": "node scripts/verify-phase3.mjs",

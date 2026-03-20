@@ -431,6 +431,7 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
           p.id,
           p.title,
           p.content,
+          p.layout_json,
           p.created_at,
           CASE
             WHEN p.category IN ('poem','essay','short') THEN p.category

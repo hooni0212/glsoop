@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>성장 · 숲 지도 | 글숲</title>
+  <title>성장 · 업적 | 글숲</title>
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&display=swap" rel="stylesheet" />
@@ -68,12 +68,12 @@
     </div>
   </nav>
 
-  <main class="gls-py-5 gls-mt-5">
-    <div class="gls-container growth-shell">
-      <header class="growth-header gls-surface-panel gls-surface-veil gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-3 gls-mb-4">
+  <main class="gls-py-5 gls-mt-5 AppShell-main">
+    <div class="gls-container growth-shell PageContainer">
+      <header class="growth-header CardSoft gls-surface-panel gls-surface-veil gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-3 gls-mb-4">
         <div>
           <p class="gls-text-muted gls-mb-1 gls-text-small">나의 성장 여정</p>
-          <h2 class="gls-mb-0">레벨 · 업적 · 숲 지도</h2>
+          <h2 class="gls-mb-0">레벨 · 업적</h2>
         </div>
         <a class="gls-btn gls-btn-secondary" href="/html/mypage.html">마이페이지로 돌아가기</a>
       </header>
@@ -81,7 +81,7 @@
 
       <section class="growth-section growth-hero" id="growthSummarySection">
         <div class="growth-hero-grid">
-          <div class="growth-level-card card glass-card gls-surface-veil">
+          <div class="growth-level-card card CardSoft glass-card gls-surface-veil">
             <div class="card-body gls-flex gls-flex-wrap gls-items-center gls-gap-4">
               <div class="growth-level-ring" aria-label="레벨 진행도">
                 <div class="growth-level-ring-fill"></div>
@@ -110,7 +110,7 @@
           </div>
 
           <div class="growth-stat-grid">
-            <div class="growth-stat-card card glass-card gls-surface-veil">
+            <div class="growth-stat-card card CardSoft glass-card gls-surface-veil">
               <div class="card-body">
                 <div class="gls-flex gls-justify-between gls-items-start gls-mb-2">
                   <h4 class="gls-mb-0">오늘의 기록</h4>
@@ -124,7 +124,7 @@
               </div>
             </div>
 
-            <div class="growth-stat-card card glass-card gls-surface-veil">
+            <div class="growth-stat-card card CardSoft glass-card gls-surface-veil">
               <div class="card-body">
                 <div class="gls-flex gls-justify-between gls-items-start gls-mb-2">
                   <h4 class="gls-mb-0">누적 통계</h4>
@@ -153,7 +153,7 @@
       </section>
 
       <section class="growth-section growth-quests-deck gls-mt-4" id="growthQuestSection">
-        <div class="growth-quest-board card glass-card gls-surface-veil">
+        <div class="growth-quest-board card CardSoft glass-card gls-surface-veil">
           <div class="card-body">
             <div class="gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-2 gls-mb-3">
               <h3 class="growth-section-title gls-mb-0">진행 중인 퀘스트</h3>
@@ -189,7 +189,7 @@
       </section>
 
       <section class="growth-section growth-achievement-quests gls-mt-4" id="growthAchievementQuestSection">
-        <div class="card glass-card gls-surface-veil">
+        <div class="card CardSoft glass-card gls-surface-veil">
           <div class="card-body">
             <div class="gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-2 gls-mb-3">
               <h3 class="growth-section-title gls-mb-0">업적 퀘스트</h3>
@@ -200,35 +200,8 @@
         </div>
       </section>
 
-      <section class="growth-section growth-mobile-panels gls-mt-4" id="growthMobilePanelsSection">
-        <div class="growth-view-tabs" id="growthViewTabs" role="tablist" aria-label="성장 상세 보기 전환">
-          <button type="button" class="growth-view-tab is-active" data-view="forest" aria-pressed="true">숲 지도</button>
-          <button type="button" class="growth-view-tab" data-view="achievements" aria-pressed="false">업적 목록</button>
-        </div>
-      </section>
-
-      <section class="growth-section growth-forest-map gls-mt-4" id="growthForestSection">
-        <div class="gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-2 gls-mb-3">
-          <h3 class="growth-section-title gls-mb-0">숲 지도 · 업적</h3>
-          <p class="gls-text-muted gls-mb-0 gls-text-small">업적을 클릭하면 오른쪽 패널에서 자세히 볼 수 있어요.</p>
-        </div>
-        <div class="forest-map card glass-card gls-surface-veil">
-          <div class="card-body">
-            <div class="forest-map-path"></div>
-            <div class="forest-map-ground"></div>
-            <div class="forest-map-layout">
-              <div class="forest-map-achievements" id="forestMapAchievements"></div>
-              <div class="forest-map-detail-panel" id="forestMapDetail">
-                <div class="forest-map-detail-label">선택한 업적</div>
-                <p class="gls-text-muted gls-mb-1">업적을 선택하면 상세 정보가 여기에 표시됩니다.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section class="growth-section growth-quests-and-list gls-mt-4" id="growthAchievementListSection">
-        <div class="growth-achievement-list card glass-card gls-surface-veil gls-h-100">
+        <div class="growth-achievement-list card CardSoft glass-card gls-surface-veil gls-h-100">
           <div class="card-body">
             <div class="achievement-list-header gls-flex gls-justify-between gls-items-center gls-flex-wrap gls-gap-2 gls-mb-3">
               <h3 class="growth-section-title gls-mb-0">업적 목록</h3>
