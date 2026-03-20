@@ -11,6 +11,7 @@
       '약관 버전이 변경되었습니다. 페이지를 새로고침 후 다시 시도해주세요.',
     AUTH_EMAIL_ALREADY_REGISTERED: '이미 가입된 이메일입니다.',
     AUTH_PENDING_EMAIL_EXISTS: '이미 가입 진행 중인 이메일입니다.',
+    AUTH_SIGNUP_EMAIL_SEND_FAILED: '인증 메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.',
     AUTH_PASSWORD_TOO_SHORT: '비밀번호는 8자 이상이어야 합니다.',
     AUTH_PASSWORD_WEAK: '비밀번호는 영문과 숫자를 모두 포함해야 합니다.',
     AUTH_RESET_TOKEN_INVALID: '유효하지 않은 링크입니다.',
@@ -25,6 +26,8 @@
     AUTH_VERIFY_CODE_MISMATCH: '인증 번호가 올바르지 않습니다.',
     AUTH_VERIFY_ATTEMPTS_EXCEEDED: '인증 시도 횟수를 초과했습니다.',
     AUTH_VERIFY_RESEND_COOLDOWN: '재발송은 잠시 후 다시 시도해주세요.',
+    AUTH_VERIFY_RESEND_EMAIL_SEND_FAILED:
+      '인증 메일 재발송에 실패했습니다. 잠시 후 다시 시도해주세요.',
   };
 
   const PASSWORD_LABELS = {
