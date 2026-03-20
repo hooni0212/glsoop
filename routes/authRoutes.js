@@ -1586,6 +1586,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     return res.json({
       ok: true,
       message: `환영합니다, ${user.name}님!`,
+      token,
       name: user.name,
       nickname: user.nickname || null,
       remember_me: rememberMe,
