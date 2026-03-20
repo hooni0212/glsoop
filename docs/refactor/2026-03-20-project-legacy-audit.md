@@ -37,12 +37,12 @@
 | 인증/세션 | `정책 의존` | `middleware/auth.js`의 legacy token 허용/차단 레이어 | 유지 | `tests/e2e/auth-legacy-deprecation.spec.js`, `docs/서버/API/인증-쿠키-세션-정책.md`, `public/js/auth-form-utils.js`가 현재 계약에 의존한다. 운영 정책이므로 UI 정리와 별개로 다뤄야 한다. |
 | 마이그레이션 | `정책 의존` | `utils/migrations.js`의 `baseline_legacy` | 유지 | 문서/테스트 직접 참조는 약하지만, 기존 DB를 baseline으로 편입시키는 안전장치다. 제거는 “신규/기존 DB 마이그레이션 경로가 완전히 검증된 뒤” 별도 작업으로 진행해야 한다. |
 | URL 호환 alias | `유지` | `public/html/category.html` | 유지 | 제품 내부 링크는 거의 없지만, 기존 공유 URL/bookmark 호환용 shim이다. 외부 링크 가능성이 있는 alias는 기본값으로 유지한다. |
-| 실험 에디터 | `분리 후보` | `public/html/editor2.html`, `public/js/editor2.js`, `public/js/editor2LayoutEditor.js`, `public/css/pages/editor2.css` | 유지하되 메인 플로우에서 낮춤 | `public/html/editor3.html`이 “기존 에디터 보기”로 연결하고, 루트 alias `public/editor2.html`, 운영 문서 `docs/참고/API-레퍼런스.md`, `docs/운영/작업-프로토콜.md`도 참조한다. 즉시 삭제보다는 `legacy-experimental` 성격으로 분리하는 편이 안전하다. |
-| 전역 CSS 번들 | `분리 후보` | `public/css/pages/all.css` | 후속 정리 필요 | `login-rive-preview.css`, `editor2.css`, `editor3.css`, `post3.css`가 전역 import로 함께 실린다. orphan는 아니지만 번들 과적재와 페이지 책임 분리가 흐려진 상태다. |
+| 실험 에디터 | `분리 후보` | `public/html/editor2.html`, `public/js/editor2.js`, `public/js/editor2LayoutEditor.js`, `public/css/pages/editor2.css` | 유지하되 메인 플로우에서 낮춤 | `public/html/editor3.html`이 “실험 에디터 보기”로 연결하고, 루트 alias `public/editor2.html`, 운영 문서 `docs/참고/API-레퍼런스.md`, `docs/운영/작업-프로토콜.md`도 참조한다. 즉시 삭제보다는 `legacy-experimental` 성격으로 분리하는 편이 안전하다. |
+| 전역 CSS 번들 | `분리 후보` | `public/css/pages/all.css` | 1차 정리 완료 | 페이지 전용 CSS를 전역 번들에서 분리하고, 각 HTML에서 직접 로드하도록 정리했다. 남은 과제는 추가 실험 페이지가 다시 전역 import로 섞이지 않게 관리하는 것이다. |
 | 이미지 렌더 preview | `유지` | `routes/feedImageRoutes.js`의 `/feed-images/preview` | 유지 | `public/js/editor.js`, `public/js/editor2.js`, `public/js/post3.js`에서 실제로 사용 중이다. preview route는 아직 레거시라기보다 active dependency에 가깝다. |
 | 이미지 렌더 fallback | `유지` | `utils/feedImageRenderer.js`의 legacy preset fallback | 유지 | `layout_json`이 없거나 legacy 데이터일 때 기존 preset 렌더를 유지하는 계약이 문서화되어 있다. `docs/참고/API-레퍼런스.md`, `docs/운영/작업-프로토콜.md`와 연결된다. |
-| 로그인 프리뷰 자산 | `유지` | `public/js/login-rive-preview.js`, `public/css/pages/login-rive-preview.css` | 유지 | 별도 preview HTML은 제거됐지만, 실제 `login.html`이 같은 JS/CSS를 사용한다. 파일명만 preview일 뿐, 지금은 production dependency다. |
-| 성장 기능 네이밍 | `분리 후보` | `public/js/growth.js` vs `utils/growth.js` | rename 검토 | orphan는 아니지만 basename이 겹친다. 전자는 클라이언트 대시보드/렌더, 후자는 서버 XP/성장 계산이다. 기능 분리는 명확하지만 이름이 겹쳐 유지보수 혼동 가능성이 있다. |
+| 로그인 프리뷰 자산 | `유지` | `public/js/login-rive-preview.js`, `public/css/pages/login.css` 내 preview 블록 | 유지 | 별도 preview HTML은 제거됐고, preview 전용 CSS도 `login.css`로 흡수했다. 현재는 실제 `login.html`이 사용하는 로그인 연출 자산이다. |
+| 성장 기능 네이밍 | `분리 후보` | `public/js/growth-dashboard.js` vs `utils/growth-service.js` | 1차 정리 완료 | 클라이언트와 서버 유틸의 basename 충돌을 제거했다. 남은 과제는 관련 문서와 작업 메모를 새 이름 기준으로 천천히 정리하는 것이다. |
 | 구형 자산/실험 파일 | `삭제 후보 아님` | UI-kit / demo 계열 | 문서상 보관 | 현재 브랜치 기준으로는 대부분 tracked runtime asset이 아니다. 코드 삭제보다 저장소 정책/문서 관리 범주다. |
 
 ---
@@ -105,7 +105,7 @@
 #### `editor2` 계열
 
 - 아직 문서/링크/루트 alias가 남아 있다.
-- `editor3`에서 “기존 에디터 보기” 링크가 살아 있다.
+- `editor3`에서 “실험 에디터 보기” 링크가 살아 있다.
 - 저장/초안 규칙도 운영 문서에 적혀 있다.
 
 판단:
@@ -120,7 +120,6 @@
 
 확인된 import:
 
-- `login-rive-preview.css`
 - `editor2.css`
 - `editor3.css`
 - `post3.css`
@@ -151,23 +150,23 @@
 
 대상:
 
-- `public/js/growth.js`
-- `utils/growth.js`
+- `public/js/growth-dashboard.js`
+- `utils/growth-service.js`
 
 확인 결과:
 
-- `public/js/growth.js`: 성장 페이지 렌더/상호작용
-- `utils/growth.js`: XP, 레벨, streak, 업적 진행 계산
+- `public/js/growth-dashboard.js`: 성장 페이지 렌더/상호작용
+- `utils/growth-service.js`: XP, 레벨, streak, 업적 진행 계산
 
 판단:
 
-- 기능상 충돌은 없지만 basename이 겹친다.
+- 기능상 충돌은 없었지만 basename이 겹쳐 있었다.
 - 향후 rename 검토 후보로 남긴다.
 
-권장 방향:
+반영 결과:
 
-- 클라이언트: `growth-page.js` 또는 `growth-dashboard.js`
-- 서버 유틸: `growth-service.js` 또는 `growth-xp.js`
+- 클라이언트: `growth-dashboard.js`
+- 서버 유틸: `growth-service.js`
 
 ---
 

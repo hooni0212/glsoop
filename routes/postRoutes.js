@@ -24,7 +24,7 @@ const express = require('express');
 const db = require('../db');
 const { authRequired, authOptional } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
-const { handlePostCreated, handleLikeAdded } = require('../utils/growth');
+const { handlePostCreated, handleLikeAdded } = require('../utils/growth-service');
 const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
 
