@@ -28,7 +28,7 @@ function parseTokenFromUrl(resetUrl) {
   }
 }
 
-async function sendWithOutbox({ to, name, resetUrl }) {
+async function sendWithOutbox({ to, name, resetUrl, mobileResetUrl }) {
   const outboxPath = resolveOutboxPath();
   ensureOutboxWritable(outboxPath);
   const token = parseTokenFromUrl(resetUrl);
@@ -37,14 +37,28 @@ async function sendWithOutbox({ to, name, resetUrl }) {
     to,
     name,
     resetUrl,
+    mobileResetUrl: mobileResetUrl || '',
     token,
     createdAt: new Date().toISOString(),
   };
   fs.appendFileSync(outboxPath, `${JSON.stringify(entry)}\n`, 'utf8');
 }
 
-async function sendWithSmtp({ to, name, resetUrl }) {
+async function sendWithSmtp({ to, name, resetUrl, mobileResetUrl }) {
   const subject = '[글숲] 비밀번호 재설정 안내';
+  const mobileLinkBlock = mobileResetUrl
+    ? `
+      <p style="margin: 16px 0 8px;">모바일 앱이 설치되어 있다면 아래 링크로 바로 열 수 있어요.</p>
+      <p style="margin: 0 0 16px;">
+        <a href="${mobileResetUrl}"
+           style="display:inline-block;padding:10px 18px;background:#1f6feb;color:#fff;
+                  text-decoration:none;border-radius:6px;">
+          앱에서 재설정하기
+        </a>
+      </p>
+      <p style="font-size:0.9rem;word-break:break-all;">${mobileResetUrl}</p>
+    `
+    : '';
   const html = `
     <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
       <p><strong>${name}님, 안녕하세요.</strong></p>
@@ -56,6 +70,7 @@ async function sendWithSmtp({ to, name, resetUrl }) {
           비밀번호 재설정하기
         </a>
       </p>
+      ${mobileLinkBlock}
       <p>만약 위 버튼이 동작하지 않으면 아래 링크를 복사해서 주소창에 붙여넣어 주세요.</p>
       <p style="font-size:0.9rem;word-break:break-all;">${resetUrl}</p>
       <p style="font-size:0.9rem;color:#888;">이 링크는 1시간 동안만 유효합니다.</p>
@@ -91,7 +106,7 @@ function assertTransportPolicy(transport) {
 const configuredTransport = getEnv('MAIL_TRANSPORT', 'smtp') || 'smtp';
 assertTransportPolicy(configuredTransport);
 
-async function sendPasswordResetEmail({ to, name, resetUrl }) {
+async function sendPasswordResetEmail({ to, name, resetUrl, mobileResetUrl }) {
   const failSend = getEnv('MAIL_FAIL_SEND') === '1';
 
   if (failSend) {
@@ -99,10 +114,10 @@ async function sendPasswordResetEmail({ to, name, resetUrl }) {
   }
 
   if (configuredTransport === 'outbox') {
-    return sendWithOutbox({ to, name, resetUrl });
+    return sendWithOutbox({ to, name, resetUrl, mobileResetUrl });
   }
 
-  return sendWithSmtp({ to, name, resetUrl });
+  return sendWithSmtp({ to, name, resetUrl, mobileResetUrl });
 }
 
 module.exports = {

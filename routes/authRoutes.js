@@ -1244,12 +1244,14 @@ router.post('/password-reset-request', passwordLimiter, async (req, res) => {
     );
 
     const resetUrl = `${getBaseUrl(req)}/html/reset-password.html?token=${token}`;
+    const mobileResetUrl = `${process.env.MOBILE_APP_SCHEME || 'glsoopmobile'}://reset-password?token=${encodeURIComponent(token)}`;
 
     try {
       const info = await sendPasswordResetEmail({
         to: normalizedEmail,
         name: user.name,
         resetUrl,
+        mobileResetUrl,
       });
       if (info?.messageId) {
         console.log('reset mail sent:', info.messageId);
