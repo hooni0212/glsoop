@@ -44,6 +44,16 @@ async function sendWithOutbox({ to, name, resetUrl, mobileResetUrl }) {
   fs.appendFileSync(outboxPath, `${JSON.stringify(entry)}\n`, 'utf8');
 }
 
+async function appendOutboxEntry(entry) {
+  const outboxPath = resolveOutboxPath();
+  ensureOutboxWritable(outboxPath);
+  fs.appendFileSync(
+    outboxPath,
+    `${JSON.stringify({ ...entry, createdAt: new Date().toISOString() })}\n`,
+    'utf8'
+  );
+}
+
 async function sendWithSmtp({ to, name, resetUrl, mobileResetUrl }) {
   const subject = '[글숲] 비밀번호 재설정 안내';
   const mobileLinkBlock = mobileResetUrl
@@ -120,7 +130,53 @@ async function sendPasswordResetEmail({ to, name, resetUrl, mobileResetUrl }) {
   return sendWithSmtp({ to, name, resetUrl, mobileResetUrl });
 }
 
+async function sendSignupOtpEmail({ to, name, otpCode, resend = false }) {
+  const subject = resend
+    ? '[글숲] 이메일 인증 번호를 다시 확인해주세요'
+    : '[글숲] 이메일 인증 번호를 확인해주세요';
+  const lead = resend
+    ? '요청하신 인증 번호를 다시 보내드립니다. 아래 번호를 입력해 이메일 인증을 완료해주세요.'
+    : '글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.';
+
+  if (configuredTransport === 'outbox') {
+    return appendOutboxEntry({
+      type: resend ? 'signup_otp_resend' : 'signup_otp',
+      to,
+      name,
+      otpCode,
+      subject,
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    transporter.sendMail(
+      {
+        from: `"글숲" <${process.env.GMAIL_USER}>`,
+        to,
+        subject,
+        html: `
+          <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
+            <p><strong>${name}님, 안녕하세요.</strong></p>
+            <p>${lead}</p>
+            <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
+              ${otpCode}
+            </p>
+            <p style="font-size: 0.9rem; color:#888;">
+              인증 번호는 10분 동안만 유효합니다.
+            </p>
+          </div>
+        `,
+      },
+      (error, info) => {
+        if (error) return reject(error);
+        resolve(info);
+      }
+    );
+  });
+}
+
 module.exports = {
   sendPasswordResetEmail,
+  sendSignupOtpEmail,
   resolveOutboxPath,
 };

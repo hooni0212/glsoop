@@ -15,7 +15,7 @@ const {
   RESET_TOKEN_HMAC_SECRET,
   LEGAL_CONFIG,
 } = require('../config');
-const { sendPasswordResetEmail } = require('../services/mailer');
+const { sendPasswordResetEmail, sendSignupOtpEmail } = require('../services/mailer');
 const { authRequired } = require('../middleware/auth');
 const { getBaseUrl } = require('../utils/baseUrl');
 const { cleanupExpiredPending } = require('../utils/pendingSignup');
@@ -72,14 +72,6 @@ const dbRun = (sql, params = []) =>
     db.run(sql, params, function onRun(err) {
       if (err) return reject(err);
       resolve(this);
-    });
-  });
-
-const sendMail = (message) =>
-  new Promise((resolve, reject) => {
-    transporter.sendMail(message, (error, info) => {
-      if (error) return reject(error);
-      resolve(info);
     });
   });
 
@@ -837,22 +829,11 @@ router.post('/signup', signupLimiter, async (req, res) => {
 
     try {
       if (!SIGNUP_EMAIL_DRY_RUN) {
-        await sendMail({
-          from: `"글숲" <${process.env.GMAIL_USER}>`,
+        await sendSignupOtpEmail({
           to: normalizedEmail,
-          subject: '[글숲] 이메일 인증 번호를 확인해주세요',
-          html: `
-            <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-              <p><strong>${trimmedNickname || trimmedName}님, 안녕하세요.</strong></p>
-              <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
-              <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
-                ${otpCode}
-              </p>
-              <p style="font-size: 0.9rem; color:#888;">
-                인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
-              </p>
-            </div>
-          `,
+          name: trimmedNickname || trimmedName,
+          otpCode,
+          resend: false,
         });
       }
     } catch (mailErr) {
@@ -1143,22 +1124,11 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
 
     try {
       if (!SIGNUP_EMAIL_DRY_RUN) {
-        await sendMail({
-          from: `"글숲" <${process.env.GMAIL_USER}>`,
+        await sendSignupOtpEmail({
           to: pending.email,
-          subject: '[글숲] 이메일 인증 번호를 다시 확인해주세요',
-          html: `
-            <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-              <p><strong>${pending.nickname || pending.name}님, 안녕하세요.</strong></p>
-              <p>요청하신 인증 번호를 다시 보내드립니다. 아래 번호를 입력해 이메일 인증을 완료해주세요.</p>
-              <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
-                ${otpCode}
-              </p>
-              <p style="font-size: 0.9rem; color:#888;">
-                인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
-              </p>
-            </div>
-          `,
+          name: pending.nickname || pending.name,
+          otpCode,
+          resend: true,
         });
       }
     } catch (mailErr) {
