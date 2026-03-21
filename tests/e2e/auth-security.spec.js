@@ -196,7 +196,8 @@ test.describe('Auth security policy', () => {
     expect(body.remember_me).toBe(false);
     expect(body.remember_notice_required).toBe(false);
     expect(typeof body.session_expires_at).toBe('string');
-    expect(body.token).toBeUndefined();
+    expect(typeof body.token).toBe('string');
+    expect(body.token.length).toBeGreaterThan(20);
 
     const setCookieHeader = loginRes.headers()['set-cookie'] || '';
     expect(setCookieHeader).toContain('HttpOnly');
@@ -244,7 +245,8 @@ test.describe('Auth security policy', () => {
     expect(body.ok).toBe(true);
     expect(body.remember_me).toBe(true);
     expect(body.remember_notice_required).toBe(true);
-    expect(body.token).toBeUndefined();
+    expect(typeof body.token).toBe('string');
+    expect(body.token.length).toBeGreaterThan(20);
 
     const decoded = jwt.verify(extractTokenFromSetCookie(loginRes), E2E_JWT_SECRET, {
       algorithms: [E2E_JWT_ALGORITHM],

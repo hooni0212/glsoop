@@ -111,7 +111,8 @@ const login = async (request, { remember = null, ip }) => {
   expect(response.status()).toBe(200);
   const payload = await response.json();
   expect(payload.ok).toBe(true);
-  expect(payload.token).toBeUndefined();
+  expect(typeof payload.token).toBe('string');
+  expect(payload.token.length).toBeGreaterThan(20);
   return extractTokenFromSetCookie(response);
 };
 
