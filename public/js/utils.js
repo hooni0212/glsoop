@@ -387,6 +387,120 @@ function redirectToLoginWithNext(options = {}) {
   window.location.href = buildLoginRedirectWithNext(options);
 }
 
+function ensureAuthGateModal() {
+  let modalEl = document.getElementById('glsoopAuthGateModal');
+  if (modalEl) return modalEl;
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div class="modal fade" id="glsoopAuthGateModal" tabindex="-1" aria-labelledby="glsoopAuthGateModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content gls-auth-gate-modal">
+          <div class="modal-header">
+            <div>
+              <p class="gls-auth-gate-modal__eyebrow gls-mb-1">MEMBERS ONLY</p>
+              <h5 class="modal-title" id="glsoopAuthGateModalLabel">로그인 후 이용할 수 있어요</h5>
+            </div>
+            <button type="button" class="gls-modal-close" data-gls-dismiss="modal" aria-label="닫기"></button>
+          </div>
+          <div class="modal-body gls-auth-gate-modal__body">
+            <p class="gls-mb-2" id="glsoopAuthGateModalMessage">로그인한 회원만 이용할 수 있는 기능입니다.</p>
+            <p class="gls-text-small gls-text-muted gls-mb-0" id="glsoopAuthGateModalDescription">
+              로그인하면 더 많은 기능을 이용할 수 있습니다.
+            </p>
+          </div>
+          <div class="modal-footer gls-auth-gate-modal__footer">
+            <button type="button" class="gls-btn gls-btn-secondary" id="glsoopAuthGateBackBtn">돌아가기</button>
+            <button type="button" class="gls-btn gls-btn-primary" id="glsoopAuthGateLoginBtn">로그인하기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrapper.firstElementChild);
+  modalEl = document.getElementById('glsoopAuthGateModal');
+  return modalEl;
+}
+
+(function bootstrapAuthGateModal() {
+  if (window.glsoopAuthGateModal && typeof window.glsoopAuthGateModal.open === 'function') return;
+
+  let currentOptions = null;
+
+  const close = () => {
+    const modalEl = document.getElementById('glsoopAuthGateModal');
+    if (!modalEl || !window.glsModal) return;
+    window.glsModal.close(modalEl);
+  };
+
+  const open = (options = {}) => {
+    const modalEl = ensureAuthGateModal();
+    currentOptions = {
+      title: typeof options.title === 'string' ? options.title : '로그인 후 이용할 수 있어요',
+      message: typeof options.message === 'string'
+        ? options.message
+        : '로그인한 회원만 이용할 수 있는 기능입니다.',
+      description: typeof options.description === 'string'
+        ? options.description
+        : '로그인하면 더 많은 기능을 이용할 수 있습니다.',
+      source: typeof options.source === 'string' ? options.source : '',
+      nextPath: typeof options.nextPath === 'string' ? options.nextPath : '',
+      backBehavior: options.backBehavior === 'history' ? 'history' : 'close',
+      onBack: typeof options.onBack === 'function' ? options.onBack : null,
+      onLogin: typeof options.onLogin === 'function' ? options.onLogin : null,
+    };
+
+    const titleEl = document.getElementById('glsoopAuthGateModalLabel');
+    const messageEl = document.getElementById('glsoopAuthGateModalMessage');
+    const descriptionEl = document.getElementById('glsoopAuthGateModalDescription');
+    if (titleEl) titleEl.textContent = currentOptions.title;
+    if (messageEl) messageEl.textContent = currentOptions.message;
+    if (descriptionEl) descriptionEl.textContent = currentOptions.description;
+
+    const loginBtn = document.getElementById('glsoopAuthGateLoginBtn');
+    if (loginBtn && loginBtn.dataset.bound !== '1') {
+      loginBtn.dataset.bound = '1';
+      loginBtn.addEventListener('click', () => {
+        const active = currentOptions || {};
+        if (typeof active.onLogin === 'function') {
+          active.onLogin();
+          return;
+        }
+        redirectToLoginWithNext({
+          source: active.source || '',
+          nextPath: active.nextPath || undefined,
+          alertMessage: '',
+        });
+      });
+    }
+
+    const backBtn = document.getElementById('glsoopAuthGateBackBtn');
+    if (backBtn && backBtn.dataset.bound !== '1') {
+      backBtn.dataset.bound = '1';
+      backBtn.addEventListener('click', () => {
+        const active = currentOptions || {};
+        close();
+        if (typeof active.onBack === 'function') {
+          active.onBack();
+          return;
+        }
+        if (active.backBehavior === 'history') {
+          if (window.history.length > 1) {
+            window.history.back();
+            return;
+          }
+        }
+      });
+    }
+
+    if (window.glsModal) {
+      window.glsModal.open(modalEl);
+    }
+  };
+
+  window.glsoopAuthGateModal = { open, close };
+})();
+
 function ensureFormFeedbackElement(form, elementId) {
   if (!form || !elementId) return null;
   let el = document.getElementById(elementId);

@@ -52,6 +52,13 @@ const seedSearchData = async () => {
 
   await dbRun(
     db,
+    `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified, account_status, deactivated_at, scheduled_purge_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'deactivated', datetime('now', '-5 day'), datetime('now', '+25 day'))`,
+    [9103, 'Ghost Writer', 'ghost_writer', 'ghost-writer@glsoop.test', 'password', 0, 1]
+  );
+
+  await dbRun(
+    db,
     `INSERT OR REPLACE INTO posts (id, user_id, title, content, category, created_at)
      VALUES (?, ?, ?, ?, ?, datetime('now', '-1 day'))`,
     [
@@ -66,8 +73,21 @@ const seedSearchData = async () => {
   await dbRun(
     db,
     `INSERT OR REPLACE INTO likes (user_id, post_id, created_at)
-     VALUES (?, ?, datetime('now'))`,
+    VALUES (?, ?, datetime('now'))`,
     [9102, 9201]
+  );
+
+  await dbRun(
+    db,
+    `INSERT OR REPLACE INTO posts (id, user_id, title, content, category, created_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now', '-2 day'))`,
+    [
+      9202,
+      9103,
+      'Ghost Forest Letter',
+      'This hidden author post should stay visible as anonymous content.',
+      'poem',
+    ]
   );
 
   await dbRun(
@@ -175,5 +195,36 @@ test.describe('Search API', () => {
     const authorsOnly = await authorsOnlyResponse.json();
     expect(Array.isArray(authorsOnly.authors)).toBe(true);
     expect(authorsOnly.posts).toEqual([]);
+  });
+
+  test('keeps deactivated author posts searchable as anonymous and hides public profile', async ({ request }) => {
+    const searchResponse = await request.get('/api/search', {
+      params: { q: 'ghost', type: 'all' },
+    });
+    expect(searchResponse.status()).toBe(200);
+    const searchBody = await searchResponse.json();
+
+    const ghostPost = searchBody.posts.find((item) => item.id === 9202);
+    expect(ghostPost).toMatchObject({
+      id: 9202,
+      author_id: null,
+      author_name: '익명',
+      author_nickname: '익명',
+    });
+    expect(searchBody.authors.find((item) => item.id === 9103)).toBeUndefined();
+
+    const profileResponse = await request.get('/api/users/9103/profile');
+    expect(profileResponse.status()).toBe(404);
+
+    const postDetailResponse = await request.get('/api/posts/9202');
+    expect(postDetailResponse.status()).toBe(200);
+    const postDetailBody = await postDetailResponse.json();
+    expect(postDetailBody.post).toMatchObject({
+      id: 9202,
+      author_id: null,
+      author_name: '익명',
+      author_nickname: '익명',
+      author_email: null,
+    });
   });
 });

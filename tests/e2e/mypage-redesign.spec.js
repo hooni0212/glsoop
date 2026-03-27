@@ -97,6 +97,7 @@ async function mockMypageApis(page, overrides = {}) {
   let followings = [...fixtures.followings];
 
   const putPayloads = [];
+  const accountClosurePayloads = [];
   const deletePostIds = [];
   const unfollowIds = [];
 
@@ -149,6 +150,31 @@ async function mockMypageApis(page, overrides = {}) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ ok: true, message: '모든 기기에서 로그아웃되었습니다.' }),
+    });
+  });
+
+  await page.route('**/api/me/account-closure', async (route) => {
+    const req = route.request();
+    if (req.method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+
+    const payload = req.postDataJSON() || {};
+    accountClosurePayloads.push(payload);
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        mode: payload.mode || 'deactivate',
+        scheduled_purge_at: '2026-04-25T00:00:00.000Z',
+        message:
+          payload.mode === 'delete'
+            ? '회원 탈퇴가 완료되었습니다.'
+            : '계정이 비활성화되었습니다. 30일 안에 다시 로그인하면 복구됩니다.',
+      }),
     });
   });
 
@@ -215,6 +241,7 @@ async function mockMypageApis(page, overrides = {}) {
 
   return {
     putPayloads,
+    accountClosurePayloads,
     deletePostIds,
     unfollowIds,
   };
@@ -258,6 +285,39 @@ test.describe('MyPage redesign', () => {
 
     await page.click('#tabBookmarks');
     await expect(page).toHaveURL(/\/html\/bookmarks\.html/);
+  });
+
+  test('opens account management flow modal and submits deactivation step-by-step', async ({ page }) => {
+    const { accountClosurePayloads } = await mockMypageApis(page);
+
+    await page.goto('/html/mypage.html');
+    await page.getByRole('button', { name: '내 정보 수정' }).click();
+
+    await expect(page.locator('#accountClosureOpenBtn')).toHaveText('계정 관리');
+    await page.locator('#accountClosureOpenBtn').click();
+
+    const flowModal = page.locator('#accountClosureFlowModal');
+    await expect(flowModal).toBeVisible();
+    await expect(page.locator('#accountClosureChoiceStep')).toBeVisible();
+    await expect(page.locator('#accountClosureConfirmStep')).toBeHidden();
+
+    await page.locator('#accountClosureNextBtn').click();
+    await expect(page.locator('#accountClosureConfirmStep')).toBeVisible();
+
+    await page.locator('#accountClosureCurrentPwInput').fill('Pass1234');
+    await page.locator('#accountClosureConfirmInput').fill('DELETE');
+    await page.locator('#accountClosureSubmitBtn').click();
+
+    await expect(page.locator('#accountClosureMessage')).toContainText('계정이 비활성화되었습니다');
+    await page.waitForURL(/\/html\/login\.html\?from=account-closure&mode=deactivate/);
+
+    expect(accountClosurePayloads).toEqual([
+      {
+        mode: 'deactivate',
+        currentPw: 'Pass1234',
+        confirmText: 'DELETE',
+      },
+    ]);
   });
 
   test('deletes my post and shows empty state CTA', async ({ page }) => {

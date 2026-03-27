@@ -79,7 +79,21 @@
 
   async function requireLogin(res) {
     if (res && res.status === 401) {
-      if (typeof redirectToLoginWithNext === 'function') {
+      if (
+        document.body &&
+        document.body.classList.contains('page-post') &&
+        window.glsoopPostAuthGate &&
+        typeof window.glsoopPostAuthGate.open === 'function'
+      ) {
+        window.glsoopPostAuthGate.open({ actionLabel: '북마크' });
+      } else if (window.glsoopAuthGateModal && typeof window.glsoopAuthGateModal.open === 'function') {
+        window.glsoopAuthGateModal.open({
+          title: '로그인 후 북마크할 수 있어요',
+          message: '북마크는 로그인한 회원만 이용할 수 있는 기능입니다.',
+          description: '로그인하면 마음에 드는 글을 폴더별로 모아서 다시 볼 수 있습니다.',
+          source: 'bookmark-modal',
+        });
+      } else if (typeof redirectToLoginWithNext === 'function') {
         redirectToLoginWithNext({
           alertMessage: '로그인 후 이용할 수 있습니다.',
           source: 'bookmark-modal',
@@ -95,7 +109,7 @@
 
   async function fetchLists() {
     const res = await fetch('/api/bookmarks/lists');
-    if (await requireLogin(res)) return [];
+    if (await requireLogin(res)) return null;
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.message || '폴더를 불러오지 못했습니다.');
     return data.lists || [];
@@ -103,7 +117,7 @@
 
   async function fetchPostMembership(postId) {
     const res = await fetch(`/api/posts/${encodeURIComponent(postId)}/bookmarks`);
-    if (await requireLogin(res)) return [];
+    if (await requireLogin(res)) return null;
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.message || '북마크 정보를 불러오지 못했습니다.');
     return data.lists || [];
@@ -245,6 +259,7 @@
         fetchLists(),
         fetchPostMembership(currentPostId),
       ]);
+      if (!lists || !membership) return false;
       selectedIds = new Set((membership || []).filter((m) => m.contains).map((m) => Number(m.id)));
       renderLists(lists, selectedIds);
       syncBookmarkStateToCards();
@@ -257,9 +272,11 @@
       } else {
         setStatus('북마크 폴더를 선택해주세요.');
       }
+      return true;
     } catch (e) {
       console.error(e);
       setStatus('북마크 정보를 불러오지 못했습니다.', { type: 'error' });
+      return false;
     }
   }
 
@@ -275,7 +292,8 @@
   async function open(postId) {
     currentPostId = postId;
     ensureModal();
-    await loadData();
+    const loaded = await loadData();
+    if (!loaded) return;
     if (window.glsModal) window.glsModal.open(document.getElementById(modalId));
   }
 

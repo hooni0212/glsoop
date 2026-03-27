@@ -122,6 +122,48 @@
     </div>
   </div>
 
+  <div
+    class="modal fade login-reactivation-modal"
+    id="reactivationConfirmModal"
+    tabindex="-1"
+    aria-labelledby="reactivationConfirmModalLabel"
+    aria-hidden="true"
+    hidden
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content gls-antique-paper gls-antique-paper--mix">
+        <div class="modal-header">
+          <h5 class="modal-title" id="reactivationConfirmModalLabel">계정 다시 활성화</h5>
+        </div>
+        <div class="modal-body">
+          <p class="gls-mb-2">
+            현재 계정은 비활성화 상태입니다. 계속 진행하면 계정이 다시 활성화되고 로그인됩니다.
+          </p>
+          <p class="gls-text-muted gls-text-small gls-mb-0" id="reactivationConfirmDeadlineText">
+            다시 활성화 전에 한 번 더 확인해드릴게요.
+          </p>
+        </div>
+        <div class="modal-footer login-reactivation-modal__actions">
+          <button
+            type="button"
+            class="gls-btn gls-btn-secondary"
+            id="reactivationConfirmCancelBtn"
+          >
+            여기서 멈추기
+          </button>
+          <button
+            type="button"
+            class="gls-btn gls-btn-primary"
+            id="reactivationConfirmContinueBtn"
+            data-gls-autofocus
+          >
+            계속 진행
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/utils.js"></script>
   <script src="/js/auth-form-utils.js"></script>
   <script src="/js/analytics.js"></script>

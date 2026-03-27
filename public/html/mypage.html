@@ -360,6 +360,22 @@
                 class="gls-text-small gls-text-muted gls-block gls-mt-1"
               ></small>
             </section>
+
+            <section class="mpd-modal-block mpd-modal-block--danger" aria-label="계정 관리">
+              <div class="mpd-modal-block-head">
+                <div>
+                  <h6 class="gls-mb-0">계정 관리</h6>
+                  <p class="gls-text-small gls-text-muted gls-mb-0">계정 종료나 비활성화는 별도 단계에서 다시 확인한 뒤 진행합니다.</p>
+                </div>
+                <button
+                  type="button"
+                  class="gls-btn gls-btn-ghost gls-btn-xs mpd-danger-toggle"
+                  id="accountClosureOpenBtn"
+                >
+                  계정 관리
+                </button>
+              </div>
+            </section>
           </div>
 
           <div class="modal-footer">
@@ -374,6 +390,151 @@
             <button type="submit" class="gls-btn gls-btn-primary">저장하기</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <div
+    class="modal fade"
+    id="accountClosureFlowModal"
+    tabindex="-1"
+    aria-labelledby="accountClosureFlowLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content mpd-modal mpd-account-modal">
+        <div class="modal-header">
+          <div>
+            <p class="mpd-modal-eyebrow gls-mb-1">ACCOUNT MANAGEMENT</p>
+            <h5 class="modal-title" id="accountClosureFlowLabel">계정 관리</h5>
+          </div>
+          <button
+            type="button"
+            class="gls-modal-close"
+            data-gls-dismiss="modal"
+            aria-label="닫기"
+          ></button>
+        </div>
+
+        <div class="modal-body mpd-modal-body">
+          <section
+            id="accountClosureChoiceStep"
+            class="mpd-modal-block mpd-modal-block--danger"
+            aria-label="계정 관리 방식 선택"
+          >
+            <div class="mpd-account-step-head">
+              <span class="mpd-account-step-badge">1 / 2</span>
+              <div>
+                <h6 class="gls-mb-1">어떤 방식으로 진행할까요?</h6>
+                <p class="gls-text-small gls-text-muted gls-mb-0">실수로 떠나는 일을 줄이기 위해 먼저 비활성화를 안내하고, 원하실 때만 다음 단계로 넘어갑니다.</p>
+              </div>
+            </div>
+
+            <div class="mpd-account-choice-grid" role="radiogroup" aria-label="계정 관리 방식">
+              <button
+                type="button"
+                class="mpd-account-choice is-selected"
+                id="accountClosureChoiceDeactivate"
+                data-mode="deactivate"
+                aria-pressed="true"
+              >
+                <strong>30일 비활성화</strong>
+                <span>로그인과 프로필 공개가 중단되고, 작성글은 익명으로 유지됩니다. 30일 안에 다시 로그인하면 복구됩니다.</span>
+              </button>
+
+              <button
+                type="button"
+                class="mpd-account-choice"
+                id="accountClosureChoiceDelete"
+                data-mode="delete"
+                aria-pressed="false"
+              >
+                <strong>즉시 완전 삭제</strong>
+                <span>계정과 작성글, 관련 데이터가 즉시 삭제되며 되돌릴 수 없습니다.</span>
+              </button>
+            </div>
+          </section>
+
+          <section
+            id="accountClosureConfirmStep"
+            class="mpd-modal-block mpd-modal-block--danger gls-hidden"
+            aria-label="계정 관리 실행 확인"
+            hidden
+          >
+            <div class="mpd-account-step-head">
+              <span class="mpd-account-step-badge">2 / 2</span>
+              <div>
+                <h6 class="gls-mb-1">한 번 더 확인해주세요</h6>
+                <p class="gls-text-small gls-text-muted gls-mb-0">선택한 방식과 영향을 확인한 뒤 마지막으로 실행합니다.</p>
+              </div>
+            </div>
+
+            <div class="mpd-account-review">
+              <strong id="accountClosureReviewTitle">30일 비활성화</strong>
+              <p id="accountClosureReviewDescription" class="gls-text-small gls-text-muted gls-mb-0">
+                로그인과 프로필 공개가 중단되고, 작성글은 익명으로 유지됩니다. 30일 안에 다시 로그인하면 복구됩니다.
+              </p>
+            </div>
+
+            <div class="mpd-form-grid gls-mt-3">
+              <div>
+                <label for="accountClosureCurrentPwInput" class="gls-label">현재 비밀번호</label>
+                <input
+                  type="password"
+                  class="gls-input"
+                  id="accountClosureCurrentPwInput"
+                  autocomplete="current-password"
+                />
+              </div>
+
+              <div>
+                <label for="accountClosureConfirmInput" class="gls-label">확인 문구</label>
+                <input
+                  type="text"
+                  class="gls-input"
+                  id="accountClosureConfirmInput"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="DELETE"
+                />
+              </div>
+            </div>
+
+            <p class="gls-text-small gls-text-muted gls-mt-2 gls-mb-0">
+              최종 실행하려면 현재 비밀번호와 확인 문구 <strong>DELETE</strong> 를 입력해야 합니다.
+            </p>
+            <small
+              id="accountClosureMessage"
+              class="gls-text-small gls-text-muted gls-block gls-mt-3"
+              aria-live="polite"
+            ></small>
+          </section>
+        </div>
+
+        <div class="modal-footer mpd-account-footer">
+          <button
+            type="button"
+            class="gls-btn gls-btn-secondary"
+            id="accountClosureBackBtn"
+          >
+            이전
+          </button>
+          <button
+            type="button"
+            class="gls-btn gls-btn-primary"
+            id="accountClosureNextBtn"
+          >
+            계속 진행
+          </button>
+          <button
+            type="button"
+            class="gls-btn gls-btn-danger gls-hidden"
+            id="accountClosureSubmitBtn"
+            hidden
+          >
+            최종 실행
+          </button>
+        </div>
       </div>
     </div>
   </div>

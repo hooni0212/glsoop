@@ -640,6 +640,15 @@ async function toggleLike(postId, likeBtn) {
 
     // 401 → 비로그인
     if (res.status === 401) {
+      if (
+        document.body &&
+        document.body.classList.contains('page-post') &&
+        window.glsoopPostAuthGate &&
+        typeof window.glsoopPostAuthGate.open === 'function'
+      ) {
+        window.glsoopPostAuthGate.open({ actionLabel: '공감' });
+        return;
+      }
       if (typeof redirectToLoginWithNext === 'function') {
         redirectToLoginWithNext({
           alertMessage: '로그인 후 공감할 수 있습니다.',

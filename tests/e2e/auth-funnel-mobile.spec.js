@@ -150,4 +150,69 @@ test.describe('Auth funnel on mobile', () => {
       page.click('#loginForm button[type="submit"]'),
     ]);
   });
+
+  test('asks once more before reactivating a deactivated account', async ({ page }) => {
+    let loginRequestCount = 0;
+
+    await page.route('**/api/me', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          id: 2,
+          name: 'User',
+          nickname: '일반사용자',
+          email: 'user@glsoop.test',
+          is_admin: 0,
+          is_verified: 1,
+        }),
+      })
+    );
+    await page.route('**/api/login/reactivate', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          message: '환영합니다, User님!',
+          token: 'fake.jwt.token',
+          name: 'User',
+          nickname: '일반사용자',
+          remember_me: false,
+          remember_notice_required: false,
+        }),
+      })
+    );
+    await page.route('**/api/login', (route) => {
+      loginRequestCount += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          reactivation_required: true,
+          message: '비활성화된 계정입니다. 다시 활성화할지 한 번 더 확인해주세요.',
+          scheduled_purge_at: '2026-04-20T09:00:00.000Z',
+        }),
+      });
+    });
+
+    await page.goto('/html/login.html');
+    await page.fill('#loginForm input[name="email"]', 'user@glsoop.test');
+    await page.fill('#loginForm input[name="pw"]', 'password');
+    await page.click('#loginForm button[type="submit"]');
+
+    const modal = page.locator('#reactivationConfirmModal');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText('계정 다시 활성화');
+    await expect(modal).toContainText('계속 진행하면 계정이 다시 활성화되고 로그인됩니다');
+
+    await Promise.all([
+      page.waitForURL(/\/html\/mypage\.html$/, { timeout: 12000 }),
+      page.click('#reactivationConfirmContinueBtn'),
+    ]);
+
+    expect(loginRequestCount).toBe(1);
+  });
 });

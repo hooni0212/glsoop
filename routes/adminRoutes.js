@@ -7,6 +7,7 @@ const {
   normalizePurchaseStatus,
   reconcileMonetizationState,
 } = require('../utils/monetizationState');
+const { purgeUserAccount } = require('../utils/accountLifecycle');
 
 const router = express.Router();
 
@@ -1357,28 +1358,22 @@ router.get('/users', async (req, res) => {
 });
 
 router.delete('/users/:id', (req, res) => {
-  const targetUserId = req.params.id;
-  db.serialize(() => {
-    db.run('DELETE FROM user_quest_state WHERE user_id = ?', [targetUserId]);
-    db.run('DELETE FROM user_achievements WHERE user_id = ?', [targetUserId]);
-    db.run('DELETE FROM xp_log WHERE user_id = ?', [targetUserId]);
-    db.run('DELETE FROM otp_verifications WHERE user_id = ?', [targetUserId]);
-    db.run('DELETE FROM follows WHERE follower_id = ? OR followee_id = ?', [targetUserId, targetUserId]);
-    db.run('DELETE FROM likes WHERE user_id = ?', [targetUserId]);
-    db.run('DELETE FROM likes WHERE post_id IN (SELECT id FROM posts WHERE user_id = ?)', [targetUserId]);
-    db.run('DELETE FROM bookmark_lists WHERE user_id = ?', [targetUserId]);
-    db.run('DELETE FROM posts WHERE user_id = ?', [targetUserId]);
-    db.run('DELETE FROM users WHERE id = ?', [targetUserId], function (err) {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ ok: false, message: '회원 삭제 중 오류가 발생했습니다.' });
-      }
-      if (this.changes === 0) {
+  const targetUserId = parsePositiveInt(req.params.id);
+  if (!targetUserId) {
+    return res.status(400).json({ ok: false, message: '잘못된 회원 ID입니다.' });
+  }
+
+  purgeUserAccount(targetUserId, { deletePosts: true })
+    .then((result) => {
+      if (!result.deleted) {
         return res.status(404).json({ ok: false, message: '해당 회원을 찾을 수 없습니다.' });
       }
       return res.json({ ok: true, message: '삭제되었습니다.' });
+    })
+    .catch((error) => {
+      console.error(error);
+      return res.status(500).json({ ok: false, message: '회원 삭제 중 오류가 발생했습니다.' });
     });
-  });
 });
 
 router.get('/posts', async (req, res) => {

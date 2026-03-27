@@ -307,6 +307,212 @@ function closeUserEditModal() {
   }
 }
 
+function setInlineMessage(targetEl, message = '', tone = '') {
+  if (!targetEl) return;
+  targetEl.classList.remove('text-danger', 'text-success');
+  targetEl.textContent = message;
+  if (tone === 'error') targetEl.classList.add('text-danger');
+  if (tone === 'success') targetEl.classList.add('text-success');
+}
+
+const accountClosureFlowState = {
+  step: 1,
+  mode: 'deactivate',
+};
+
+function openAccountClosureFlow(triggerEl = null) {
+  const modalEl = document.getElementById('accountClosureFlowModal');
+  if (!modalEl) return;
+
+  resetAccountClosureState();
+  closeUserEditModal();
+
+  if (window.glsModal) {
+    window.glsModal.open(modalEl, triggerEl || undefined);
+  } else {
+    modalEl.classList.add('is-open', 'show', 'is-flex-visible');
+    modalEl.removeAttribute('hidden');
+    modalEl.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function resetAccountClosureState() {
+  const currentPwInput = document.getElementById('accountClosureCurrentPwInput');
+  const confirmInput = document.getElementById('accountClosureConfirmInput');
+  const messageEl = document.getElementById('accountClosureMessage');
+  const backBtn = document.getElementById('accountClosureBackBtn');
+  const nextBtn = document.getElementById('accountClosureNextBtn');
+  const submitBtn = document.getElementById('accountClosureSubmitBtn');
+
+  accountClosureFlowState.step = 1;
+  accountClosureFlowState.mode = 'deactivate';
+  if (currentPwInput) currentPwInput.value = '';
+  if (confirmInput) confirmInput.value = '';
+  if (backBtn) {
+    backBtn.disabled = true;
+    backBtn.classList.add('gls-hidden');
+    backBtn.hidden = true;
+  }
+  if (nextBtn) {
+    nextBtn.disabled = false;
+    nextBtn.classList.remove('gls-hidden');
+    nextBtn.hidden = false;
+    nextBtn.textContent = '계속 진행';
+  }
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.dataset.originalText = submitBtn.dataset.originalText || submitBtn.textContent;
+    submitBtn.textContent = submitBtn.dataset.originalText;
+    submitBtn.classList.add('gls-hidden');
+    submitBtn.hidden = true;
+  }
+  setInlineMessage(messageEl, '', '');
+  syncAccountClosureFlow();
+}
+
+function syncAccountClosureSelection() {
+  document.querySelectorAll('.mpd-account-choice[data-mode]').forEach((choiceEl) => {
+    const isSelected = choiceEl.getAttribute('data-mode') === accountClosureFlowState.mode;
+    choiceEl.classList.toggle('is-selected', isSelected);
+    choiceEl.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+  });
+}
+
+function syncAccountClosureFlow() {
+  const choiceStepEl = document.getElementById('accountClosureChoiceStep');
+  const confirmStepEl = document.getElementById('accountClosureConfirmStep');
+  const backBtn = document.getElementById('accountClosureBackBtn');
+  const nextBtn = document.getElementById('accountClosureNextBtn');
+  const submitBtn = document.getElementById('accountClosureSubmitBtn');
+  const reviewTitleEl = document.getElementById('accountClosureReviewTitle');
+  const reviewDescriptionEl = document.getElementById('accountClosureReviewDescription');
+
+  const isConfirmStep = accountClosureFlowState.step === 2;
+  if (choiceStepEl) {
+    choiceStepEl.classList.toggle('gls-hidden', isConfirmStep);
+    choiceStepEl.hidden = isConfirmStep;
+  }
+  if (confirmStepEl) {
+    confirmStepEl.classList.toggle('gls-hidden', !isConfirmStep);
+    confirmStepEl.hidden = !isConfirmStep;
+  }
+  if (backBtn) {
+    backBtn.disabled = !isConfirmStep;
+    backBtn.classList.toggle('gls-hidden', !isConfirmStep);
+    backBtn.hidden = !isConfirmStep;
+  }
+  if (nextBtn) {
+    nextBtn.classList.toggle('gls-hidden', isConfirmStep);
+    nextBtn.hidden = isConfirmStep;
+  }
+  if (submitBtn) {
+    submitBtn.classList.toggle('gls-hidden', !isConfirmStep);
+    submitBtn.hidden = !isConfirmStep;
+  }
+
+  const isDeleteMode = accountClosureFlowState.mode === 'delete';
+  if (reviewTitleEl) {
+    reviewTitleEl.textContent = isDeleteMode ? '즉시 완전 삭제' : '30일 비활성화';
+  }
+  if (reviewDescriptionEl) {
+    reviewDescriptionEl.textContent = isDeleteMode
+      ? '계정과 작성글, 관련 데이터가 즉시 삭제되며 되돌릴 수 없습니다.'
+      : '로그인과 프로필 공개가 중단되고, 작성글은 익명으로 유지됩니다. 30일 안에 다시 로그인하면 복구됩니다.';
+  }
+
+  syncAccountClosureSelection();
+}
+
+function selectAccountClosureMode(mode) {
+  accountClosureFlowState.mode = mode === 'delete' ? 'delete' : 'deactivate';
+  syncAccountClosureFlow();
+}
+
+function goToAccountClosureStep(step) {
+  accountClosureFlowState.step = step === 2 ? 2 : 1;
+  syncAccountClosureFlow();
+
+  if (accountClosureFlowState.step === 2) {
+    const currentPwInput = document.getElementById('accountClosureCurrentPwInput');
+    if (currentPwInput) currentPwInput.focus();
+  }
+}
+
+async function submitAccountClosure() {
+  const currentPwInput = document.getElementById('accountClosureCurrentPwInput');
+  const confirmInput = document.getElementById('accountClosureConfirmInput');
+  const submitBtn = document.getElementById('accountClosureSubmitBtn');
+  const messageEl = document.getElementById('accountClosureMessage');
+  const mode = accountClosureFlowState.mode === 'delete' ? 'delete' : 'deactivate';
+  const currentPw = currentPwInput ? currentPwInput.value : '';
+  const confirmText = confirmInput ? confirmInput.value.trim() : '';
+  const submitBtnLabel = mode === 'delete' ? '삭제 진행 중...' : '비활성화 진행 중...';
+
+  if (!currentPw) {
+    setInlineMessage(messageEl, '현재 비밀번호를 입력해주세요.', 'error');
+    currentPwInput && currentPwInput.focus();
+    return;
+  }
+
+  if (confirmText.toUpperCase() !== 'DELETE') {
+    setInlineMessage(messageEl, '확인 문구 DELETE를 정확히 입력해주세요.', 'error');
+    confirmInput && confirmInput.focus();
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.dataset.originalText = submitBtn.dataset.originalText || submitBtn.textContent;
+    submitBtn.textContent = submitBtnLabel;
+  }
+  setInlineMessage(messageEl, '', '');
+
+  try {
+    const res = await fetch('/api/me/account-closure', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode,
+        currentPw,
+        confirmText,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
+      setInlineMessage(
+        messageEl,
+        (data && data.message) || '계정 정리 처리 중 오류가 발생했습니다.',
+        'error'
+      );
+      return;
+    }
+
+    setInlineMessage(
+      messageEl,
+      data.message || (mode === 'delete'
+        ? '회원 탈퇴가 완료되었습니다.'
+        : '계정이 비활성화되었습니다. 30일 안에 다시 로그인하면 복구됩니다.'),
+      'success'
+    );
+
+    if (currentPwInput) currentPwInput.value = '';
+    if (confirmInput) confirmInput.value = '';
+
+    setTimeout(() => {
+      window.location.href = `/html/login.html?from=account-closure&mode=${encodeURIComponent(mode)}`;
+    }, 900);
+  } catch (error) {
+    console.error(error);
+    setInlineMessage(messageEl, '계정 정리 처리 중 오류가 발생했습니다.', 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = submitBtn.dataset.originalText || '계정 정리 실행';
+    }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await setupMypageSafeAreaGuides();
   setupMyPageTabs();
@@ -411,6 +617,7 @@ async function loadMyPage() {
       editBtn.dataset.glsModalBound = '1';
       editBtn.addEventListener('click', (event) => {
         event.preventDefault();
+        resetAccountClosureState();
         openUserEditModal(editBtn);
         loadMySessionsPanel();
       });
@@ -1070,6 +1277,12 @@ function setupUserEditForm() {
   const rememberLoginEnabledInput = document.getElementById('rememberLoginEnabledInput');
   const marketingEmailOptInInput = document.getElementById('marketingEmailOptInInput');
   const logoutAllBtn = document.getElementById('logoutAllSessionsBtn');
+  const accountClosureOpenBtn = document.getElementById('accountClosureOpenBtn');
+  const accountClosureBackBtn = document.getElementById('accountClosureBackBtn');
+  const accountClosureNextBtn = document.getElementById('accountClosureNextBtn');
+  const accountClosureSubmitBtn = document.getElementById('accountClosureSubmitBtn');
+  const accountClosureCurrentPwInput = document.getElementById('accountClosureCurrentPwInput');
+  const accountClosureConfirmInput = document.getElementById('accountClosureConfirmInput');
   const messageSpan = document.getElementById('userEditMessage');
 
   if (!form) return;
@@ -1081,6 +1294,61 @@ function setupUserEditForm() {
       logoutAllSessions();
     });
   }
+
+  if (accountClosureOpenBtn && !accountClosureOpenBtn.dataset.bound) {
+    accountClosureOpenBtn.dataset.bound = '1';
+    accountClosureOpenBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      openAccountClosureFlow(accountClosureOpenBtn);
+    });
+  }
+
+  if (accountClosureBackBtn && !accountClosureBackBtn.dataset.bound) {
+    accountClosureBackBtn.dataset.bound = '1';
+    accountClosureBackBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      goToAccountClosureStep(1);
+    });
+  }
+
+  if (accountClosureNextBtn && !accountClosureNextBtn.dataset.bound) {
+    accountClosureNextBtn.dataset.bound = '1';
+    accountClosureNextBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      goToAccountClosureStep(2);
+    });
+  }
+
+  if (accountClosureSubmitBtn && !accountClosureSubmitBtn.dataset.bound) {
+    accountClosureSubmitBtn.dataset.bound = '1';
+    accountClosureSubmitBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      submitAccountClosure();
+    });
+  }
+
+  [accountClosureCurrentPwInput, accountClosureConfirmInput].forEach((inputEl) => {
+    if (!inputEl || inputEl.dataset.bound === '1') return;
+    inputEl.dataset.bound = '1';
+    inputEl.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      if (accountClosureFlowState.step === 1) {
+        goToAccountClosureStep(2);
+        return;
+      }
+      submitAccountClosure();
+    });
+  });
+
+  document.querySelectorAll('.mpd-account-choice[data-mode]').forEach((choiceEl) => {
+    if (choiceEl.dataset.bound === '1') return;
+    choiceEl.dataset.bound = '1';
+    choiceEl.addEventListener('click', (event) => {
+      event.preventDefault();
+      selectAccountClosureMode(choiceEl.getAttribute('data-mode'));
+    });
+  });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();

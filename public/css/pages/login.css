@@ -761,15 +761,18 @@
   border-bottom-color: rgba(72, 97, 87, 0.48);
 }
 
-.page-login .login-remember-modal .modal-dialog {
+.page-login .login-remember-modal .modal-dialog,
+.page-login .login-reactivation-modal .modal-dialog {
   max-width: min(540px, calc(100% - 1.5rem));
 }
 
-.page-login .login-remember-modal {
+.page-login .login-remember-modal,
+.page-login .login-reactivation-modal {
   z-index: 10020;
 }
 
-.page-login .login-remember-modal .modal-content {
+.page-login .login-remember-modal .modal-content,
+.page-login .login-reactivation-modal .modal-content {
   border-radius: 20px;
   border: 1px solid rgba(82, 106, 95, 0.32);
   background:
@@ -779,30 +782,46 @@
 }
 
 .page-login .login-remember-modal .modal-header,
-.page-login .login-remember-modal .modal-footer {
+.page-login .login-remember-modal .modal-footer,
+.page-login .login-reactivation-modal .modal-header,
+.page-login .login-reactivation-modal .modal-footer {
   border: 0;
 }
 
-.page-login .login-remember-modal .modal-header {
+.page-login .login-remember-modal .modal-header,
+.page-login .login-reactivation-modal .modal-header {
   padding: 1.1rem 1.3rem 0.5rem;
 }
 
-.page-login .login-remember-modal .modal-body {
+.page-login .login-remember-modal .modal-body,
+.page-login .login-reactivation-modal .modal-body {
   padding: 0.35rem 1.3rem 0.4rem;
   color: rgba(30, 42, 51, 0.9);
 }
 
-.page-login .login-remember-modal .modal-title {
+.page-login .login-remember-modal .modal-title,
+.page-login .login-reactivation-modal .modal-title {
   font-size: 1.12rem;
   color: #214652;
   letter-spacing: 0.01em;
 }
 
-.page-login .login-remember-modal .modal-footer {
+.page-login .login-remember-modal .modal-footer,
+.page-login .login-reactivation-modal .modal-footer {
   padding: 0.65rem 1.3rem 1.2rem;
 }
 
-.page-login .login-remember-modal .gls-btn-primary {
+.page-login .login-remember-modal .gls-btn-primary,
+.page-login .login-reactivation-modal .gls-btn-primary {
+  min-width: 124px;
+  font-weight: 700;
+}
+
+.page-login .login-reactivation-modal__actions {
+  gap: 0.75rem;
+}
+
+.page-login .login-reactivation-modal .gls-btn-secondary {
   min-width: 124px;
   font-weight: 700;
 }

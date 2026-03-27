@@ -27,6 +27,7 @@ const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 const { handlePostCreated, handleLikeAdded } = require('../utils/growth-service');
 const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
+const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
 const ALLOWED_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
@@ -70,6 +71,10 @@ function parsePagination(query = {}) {
   }
 
   return { limit, offset };
+}
+
+function normalizePublicPostRows(rows) {
+  return Array.isArray(rows) ? rows.map((row) => normalizePublicPostAuthor(row)) : [];
 }
 
 function hasOwn(obj, key) {
@@ -569,6 +574,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
       u.name                   AS author_name,
       u.nickname               AS author_nickname,
       u.email                  AS author_email,
+      COALESCE(u.account_status, 'active') AS author_account_status,
       -- 해당 글의 총 공감 수
       (SELECT COUNT(*) FROM likes l2 WHERE l2.post_id = p.id) AS like_count,
       -- "내가 공감한 글" 목록이니까 항상 공감한 상태
@@ -594,7 +600,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
       return res.json({
         ok: true,
         message: '공감한 글 목록을 불러왔습니다.',
-        posts: rows,
+        posts: normalizePublicPostRows(rows),
       });
     }
   );
@@ -646,6 +652,7 @@ function handleFeedRequest(req, res) {
         u.name     AS author_name,
         u.nickname AS author_nickname,
         u.email    AS author_email,
+        COALESCE(u.account_status, 'active') AS author_account_status,
         IFNULL(lc.like_count, 0) AS like_count,
         ${
           userId
@@ -727,7 +734,7 @@ function handleFeedRequest(req, res) {
       return res.json({
         ok: true,
         message: '피드를 불러왔습니다.',
-        posts: rows,
+        posts: normalizePublicPostRows(rows),
         has_more: rows.length === limit,
         context: {
           feed_type: feedType,
@@ -831,6 +838,7 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
           u.name     AS author_name,
           u.nickname AS author_nickname,
           u.email    AS author_email,
+          COALESCE(u.account_status, 'active') AS author_account_status,
           IFNULL(l.like_count, 0) AS like_count,
           -- ✅ 이 유저가 누른 좋아요 여부
           CASE
@@ -921,10 +929,10 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
           });
 
           return res.json({
-            ok: true,
-            message: '관련 글을 불러왔습니다.',
-            posts: finalPosts,
-          });
+              ok: true,
+              message: '관련 글을 불러왔습니다.',
+              posts: normalizePublicPostRows(finalPosts),
+            });
         }
       );
     }
@@ -1172,6 +1180,7 @@ function handlePublicPostDetail(req, res) {
       u.name     AS author_name,
       u.nickname AS author_nickname,
       u.email    AS author_email,
+      COALESCE(u.account_status, 'active') AS author_account_status,
       IFNULL(l.like_count, 0) AS like_count,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
     FROM posts p
@@ -1233,22 +1242,24 @@ function handlePublicPostDetail(req, res) {
           .filter(Boolean)
       : [];
 
+    const normalizedRow = normalizePublicPostAuthor(row);
+
     return res.json({
       ok: true,
       message: '글 상세 정보를 불러왔습니다.',
       post: {
-        id: row.id,
-        title: row.title,
-        content: row.content,
-        layout_json: row.layout_json || null,
-        category: row.category,
-        created_at: row.created_at,
-        author_id: row.author_id,
-        author_name: row.author_name,
-        author_nickname: row.author_nickname,
-        author_email: row.author_email,
-        like_count: row.like_count,
-        user_liked: row.user_liked ? 1 : 0,
+        id: normalizedRow.id,
+        title: normalizedRow.title,
+        content: normalizedRow.content,
+        layout_json: normalizedRow.layout_json || null,
+        category: normalizedRow.category,
+        created_at: normalizedRow.created_at,
+        author_id: normalizedRow.author_id,
+        author_name: normalizedRow.author_name,
+        author_nickname: normalizedRow.author_nickname,
+        author_email: normalizedRow.author_email,
+        like_count: normalizedRow.like_count,
+        user_liked: normalizedRow.user_liked ? 1 : 0,
         hashtags,
       },
     });

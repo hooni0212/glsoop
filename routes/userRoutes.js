@@ -10,6 +10,7 @@ const {
   makeKeyedCosmeticMap,
   buildExpandedProfileCosmetics,
 } = require('../utils/profileCosmetics');
+const { ACCOUNT_STATUS_ACTIVE } = require('../utils/accountLifecycle');
 
 const router = express.Router();
 
@@ -109,6 +110,7 @@ async function buildAuthorProfile(authorId) {
       COALESCE(level, 1) AS level
     FROM users
     WHERE id = ?
+      AND COALESCE(account_status, 'active') = 'active'
     `,
     [authorId]
   );
@@ -201,7 +203,10 @@ function validateFollowTarget(targetUserId, viewerId, res) {
 }
 
 async function ensureUserExists(targetUserId, res) {
-  const found = await dbGet('SELECT id FROM users WHERE id = ?', [targetUserId]);
+  const found = await dbGet(
+    'SELECT id FROM users WHERE id = ? AND COALESCE(account_status, ?) = ?',
+    [targetUserId, ACCOUNT_STATUS_ACTIVE, ACCOUNT_STATUS_ACTIVE]
+  );
   if (!found) {
     res
       .status(404)
@@ -390,6 +395,17 @@ router.get('/users/:id/posts', authOptional, async (req, res) => {
   }
 
   try {
+    const author = await dbGet(
+      'SELECT id FROM users WHERE id = ? AND COALESCE(account_status, ?) = ? LIMIT 1',
+      [authorId, ACCOUNT_STATUS_ACTIVE, ACCOUNT_STATUS_ACTIVE]
+    );
+    if (!author) {
+      return res.status(404).json({
+        ok: false,
+        message: '해당 작가를 찾을 수 없습니다.',
+      });
+    }
+
     const rows = await dbAll(sql, params);
     return res.json({
       ok: true,
