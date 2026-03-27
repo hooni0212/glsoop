@@ -91,9 +91,19 @@ const resetSessionState = async () => {
   await dbRun(db, 'DELETE FROM password_reset_tokens WHERE user_id = ?', [USER_ID]);
   await dbRun(
     db,
-    'UPDATE users SET pw = ?, reset_token = NULL, reset_expires = NULL, remember_login_enabled = 0 WHERE id = ?',
+    `UPDATE users
+     SET pw = ?,
+         reset_token = NULL,
+         reset_expires = NULL,
+         remember_login_enabled = 0,
+         account_status = 'active',
+         deactivated_at = NULL,
+         scheduled_purge_at = NULL
+     WHERE id = ?`,
     [passwordHash, USER_ID]
   );
+  await dbRun(db, 'DELETE FROM likes WHERE user_id = ?', [USER_ID]);
+  await dbRun(db, 'DELETE FROM posts WHERE user_id = ?', [USER_ID]);
   await new Promise((resolve) => db.close(resolve));
 };
 
@@ -111,7 +121,8 @@ const login = async (request, { remember = null, ip }) => {
   expect(response.status()).toBe(200);
   const payload = await response.json();
   expect(payload.ok).toBe(true);
-  expect(payload.token).toBeUndefined();
+  expect(typeof payload.token).toBe('string');
+  expect(payload.token.length).toBeGreaterThan(20);
   return extractTokenFromSetCookie(response);
 };
 
@@ -283,5 +294,188 @@ test.describe('Auth session management', () => {
     expect(meRes.status()).toBe(401);
     const meBody = await meRes.json();
     expect(meBody.code).toBe('AUTH_INVALID_SESSION');
+  });
+
+  test('account deactivation stores purge schedule and revokes active sessions', async ({ request }) => {
+    const activeToken = await login(request, { remember: true, ip: '203.0.113.41' });
+
+    const closureRes = await request.post('/api/me/account-closure', {
+      headers: {
+        Authorization: `Bearer ${activeToken}`,
+      },
+      data: {
+        mode: 'deactivate',
+        currentPw: USER_PASSWORD,
+        confirmText: 'DELETE',
+      },
+    });
+    expect(closureRes.status()).toBe(200);
+    const closureBody = await closureRes.json();
+    expect(closureBody.ok).toBe(true);
+    expect(closureBody.mode).toBe('deactivate');
+    expect(typeof closureBody.scheduled_purge_at).toBe('string');
+
+    const meRes = await request.get('/api/me', {
+      headers: {
+        Authorization: `Bearer ${activeToken}`,
+      },
+    });
+    expect(meRes.status()).toBe(401);
+
+    const db = new sqlite3.Database(DB_PATH);
+    const userRow = await dbGet(
+      db,
+      'SELECT account_status, deactivated_at, scheduled_purge_at FROM users WHERE id = ?',
+      [USER_ID]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(userRow).toBeTruthy();
+    expect(userRow.account_status).toBe('deactivated');
+    expect(typeof userRow.deactivated_at).toBe('string');
+    expect(typeof userRow.scheduled_purge_at).toBe('string');
+  });
+
+  test('login requires confirmation before restoring deactivated account within grace period', async ({
+    request,
+  }) => {
+    const db = new sqlite3.Database(DB_PATH);
+    await dbRun(
+      db,
+      `UPDATE users
+       SET account_status = 'deactivated',
+           deactivated_at = datetime('now', '-2 day'),
+           scheduled_purge_at = datetime('now', '+10 day')
+       WHERE id = ?`,
+      [USER_ID]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    const loginRes = await request.post('/api/login', {
+      headers: { 'x-forwarded-for': '203.0.113.42' },
+      data: {
+        email: USER_EMAIL,
+        pw: USER_PASSWORD,
+      },
+    });
+    expect(loginRes.status()).toBe(200);
+    const loginBody = await loginRes.json();
+    expect(loginBody.ok).toBe(true);
+    expect(loginBody.reactivation_required).toBe(true);
+    expect(typeof loginBody.scheduled_purge_at).toBe('string');
+    expect(loginRes.headers()['set-cookie'] || '').not.toContain('token=');
+
+    const pendingDb = new sqlite3.Database(DB_PATH);
+    const pendingUser = await dbGet(
+      pendingDb,
+      'SELECT account_status, deactivated_at, scheduled_purge_at FROM users WHERE id = ?',
+      [USER_ID]
+    );
+    const pendingSessions = await dbGet(
+      pendingDb,
+      'SELECT COUNT(*) AS count FROM auth_sessions WHERE user_id = ?',
+      [USER_ID]
+    );
+    await new Promise((resolve) => pendingDb.close(resolve));
+
+    expect(pendingUser.account_status).toBe('deactivated');
+    expect(Number(pendingSessions.count)).toBe(0);
+
+    const restoreRes = await request.post('/api/login/reactivate', {
+      headers: { 'x-forwarded-for': '203.0.113.42' },
+      data: {
+        email: USER_EMAIL,
+        pw: USER_PASSWORD,
+      },
+    });
+    expect(restoreRes.status()).toBe(200);
+    const restoreBody = await restoreRes.json();
+    expect(restoreBody.ok).toBe(true);
+    expect(typeof restoreBody.token).toBe('string');
+
+    const verifyDb = new sqlite3.Database(DB_PATH);
+    const restoredUser = await dbGet(
+      verifyDb,
+      'SELECT account_status, deactivated_at, scheduled_purge_at FROM users WHERE id = ?',
+      [USER_ID]
+    );
+    await new Promise((resolve) => verifyDb.close(resolve));
+
+    expect(restoredUser.account_status).toBe('active');
+    expect(restoredUser.deactivated_at).toBeNull();
+    expect(restoredUser.scheduled_purge_at).toBeNull();
+  });
+
+  test('expired deactivated account is purged during login attempt', async ({ request }) => {
+    const db = new sqlite3.Database(DB_PATH);
+    await dbRun(
+      db,
+      `INSERT OR REPLACE INTO posts (id, user_id, title, content, category, created_at)
+       VALUES (?, ?, ?, ?, ?, datetime('now', '-2 day'))`,
+      [9951, USER_ID, '탈퇴 예정 글', '탈퇴 만료 후 삭제되어야 하는 글입니다.', 'essay']
+    );
+    await dbRun(
+      db,
+      `UPDATE users
+       SET account_status = 'deactivated',
+           deactivated_at = datetime('now', '-40 day'),
+           scheduled_purge_at = datetime('now', '-10 day')
+       WHERE id = ?`,
+      [USER_ID]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    const loginRes = await request.post('/api/login', {
+      data: {
+        email: USER_EMAIL,
+        pw: USER_PASSWORD,
+      },
+    });
+    expect(loginRes.status()).toBe(401);
+    const loginBody = await loginRes.json();
+    expect(loginBody.code).toBe('AUTH_INVALID_CREDENTIALS');
+
+    const verifyDb = new sqlite3.Database(DB_PATH);
+    const deletedUser = await dbGet(verifyDb, 'SELECT id FROM users WHERE id = ?', [USER_ID]);
+    const deletedPost = await dbGet(verifyDb, 'SELECT id FROM posts WHERE id = ?', [9951]);
+    await new Promise((resolve) => verifyDb.close(resolve));
+
+    expect(deletedUser).toBeUndefined();
+    expect(deletedPost).toBeUndefined();
+  });
+
+  test('delete mode removes user account immediately', async ({ request }) => {
+    const activeToken = await login(request, { remember: false, ip: '203.0.113.43' });
+    const db = new sqlite3.Database(DB_PATH);
+    await dbRun(
+      db,
+      `INSERT OR REPLACE INTO posts (id, user_id, title, content, category, created_at)
+       VALUES (?, ?, ?, ?, ?, datetime('now', '-1 day'))`,
+      [9952, USER_ID, '즉시 삭제 글', '즉시 삭제와 함께 사라져야 하는 글입니다.', 'essay']
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    const closureRes = await request.post('/api/me/account-closure', {
+      headers: {
+        Authorization: `Bearer ${activeToken}`,
+      },
+      data: {
+        mode: 'delete',
+        currentPw: USER_PASSWORD,
+        confirmText: 'DELETE',
+      },
+    });
+    expect(closureRes.status()).toBe(200);
+    const closureBody = await closureRes.json();
+    expect(closureBody.ok).toBe(true);
+    expect(closureBody.mode).toBe('delete');
+
+    const verifyDb = new sqlite3.Database(DB_PATH);
+    const deletedUser = await dbGet(verifyDb, 'SELECT id FROM users WHERE id = ?', [USER_ID]);
+    const deletedPost = await dbGet(verifyDb, 'SELECT id FROM posts WHERE id = ?', [9952]);
+    await new Promise((resolve) => verifyDb.close(resolve));
+
+    expect(deletedUser).toBeUndefined();
+    expect(deletedPost).toBeUndefined();
   });
 });

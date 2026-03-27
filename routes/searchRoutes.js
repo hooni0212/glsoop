@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
 
 const router = express.Router();
 
@@ -100,6 +101,7 @@ async function searchPosts(keyword, limit, offset) {
       u.id AS author_id,
       u.name AS author_name,
       u.nickname AS author_nickname,
+      COALESCE(u.account_status, 'active') AS author_account_status,
       IFNULL(lc.like_count, 0) AS like_count,
       IFNULL(bc.bookmark_count, 0) AS bookmark_count
     FROM posts p
@@ -117,8 +119,13 @@ async function searchPosts(keyword, limit, offset) {
     WHERE (
       p.title LIKE ? ESCAPE '\\'
       OR p.content LIKE ? ESCAPE '\\'
-      OR u.name LIKE ? ESCAPE '\\'
-      OR COALESCE(u.nickname, '') LIKE ? ESCAPE '\\'
+      OR (
+        COALESCE(u.account_status, 'active') = 'active'
+        AND (
+          u.name LIKE ? ESCAPE '\\'
+          OR COALESCE(u.nickname, '') LIKE ? ESCAPE '\\'
+        )
+      )
     )
     ORDER BY like_count DESC, bookmark_count DESC, p.created_at DESC
     LIMIT ? OFFSET ?
@@ -151,6 +158,7 @@ async function searchAuthors(keyword, limit, offset) {
       u.name LIKE ? ESCAPE '\\'
       OR COALESCE(u.nickname, '') LIKE ? ESCAPE '\\'
     )
+      AND COALESCE(u.account_status, 'active') = 'active'
     ORDER BY post_count DESC, follower_count DESC, ps.latest_post_at DESC, u.id DESC
     LIMIT ? OFFSET ?
   `;
@@ -180,7 +188,7 @@ router.get('/search', async (req, res) => {
       message: '검색 결과를 불러왔습니다.',
       query: q,
       type,
-      posts,
+      posts: posts.map((post) => normalizePublicPostAuthor(post)),
       authors,
       meta: {
         posts_count: posts.length,

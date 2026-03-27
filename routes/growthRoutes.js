@@ -4,7 +4,7 @@ const {
   addXp,
   fetchGrowthSummary,
   fetchUserAchievements,
-} = require('../utils/growth');
+} = require('../utils/growth-service');
 const { getActiveQuestsForUser } = require('../utils/questService');
 const { mapCosmeticItem } = require('../utils/profileCosmetics');
 const db = require('../db');

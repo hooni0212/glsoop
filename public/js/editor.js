@@ -56,6 +56,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.location.href = buildLoginRedirect();
   };
 
+  const openEditorAuthGate = (reason) => {
+    trackEvent(
+      'editor_auth_gate_shown',
+      {
+        reason: reason || null,
+        next_path: `${window.location.pathname}${window.location.search || ''}`,
+      },
+      { useBeacon: true }
+    );
+
+    if (window.glsoopAuthGateModal && typeof window.glsoopAuthGateModal.open === 'function') {
+      window.glsoopAuthGateModal.open({
+        title: '로그인 후 글을 남길 수 있어요',
+        message: '글쓰기는 로그인한 회원만 이용할 수 있는 기능입니다.',
+        description: '로그인하면 오늘의 문장을 저장하고, 이어서 수정하거나 다시 꺼내볼 수 있습니다.',
+        source: 'editor',
+        nextPath: `${window.location.pathname}${window.location.search || ''}`,
+        backBehavior: 'history',
+      });
+      return true;
+    }
+    return false;
+  };
+
   const pageParams = new URLSearchParams(window.location.search);
   const postId = pageParams.get('postId');
   let isEditMode = Boolean(postId);
@@ -70,16 +94,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 진짜 로그아웃 상태
     if (res.status === 401) {
-      alert('로그인이 필요한 기능입니다.');
-      redirectToLogin('unauthorized');
+      if (!openEditorAuthGate('unauthorized')) {
+        alert('로그인이 필요한 기능입니다.');
+        redirectToLogin('unauthorized');
+      }
       return;
     }
 
     // 그 외의 이상한 상태(500, 304 등)도 일단 에러로 처리
     if (!res.ok) {
       console.error('로그인 확인 실패:', res.status, res.statusText);
-      alert('로그인 상태를 확인하는 중 오류가 발생했습니다.');
-      redirectToLogin(`status_${res.status}`);
+      if (!openEditorAuthGate(`status_${res.status}`)) {
+        alert('로그인 상태를 확인하는 중 오류가 발생했습니다.');
+        redirectToLogin(`status_${res.status}`);
+      }
       return;
     }
 
@@ -87,8 +115,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // const me = await res.json();
   } catch (e) {
     console.error(e);
-    alert('로그인 상태를 확인하는 중 오류가 발생했습니다.');
-    redirectToLogin('network_error');
+    if (!openEditorAuthGate('network_error')) {
+      alert('로그인 상태를 확인하는 중 오류가 발생했습니다.');
+      redirectToLogin('network_error');
+    }
     return;
   }
 

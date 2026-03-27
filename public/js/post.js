@@ -101,6 +101,65 @@ async function setupPostSafeAreaGuides() {
   body.classList.toggle('gls-safe-area-debug', postSafeAreaGuidesEnabled);
 }
 
+function initPostLoginPrompt() {
+  const modalEl = document.getElementById('postLoginPromptModal');
+  const loginBtn = document.getElementById('postLoginPromptLoginBtn');
+  const backBtn = document.getElementById('postLoginPromptBackBtn');
+  const messageEl = document.getElementById('postLoginPromptMessage');
+  if (!modalEl || !loginBtn || !backBtn) return;
+
+  const goBackFromPrompt = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    window.location.href = '/explore';
+  };
+
+  window.glsoopPostAuthGate = {
+    open(options = {}) {
+      const actionLabel = typeof options.actionLabel === 'string' && options.actionLabel.trim()
+        ? options.actionLabel.trim()
+        : '공감';
+      if (messageEl) {
+        messageEl.textContent = `${actionLabel}은 로그인한 회원만 이용할 수 있는 기능입니다.`;
+      }
+      if (window.glsModal) {
+        window.glsModal.open(modalEl);
+      }
+    },
+    close() {
+      if (window.glsModal) {
+        window.glsModal.close(modalEl);
+      }
+    },
+  };
+
+  if (loginBtn.dataset.bound !== '1') {
+    loginBtn.dataset.bound = '1';
+    loginBtn.addEventListener('click', () => {
+      if (typeof redirectToLoginWithNext === 'function') {
+        redirectToLoginWithNext({
+          source: 'post-like-login-modal',
+          alertMessage: '로그인 후 공감할 수 있습니다.',
+        });
+        return;
+      }
+      window.location.href = '/html/login.html';
+    });
+  }
+
+  if (backBtn.dataset.bound !== '1') {
+    backBtn.dataset.bound = '1';
+    backBtn.addEventListener('click', () => {
+      if (window.glsModal) {
+        window.glsModal.close(modalEl);
+      }
+      goBackFromPrompt();
+    });
+  }
+}
+
 function applyDetailImageTitleOverlay(cardEl, titleText = '제목 없음') {
   if (!cardEl) return;
 
@@ -233,6 +292,7 @@ function bindPostMobileDockClass() {
 
 async function initPostDetailPage() {
   bindPostMobileDockClass();
+  initPostLoginPrompt();
 
   const params = new URLSearchParams(window.location.search);
   const postId = params.get('postId');

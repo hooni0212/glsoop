@@ -583,6 +583,102 @@ body.page-mypage .mpd-modal-block-head {
   margin-bottom: 10px;
 }
 
+body.page-mypage .mpd-modal-block--danger {
+  border-color: color-mix(in srgb, var(--mpd-border) 80%, rgba(130, 44, 44, 0.22));
+  background: color-mix(in srgb, var(--mpd-surface-soft) 82%, rgba(255, 244, 241, 0.56));
+}
+
+body.page-mypage .mpd-danger-toggle {
+  color: color-mix(in srgb, var(--mpd-muted) 80%, #5f1f1f 20%);
+}
+
+body.page-mypage .mpd-account-modal .modal-dialog,
+body.page-mypage #accountClosureFlowModal .modal-dialog {
+  max-width: min(760px, calc(100vw - 20px));
+}
+
+body.page-mypage .mpd-account-step-head {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+body.page-mypage .mpd-account-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 56px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--mpd-border-strong) 78%, rgba(255, 255, 255, 0.24));
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--mpd-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+body.page-mypage .mpd-account-choice-grid {
+  display: grid;
+  gap: 10px;
+}
+
+body.page-mypage .mpd-account-choice {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--mpd-border) 82%, rgba(130, 44, 44, 0.18));
+  background: rgba(255, 255, 255, 0.58);
+  color: inherit;
+  transition: var(--gls-transition-lift-ui);
+}
+
+body.page-mypage .mpd-account-choice:hover,
+body.page-mypage .mpd-account-choice:focus-visible {
+  border-color: color-mix(in srgb, var(--mpd-border-strong) 78%, rgba(130, 44, 44, 0.18));
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(20, 24, 32, 0.1);
+  outline: none;
+}
+
+body.page-mypage .mpd-account-choice.is-selected {
+  border-color: color-mix(in srgb, var(--mpd-border-strong) 86%, rgba(130, 44, 44, 0.18));
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 24px rgba(20, 24, 32, 0.1);
+}
+
+body.page-mypage .mpd-account-choice strong {
+  color: var(--mpd-ink);
+  font-size: 0.94rem;
+}
+
+body.page-mypage .mpd-account-choice span {
+  color: var(--mpd-muted);
+  line-height: 1.5;
+  font-size: 0.88rem;
+}
+
+body.page-mypage .mpd-account-review {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--mpd-border) 82%, rgba(130, 44, 44, 0.18));
+  background: rgba(255, 255, 255, 0.66);
+}
+
+body.page-mypage .mpd-account-review strong {
+  color: var(--mpd-ink);
+}
+
+body.page-mypage .mpd-account-footer {
+  justify-content: space-between;
+  gap: 8px;
+}
+
 body.page-mypage .mpd-form-grid {
   display: grid;
   gap: 10px;

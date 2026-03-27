@@ -158,6 +158,55 @@
     </div>
   </section>
 
+  <div
+    class="modal fade"
+    id="postLoginPromptModal"
+    tabindex="-1"
+    aria-labelledby="postLoginPromptLabel"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content post-login-prompt-modal">
+        <div class="modal-header">
+          <div>
+            <p class="post-login-prompt-modal__eyebrow gls-mb-1">MEMBERS ONLY</p>
+            <h5 class="modal-title" id="postLoginPromptLabel">로그인 후 공감할 수 있어요</h5>
+          </div>
+          <button
+            type="button"
+            class="gls-modal-close"
+            data-gls-dismiss="modal"
+            aria-label="닫기"
+          ></button>
+        </div>
+        <div class="modal-body post-login-prompt-modal__body">
+          <p class="gls-mb-2" id="postLoginPromptMessage">
+            공감은 로그인한 회원만 이용할 수 있는 기능입니다.
+          </p>
+          <p class="gls-text-small gls-text-muted gls-mb-0">
+            로그인하면 이 글에 공감을 남기고, 마음에 드는 글을 더 쉽게 모아볼 수 있습니다.
+          </p>
+        </div>
+        <div class="modal-footer post-login-prompt-modal__footer">
+          <button
+            type="button"
+            class="gls-btn gls-btn-secondary"
+            id="postLoginPromptBackBtn"
+          >
+            돌아가기
+          </button>
+          <button
+            type="button"
+            class="gls-btn gls-btn-primary"
+            id="postLoginPromptLoginBtn"
+          >
+            로그인하기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
           <!-- 푸터 -->
   <footer class="custom-footer">
     <div class="gls-container">

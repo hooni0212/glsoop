@@ -20,6 +20,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const emailFromQuery = (params.get('email') || '').trim();
   const rememberLoginModalEl = document.getElementById('rememberLoginModal');
   const rememberLoginConfirmBtn = document.getElementById('rememberLoginConfirmBtn');
+  const reactivationConfirmModalEl = document.getElementById('reactivationConfirmModal');
+  const reactivationConfirmContinueBtn = document.getElementById('reactivationConfirmContinueBtn');
+  const reactivationConfirmCancelBtn = document.getElementById('reactivationConfirmCancelBtn');
+  const reactivationConfirmDeadlineText = document.getElementById('reactivationConfirmDeadlineText');
   const authShell = document.querySelector('[data-auth-shell="1"]');
   const authSceneToggleBtn = document.getElementById('authSceneToggleBtn');
   const authSceneStage = document.getElementById('authSceneStage');
@@ -153,6 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let stopRetryCountdown = null;
   let pendingRememberRedirect = null;
   let rememberModalFallbackTimer = 0;
+  let pendingReactivationCredentials = null;
+  let reactivationSubmitting = false;
   const REMEMBER_NOTICE_ONCE_PER_DAY_KEY = 'glsoop.remember_notice_shown_date';
   const AUTH_SCENES = [
     {
@@ -1211,6 +1217,23 @@ document.addEventListener('DOMContentLoaded', () => {
     rememberModalFallbackTimer = 0;
   };
 
+  const formatReactivationDeadline = (value) => {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      }).format(parsed);
+    } catch (error) {
+      return parsed.toLocaleString('ko-KR');
+    }
+  };
+
   const closeRememberLoginModal = () => {
     clearRememberFallbackTimer();
     if (!rememberLoginModalEl) return;
@@ -1247,6 +1270,140 @@ document.addEventListener('DOMContentLoaded', () => {
     return true;
   };
 
+  const syncReactivationModalState = () => {
+    const disabled = reactivationSubmitting;
+    if (reactivationConfirmContinueBtn) {
+      reactivationConfirmContinueBtn.disabled = disabled;
+      reactivationConfirmContinueBtn.textContent = disabled ? '다시 활성화 중...' : '계속 진행';
+    }
+    if (reactivationConfirmCancelBtn) {
+      reactivationConfirmCancelBtn.disabled = disabled;
+    }
+  };
+
+  const closeReactivationConfirmModal = () => {
+    reactivationSubmitting = false;
+    syncReactivationModalState();
+    if (!reactivationConfirmModalEl) return;
+    reactivationConfirmModalEl.classList.remove('show', 'is-open', 'is-flex-visible');
+    reactivationConfirmModalEl.setAttribute('aria-hidden', 'true');
+    reactivationConfirmModalEl.removeAttribute('aria-modal');
+    reactivationConfirmModalEl.setAttribute('hidden', '');
+    document.body.classList.remove('gls-modal-open');
+  };
+
+  const openReactivationConfirmModal = (payload, credentials) => {
+    if (!reactivationConfirmModalEl || !reactivationConfirmContinueBtn) return false;
+    pendingReactivationCredentials = credentials || null;
+    const deadlineLabel = formatReactivationDeadline(payload && payload.scheduled_purge_at);
+    if (reactivationConfirmDeadlineText) {
+      reactivationConfirmDeadlineText.textContent = deadlineLabel
+        ? `${deadlineLabel} 전까지는 다시 활성화할 수 있습니다. 계속 진행할지 확인해주세요.`
+        : '다시 활성화 전에 한 번 더 확인해드릴게요.';
+    }
+    reactivationSubmitting = false;
+    syncReactivationModalState();
+    reactivationConfirmModalEl.removeAttribute('hidden');
+    reactivationConfirmModalEl.classList.add('show', 'is-open', 'is-flex-visible');
+    reactivationConfirmModalEl.setAttribute('aria-hidden', 'false');
+    reactivationConfirmModalEl.setAttribute('aria-modal', 'true');
+    document.body.classList.add('gls-modal-open');
+    window.setTimeout(() => {
+      reactivationConfirmContinueBtn.focus();
+    }, 0);
+    return true;
+  };
+
+  const runPostLoginSuccessFlow = async (data, submitBtn) => {
+    await playLoginRiveSubmitAttemptAndWait();
+    if (!data) return;
+    completeLoginRiveSubmitResult(true);
+    form.classList.add('is-login-success');
+    clearFieldErrors();
+    setFormMessage(data.message || '로그인에 성공했습니다.', 'success');
+    const redirectTo = safeNextUrl
+      || (source === 'verify-email' ? '/html/editor.html' : '/html/mypage.html');
+    trackEvent(
+      'login_success',
+      {
+        redirect_to: redirectTo,
+        transition_ms: LOGIN_SUCCESS_TRANSITION_MS,
+        min_visual_ms: MIN_SUBMIT_VISUAL_MS,
+      },
+      { useBeacon: true }
+    );
+    const rememberEnabled = Boolean(data && data.remember_me);
+    const rememberNoticeRequired = Boolean(data && data.remember_notice_required);
+    const isDefaultMypageRedirect = /^\/html\/mypage(?:\.html)?(?:$|\?)/.test(redirectTo);
+    const shouldShowRememberNotice =
+      rememberEnabled &&
+      rememberNoticeRequired &&
+      isDefaultMypageRedirect &&
+      !hasRememberNoticeShownToday();
+
+    if (shouldShowRememberNotice) {
+      trackEvent('login_remember_notice_shown', {
+        redirect_to: redirectTo,
+        remember_me: rememberEnabled,
+      });
+      startPostLoginRedirect(redirectTo, submitBtn, {
+        pauseBeforeRedirect: true,
+        onPaused: (continueRedirect) => {
+          if (!openRememberLoginModal(continueRedirect)) {
+            continueRedirect();
+          }
+        },
+      });
+      return;
+    }
+
+    startPostLoginRedirect(redirectTo, submitBtn);
+  };
+
+  const submitReactivationConfirmation = async () => {
+    if (reactivationSubmitting || !pendingReactivationCredentials) return;
+    reactivationSubmitting = true;
+    syncReactivationModalState();
+    clearFormMessage();
+
+    try {
+      const res = await fetch('/api/login/reactivate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pendingReactivationCredentials),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        closeReactivationConfirmModal();
+        pendingReactivationCredentials = null;
+        completeLoginRiveSubmitResult(false);
+        triggerFormState('is-login-error');
+        const message =
+          authUtils && typeof authUtils.buildErrorMessage === 'function'
+            ? authUtils.buildErrorMessage({
+                code: data && data.code,
+                message: data && data.message,
+                retryAfter: null,
+              })
+            : data.message || '계정 재활성화에 실패했습니다.';
+        setFormMessage(message, 'error', true);
+        return;
+      }
+
+      closeReactivationConfirmModal();
+      pendingReactivationCredentials = null;
+      await runPostLoginSuccessFlow(data, form.querySelector('button[type="submit"]'));
+    } catch (error) {
+      console.error(error);
+      closeReactivationConfirmModal();
+      pendingReactivationCredentials = null;
+      completeLoginRiveSubmitResult(false);
+      triggerFormState('is-login-error');
+      setFormMessage('계정 재활성화 중 오류가 발생했습니다.', 'error', true);
+    }
+  };
+
   if (rememberLoginConfirmBtn) {
     rememberLoginConfirmBtn.addEventListener('click', (event) => {
       event.preventDefault();
@@ -1255,6 +1412,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const runRedirect = pendingRememberRedirect;
       pendingRememberRedirect = null;
       runRedirect();
+    });
+  }
+
+  if (reactivationConfirmContinueBtn) {
+    reactivationConfirmContinueBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      submitReactivationConfirmation();
+    });
+  }
+
+  if (reactivationConfirmCancelBtn) {
+    reactivationConfirmCancelBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      if (reactivationSubmitting) return;
+      closeReactivationConfirmModal();
+      pendingReactivationCredentials = null;
+      setFormMessage('계정 재활성화는 아직 진행되지 않았습니다.', 'info', true);
     });
   }
 
@@ -1283,6 +1457,7 @@ document.addEventListener('DOMContentLoaded', () => {
       successTransitionTimer = 0;
     }
     clearRememberFallbackTimer();
+    pendingReactivationCredentials = null;
   });
 
   if (emailFromQuery && form.email && !form.email.value) {
@@ -1378,54 +1553,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const { res, data } = apiResult.value;
 
-      // HTTP 응답도 OK이고, 응답 JSON의 ok도 true인 경우 "로그인 성공"으로 간주
-      // 로그인 성공 후 이동
-      if (res.ok && data.ok) {
-        // 도토리 드롭은 로그인 성공(자격증명 유효)일 때만 실행하고,
-        // 모션이 보이도록 짧게 대기한 뒤 전환한다.
-        await playLoginRiveSubmitAttemptAndWait();
-        if (submitToken !== activeSubmitToken) return;
-        completeLoginRiveSubmitResult(true);
-        form.classList.add('is-login-success');
-        clearFieldErrors();
-        setFormMessage(data.message || '로그인에 성공했습니다.', 'success');
-        const redirectTo = safeNextUrl
-          || (source === 'verify-email' ? '/html/editor.html' : '/html/mypage.html');
-        // 안전장치: 내부 경로만 허용
-        trackEvent(
-          'login_success',
-          {
-            redirect_to: redirectTo,
-            transition_ms: LOGIN_SUCCESS_TRANSITION_MS,
-            min_visual_ms: MIN_SUBMIT_VISUAL_MS,
-          },
-          { useBeacon: true }
+      if (res.ok && data && data.reactivation_required) {
+        setFormMessage(
+          data.message || '비활성화된 계정입니다. 다시 활성화할지 한 번 더 확인해주세요.',
+          'info',
+          false
         );
-        const rememberEnabled = Boolean(data && data.remember_me);
-        const rememberNoticeRequired = Boolean(data && data.remember_notice_required);
-        const isDefaultMypageRedirect = /^\/html\/mypage(?:\.html)?(?:$|\?)/.test(redirectTo);
-        const shouldShowRememberNotice =
-          rememberEnabled &&
-          rememberNoticeRequired &&
-          isDefaultMypageRedirect &&
-          !hasRememberNoticeShownToday();
-
-        if (shouldShowRememberNotice) {
-          trackEvent('login_remember_notice_shown', {
-            redirect_to: redirectTo,
-            remember_me: rememberEnabled,
-          });
-          startPostLoginRedirect(redirectTo, submitBtn, {
-            pauseBeforeRedirect: true,
-            onPaused: (continueRedirect) => {
-              if (!openRememberLoginModal(continueRedirect)) {
-                continueRedirect();
-              }
-            },
-          });
-          return;
+        const opened = openReactivationConfirmModal(data, { email, pw });
+        if (!opened) {
+          setFormMessage('계정 재활성화 확인 창을 열지 못했습니다. 잠시 후 다시 시도해주세요.', 'error', true);
         }
-        startPostLoginRedirect(redirectTo, submitBtn);
+        return;
+      }
+
+      if (res.ok && data.ok) {
+        await runPostLoginSuccessFlow(data, submitBtn);
         return;
       }
 

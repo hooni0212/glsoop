@@ -15,11 +15,20 @@ const {
   RESET_TOKEN_HMAC_SECRET,
   LEGAL_CONFIG,
 } = require('../config');
-const { sendPasswordResetEmail } = require('../services/mailer');
+const { sendPasswordResetEmail, sendSignupOtpEmail } = require('../services/mailer');
 const { authRequired } = require('../middleware/auth');
 const { getBaseUrl } = require('../utils/baseUrl');
 const { cleanupExpiredPending } = require('../utils/pendingSignup');
 const { logUxEvent } = require('../utils/uxEvents');
+const {
+  ACCOUNT_STATUS_ACTIVE,
+  ACCOUNT_CLOSURE_CONFIRM_TEXT,
+  isDeactivatedAccount,
+  isWithinDeactivationGracePeriod,
+  purgeUserAccount,
+  deactivateUserAccount,
+  restoreDeactivatedUserAccount,
+} = require('../utils/accountLifecycle');
 const {
   loginLimiter,
   signupLimiter,
@@ -50,6 +59,7 @@ const LOGIN_FAIL_LIMIT = 5;
 const LOGIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
 
 const EMAIL_SEND_FAILURE_STATUS = 503;
+const ACCOUNT_CLOSURE_MODES = new Set(['deactivate', 'delete']);
 
 const dbGet = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -75,14 +85,6 @@ const dbRun = (sql, params = []) =>
     });
   });
 
-const sendMail = (message) =>
-  new Promise((resolve, reject) => {
-    transporter.sendMail(message, (error, info) => {
-      if (error) return reject(error);
-      resolve(info);
-    });
-  });
-
 function getMailErrorDetails(error) {
   if (!error || typeof error !== 'object') {
     return { message: String(error || 'unknown error') };
@@ -97,6 +99,66 @@ function getMailErrorDetails(error) {
 
 function sendAuthError(res, status, code, message, extras = {}) {
   return res.status(status).json({ ok: false, code, message, ...extras });
+}
+
+async function issueLoginSuccess(res, req, user, normalizedEmail, rememberMe) {
+  await clearLoginState(user.id);
+
+  const tokenTtlMs = getSessionTtlMs(rememberMe);
+  const session = await createAuthSession({
+    userId: user.id,
+    rememberMe,
+    req,
+  });
+
+  const token = jwt.sign(
+    {
+      id: user.id,
+      sid: session.sid,
+      name: user.name,
+      nickname: user.nickname,
+      email: user.email,
+      isAdmin: !!user.is_admin,
+      isVerified: !!user.is_verified,
+    },
+    JWT_SECRET,
+    {
+      expiresIn: Math.floor(tokenTtlMs / 1000),
+      algorithm: JWT_ALGORITHM,
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+    }
+  );
+
+  setAuthCookie(res, token, tokenTtlMs);
+
+  await logLoginEvent({
+    userId: user.id,
+    email: normalizedEmail,
+    req,
+    outcome: 'success',
+    failureCode: null,
+    rememberMe,
+  });
+
+  logUxEvent({
+    user_id: user.id,
+    event_name: 'login_success',
+    source: 'server_auth',
+  }).catch((eventErr) => {
+    console.error('login ux event 기록 실패:', eventErr);
+  });
+
+  return res.json({
+    ok: true,
+    message: `환영합니다, ${user.name}님!`,
+    token,
+    name: user.name,
+    nickname: user.nickname || null,
+    remember_me: rememberMe,
+    session_expires_at: session.expiresAt,
+    remember_notice_required: rememberMe,
+  });
 }
 
 function normalizeEmail(value) {
@@ -837,22 +899,11 @@ router.post('/signup', signupLimiter, async (req, res) => {
 
     try {
       if (!SIGNUP_EMAIL_DRY_RUN) {
-        await sendMail({
-          from: `"글숲" <${process.env.GMAIL_USER}>`,
+        await sendSignupOtpEmail({
           to: normalizedEmail,
-          subject: '[글숲] 이메일 인증 번호를 확인해주세요',
-          html: `
-            <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-              <p><strong>${trimmedNickname || trimmedName}님, 안녕하세요.</strong></p>
-              <p>글숲에 가입해 주셔서 감사합니다. 아래 인증 번호를 입력해 이메일 인증을 완료해주세요.</p>
-              <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
-                ${otpCode}
-              </p>
-              <p style="font-size: 0.9rem; color:#888;">
-                인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
-              </p>
-            </div>
-          `,
+          name: trimmedNickname || trimmedName,
+          otpCode,
+          resend: false,
         });
       }
     } catch (mailErr) {
@@ -1143,22 +1194,11 @@ router.post('/verify-email/resend', otpResendLimiter, async (req, res) => {
 
     try {
       if (!SIGNUP_EMAIL_DRY_RUN) {
-        await sendMail({
-          from: `"글숲" <${process.env.GMAIL_USER}>`,
+        await sendSignupOtpEmail({
           to: pending.email,
-          subject: '[글숲] 이메일 인증 번호를 다시 확인해주세요',
-          html: `
-            <div style="font-family: 'Noto Sans KR', sans-serif; line-height: 1.6;">
-              <p><strong>${pending.nickname || pending.name}님, 안녕하세요.</strong></p>
-              <p>요청하신 인증 번호를 다시 보내드립니다. 아래 번호를 입력해 이메일 인증을 완료해주세요.</p>
-              <p style="margin: 16px 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.2em;">
-                ${otpCode}
-              </p>
-              <p style="font-size: 0.9rem; color:#888;">
-                인증 번호는 ${OTP_TTL_MINUTES}분 동안만 유효합니다.
-              </p>
-            </div>
-          `,
+          name: pending.nickname || pending.name,
+          otpCode,
+          resend: true,
         });
       }
     } catch (mailErr) {
@@ -1244,12 +1284,14 @@ router.post('/password-reset-request', passwordLimiter, async (req, res) => {
     );
 
     const resetUrl = `${getBaseUrl(req)}/html/reset-password.html?token=${token}`;
+    const mobileResetUrl = `${process.env.MOBILE_APP_SCHEME || 'glsoopmobile'}://reset-password?token=${encodeURIComponent(token)}`;
 
     try {
       const info = await sendPasswordResetEmail({
         to: normalizedEmail,
         name: user.name,
         resetUrl,
+        mobileResetUrl,
       });
       if (info?.messageId) {
         console.log('reset mail sent:', info.messageId);
@@ -1536,65 +1578,103 @@ router.post('/login', loginLimiter, async (req, res) => {
       return invalidCredentials(user);
     }
 
-    await clearLoginState(user.id);
-
-    const tokenTtlMs = getSessionTtlMs(rememberMe);
-    const session = await createAuthSession({
-      userId: user.id,
-      rememberMe,
-      req,
-    });
-
-    const token = jwt.sign(
-      {
-        id: user.id,
-        sid: session.sid,
-        name: user.name,
-        nickname: user.nickname,
-        email: user.email,
-        isAdmin: !!user.is_admin,
-        isVerified: !!user.is_verified,
-      },
-      JWT_SECRET,
-      {
-        expiresIn: Math.floor(tokenTtlMs / 1000),
-        algorithm: JWT_ALGORITHM,
-        issuer: JWT_ISSUER,
-        audience: JWT_AUDIENCE,
+    if (isDeactivatedAccount(user.account_status)) {
+      if (isWithinDeactivationGracePeriod(user)) {
+        return res.json({
+          ok: true,
+          reactivation_required: true,
+          message: '비활성화된 계정입니다. 다시 활성화할지 한 번 더 확인해주세요.',
+          name: user.name,
+          nickname: user.nickname || null,
+          remember_me: rememberMe,
+          scheduled_purge_at: user.scheduled_purge_at || null,
+        });
       }
-    );
 
-    setAuthCookie(res, token, tokenTtlMs);
+      await purgeUserAccount(user.id, { deletePosts: true });
+      return invalidCredentials(null);
+    }
 
-    await logLoginEvent({
-      userId: user.id,
-      email: normalizedEmail,
-      req,
-      outcome: 'success',
-      failureCode: null,
-      rememberMe,
-    });
-
-    logUxEvent({
-      user_id: user.id,
-      event_name: 'login_success',
-      source: 'server_auth',
-    }).catch((eventErr) => {
-      console.error('login ux event 기록 실패:', eventErr);
-    });
-
-    return res.json({
-      ok: true,
-      message: `환영합니다, ${user.name}님!`,
-      name: user.name,
-      nickname: user.nickname || null,
-      remember_me: rememberMe,
-      session_expires_at: session.expiresAt,
-      remember_notice_required: rememberMe,
-    });
+    return issueLoginSuccess(res, req, user, normalizedEmail, rememberMe);
   } catch (error) {
     console.error('[login] error:', error);
     return sendAuthError(res, 500, 'AUTH_LOGIN_INTERNAL_ERROR', '로그인 처리 중 오류가 발생했습니다.');
+  }
+});
+
+router.post('/login/reactivate', loginLimiter, async (req, res) => {
+  const { email, pw } = req.body || {};
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedEmail || !pw) {
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_LOGIN_REQUIRED_FIELDS',
+      '이메일과 비밀번호를 입력하세요.',
+      {
+        field_errors: {
+          ...(normalizedEmail ? {} : { email: '이메일을 입력해주세요.' }),
+          ...(pw ? {} : { pw: '비밀번호를 입력해주세요.' }),
+        },
+      }
+    );
+  }
+
+  try {
+    const user = await dbGet('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
+    const rememberMe = Boolean(user && Number(user.remember_login_enabled) === 1);
+
+    if (!user) {
+      return sendAuthError(
+        res,
+        401,
+        'AUTH_INVALID_CREDENTIALS',
+        '이메일 또는 비밀번호가 올바르지 않습니다.',
+        { field_errors: { email: '이메일 또는 비밀번호를 확인해주세요.' } }
+      );
+    }
+
+    const match = await bcrypt.compare(String(pw), user.pw);
+    if (!match) {
+      return sendAuthError(
+        res,
+        401,
+        'AUTH_INVALID_CREDENTIALS',
+        '이메일 또는 비밀번호가 올바르지 않습니다.',
+        { field_errors: { email: '이메일 또는 비밀번호를 확인해주세요.' } }
+      );
+    }
+
+    if (!isDeactivatedAccount(user.account_status)) {
+      return sendAuthError(
+        res,
+        409,
+        'AUTH_REACTIVATION_NOT_REQUIRED',
+        '이미 활성 상태인 계정입니다. 바로 로그인해주세요.'
+      );
+    }
+
+    if (!isWithinDeactivationGracePeriod(user)) {
+      await purgeUserAccount(user.id, { deletePosts: true });
+      return sendAuthError(
+        res,
+        401,
+        'AUTH_INVALID_CREDENTIALS',
+        '이메일 또는 비밀번호가 올바르지 않습니다.',
+        { field_errors: { email: '이메일 또는 비밀번호를 확인해주세요.' } }
+      );
+    }
+
+    await restoreDeactivatedUserAccount(user.id);
+    user.account_status = ACCOUNT_STATUS_ACTIVE;
+    user.deactivated_at = null;
+    user.scheduled_purge_at = null;
+
+    return issueLoginSuccess(res, req, user, normalizedEmail, rememberMe);
+  } catch (error) {
+    console.error('[login/reactivate] error:', error);
+    return sendAuthError(res, 500, 'AUTH_REACTIVATION_INTERNAL_ERROR', '계정 재활성화 중 오류가 발생했습니다.');
   }
 });
 
@@ -1653,6 +1733,7 @@ router.get('/me', authRequired, (req, res) => {
       bio,
       about,
       email,
+      COALESCE(account_status, 'active') AS account_status,
       is_admin,
       is_verified,
       COALESCE(remember_login_enabled, 0) AS remember_login_enabled,
@@ -1686,6 +1767,7 @@ router.get('/me', authRequired, (req, res) => {
         bio: row.bio || null,
         about: row.about || null,
         email: row.email,
+        account_status: row.account_status || ACCOUNT_STATUS_ACTIVE,
         is_admin: !!row.is_admin,
         is_verified: !!row.is_verified,
         remember_login_enabled: Number(row.remember_login_enabled) === 1,
@@ -1699,6 +1781,93 @@ router.get('/me', authRequired, (req, res) => {
       });
     }
   );
+});
+
+router.post('/me/account-closure', authRequired, async (req, res) => {
+  const userId = req.user.id;
+  const mode = typeof req.body?.mode === 'string' ? req.body.mode.trim().toLowerCase() : '';
+  const currentPw = typeof req.body?.currentPw === 'string' ? req.body.currentPw : '';
+  const confirmText = typeof req.body?.confirmText === 'string' ? req.body.confirmText.trim() : '';
+
+  if (!ACCOUNT_CLOSURE_MODES.has(mode)) {
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_ACCOUNT_CLOSURE_INVALID_MODE',
+      '계정 정리 방식이 올바르지 않습니다.'
+    );
+  }
+
+  if (!currentPw) {
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_ACCOUNT_CLOSURE_PASSWORD_REQUIRED',
+      '현재 비밀번호를 입력해주세요.'
+    );
+  }
+
+  if (confirmText.toUpperCase() !== ACCOUNT_CLOSURE_CONFIRM_TEXT) {
+    return sendAuthError(
+      res,
+      400,
+      'AUTH_ACCOUNT_CLOSURE_CONFIRM_MISMATCH',
+      `${ACCOUNT_CLOSURE_CONFIRM_TEXT} 확인 문구를 정확히 입력해주세요.`
+    );
+  }
+
+  try {
+    const user = await dbGet(
+      `
+      SELECT id, pw
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [userId]
+    );
+    if (!user) {
+      return sendAuthError(res, 404, 'AUTH_USER_NOT_FOUND', '사용자를 찾을 수 없습니다.');
+    }
+
+    const passwordMatched = await bcrypt.compare(String(currentPw), user.pw);
+    if (!passwordMatched) {
+      return sendAuthError(
+        res,
+        401,
+        'AUTH_ACCOUNT_CLOSURE_PASSWORD_MISMATCH',
+        '현재 비밀번호가 올바르지 않습니다.'
+      );
+    }
+
+    if (mode === 'deactivate') {
+      const result = await deactivateUserAccount(userId);
+      await revokeAllAuthSessionsForUser(userId, 'account_deactivated');
+      clearAuthCookie(res);
+      return res.json({
+        ok: true,
+        mode,
+        scheduled_purge_at: result.scheduledPurgeAt,
+        message: '계정이 비활성화되었습니다. 30일 안에 다시 로그인하면 복구됩니다.',
+      });
+    }
+
+    await purgeUserAccount(userId, { deletePosts: true });
+    clearAuthCookie(res);
+    return res.json({
+      ok: true,
+      mode,
+      message: '회원 탈퇴가 완료되었습니다.',
+    });
+  } catch (error) {
+    console.error('[me/account-closure] error:', error);
+    return sendAuthError(
+      res,
+      500,
+      'AUTH_ACCOUNT_CLOSURE_FAILED',
+      '계정 정리 처리 중 오류가 발생했습니다.'
+    );
+  }
 });
 
 // 7-1-1) 내가 팔로잉 중인 사용자 목록 조회
@@ -1718,6 +1887,7 @@ router.get('/me/followings', authRequired, (req, res) => {
     FROM follows f
     INNER JOIN users u ON u.id = f.followee_id
     WHERE f.follower_id = ?
+      AND COALESCE(u.account_status, 'active') = 'active'
     ORDER BY (u.nickname IS NULL OR u.nickname = ''), u.nickname, u.name
     `,
     [userId],
