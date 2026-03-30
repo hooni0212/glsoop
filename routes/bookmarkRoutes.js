@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { authRequired } = require('../middleware/auth');
 const { handleBookmarkAdded } = require('../utils/growth-service');
+const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
 
 const router = express.Router();
 
@@ -475,7 +476,7 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
         return res.json({
           ok: true,
           message: '북마크 글 목록을 불러왔습니다.',
-          posts: rows || [],
+          posts: (rows || []).map((row) => normalizePublicPostAuthor(row)),
           has_more: (rows || []).length === limit,
         });
       });

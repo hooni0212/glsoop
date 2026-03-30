@@ -10,7 +10,10 @@ const {
   makeKeyedCosmeticMap,
   buildExpandedProfileCosmetics,
 } = require('../utils/profileCosmetics');
-const { ACCOUNT_STATUS_ACTIVE } = require('../utils/accountLifecycle');
+const {
+  ACCOUNT_STATUS_ACTIVE,
+  normalizePublicPostAuthor,
+} = require('../utils/accountLifecycle');
 
 const router = express.Router();
 
@@ -410,7 +413,7 @@ router.get('/users/:id/posts', authOptional, async (req, res) => {
     return res.json({
       ok: true,
       message: '작가 글 목록을 불러왔습니다.',
-      posts: rows,
+      posts: rows.map((row) => normalizePublicPostAuthor(row)),
       has_more: rows.length === limit,
     });
   } catch (error) {

@@ -7,6 +7,7 @@ const {
 } = require('../utils/growth-service');
 const { getActiveQuestsForUser } = require('../utils/questService');
 const { mapCosmeticItem } = require('../utils/profileCosmetics');
+const { normalizeUtcDateTime } = require('../utils/dateTime');
 const db = require('../db');
 
 const LOCK_REASON_ENTITLEMENT_REQUIRED = 'SEASON_PASS_REQUIRED';
@@ -274,7 +275,7 @@ function mapTopPosts(posts = []) {
     excerpt: toExcerpt(item.content),
     author_name: item.author_name || '',
     category: normalizeTopPostCategory(item.category),
-    created_at: item.created_at || null,
+    created_at: item.created_at ? normalizeUtcDateTime(item.created_at) : null,
     like_count: Number(item.like_count) || 0,
     bookmark_count: Number(item.bookmark_count) || 0,
   }));

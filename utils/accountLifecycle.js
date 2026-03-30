@@ -1,4 +1,5 @@
 const db = require('../db');
+const { normalizeDateFields } = require('./dateTime');
 
 const ACCOUNT_STATUS_ACTIVE = 'active';
 const ACCOUNT_STATUS_DEACTIVATED = 'deactivated';
@@ -58,17 +59,22 @@ function isWithinDeactivationGracePeriod(row, nowMs = Date.now()) {
 }
 
 function normalizePublicPostAuthor(row) {
-  if (!row || !isDeactivatedAccount(row.author_account_status)) {
-    if (!row || !Object.prototype.hasOwnProperty.call(row, 'author_account_status')) {
-      return row;
+  const normalizedRow = normalizeDateFields(row, ['created_at']);
+
+  if (!normalizedRow || !isDeactivatedAccount(normalizedRow.author_account_status)) {
+    if (
+      !normalizedRow ||
+      !Object.prototype.hasOwnProperty.call(normalizedRow, 'author_account_status')
+    ) {
+      return normalizedRow;
     }
-    const nextRow = { ...row };
+    const nextRow = { ...normalizedRow };
     delete nextRow.author_account_status;
     return nextRow;
   }
 
   const nextRow = {
-    ...row,
+    ...normalizedRow,
     author_id: null,
     author_name: ANONYMOUS_AUTHOR_NAME,
     author_nickname: ANONYMOUS_AUTHOR_NAME,

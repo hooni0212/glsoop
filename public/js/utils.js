@@ -106,6 +106,19 @@ function escapeHtml(str) {
 }
 
 let glsoopRuntimeConfigPromise = null;
+const GLS_KST_TIME_ZONE = 'Asia/Seoul';
+const GLS_SQLITE_UTC_DATETIME_RE =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?)?$/;
+const glsKoreanDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: GLS_KST_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  hourCycle: 'h23',
+});
 
 function getGlsoopRuntimeConfig() {
   if (glsoopRuntimeConfigPromise) return glsoopRuntimeConfigPromise;
@@ -134,6 +147,68 @@ function getGlsoopRuntimeConfig() {
   return glsoopRuntimeConfigPromise;
 }
 
+function parseGlsoopDateTime(value) {
+  if (!value && value !== 0) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
+  }
+
+  if (typeof value === 'number') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const sqliteMatch = trimmed.match(GLS_SQLITE_UTC_DATETIME_RE);
+    if (sqliteMatch) {
+      const [
+        ,
+        year,
+        month,
+        day,
+        hour = '00',
+        minute = '00',
+        second = '00',
+        fraction = '',
+      ] = sqliteMatch;
+      const millisecond = fraction
+        ? Number(String(fraction).slice(0, 3).padEnd(3, '0'))
+        : 0;
+      return new Date(
+        Date.UTC(
+          Number(year),
+          Number(month) - 1,
+          Number(day),
+          Number(hour),
+          Number(minute),
+          Number(second),
+          millisecond
+        )
+      );
+    }
+
+    const parsed = new Date(trimmed);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getFormatterParts(formatter, date) {
+  const parts = formatter.formatToParts(date);
+  return parts.reduce((acc, part) => {
+    if (part.type !== 'literal') {
+      acc[part.type] = part.value;
+    }
+    return acc;
+  }, {});
+}
+
 /**
  * DB/서버에서 온 날짜를 한국 시간 기준 "YYYY-MM-DD HH:MM"으로 포맷하는 함수
  *
@@ -149,54 +224,14 @@ function getGlsoopRuntimeConfig() {
 function formatKoreanDateTime(value) {
   if (!value) return '';
 
-  let date;
-
-  if (typeof value === 'string') {
-    // 1) ISO 형식: "2025-11-29T11:26:00.000Z" 같은 형태
-    //   - 대략 T 또는 Z가 들어가면 Date 생성자에게 그대로 맡김
-    if (value.includes('T') || value.endsWith('Z') || value.match(/\dZ$/)) {
-      date = new Date(value);
-    } else {
-      // 2) "YYYY-MM-DD HH:MM[:SS]" 형식 → "UTC"라고 가정해서 직접 파싱
-      const m = value.match(
-        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/
-      );
-      if (m) {
-        const year = Number(m[1]);
-        const month = Number(m[2]) - 1; // JS Date의 month는 0~11
-        const day = Number(m[3]);
-        const hour = Number(m[4]);
-        const minute = Number(m[5]);
-        const second = m[6] ? Number(m[6]) : 0;
-
-        // ✅ UTC 기준 timestamp 생성
-        const utcMs = Date.UTC(year, month, day, hour, minute, second);
-
-        // 이 Date 인스턴스를 브라우저에서 읽으면 로컬 시간대(KST)로 보임
-        date = new Date(utcMs);
-      } else {
-        // 형식이 예측 불가능하면 마지막으로 Date 생성자에 그대로 맡김
-        date = new Date(value);
-      }
-    }
-  } else {
-    // Date 객체나 숫자(timestamp)인 경우도 그대로 Date로 래핑
-    date = new Date(value);
-  }
-
-  // Date 생성에 실패했을 때(Invalid Date)는 원본 문자열을 그대로 반환
-  if (Number.isNaN(date.getTime())) {
+  const date = parseGlsoopDateTime(value);
+  if (!date) {
     return String(value);
   }
 
-  // 각 구성 요소 추출 + 2자리 포맷
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  const h = String(date.getHours()).padStart(2, '0');
-  const min = String(date.getMinutes()).padStart(2, '0');
+  const parts = getFormatterParts(glsKoreanDateTimeFormatter, date);
 
-  return `${y}-${m}-${d} ${h}:${min}`;
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
 /**
