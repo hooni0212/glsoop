@@ -5,7 +5,7 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v9';
+const RENDER_VERSION = 'feed-image-poc-v10';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 
 const TEMPLATE_CONFIG = {
@@ -261,8 +261,9 @@ const SHARE_LAYOUT_PRESETS = {
 const CUSTOM_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
 const LAYOUT_UNIT_NORMALIZED = 'normalized';
 const CUSTOM_LAYOUT_MIN_BOX_SIZE = 0.06;
-const CUSTOM_LAYOUT_FONT_SCALE_RANGE = { min: 0.7, max: 1.7 };
-const CUSTOM_LAYOUT_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.0 };
+const CUSTOM_LAYOUT_FONT_SCALE_RANGE = { min: 0.7, max: 2.0 };
+const CUSTOM_LAYOUT_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.2 };
+const CUSTOM_LAYOUT_LETTER_SPACING_RANGE = { min: -0.04, max: 0.08 };
 const TEXT_CLIP_TOP_PADDING_RATIO = 0.08;
 const TEXT_CLIP_BOTTOM_PADDING_RATIO = 0.14;
 const inFlightRenders = new Map();
@@ -359,7 +360,7 @@ function selectShareLayoutPreset(text) {
   return 'xlong';
 }
 
-function parseLayoutBox(raw, { required = false } = {}) {
+function parseLayoutBox(raw, { required = false, allowLetterSpacing = false } = {}) {
   if (raw == null) {
     return required ? null : null;
   }
@@ -423,6 +424,20 @@ function parseLayoutBox(raw, { required = false } = {}) {
     );
   }
 
+  if (allowLetterSpacing && raw.letter_spacing !== undefined) {
+    const letterSpacingRaw = toFiniteNumber(raw.letter_spacing);
+    if (letterSpacingRaw != null) {
+      normalized.letter_spacing = roundNumber(
+        clampNumber(
+          letterSpacingRaw,
+          CUSTOM_LAYOUT_LETTER_SPACING_RANGE.min,
+          CUSTOM_LAYOUT_LETTER_SPACING_RANGE.max
+        ),
+        3
+      );
+    }
+  }
+
   return normalized;
 }
 
@@ -457,14 +472,20 @@ function parsePostLayout(rawLayoutJson) {
     return null;
   }
 
-  const textBox = parseLayoutBox(parsed.text_box, { required: true });
+  const textBox = parseLayoutBox(parsed.text_box, {
+    required: true,
+    allowLetterSpacing: true,
+  });
   if (!textBox) {
     return null;
   }
 
   let titleBox = null;
   if (Object.prototype.hasOwnProperty.call(parsed, 'title_box')) {
-    titleBox = parseLayoutBox(parsed.title_box, { required: false });
+    titleBox = parseLayoutBox(parsed.title_box, {
+      required: false,
+      allowLetterSpacing: true,
+    });
     if (parsed.title_box != null && !titleBox) {
       return null;
     }
@@ -498,7 +519,7 @@ function isCjkChar(ch) {
   );
 }
 
-function estimateTextWidthPx(text, fontSizePx) {
+function estimateTextWidthPx(text, fontSizePx, letterSpacingEm = 0) {
   const str = String(text || '');
   let width = 0;
 
@@ -530,16 +551,18 @@ function estimateTextWidthPx(text, fontSizePx) {
     width += fontSizePx * 0.75;
   }
 
-  return width;
+  const charCount = Array.from(str).length;
+  const letterSpacingPx = fontSizePx * Number(letterSpacingEm || 0);
+  return width + Math.max(0, charCount - 1) * letterSpacingPx;
 }
 
-function splitWordByWidth(word, maxWidthPx, fontSizePx) {
+function splitWordByWidth(word, maxWidthPx, fontSizePx, letterSpacingEm = 0) {
   const chunks = [];
   let current = '';
 
   for (const ch of Array.from(String(word || ''))) {
     const next = `${current}${ch}`;
-    if (current && estimateTextWidthPx(next, fontSizePx) > maxWidthPx) {
+    if (current && estimateTextWidthPx(next, fontSizePx, letterSpacingEm) > maxWidthPx) {
       chunks.push(current);
       current = ch;
     } else {
@@ -551,7 +574,7 @@ function splitWordByWidth(word, maxWidthPx, fontSizePx) {
   return chunks.length ? chunks : [''];
 }
 
-function wrapSingleParagraph(paragraph, maxWidthPx, fontSizePx) {
+function wrapSingleParagraph(paragraph, maxWidthPx, fontSizePx, letterSpacingEm = 0) {
   const normalized = String(paragraph || '').replace(/\s+/g, ' ').trim();
   if (!normalized) return [''];
 
@@ -561,7 +584,7 @@ function wrapSingleParagraph(paragraph, maxWidthPx, fontSizePx) {
 
   for (const word of words) {
     const candidate = currentLine ? `${currentLine} ${word}` : word;
-    if (estimateTextWidthPx(candidate, fontSizePx) <= maxWidthPx) {
+    if (estimateTextWidthPx(candidate, fontSizePx, letterSpacingEm) <= maxWidthPx) {
       currentLine = candidate;
       continue;
     }
@@ -571,12 +594,12 @@ function wrapSingleParagraph(paragraph, maxWidthPx, fontSizePx) {
       currentLine = '';
     }
 
-    if (estimateTextWidthPx(word, fontSizePx) <= maxWidthPx) {
+    if (estimateTextWidthPx(word, fontSizePx, letterSpacingEm) <= maxWidthPx) {
       currentLine = word;
       continue;
     }
 
-    const chunks = splitWordByWidth(word, maxWidthPx, fontSizePx);
+    const chunks = splitWordByWidth(word, maxWidthPx, fontSizePx, letterSpacingEm);
     if (chunks.length === 1) {
       currentLine = chunks[0];
       continue;
@@ -590,22 +613,22 @@ function wrapSingleParagraph(paragraph, maxWidthPx, fontSizePx) {
   return lines.length ? lines : [''];
 }
 
-function clampLineWithEllipsis(line, maxWidthPx, fontSizePx) {
+function clampLineWithEllipsis(line, maxWidthPx, fontSizePx, letterSpacingEm = 0) {
   const text = String(line || '');
   const ellipsis = '…';
-  if (estimateTextWidthPx(text, fontSizePx) <= maxWidthPx) return text;
+  if (estimateTextWidthPx(text, fontSizePx, letterSpacingEm) <= maxWidthPx) return text;
 
   let result = '';
   for (const ch of Array.from(text)) {
     const next = `${result}${ch}`;
-    if (estimateTextWidthPx(`${next}${ellipsis}`, fontSizePx) > maxWidthPx) break;
+    if (estimateTextWidthPx(`${next}${ellipsis}`, fontSizePx, letterSpacingEm) > maxWidthPx) break;
     result = next;
   }
 
   return `${result}${ellipsis}`;
 }
 
-function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines) {
+function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines, letterSpacingEm = 0) {
   const paragraphs = String(text || '')
     .split('\n')
     .map((line) => line.trim());
@@ -613,7 +636,7 @@ function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines) {
   const lines = [];
 
   paragraphs.forEach((paragraph, index) => {
-    const wrapped = wrapSingleParagraph(paragraph, maxWidthPx, fontSizePx);
+    const wrapped = wrapSingleParagraph(paragraph, maxWidthPx, fontSizePx, letterSpacingEm);
     lines.push(...wrapped);
     if (index < paragraphs.length - 1) {
       lines.push('');
@@ -630,7 +653,8 @@ function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines) {
   truncated[maxLines - 1] = clampLineWithEllipsis(
     truncated[maxLines - 1],
     maxWidthPx,
-    fontSizePx
+    fontSizePx,
+    letterSpacingEm
   );
   return truncated;
 }
@@ -685,6 +709,7 @@ function buildSvgTextOverlay({
   box,
   fontSizePx,
   lineHeightPx,
+  letterSpacingEm = 0,
   textAlign = 'left',
   verticalAlign = 'top',
   title = null,
@@ -699,6 +724,7 @@ function buildSvgTextOverlay({
     verticalAlign,
     fontSizePx,
     lineHeightPx,
+    letterSpacingEm,
     clipPadTopPx: Math.round(safeBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
     clipPadBottomPx: Math.round(safeBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
@@ -715,6 +741,7 @@ function buildSvgTextOverlay({
       verticalAlign: title.verticalAlign || 'top',
       fontSizePx: title.fontSizePx || fontSizePx,
       lineHeightPx: title.lineHeightPx || lineHeightPx,
+      letterSpacingEm: title.letterSpacingEm || 0,
       clipPadTopPx: Math.round((title.box.height || safeBox.height) * TEXT_CLIP_TOP_PADDING_RATIO),
       clipPadBottomPx: Math.round((title.box.height || safeBox.height) * TEXT_CLIP_BOTTOM_PADDING_RATIO),
     });
@@ -815,6 +842,7 @@ function buildSvgTextGroup({
   color = TEXT_COLOR,
   fontFamily = SVG_FONT_FAMILY,
   fontWeight = TEXT_FONT_WEIGHT,
+  letterSpacingEm = 0,
   clipPadTopPx = 0,
   clipPadBottomPx = 0,
 }) {
@@ -853,7 +881,7 @@ function buildSvgTextGroup({
       font-size="${Math.round(fontSizePx * 100) / 100}"
       font-weight="${fontWeight}"
       text-anchor="${textAnchor}"
-      letter-spacing="0"
+      letter-spacing="${roundNumber(letterSpacingEm, 3)}em"
       text-rendering="optimizeLegibility"
     >
       ${tspans}
@@ -930,10 +958,12 @@ function buildSvgShareOverlay({
   layoutPreset,
   fontSizePx,
   lineHeightPx,
+  bodyLetterSpacingEm = 0,
   titleBoxOverride = null,
   titleTextAlignOverride = '',
   titleFontSizeOverridePx = null,
   titleLineHeightOverridePx = null,
+  titleLetterSpacingEm = 0,
   bodyBoxOverride = null,
   bodyTextAlignOverride = '',
   brandSignatureOverride = '',
@@ -949,6 +979,7 @@ function buildSvgShareOverlay({
     verticalAlign: layoutPreset.title.verticalAlign,
     fontSizePx: titleFontSizeOverridePx || fontSizePx,
     lineHeightPx: titleLineHeightOverridePx || lineHeightPx,
+    letterSpacingEm: titleLetterSpacingEm,
     clipPadTopPx: Math.round(titleBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
     clipPadBottomPx: Math.round(titleBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
@@ -961,6 +992,7 @@ function buildSvgShareOverlay({
     verticalAlign: layoutPreset.body.verticalAlign,
     fontSizePx,
     lineHeightPx,
+    letterSpacingEm: bodyLetterSpacingEm,
     clipPadTopPx: Math.round(bodyBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
     clipPadBottomPx: Math.round(bodyBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
@@ -1001,6 +1033,7 @@ async function renderFeedModeImageBuffer({
   const shouldRenderTitleInImage = hasCustomTitleLayout && Boolean(titleText);
   const bodyFontScale = customBodyBox?.font_scale || 1;
   const bodyLineHeightRatio = customBodyBox?.line_height || preset.lineHeightRatio;
+  const bodyLetterSpacingEm = customBodyBox?.letter_spacing || 0;
   const minFontSizePx = scale === 2 ? 20 : 12;
   let effectivePreset = preset;
   let fontSizePx = Math.max(
@@ -1018,7 +1051,8 @@ async function renderFeedModeImageBuffer({
     bodyText,
     Math.max(20, box.width),
     fontSizePx,
-    maxLines
+    maxLines,
+    bodyLetterSpacingEm
   );
 
   if (!hasCustomBodyLayout) {
@@ -1046,7 +1080,8 @@ async function renderFeedModeImageBuffer({
         bodyText,
         Math.max(20, box.width),
         fontSizePx,
-        maxLines
+        maxLines,
+        bodyLetterSpacingEm
       );
     }
   }
@@ -1063,6 +1098,7 @@ async function renderFeedModeImageBuffer({
     const titleFontScale = customTitleBox?.font_scale || 1;
     const titleLineHeightRatio =
       customTitleBox?.line_height || bodyLineHeightRatio;
+    const titleLetterSpacingEm = customTitleBox?.letter_spacing || 0;
     const titleBaseFontSize = Math.max(
       minFontSizePx,
       outputWidth * preset.fontSizeRatio * 0.9
@@ -1081,7 +1117,8 @@ async function renderFeedModeImageBuffer({
       titleText,
       Math.max(20, titleBox.width),
       titleFontSizePx,
-      titleMaxLines
+      titleMaxLines,
+      titleLetterSpacingEm
     );
 
     titleConfig = {
@@ -1091,6 +1128,7 @@ async function renderFeedModeImageBuffer({
       verticalAlign: titlePreset.verticalAlign,
       fontSizePx: titleFontSizePx,
       lineHeightPx: titleLineHeightPx,
+      letterSpacingEm: titleLetterSpacingEm,
     };
   }
 
@@ -1118,6 +1156,7 @@ async function renderFeedModeImageBuffer({
     box,
     fontSizePx,
     lineHeightPx,
+    letterSpacingEm: bodyLetterSpacingEm,
     textAlign: customBodyBox?.align || effectivePreset.textAlign,
     verticalAlign: effectivePreset.verticalAlign,
     title: titleConfig,
@@ -1170,6 +1209,7 @@ async function renderShareModeImageBuffer({
   const hasCustomFooterLayout = !!customFooterBox;
   const fontScale = customBodyBox?.font_scale || 1;
   const lineHeightRatio = customBodyBox?.line_height || layoutPreset.lineHeightRatio;
+  const bodyLetterSpacingEm = customBodyBox?.letter_spacing || 0;
   const minFontSizePx = scale === 2 ? 20 : 12;
   const bodyFontSizePx = Math.max(
     minFontSizePx,
@@ -1178,6 +1218,7 @@ async function renderShareModeImageBuffer({
   const bodyLineHeightPx = bodyFontSizePx * lineHeightRatio;
   const titleFontScale = customTitleBox?.font_scale || 1;
   const titleLineHeightRatio = customTitleBox?.line_height || lineHeightRatio;
+  const titleLetterSpacingEm = customTitleBox?.letter_spacing || 0;
   const titleFontSizePx = Math.max(
     minFontSizePx,
     outputWidth * layoutPreset.fontSizeRatio * 0.9 * titleFontScale
@@ -1208,13 +1249,15 @@ async function renderShareModeImageBuffer({
     titleText,
     Math.max(20, titleBox.width),
     titleFontSizePx,
-    titleMaxLines
+    titleMaxLines,
+    titleLetterSpacingEm
   );
   const bodyLines = layoutTextLines(
     bodyText,
     Math.max(20, bodyBox.width),
     bodyFontSizePx,
-    bodyMaxLines
+    bodyMaxLines,
+    bodyLetterSpacingEm
   );
 
   const brandSignatureOverride = hasCustomFooterLayout
@@ -1236,10 +1279,12 @@ async function renderShareModeImageBuffer({
     layoutPreset,
     fontSizePx: bodyFontSizePx,
     lineHeightPx: bodyLineHeightPx,
+    bodyLetterSpacingEm,
     titleBoxOverride: hasCustomTitleLayout ? titleBox : null,
     titleTextAlignOverride: customTitleBox?.align || '',
     titleFontSizeOverridePx: titleFontSizePx,
     titleLineHeightOverridePx: titleLineHeightPx,
+    titleLetterSpacingEm,
     bodyBoxOverride: hasCustomBodyLayout ? bodyBox : null,
     bodyTextAlignOverride: customBodyBox?.align || '',
     brandSignatureOverride,

@@ -28,11 +28,15 @@ const { handlePostCreated, handleLikeAdded } = require('../utils/growth-service'
 const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
 const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
+const { normalizeUtcDateTime } = require('../utils/dateTime');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
 const ALLOWED_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
 const LAYOUT_UNIT_NORMALIZED = 'normalized';
 const LAYOUT_VALIDATION_ERROR_MESSAGE = '레이아웃 데이터가 올바르지 않습니다.';
+const LAYOUT_FONT_SCALE_RANGE = { min: 0.7, max: 2.0 };
+const LAYOUT_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.2 };
+const LAYOUT_LETTER_SPACING_RANGE = { min: -0.04, max: 0.08 };
 const CATEGORY_SQL =
   "CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END";
 
@@ -96,7 +100,7 @@ function normalizeLayoutNumber(value, precision = 4) {
   return Math.round(value * factor) / factor;
 }
 
-function normalizeLayoutBox(raw, { required = false } = {}) {
+function normalizeLayoutBox(raw, { required = false, allowLetterSpacing = false } = {}) {
   if (raw === undefined || raw === null || raw === '') {
     return required ? null : null;
   }
@@ -135,7 +139,11 @@ function normalizeLayoutBox(raw, { required = false } = {}) {
 
   if (raw.font_scale !== undefined) {
     const fontScale = toFiniteNumber(raw.font_scale);
-    if (fontScale == null || fontScale <= 0) {
+    if (
+      fontScale == null ||
+      fontScale < LAYOUT_FONT_SCALE_RANGE.min ||
+      fontScale > LAYOUT_FONT_SCALE_RANGE.max
+    ) {
       return null;
     }
     normalized.font_scale = normalizeLayoutNumber(fontScale, 3);
@@ -143,10 +151,26 @@ function normalizeLayoutBox(raw, { required = false } = {}) {
 
   if (raw.line_height !== undefined) {
     const lineHeight = toFiniteNumber(raw.line_height);
-    if (lineHeight == null || lineHeight <= 0) {
+    if (
+      lineHeight == null ||
+      lineHeight < LAYOUT_LINE_HEIGHT_RANGE.min ||
+      lineHeight > LAYOUT_LINE_HEIGHT_RANGE.max
+    ) {
       return null;
     }
     normalized.line_height = normalizeLayoutNumber(lineHeight, 3);
+  }
+
+  if (allowLetterSpacing && raw.letter_spacing !== undefined) {
+    const letterSpacing = toFiniteNumber(raw.letter_spacing);
+    if (
+      letterSpacing == null ||
+      letterSpacing < LAYOUT_LETTER_SPACING_RANGE.min ||
+      letterSpacing > LAYOUT_LETTER_SPACING_RANGE.max
+    ) {
+      return null;
+    }
+    normalized.letter_spacing = normalizeLayoutNumber(letterSpacing, 3);
   }
 
   return normalized;
@@ -187,14 +211,20 @@ function normalizeLayoutPayload(raw) {
     return { ok: false };
   }
 
-  const textBox = normalizeLayoutBox(payload.text_box, { required: true });
+  const textBox = normalizeLayoutBox(payload.text_box, {
+    required: true,
+    allowLetterSpacing: true,
+  });
   if (!textBox) {
     return { ok: false };
   }
 
   let titleBox = null;
   if (hasOwn(payload, 'title_box')) {
-    titleBox = normalizeLayoutBox(payload.title_box, { required: false });
+    titleBox = normalizeLayoutBox(payload.title_box, {
+      required: false,
+      allowLetterSpacing: true,
+    });
     if (payload.title_box != null && !titleBox) {
       return { ok: false };
     }
@@ -550,7 +580,7 @@ router.get('/posts/my', authRequired, (req, res) => {
       return res.json({
         ok: true,
         message: '내 글 목록을 불러왔습니다.',
-        posts: rows,
+        posts: normalizePublicPostRows(rows),
       });
     }
   );
@@ -989,7 +1019,7 @@ router.get('/posts/:id/edit', authRequired, (req, res) => {
           content: row.content,
           layout_json: row.layout_json || null,
           category: row.category,
-          created_at: row.created_at,
+          created_at: normalizeUtcDateTime(row.created_at),
           hashtags: tags,
         },
       });
