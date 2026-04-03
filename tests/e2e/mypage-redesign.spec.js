@@ -62,6 +62,17 @@ function buildFixtures(overrides = {}) {
           follower_count: 8,
         },
       ],
+    blocks:
+      overrides.blocks || [
+        {
+          user_id: 41,
+          display_name: '차단유저',
+          nickname: '안개',
+          reason_code: 'harassment',
+          detail: null,
+          created_at: '2026-02-25T07:30:00.000Z',
+        },
+      ],
     sessions:
       overrides.sessions || [
         {
@@ -95,11 +106,13 @@ async function mockMypageApis(page, overrides = {}) {
   let postsMy = [...fixtures.postsMy];
   let likedPosts = [...fixtures.liked];
   let followings = [...fixtures.followings];
+  let blockedUsers = [...fixtures.blocks];
 
   const putPayloads = [];
   const accountClosurePayloads = [];
   const deletePostIds = [];
   const unfollowIds = [];
+  const unblockIds = [];
 
   await page.route('**/api/me', async (route) => {
     const req = route.request();
@@ -239,11 +252,42 @@ async function mockMypageApis(page, overrides = {}) {
     });
   });
 
+  await page.route('**/api/me/blocks', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        message: '차단 목록을 불러왔습니다.',
+        blocks: blockedUsers,
+      }),
+    });
+  });
+
+  await page.route(/\/api\/users\/\d+\/block$/, async (route) => {
+    const req = route.request();
+    if (req.method() !== 'DELETE') {
+      await route.fallback();
+      return;
+    }
+
+    const userId = Number(req.url().split('/').slice(-2, -1)[0]);
+    unblockIds.push(userId);
+    blockedUsers = blockedUsers.filter((user) => Number(user.user_id) !== userId);
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, message: '차단을 해제했습니다.' }),
+    });
+  });
+
   return {
     putPayloads,
     accountClosurePayloads,
     deletePostIds,
     unfollowIds,
+    unblockIds,
   };
 }
 
@@ -269,7 +313,7 @@ test.describe('MyPage redesign', () => {
     await page.goto('/html/mypage.html');
     const tabMy = page.locator('#tabMyPosts');
     const tabLiked = page.locator('#tabLikedPosts');
-    const tabFollowings = page.locator('#tabFollowings');
+    const tabBlockedUsers = page.locator('#tabBlockedUsers');
 
     await expect(tabMy).toHaveAttribute('aria-selected', 'true');
 
@@ -280,8 +324,8 @@ test.describe('MyPage redesign', () => {
 
     await tabLiked.focus();
     await page.keyboard.press('End');
-    await expect(tabFollowings).toHaveAttribute('aria-selected', 'true');
-    await expect(page.locator('#followingsList .mypage-following-card')).toHaveCount(2);
+    await expect(tabBlockedUsers).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#blockedUsersList .mypage-blocked-card')).toHaveCount(1);
 
     await page.click('#tabBookmarks');
     await expect(page).toHaveURL(/\/html\/bookmarks\.html/);
@@ -412,5 +456,34 @@ test.describe('MyPage redesign', () => {
     await expect(page.locator('#followingsList .mypage-following-card')).toHaveCount(1);
     await expect(page.locator('#mypageFollowingCount')).toHaveText('1');
     expect(trackers.unfollowIds).toContain(31);
+  });
+
+  test('renders blocked users tab and unblocks a user', async ({ page }) => {
+    const trackers = await mockMypageApis(page, {
+      blocks: [
+        {
+          user_id: 71,
+          display_name: '차단한 사용자 A',
+          nickname: '그림자',
+          reason_code: 'spam',
+          detail: null,
+          created_at: '2026-02-27T09:10:00.000Z',
+        },
+      ],
+    });
+
+    await page.goto('/html/mypage.html');
+    await page.click('#tabBlockedUsers');
+
+    await expect(page.locator('#blockedUsersList .mypage-blocked-card')).toHaveCount(1);
+    await expect(page.locator('#blockedUsersList')).toContainText('차단한 사용자 A');
+    await expect(page.locator('#blockedUsersList')).toContainText('그림자');
+
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.locator('#blockedUsersList .unblock-user-btn').click();
+
+    await expect(page.locator('#blockedUsersList .mypage-blocked-card')).toHaveCount(0);
+    await expect(page.locator('#blockedUsersList')).toContainText('아직 차단한 사용자가 없습니다.');
+    expect(trackers.unblockIds).toEqual([71]);
   });
 });

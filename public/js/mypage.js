@@ -6,6 +6,7 @@
 let myPostsLoaded = false;
 let likedPostsLoaded = false;
 let followingsLoaded = false;
+let blockedUsersLoaded = false;
 let rememberLoginEnabledInitial = false;
 let marketingEmailOptInInitial = false;
 let mypageSafeAreaGuidesEnabled = false;
@@ -281,6 +282,11 @@ function renderFollowingsEmptyState(followingsBox) {
   followingsBox.innerHTML = '<p class="mpd-empty-note gls-mb-0">아직 팔로잉한 사람이 없습니다.</p>';
 }
 
+function renderBlockedUsersEmptyState(blockedUsersBox) {
+  if (!blockedUsersBox) return;
+  blockedUsersBox.innerHTML = '<p class="mpd-empty-note gls-mb-0">아직 차단한 사용자가 없습니다.</p>';
+}
+
 function openUserEditModal(triggerEl = null) {
   const modalEl = document.getElementById('userEditModal');
   if (!modalEl) return;
@@ -519,6 +525,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupMyPostCardEvents();
   setupLikedPostCardEvents();
   setupFollowingListEvents();
+  setupBlockedUsersListEvents();
   setupUserEditForm();
   loadMyPage();
 });
@@ -802,13 +809,24 @@ function setupMyPageTabs() {
   const tabMy = document.getElementById('tabMyPosts');
   const tabLiked = document.getElementById('tabLikedPosts');
   const tabFollowings = document.getElementById('tabFollowings');
+  const tabBlockedUsers = document.getElementById('tabBlockedUsers');
   const tabBookmarks = document.getElementById('tabBookmarks');
 
   const mySection = document.getElementById('myPostsSection');
   const likedSection = document.getElementById('likedPostsSection');
   const followingsSection = document.getElementById('followingsSection');
+  const blockedUsersSection = document.getElementById('blockedUsersSection');
 
-  if (!tabMy || !tabLiked || !tabFollowings || !mySection || !likedSection || !followingsSection) {
+  if (
+    !tabMy ||
+    !tabLiked ||
+    !tabFollowings ||
+    !tabBlockedUsers ||
+    !mySection ||
+    !likedSection ||
+    !followingsSection ||
+    !blockedUsersSection
+  ) {
     return;
   }
 
@@ -816,6 +834,7 @@ function setupMyPageTabs() {
     { tab: tabMy, panel: mySection, panelId: 'myPostsSection' },
     { tab: tabLiked, panel: likedSection, panelId: 'likedPostsSection' },
     { tab: tabFollowings, panel: followingsSection, panelId: 'followingsSection' },
+    { tab: tabBlockedUsers, panel: blockedUsersSection, panelId: 'blockedUsersSection' },
   ];
 
   tabConfigs.forEach(({ tab, panel, panelId }, index) => {
@@ -828,7 +847,7 @@ function setupMyPageTabs() {
     panel.tabIndex = index === 0 ? 0 : -1;
   });
 
-  const tabOrder = [tabMy, tabLiked, tabFollowings];
+  const tabOrder = [tabMy, tabLiked, tabFollowings, tabBlockedUsers];
   tabOrder.forEach((tab, index) => {
     tab.addEventListener('keydown', (event) => {
       let nextIndex = null;
@@ -867,6 +886,13 @@ function setupMyPageTabs() {
     }
   });
 
+  tabBlockedUsers.addEventListener('click', async () => {
+    switchMyPageTab('blocked');
+    if (!blockedUsersLoaded) {
+      await loadBlockedUsers();
+    }
+  });
+
   if (tabBookmarks && !tabBookmarks.dataset.bound) {
     tabBookmarks.dataset.bound = '1';
     tabBookmarks.addEventListener('click', (event) => {
@@ -882,19 +908,31 @@ function switchMyPageTab(target) {
   const tabMy = document.getElementById('tabMyPosts');
   const tabLiked = document.getElementById('tabLikedPosts');
   const tabFollowings = document.getElementById('tabFollowings');
+  const tabBlockedUsers = document.getElementById('tabBlockedUsers');
   const tabBookmarks = document.getElementById('tabBookmarks');
 
   const mySection = document.getElementById('myPostsSection');
   const likedSection = document.getElementById('likedPostsSection');
   const followingsSection = document.getElementById('followingsSection');
+  const blockedUsersSection = document.getElementById('blockedUsersSection');
 
-  if (!tabMy || !tabLiked || !tabFollowings || !mySection || !likedSection || !followingsSection) {
+  if (
+    !tabMy ||
+    !tabLiked ||
+    !tabFollowings ||
+    !tabBlockedUsers ||
+    !mySection ||
+    !likedSection ||
+    !followingsSection ||
+    !blockedUsersSection
+  ) {
     return;
   }
 
   const isMyTab = target === 'my';
   const isLikedTab = target === 'liked';
   const isFollowingsTab = target === 'followings';
+  const isBlockedTab = target === 'blocked';
 
   const syncTabState = (tabEl, sectionEl, isActive) => {
     tabEl.classList.toggle('is-active', isActive);
@@ -909,6 +947,7 @@ function switchMyPageTab(target) {
   syncTabState(tabMy, mySection, isMyTab);
   syncTabState(tabLiked, likedSection, isLikedTab);
   syncTabState(tabFollowings, followingsSection, isFollowingsTab);
+  syncTabState(tabBlockedUsers, blockedUsersSection, isBlockedTab);
 
   if (tabBookmarks) {
     tabBookmarks.classList.remove('is-active');
@@ -1015,6 +1054,40 @@ function renderFollowingCard(user) {
           data-user-id="${safeEscape(userId)}"
         >
           언팔로우
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function renderBlockedUserCard(block) {
+  const userId = block && block.user_id != null ? String(block.user_id) : '';
+  const displayName = String(block?.display_name || block?.nickname || '알 수 없는 사용자').trim();
+  const nickname =
+    typeof block?.nickname === 'string' && block.nickname.trim().length > 0
+      ? block.nickname.trim()
+      : '';
+  const createdAtText = formatDateTime(block?.created_at);
+  const nicknameHtml =
+    nickname && nickname !== displayName
+      ? `<p class="mpd-blocked-nickname">@${safeEscape(nickname)}</p>`
+      : '';
+
+  return `
+    <article class="mpd-blocked-card mypage-blocked-card" data-user-id="${safeEscape(userId)}">
+      <div class="mpd-blocked-main">
+        <h6 class="gls-mb-1">${safeEscape(displayName || '알 수 없는 사용자')}</h6>
+        ${nicknameHtml}
+        <p class="mpd-blocked-meta gls-mb-0">차단한 시각 · ${safeEscape(createdAtText)}</p>
+        <p class="mpd-blocked-note gls-mb-0">차단을 해제하면 이 사용자의 글과 프로필이 다시 보일 수 있습니다.</p>
+      </div>
+      <div class="mpd-blocked-actions">
+        <button
+          type="button"
+          class="gls-btn gls-btn-secondary gls-btn-xs unblock-user-btn"
+          data-user-id="${safeEscape(userId)}"
+        >
+          차단 해제
         </button>
       </div>
     </article>
@@ -1134,6 +1207,44 @@ async function loadMyFollowings() {
   } catch (error) {
     console.error(error);
     followingsBox.innerHTML = '<p class="text-danger">팔로잉 목록을 불러오는 중 오류가 발생했습니다.</p>';
+  }
+}
+
+async function loadBlockedUsers() {
+  const blockedUsersBox = document.getElementById('blockedUsersList');
+  if (!blockedUsersBox) return;
+
+  blockedUsersBox.innerHTML = '<p class="gls-text-muted">차단 목록을 불러오는 중입니다...</p>';
+
+  try {
+    const res = await fetch('/api/me/blocks', { cache: 'no-store' });
+    if (!res.ok) {
+      blockedUsersBox.innerHTML = '<p class="text-danger">차단 목록을 불러오는 중 오류가 발생했습니다.</p>';
+      return;
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (!data.ok) {
+      blockedUsersBox.innerHTML = `<p class="text-danger">${safeEscape(data.message || '차단 목록을 불러오지 못했습니다.')}</p>`;
+      return;
+    }
+
+    const blocks = Array.isArray(data.blocks) ? data.blocks : [];
+    if (!blocks.length) {
+      renderBlockedUsersEmptyState(blockedUsersBox);
+      blockedUsersLoaded = true;
+      return;
+    }
+
+    blockedUsersBox.innerHTML = `
+      <div class="mpd-blocked-list">
+        ${blocks.map((block) => renderBlockedUserCard(block)).join('')}
+      </div>
+    `;
+    blockedUsersLoaded = true;
+  } catch (error) {
+    console.error(error);
+    blockedUsersBox.innerHTML = '<p class="text-danger">차단 목록을 불러오는 중 오류가 발생했습니다.</p>';
   }
 }
 
@@ -1260,6 +1371,55 @@ function setupFollowingListEvents() {
     } catch (error) {
       console.error(error);
       alert('언팔로우 처리 중 오류가 발생했습니다.');
+      actionBtn.disabled = false;
+      actionBtn.textContent = originalText;
+    }
+  });
+}
+
+function setupBlockedUsersListEvents() {
+  const blockedUsersBox = document.getElementById('blockedUsersList');
+  if (!blockedUsersBox || blockedUsersBox.dataset.bound === '1') return;
+
+  blockedUsersBox.dataset.bound = '1';
+  blockedUsersBox.addEventListener('click', async (event) => {
+    const target = event.target;
+    const actionBtn = target.closest('.unblock-user-btn');
+    if (!actionBtn) return;
+
+    const userId = actionBtn.getAttribute('data-user-id');
+    if (!userId) return;
+
+    if (!confirm('이 사용자의 차단을 해제하시겠어요?')) {
+      return;
+    }
+
+    const originalText = actionBtn.textContent;
+    actionBtn.disabled = true;
+    actionBtn.textContent = '처리 중...';
+
+    try {
+      const res = await fetch(`/api/users/${userId}/block`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        alert(data.message || '차단 해제 중 오류가 발생했습니다.');
+        actionBtn.disabled = false;
+        actionBtn.textContent = originalText;
+        return;
+      }
+
+      const card = actionBtn.closest('.mypage-blocked-card');
+      if (card) {
+        card.remove();
+      }
+
+      if (!blockedUsersBox.querySelector('.mypage-blocked-card')) {
+        renderBlockedUsersEmptyState(blockedUsersBox);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('차단 해제 처리 중 오류가 발생했습니다.');
       actionBtn.disabled = false;
       actionBtn.textContent = originalText;
     }

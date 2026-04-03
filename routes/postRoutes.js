@@ -34,8 +34,8 @@ const {
   createSafetyReport,
   getActiveUserSummary,
   getPostSafetySummary,
-  normalizeOptionalDetail,
-  normalizeReasonCode,
+  isSafetyValidationError,
+  parseSafetyRequestPayload,
 } = require('../utils/safety');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
@@ -88,13 +88,6 @@ function parsePagination(query = {}) {
 function parseId(value) {
   const num = parseInt(value, 10);
   return Number.isNaN(num) ? null : num;
-}
-
-function parseSafetyRequestBody(body = {}) {
-  return {
-    reasonCode: normalizeReasonCode(body.reason_code),
-    detail: normalizeOptionalDetail(body.detail),
-  };
 }
 
 function normalizePublicPostRows(rows) {
@@ -1273,7 +1266,9 @@ router.post('/posts/:id/report', authRequired, async (req, res) => {
       return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
     }
 
-    const payload = parseSafetyRequestBody(req.body);
+    const payload = parseSafetyRequestPayload(req.body, {
+      defaultReasonCode: 'other',
+    });
     const report = await createSafetyReport({
       reporterId,
       targetType: 'post',
@@ -1285,11 +1280,17 @@ router.post('/posts/:id/report', authRequired, async (req, res) => {
 
     return res.json({
       ok: true,
-      message: '게시글 신고가 접수되었어요. 운영팀이 확인 후 조치할게요.',
+      message: '게시글 신고가 운영 검토 큐에 접수되었어요.',
       report_id: report?.id || null,
       status: report?.status || 'queued',
     });
   } catch (error) {
+    if (isSafetyValidationError(error)) {
+      return res.status(400).json({
+        ok: false,
+        message: error.message,
+      });
+    }
     console.error('[posts/report] failed:', error);
     return res.status(500).json({
       ok: false,

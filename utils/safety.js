@@ -5,15 +5,16 @@ const SAFETY_MODERATION_SLA_HOURS = 24;
 const REPORT_SOURCE_REPORT = 'report';
 const REPORT_SOURCE_BLOCK = 'block';
 const REPORT_STATUS_QUEUED = 'queued';
+const REPORT_DETAIL_MAX_LENGTH = 200;
+const SAFETY_VALIDATION_ERROR = 'SAFETY_VALIDATION_ERROR';
 
 const REPORT_REASON_DEFINITIONS = Object.freeze([
   { code: 'harassment', label: '괴롭힘/비방', targetTypes: ['post', 'user'] },
-  { code: 'hate', label: '혐오/차별 표현', targetTypes: ['post', 'user'] },
-  { code: 'sexual', label: '성적이거나 부적절한 내용', targetTypes: ['post', 'user'] },
-  { code: 'violence', label: '폭력/자해 조장', targetTypes: ['post', 'user'] },
-  { code: 'illegal', label: '불법/위험 행위', targetTypes: ['post', 'user'] },
+  { code: 'hate', label: '혐오/차별', targetTypes: ['post', 'user'] },
+  { code: 'sexual', label: '선정성/음란성', targetTypes: ['post', 'user'] },
+  { code: 'violence', label: '폭력성/자해/위협', targetTypes: ['post', 'user'] },
   { code: 'spam', label: '광고/스팸', targetTypes: ['post', 'user'] },
-  { code: 'impersonation', label: '사칭/도용', targetTypes: ['user'] },
+  { code: 'impersonation', label: '사칭/도용', targetTypes: ['post', 'user'] },
   { code: 'other', label: '기타', targetTypes: ['post', 'user'] },
 ]);
 
@@ -22,8 +23,13 @@ const REPORT_REASON_MAP = new Map(
 );
 
 function normalizeReasonCode(raw, fallback = 'other') {
-  if (typeof raw !== 'string') return fallback;
+  if (typeof raw !== 'string') {
+    return fallback === undefined ? 'other' : fallback;
+  }
   const trimmed = raw.trim().toLowerCase();
+  if (!trimmed) {
+    return fallback === undefined ? 'other' : fallback;
+  }
   return REPORT_REASON_MAP.has(trimmed) ? trimmed : fallback;
 }
 
@@ -32,6 +38,21 @@ function normalizeOptionalDetail(raw, maxLength = 1000) {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   return trimmed.slice(0, maxLength);
+}
+
+function createSafetyValidationError(code, message) {
+  const error = new Error(message);
+  error.name = SAFETY_VALIDATION_ERROR;
+  error.code = code;
+  error.status = 400;
+  return error;
+}
+
+function isSafetyValidationError(error) {
+  return (
+    error?.name === SAFETY_VALIDATION_ERROR ||
+    (Number(error?.status) === 400 && typeof error?.code === 'string')
+  );
 }
 
 function toPositiveInt(value) {
@@ -58,7 +79,79 @@ function buildSafetyRuntimeConfig() {
     report_enabled: true,
     block_enabled: true,
     moderation_sla_hours: SAFETY_MODERATION_SLA_HOURS,
+    report_detail_max_length: REPORT_DETAIL_MAX_LENGTH,
+    report_detail_required_reason_codes: ['other'],
     report_reasons: buildPublicSafetyReasonDefinitions(),
+  };
+}
+
+function normalizeSafetyReasonPayload(
+  { reasonCode, detail } = {},
+  { defaultReasonCode = 'other', detailMaxLength = REPORT_DETAIL_MAX_LENGTH } = {}
+) {
+  const normalizedDefaultReasonCode = normalizeReasonCode(defaultReasonCode, null);
+  const rawReasonCode = typeof reasonCode === 'string' ? reasonCode.trim().toLowerCase() : '';
+  const shouldUseDefaultReasonCode = !rawReasonCode;
+  const normalizedReasonCode = shouldUseDefaultReasonCode
+    ? normalizedDefaultReasonCode
+    : normalizeReasonCode(rawReasonCode, null);
+
+  if (!normalizedReasonCode) {
+    throw createSafetyValidationError(
+      'INVALID_REASON_CODE',
+      '허용되지 않는 신고 사유입니다.'
+    );
+  }
+
+  if (normalizedReasonCode !== 'other') {
+    return {
+      reasonCode: normalizedReasonCode,
+      detail: null,
+    };
+  }
+
+  if (typeof detail !== 'string') {
+    throw createSafetyValidationError(
+      'DETAIL_REQUIRED',
+      `기타 사유를 선택한 경우 1자 이상 ${detailMaxLength}자 이하의 상세 설명을 입력해주세요.`
+    );
+  }
+
+  const trimmedDetail = detail.trim();
+  if (!trimmedDetail) {
+    throw createSafetyValidationError(
+      'DETAIL_REQUIRED',
+      `기타 사유를 선택한 경우 1자 이상 ${detailMaxLength}자 이하의 상세 설명을 입력해주세요.`
+    );
+  }
+  if (trimmedDetail.length > detailMaxLength) {
+    throw createSafetyValidationError(
+      'DETAIL_TOO_LONG',
+      `상세 설명은 ${detailMaxLength}자 이하로 입력해주세요.`
+    );
+  }
+
+  return {
+    reasonCode: normalizedReasonCode,
+    detail: trimmedDetail,
+  };
+}
+
+function parseSafetyRequestPayload(
+  body = {},
+  { defaultReasonCode = 'other', allowContextPostId = false } = {}
+) {
+  const normalized = normalizeSafetyReasonPayload(
+    {
+      reasonCode: body?.reason_code,
+      detail: body?.detail,
+    },
+    { defaultReasonCode }
+  );
+
+  return {
+    ...normalized,
+    contextPostId: allowContextPostId ? toPositiveInt(body?.context_post_id) : null,
   };
 }
 
@@ -133,8 +226,10 @@ async function createSafetyReport({
   detail = null,
   source = REPORT_SOURCE_REPORT,
 }) {
-  const normalizedReasonCode = normalizeReasonCode(reasonCode);
-  const normalizedDetail = normalizeOptionalDetail(detail);
+  const normalizedPayload = normalizeSafetyReasonPayload(
+    { reasonCode, detail },
+    { defaultReasonCode: 'other' }
+  );
   const normalizedTargetType = targetType === 'user' ? 'user' : 'post';
   const normalizedTargetPostId = toPositiveInt(targetPostId);
   const normalizedTargetUserId = toPositiveInt(targetUserId);
@@ -161,8 +256,8 @@ async function createSafetyReport({
       normalizedTargetPostId,
       normalizedTargetUserId,
       normalizedSource,
-      normalizedReasonCode,
-      normalizedDetail,
+      normalizedPayload.reasonCode,
+      normalizedPayload.detail,
       REPORT_STATUS_QUEUED,
     ]
   );
@@ -178,7 +273,7 @@ async function createSafetyReport({
       target_post_id: normalizedTargetPostId,
       target_user_id: normalizedTargetUserId,
       source: normalizedSource,
-      reason_code: normalizedReasonCode,
+      reason_code: normalizedPayload.reasonCode,
       created_at: report?.created_at || null,
     })
   );
@@ -195,8 +290,10 @@ async function blockUser({
 }) {
   const normalizedBlockerId = toPositiveInt(blockerId);
   const normalizedBlockedUserId = toPositiveInt(blockedUserId);
-  const normalizedReasonCode = normalizeReasonCode(reasonCode, 'harassment');
-  const normalizedDetail = normalizeOptionalDetail(detail);
+  const normalizedPayload = normalizeSafetyReasonPayload(
+    { reasonCode, detail },
+    { defaultReasonCode: 'harassment' }
+  );
   const normalizedContextPostId = toPositiveInt(contextPostId);
 
   if (!normalizedBlockerId || !normalizedBlockedUserId) {
@@ -216,8 +313,8 @@ async function blockUser({
     [
       normalizedBlockerId,
       normalizedBlockedUserId,
-      normalizedReasonCode,
-      normalizedDetail,
+      normalizedPayload.reasonCode,
+      normalizedPayload.detail,
     ]
   );
 
@@ -240,15 +337,8 @@ async function blockUser({
     created: Number(insertResult?.changes || 0) > 0,
     block: blockRow || null,
     hidden_post_count: Number(postCountRow?.count || 0),
-    report: await createSafetyReport({
-      reporterId: normalizedBlockerId,
-      targetType: 'user',
-      targetPostId: normalizedContextPostId,
-      targetUserId: normalizedBlockedUserId,
-      reasonCode: normalizedReasonCode,
-      detail: normalizedDetail,
-      source: REPORT_SOURCE_BLOCK,
-    }),
+    report: null,
+    context_post_id: normalizedContextPostId,
   };
 }
 
@@ -300,9 +390,27 @@ async function listBlockedUsers(blockerId) {
   }));
 }
 
-async function listSafetyReports({ status = null, limit = 50, offset = 0 } = {}) {
+function normalizeSafetySources(sources) {
+  const values = Array.isArray(sources) ? sources : [sources];
+  const normalized = values
+    .map((value) => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
+    .filter((value) => value === REPORT_SOURCE_REPORT || value === REPORT_SOURCE_BLOCK);
+
+  return normalized.length ? [...new Set(normalized)] : [REPORT_SOURCE_REPORT];
+}
+
+async function listSafetyReports({
+  status = null,
+  limit = 50,
+  offset = 0,
+  sources = [REPORT_SOURCE_REPORT],
+} = {}) {
   const params = [];
   const conditions = [];
+  const normalizedSources = normalizeSafetySources(sources);
+
+  conditions.push(`sr.source IN (${normalizedSources.map(() => '?').join(', ')})`);
+  params.push(...normalizedSources);
 
   if (typeof status === 'string' && status.trim()) {
     conditions.push('sr.status = ?');
@@ -318,9 +426,11 @@ async function listSafetyReports({ status = null, limit = 50, offset = 0 } = {})
     SELECT
       sr.*,
       reporter.nickname AS reporter_nickname,
+      COALESCE(reporter.account_status, 'active') AS reporter_account_status,
       target_user.nickname AS target_user_nickname,
       COALESCE(target_user.account_status, 'active') AS target_user_account_status,
       handled_by.nickname AS handled_by_nickname,
+      COALESCE(handled_by.account_status, 'active') AS handled_by_account_status,
       p.title AS target_post_title
     FROM safety_reports sr
     LEFT JOIN users reporter ON reporter.id = sr.reporter_id
@@ -332,7 +442,90 @@ async function listSafetyReports({ status = null, limit = 50, offset = 0 } = {})
     LIMIT ? OFFSET ?
     `,
     [...params, normalizedLimit, normalizedOffset]
+  ).then((rows) =>
+    rows.map((row) => ({
+      ...row,
+      created_at: toIsoStringOrNull(row.created_at) || row.created_at || null,
+      handled_at: toIsoStringOrNull(row.handled_at) || row.handled_at || null,
+      reporter_display_name: buildPublicDisplayName(
+        row.reporter_nickname,
+        row.reporter_account_status
+      ),
+      target_user_display_name: buildPublicDisplayName(
+        row.target_user_nickname,
+        row.target_user_account_status
+      ),
+      handled_by_display_name: buildPublicDisplayName(
+        row.handled_by_nickname,
+        row.handled_by_account_status
+      ),
+    }))
   );
+}
+
+async function listReportedPosts({
+  threshold = 5,
+  limit = 50,
+  offset = 0,
+  excludeDismissed = true,
+} = {}) {
+  const normalizedThreshold = Math.max(1, Number(threshold) || 5);
+  const normalizedLimit = Math.max(1, Math.min(Number(limit) || 50, 100));
+  const normalizedOffset = Math.max(0, Number(offset) || 0);
+  const params = [REPORT_SOURCE_REPORT];
+  const dismissedClause = excludeDismissed ? "AND sr.status != 'dismissed'" : '';
+
+  const rows = await allAsync(
+    `
+    SELECT
+      sr.target_post_id,
+      p.title AS target_post_title,
+      sr.target_user_id,
+      target_user.nickname AS target_user_nickname,
+      COALESCE(target_user.account_status, 'active') AS target_user_account_status,
+      COUNT(*) AS report_count,
+      COUNT(DISTINCT sr.reporter_id) AS unique_reporter_count,
+      MAX(sr.created_at) AS latest_reported_at
+    FROM safety_reports sr
+    LEFT JOIN posts p ON p.id = sr.target_post_id
+    LEFT JOIN users target_user ON target_user.id = sr.target_user_id
+    WHERE sr.source = ?
+      AND sr.target_type = 'post'
+      AND sr.target_post_id IS NOT NULL
+      ${dismissedClause}
+    GROUP BY
+      sr.target_post_id,
+      p.title,
+      sr.target_user_id,
+      target_user.nickname,
+      target_user.account_status
+    HAVING COUNT(*) >= ?
+    ORDER BY
+      unique_reporter_count DESC,
+      report_count DESC,
+      latest_reported_at DESC
+    LIMIT ? OFFSET ?
+    `,
+    [...params, normalizedThreshold, normalizedLimit, normalizedOffset]
+  );
+
+  return rows.map((row) => ({
+    target_post_id: row.target_post_id,
+    target_post_title: row.target_post_title || null,
+    target_user_id: row.target_user_id,
+    target_user_display_name: buildPublicDisplayName(
+      row.target_user_nickname,
+      row.target_user_account_status
+    ),
+    target_user_nickname:
+      typeof row?.target_user_nickname === 'string' && row.target_user_nickname.trim()
+        ? row.target_user_nickname.trim()
+        : null,
+    report_count: Number(row.report_count || 0),
+    unique_reporter_count: Number(row.unique_reporter_count || 0),
+    latest_reported_at:
+      toIsoStringOrNull(row.latest_reported_at) || row.latest_reported_at || null,
+  }));
 }
 
 async function resolveSafetyReport({
@@ -382,10 +575,15 @@ async function resolveSafetyReport({
 
 module.exports = {
   SAFETY_MODERATION_SLA_HOURS,
+  REPORT_DETAIL_MAX_LENGTH,
   buildSafetyRuntimeConfig,
   buildPublicSafetyReasonDefinitions,
+  createSafetyValidationError,
+  isSafetyValidationError,
   normalizeReasonCode,
   normalizeOptionalDetail,
+  normalizeSafetyReasonPayload,
+  parseSafetyRequestPayload,
   appendViewerBlockedAuthorCondition,
   isUserBlockedByViewer,
   getActiveUserSummary,
@@ -395,5 +593,6 @@ module.exports = {
   unblockUser,
   listBlockedUsers,
   listSafetyReports,
+  listReportedPosts,
   resolveSafetyReport,
 };

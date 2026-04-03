@@ -188,6 +188,59 @@ async function mockAdminBootApis(page) {
     })
   );
 
+  await page.route('**/api/admin/safety/reports**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        reports: [
+          {
+            id: 101,
+            reporter_id: 7,
+            reporter_display_name: '신고자A',
+            reporter_nickname: '새벽',
+            target_user_id: 2,
+            target_user_display_name: 'User',
+            target_user_nickname: '일반사용자',
+            target_post_id: 11,
+            target_post_title: 'Poem Post',
+            reason_code: 'other',
+            detail: '운영 검토가 필요한 내용입니다.',
+            status: 'queued',
+            created_at: '2026-04-03T01:30:00.000Z',
+          },
+        ],
+        meta: {
+          count: 1,
+          source: 'report',
+        },
+      }),
+    })
+  );
+
+  await page.route('**/api/admin/safety/reported-posts**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        posts: [
+          {
+            target_post_id: 11,
+            target_post_title: 'Poem Post',
+            target_user_id: 2,
+            target_user_display_name: 'User',
+            target_user_nickname: '일반사용자',
+            report_count: 8,
+            unique_reporter_count: 5,
+            latest_reported_at: '2026-04-03T05:00:00.000Z',
+          },
+        ],
+      }),
+    })
+  );
+
   await page.route('**/api/ux-events', (route) =>
     route.fulfill({
       status: 200,
@@ -252,5 +305,25 @@ test.describe('Admin dangerous action safety', () => {
     if (resolveDelete) resolveDelete();
     await expect(userRow).toHaveCount(0);
     expect(deleteCalls).toBe(1);
+  });
+
+  test('renders safety tab with report list and reported-post summary', async ({ page }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+
+    await mockAdminBootApis(page);
+    await applyAdminCookie(page, baseURL);
+
+    await page.goto('/admin');
+    await page.getByRole('button', { name: /신고/ }).click();
+
+    await expect(page.locator('#safetyTab')).toBeVisible();
+    await expect(page.locator('#adminSafetyReports')).toContainText('신고자');
+    await expect(page.locator('#adminSafetyReports')).toContainText('대상 사용자');
+    await expect(page.locator('#adminSafetyReports')).toContainText('운영 검토가 필요한 내용입니다.');
+    await expect(page.locator('#adminSafetyReports')).toContainText('접수');
+
+    await expect(page.locator('#adminReportedPosts')).toContainText('Poem Post');
+    await expect(page.locator('#adminReportedPosts')).toContainText('unique_reporter_count');
+    await expect(page.locator('#adminReportedPosts')).toContainText('5');
   });
 });

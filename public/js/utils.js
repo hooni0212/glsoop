@@ -114,14 +114,14 @@ const GLS_FALLBACK_LEGAL_URLS = Object.freeze({
   privacy: '/html/privacy.html',
   guidelines: '/html/community-guidelines.html',
 });
+const GLS_FALLBACK_SAFETY_DETAIL_MAX_LENGTH = 200;
 const GLS_FALLBACK_SAFETY_REASONS = Object.freeze([
   { code: 'harassment', label: '괴롭힘/비방', target_types: ['post', 'user'] },
-  { code: 'hate', label: '혐오/차별 표현', target_types: ['post', 'user'] },
-  { code: 'sexual', label: '성적이거나 부적절한 내용', target_types: ['post', 'user'] },
-  { code: 'violence', label: '폭력/자해 조장', target_types: ['post', 'user'] },
-  { code: 'illegal', label: '불법/위험 행위', target_types: ['post', 'user'] },
+  { code: 'hate', label: '혐오/차별', target_types: ['post', 'user'] },
+  { code: 'sexual', label: '선정성/음란성', target_types: ['post', 'user'] },
+  { code: 'violence', label: '폭력성/자해/위협', target_types: ['post', 'user'] },
   { code: 'spam', label: '광고/스팸', target_types: ['post', 'user'] },
-  { code: 'impersonation', label: '사칭/도용', target_types: ['user'] },
+  { code: 'impersonation', label: '사칭/도용', target_types: ['post', 'user'] },
   { code: 'other', label: '기타', target_types: ['post', 'user'] },
 ]);
 const glsKoreanDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
@@ -147,6 +147,8 @@ function getGlsoopRuntimeConfig() {
       report_enabled: true,
       block_enabled: true,
       moderation_sla_hours: 24,
+      report_detail_max_length: GLS_FALLBACK_SAFETY_DETAIL_MAX_LENGTH,
+      report_detail_required_reason_codes: ['other'],
       report_reasons: [...GLS_FALLBACK_SAFETY_REASONS],
     },
   };
@@ -197,6 +199,15 @@ function getGlsoopRuntimeConfig() {
           report_enabled: payload?.safety?.report_enabled !== false,
           block_enabled: payload?.safety?.block_enabled !== false,
           moderation_sla_hours: Number(payload?.safety?.moderation_sla_hours) || 24,
+          report_detail_max_length:
+            Number(payload?.safety?.report_detail_max_length) || GLS_FALLBACK_SAFETY_DETAIL_MAX_LENGTH,
+          report_detail_required_reason_codes:
+            Array.isArray(payload?.safety?.report_detail_required_reason_codes) &&
+            payload.safety.report_detail_required_reason_codes.length
+              ? payload.safety.report_detail_required_reason_codes
+                  .map((code) => String(code || '').trim().toLowerCase())
+                  .filter(Boolean)
+              : ['other'],
           report_reasons: runtimeReasons.length ? runtimeReasons : [...GLS_FALLBACK_SAFETY_REASONS],
         },
       };
@@ -658,14 +669,19 @@ function ensureGlsoopSafetyModal() {
             <p class="gls-mb-3" id="glsoopSafetyModalDescription">사유를 선택해 주세요.</p>
             <div class="gls-feedback gls-feedback--error" id="glsoopSafetyModalFeedback" hidden></div>
             <div class="gls-mb-3" id="glsoopSafetyReasonList" role="radiogroup" aria-label="신고 사유"></div>
-            <label class="gls-text-small gls-text-muted gls-mb-1" for="glsoopSafetyDetailInput">상세 설명 (선택)</label>
-            <textarea
-              id="glsoopSafetyDetailInput"
-              class="form-control"
-              maxlength="1000"
-              rows="4"
-              placeholder="운영팀이 참고할 내용을 적어주세요."
-            ></textarea>
+            <div id="glsoopSafetyDetailField" hidden>
+              <label class="gls-text-small gls-text-muted gls-mb-1" for="glsoopSafetyDetailInput">상세 설명</label>
+              <textarea
+                id="glsoopSafetyDetailInput"
+                class="form-control"
+                maxlength="200"
+                rows="4"
+                placeholder="기타 사유를 200자 이내로 적어주세요."
+              ></textarea>
+              <p class="gls-text-small gls-text-muted gls-mt-2 gls-mb-0" id="glsoopSafetyDetailHint">
+                기타 사유를 선택했을 때만 입력할 수 있습니다.
+              </p>
+            </div>
           </div>
           <div class="modal-footer gls-auth-gate-modal__footer">
             <button type="button" class="gls-btn gls-btn-secondary" id="glsoopSafetyCancelBtn">취소</button>
@@ -726,6 +742,48 @@ function ensureGlsoopSafetyModal() {
     feedbackEl.textContent = message;
   };
 
+  const normalizeReasonCodeList = (codes) => {
+    if (!Array.isArray(codes) || !codes.length) return ['other'];
+    const normalized = codes
+      .map((code) => String(code || '').trim().toLowerCase())
+      .filter(Boolean);
+    return normalized.length ? [...new Set(normalized)] : ['other'];
+  };
+
+  const getDetailPolicy = (options = {}) => {
+    const detailMaxLength = Number(options.detailMaxLength) > 0
+      ? Number(options.detailMaxLength)
+      : GLS_FALLBACK_SAFETY_DETAIL_MAX_LENGTH;
+    const detailRequiredReasonCodes = normalizeReasonCodeList(
+      options.detailRequiredReasonCodes
+    );
+    return {
+      detailMaxLength,
+      detailRequiredReasonCodes,
+    };
+  };
+
+  const syncDetailFieldVisibility = (modalEl, options = {}) => {
+    const detailField = document.getElementById('glsoopSafetyDetailField');
+    const detailInput = document.getElementById('glsoopSafetyDetailInput');
+    const checkedInput = modalEl?.querySelector('input[name="glsoopSafetyReason"]:checked');
+    const selectedReasonCode = String(checkedInput?.value || '').trim().toLowerCase();
+    const { detailRequiredReasonCodes, detailMaxLength } = getDetailPolicy(options);
+    const shouldShowDetail = detailRequiredReasonCodes.includes(selectedReasonCode);
+
+    if (detailField) {
+      detailField.hidden = !shouldShowDetail;
+    }
+
+    if (detailInput) {
+      detailInput.maxLength = String(detailMaxLength);
+      detailInput.setAttribute('maxlength', String(detailMaxLength));
+      if (!shouldShowDetail) {
+        detailInput.value = '';
+      }
+    }
+  };
+
   const bindPromptEvents = (modalEl) => {
     if (!modalEl || modalEl.dataset.bound === '1') return;
     modalEl.dataset.bound = '1';
@@ -747,6 +805,12 @@ function ensureGlsoopSafetyModal() {
       });
     });
 
+    modalEl.addEventListener('change', (event) => {
+      if (event.target?.name !== 'glsoopSafetyReason') return;
+      setModalFeedback('');
+      syncDetailFieldVisibility(modalEl, state.runtimeOptions || {});
+    });
+
     const confirmBtn = document.getElementById('glsoopSafetyConfirmBtn');
     if (confirmBtn) {
       confirmBtn.addEventListener('click', () => {
@@ -755,18 +819,32 @@ function ensureGlsoopSafetyModal() {
         const detailInput = document.getElementById('glsoopSafetyDetailInput');
         const selectedReasonCode = checkedInput?.value || activeOptions.defaultReasonCode || '';
         const detail = typeof detailInput?.value === 'string'
-          ? detailInput.value.trim().slice(0, 1000)
+          ? detailInput.value.trim()
           : '';
+        const { detailRequiredReasonCodes, detailMaxLength } = getDetailPolicy(activeOptions);
+        const requiresDetail = detailRequiredReasonCodes.includes(
+          String(selectedReasonCode).trim().toLowerCase()
+        );
 
         if (activeOptions.requireReason !== false && !selectedReasonCode) {
           setModalFeedback('신고 사유를 선택해 주세요.');
+          return;
+        }
+        if (requiresDetail && !detail) {
+          setModalFeedback(`기타 사유를 선택한 경우 1자 이상 ${detailMaxLength}자 이하로 입력해 주세요.`);
+          detailInput?.focus();
+          return;
+        }
+        if (requiresDetail && detail.length > detailMaxLength) {
+          setModalFeedback(`상세 설명은 ${detailMaxLength}자 이하로 입력해 주세요.`);
+          detailInput?.focus();
           return;
         }
 
         setModalFeedback('');
         settlePrompt({
           reasonCode: selectedReasonCode || 'other',
-          detail,
+          detail: requiresDetail ? detail : '',
         });
         closePrompt();
       });
@@ -779,6 +857,7 @@ function ensureGlsoopSafetyModal() {
     const descriptionEl = document.getElementById('glsoopSafetyModalDescription');
     const reasonListEl = document.getElementById('glsoopSafetyReasonList');
     const detailInput = document.getElementById('glsoopSafetyDetailInput');
+    const detailHintEl = document.getElementById('glsoopSafetyDetailHint');
     const confirmBtn = document.getElementById('glsoopSafetyConfirmBtn');
 
     const title = typeof options.title === 'string' && options.title.trim()
@@ -786,7 +865,7 @@ function ensureGlsoopSafetyModal() {
       : '신고하기';
     const description = typeof options.description === 'string' && options.description.trim()
       ? options.description.trim()
-      : '운영팀이 검토할 수 있도록 사유를 선택해 주세요.';
+      : '사유를 선택해 주세요.';
     const confirmLabel = typeof options.confirmLabel === 'string' && options.confirmLabel.trim()
       ? options.confirmLabel.trim()
       : '확인';
@@ -797,6 +876,7 @@ function ensureGlsoopSafetyModal() {
     const defaultReasonCode = typeof options.defaultReasonCode === 'string'
       ? options.defaultReasonCode.trim()
       : '';
+    const { detailMaxLength } = getDetailPolicy(options);
 
     if (titleEl) titleEl.textContent = title;
     if (eyebrowEl) eyebrowEl.textContent = eyebrow;
@@ -829,10 +909,17 @@ function ensureGlsoopSafetyModal() {
 
     if (detailInput) {
       detailInput.value = '';
+      detailInput.maxLength = String(detailMaxLength);
+      detailInput.setAttribute('maxlength', String(detailMaxLength));
       detailInput.placeholder = typeof options.detailPlaceholder === 'string' && options.detailPlaceholder.trim()
         ? options.detailPlaceholder.trim()
-        : '운영팀이 참고할 내용을 적어주세요.';
+        : `기타 사유를 ${detailMaxLength}자 이내로 적어주세요.`;
     }
+    if (detailHintEl) {
+      detailHintEl.textContent = `기타 사유를 선택했을 때만 ${detailMaxLength}자까지 입력할 수 있습니다.`;
+    }
+
+    syncDetailFieldVisibility(modalEl, options);
   };
 
   async function openPrompt(options = {}) {
@@ -843,12 +930,21 @@ function ensureGlsoopSafetyModal() {
     }
 
     const targetType = options.targetType === 'user' ? 'user' : 'post';
+    const runtimeConfig = await getGlsoopRuntimeConfig().catch(() => null);
     const reasons = Array.isArray(options.reasons) && options.reasons.length
       ? options.reasons
       : await getGlsoopSafetyReasons(targetType);
+    const detailMaxLength = Number(options.detailMaxLength) > 0
+      ? Number(options.detailMaxLength)
+      : Number(runtimeConfig?.safety?.report_detail_max_length) || GLS_FALLBACK_SAFETY_DETAIL_MAX_LENGTH;
+    const detailRequiredReasonCodes = Array.isArray(options.detailRequiredReasonCodes)
+      ? options.detailRequiredReasonCodes
+      : runtimeConfig?.safety?.report_detail_required_reason_codes;
 
     renderPrompt(modalEl, {
       ...options,
+      detailMaxLength,
+      detailRequiredReasonCodes,
       reasons,
     });
 
@@ -856,6 +952,8 @@ function ensureGlsoopSafetyModal() {
       state.resolver = resolve;
       state.runtimeOptions = {
         ...options,
+        detailMaxLength,
+        detailRequiredReasonCodes,
         reasons,
       };
       if (window.glsModal) {

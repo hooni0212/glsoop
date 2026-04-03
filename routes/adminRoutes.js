@@ -8,7 +8,11 @@ const {
   reconcileMonetizationState,
 } = require('../utils/monetizationState');
 const { purgeUserAccount } = require('../utils/accountLifecycle');
-const { listSafetyReports, resolveSafetyReport } = require('../utils/safety');
+const {
+  listReportedPosts,
+  listSafetyReports,
+  resolveSafetyReport,
+} = require('../utils/safety');
 
 const router = express.Router();
 
@@ -134,7 +138,12 @@ router.get('/safety/reports', async (req, res) => {
   }
 
   try {
-    const reports = await listSafetyReports({ status, limit, offset });
+    const reports = await listSafetyReports({
+      status,
+      limit,
+      offset,
+      sources: ['report'],
+    });
     return res.json({
       ok: true,
       message: '안전 신고 목록을 불러왔습니다.',
@@ -144,11 +153,59 @@ router.get('/safety/reports', async (req, res) => {
         offset,
         count: reports.length,
         status: status || 'all',
+        source: 'report',
       },
     });
   } catch (error) {
     console.error('[admin/safety/reports] failed:', error);
     return sendAdminError(res, 500, 'INTERNAL_ERROR', '안전 신고 목록을 불러오는 중 오류가 발생했습니다.');
+  }
+});
+
+router.get('/safety/reported-posts', async (req, res) => {
+  const limit = parseBoundedInt(req.query.limit, 50, 1, 100);
+  const offset = parseBoundedInt(req.query.offset, 0, 0, 5000);
+  const threshold = parseBoundedInt(req.query.threshold, 5, 1, 100);
+
+  if (limit === null || offset === null || threshold === null) {
+    return sendAdminError(
+      res,
+      400,
+      'INVALID_REQUEST',
+      'limit, offset 또는 threshold 값이 올바르지 않습니다.'
+    );
+  }
+
+  try {
+    const posts = await listReportedPosts({
+      limit,
+      offset,
+      threshold,
+      excludeDismissed: true,
+    });
+
+    return res.json({
+      ok: true,
+      message: '누적 신고 글 목록을 불러왔습니다.',
+      posts,
+      meta: {
+        limit,
+        offset,
+        threshold,
+        count: posts.length,
+        source: 'report',
+        target_type: 'post',
+        dismissed_excluded: true,
+      },
+    });
+  } catch (error) {
+    console.error('[admin/safety/reported-posts] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '누적 신고 글 목록을 불러오는 중 오류가 발생했습니다.'
+    );
   }
 });
 

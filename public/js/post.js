@@ -660,9 +660,9 @@ async function handlePostReport(post) {
       targetType: 'post',
       eyebrow: 'REPORT POST',
       title: '게시글 신고',
-      description: '문제가 되는 게시글이라면 사유를 선택해 신고해 주세요. 운영팀이 확인 후 조치합니다.',
+      description: '문제가 되는 게시글이라면 사유를 선택해 신고해 주세요. 운영 검토 큐에 접수됩니다.',
       confirmLabel: '신고하기',
-      detailPlaceholder: '문제가 된 표현이나 맥락을 적어주세요.',
+      detailPlaceholder: '기타 사유를 200자 이내로 적어주세요.',
     });
 
     if (!payload) return;
@@ -673,7 +673,7 @@ async function handlePostReport(post) {
     });
 
     if (window.glsoopUi?.showPageNotice) {
-      window.glsoopUi.showPageNotice('게시글 신고가 접수되었습니다.', {
+      window.glsoopUi.showPageNotice('게시글 신고가 운영 검토 큐에 접수되었습니다.', {
         type: 'success',
         autoHideMs: 2200,
       });
@@ -711,7 +711,7 @@ async function handlePostBlockAuthor(post) {
       description: `${authorName}을 차단하면 이 작성자의 글이 내 화면에서 바로 숨겨집니다.`,
       confirmLabel: '차단하기',
       defaultReasonCode: 'harassment',
-      detailPlaceholder: '운영팀이 참고할 내용이 있다면 적어주세요.',
+      detailPlaceholder: '기타 사유를 200자 이내로 적어주세요.',
     });
 
     if (!payload) return;
@@ -723,7 +723,7 @@ async function handlePostBlockAuthor(post) {
     });
 
     if (window.glsoopUi?.showPageNotice) {
-      window.glsoopUi.showPageNotice('작성자를 차단했습니다. 탐색 화면으로 이동합니다.', {
+      window.glsoopUi.showPageNotice('작성자를 차단했습니다. 이제 내 화면에서 이 작성자의 글과 프로필이 숨겨집니다.', {
         type: 'success',
         autoHideMs: 1800,
       });

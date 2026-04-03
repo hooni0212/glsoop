@@ -10,6 +10,9 @@ const DB_PATH = process.env.DB_PATH
   : path.join(REPO_ROOT, 'tmp', 'e2e_playwright.sqlite');
 const AUTH_HEADER_NOW = '2026-03-01T00:00:00+09:00';
 
+const FIXTURE_USER_IDS = [9501, 9502, 9503, 9504, 9505, 9506, 9507, 9599];
+const FIXTURE_POST_IDS = [9601, 9602];
+
 const dbRun = (db, sql, params = []) =>
   new Promise((resolve, reject) => {
     db.run(sql, params, function onRun(err) {
@@ -18,6 +21,17 @@ const dbRun = (db, sql, params = []) =>
         return;
       }
       resolve(this);
+    });
+  });
+
+const dbGet = (db, sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(row || null);
     });
   });
 
@@ -44,86 +58,113 @@ function buildAuthHeaders(userId) {
   };
 }
 
-async function seedSafetyData() {
+async function withDb(callback) {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   await waitForFile(DB_PATH, 20000);
 
   const db = new sqlite3.Database(DB_PATH);
-  await dbRun(db, 'PRAGMA foreign_keys = OFF');
+  try {
+    return await callback(db);
+  } finally {
+    await new Promise((resolve) => db.close(resolve));
+  }
+}
 
-  await dbRun(
-    db,
-    'DELETE FROM safety_reports WHERE reporter_id IN (9501, 9599) OR target_user_id IN (9502) OR target_post_id IN (9601, 9602)'
-  );
-  await dbRun(db, 'DELETE FROM user_blocks WHERE blocker_id IN (9501) OR blocked_user_id IN (9502)');
-  await dbRun(db, 'DELETE FROM bookmark_items WHERE id IN (9701)');
-  await dbRun(db, 'DELETE FROM bookmark_lists WHERE id IN (9700)');
-  await dbRun(db, 'DELETE FROM likes WHERE (user_id = 9501 AND post_id IN (9601, 9602))');
-  await dbRun(db, 'DELETE FROM follows WHERE follower_id = 9501 AND followee_id = 9502');
-  await dbRun(db, 'DELETE FROM posts WHERE id IN (9601, 9602)');
-  await dbRun(db, 'DELETE FROM users WHERE id IN (9501, 9502, 9599)');
+async function seedSafetyData() {
+  await withDb(async (db) => {
+    await dbRun(db, 'PRAGMA foreign_keys = OFF');
+    await dbRun(
+      db,
+      `DELETE FROM safety_reports
+       WHERE reporter_id IN (${FIXTURE_USER_IDS.join(', ')})
+          OR target_user_id IN (${FIXTURE_USER_IDS.join(', ')})
+          OR target_post_id IN (${FIXTURE_POST_IDS.join(', ')})`
+    );
+    await dbRun(
+      db,
+      `DELETE FROM user_blocks
+       WHERE blocker_id IN (${FIXTURE_USER_IDS.join(', ')})
+          OR blocked_user_id IN (${FIXTURE_USER_IDS.join(', ')})`
+    );
+    await dbRun(db, 'DELETE FROM bookmark_items WHERE id IN (9701)');
+    await dbRun(db, 'DELETE FROM bookmark_lists WHERE id IN (9700)');
+    await dbRun(
+      db,
+      `DELETE FROM likes
+       WHERE user_id IN (${FIXTURE_USER_IDS.join(', ')})
+         AND post_id IN (${FIXTURE_POST_IDS.join(', ')})`
+    );
+    await dbRun(
+      db,
+      `DELETE FROM follows
+       WHERE follower_id IN (${FIXTURE_USER_IDS.join(', ')})
+          OR followee_id IN (${FIXTURE_USER_IDS.join(', ')})`
+    );
+    await dbRun(db, `DELETE FROM posts WHERE id IN (${FIXTURE_POST_IDS.join(', ')})`);
+    await dbRun(db, `DELETE FROM users WHERE id IN (${FIXTURE_USER_IDS.join(', ')})`);
 
-  await dbRun(
-    db,
-    `INSERT INTO users (id, name, nickname, email, pw, is_admin, is_verified)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [9501, 'Safety Reader', 'safety_reader', 'safety-reader@glsoop.test', 'password', 0, 1]
-  );
-  await dbRun(
-    db,
-    `INSERT INTO users (id, name, nickname, email, pw, is_admin, is_verified)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [9502, 'Blocked Author', 'blocked_author', 'blocked-author@glsoop.test', 'password', 0, 1]
-  );
-  await dbRun(
-    db,
-    `INSERT INTO users (id, name, nickname, email, pw, is_admin, is_verified)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [9599, 'Safety Admin', 'safety_admin', 'safety-admin@glsoop.test', 'password', 1, 1]
-  );
+    const users = [
+      [9501, 'Safety Reader', 'safety_reader', 'safety-reader@glsoop.test', 'password', 0, 1],
+      [9502, 'Blocked Author', 'blocked_author', 'blocked-author@glsoop.test', 'password', 0, 1],
+      [9503, 'Second Reporter', 'reporter_two', 'reporter-two@glsoop.test', 'password', 0, 1],
+      [9504, 'Third Reporter', 'reporter_three', 'reporter-three@glsoop.test', 'password', 0, 1],
+      [9505, 'Fourth Reporter', 'reporter_four', 'reporter-four@glsoop.test', 'password', 0, 1],
+      [9506, 'Fifth Reporter', 'reporter_five', 'reporter-five@glsoop.test', 'password', 0, 1],
+      [9507, 'Dismissed Reporter', 'reporter_six', 'reporter-six@glsoop.test', 'password', 0, 1],
+      [9599, 'Safety Admin', 'safety_admin', 'safety-admin@glsoop.test', 'password', 1, 1],
+    ];
 
-  await dbRun(
-    db,
-    `INSERT INTO posts (id, user_id, title, content, category, created_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now', '-1 day'))`,
-    [9601, 9502, 'Fixture Safety Post', 'Reportable fixture content for safety tests.', 'essay']
-  );
-  await dbRun(
-    db,
-    `INSERT INTO posts (id, user_id, title, content, category, created_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now', '-2 day'))`,
-    [9602, 9501, 'Reader Owned Post', 'Safe content from viewer user.', 'short']
-  );
+    for (const user of users) {
+      await dbRun(
+        db,
+        `INSERT INTO users (id, name, nickname, email, pw, is_admin, is_verified)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        user
+      );
+    }
 
-  await dbRun(
-    db,
-    `INSERT INTO likes (user_id, post_id, created_at)
-     VALUES (?, ?, datetime('now'))`,
-    [9501, 9601]
-  );
-  await dbRun(
-    db,
-    `INSERT INTO bookmark_lists (id, user_id, name, description, created_at)
-     VALUES (?, ?, ?, ?, datetime('now'))`,
-    [9700, 9501, 'Safety Bookmarks', 'Seed list for safety API tests']
-  );
-  await dbRun(
-    db,
-    `INSERT INTO bookmark_items (id, list_id, post_id, created_at)
-     VALUES (?, ?, ?, datetime('now'))`,
-    [9701, 9700, 9601]
-  );
+    await dbRun(
+      db,
+      `INSERT INTO posts (id, user_id, title, content, category, created_at)
+       VALUES (?, ?, ?, ?, ?, datetime('now', '-1 day'))`,
+      [9601, 9502, 'Fixture Safety Post', 'Reportable fixture content for safety tests.', 'essay']
+    );
+    await dbRun(
+      db,
+      `INSERT INTO posts (id, user_id, title, content, category, created_at)
+       VALUES (?, ?, ?, ?, ?, datetime('now', '-2 day'))`,
+      [9602, 9501, 'Reader Owned Post', 'Safe content from viewer user.', 'short']
+    );
 
-  await dbRun(db, 'PRAGMA foreign_keys = ON');
-  await new Promise((resolve) => db.close(resolve));
+    await dbRun(
+      db,
+      `INSERT INTO likes (user_id, post_id, created_at)
+       VALUES (?, ?, datetime('now'))`,
+      [9501, 9601]
+    );
+    await dbRun(
+      db,
+      `INSERT INTO bookmark_lists (id, user_id, name, description, created_at)
+       VALUES (?, ?, ?, ?, datetime('now'))`,
+      [9700, 9501, 'Safety Bookmarks', 'Seed list for safety API tests']
+    );
+    await dbRun(
+      db,
+      `INSERT INTO bookmark_items (id, list_id, post_id, created_at)
+       VALUES (?, ?, ?, datetime('now'))`,
+      [9701, 9700, 9601]
+    );
+
+    await dbRun(db, 'PRAGMA foreign_keys = ON');
+  });
 }
 
 test.describe.serial('Safety API', () => {
-  test.beforeAll(async () => {
+  test.beforeEach(async () => {
     await seedSafetyData();
   });
 
-  test('runtime config exposes legal urls and safety settings', async ({ request }) => {
+  test('runtime config exposes legal urls and updated safety settings', async ({ request }) => {
     const response = await request.get('/api/runtime-config');
     expect(response.status()).toBe(200);
 
@@ -138,14 +179,59 @@ test.describe.serial('Safety API', () => {
       report_enabled: true,
       block_enabled: true,
       moderation_sla_hours: 24,
+      report_detail_max_length: 200,
+      report_detail_required_reason_codes: ['other'],
     });
     expect(Array.isArray(payload.safety.report_reasons)).toBe(true);
     expect(payload.safety.report_reasons).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: 'harassment', label: expect.any(String) }),
-        expect.objectContaining({ code: 'other', label: expect.any(String) }),
+        expect.objectContaining({ code: 'harassment', label: '괴롭힘/비방' }),
+        expect.objectContaining({ code: 'violence', label: '폭력성/자해/위협' }),
+        expect.objectContaining({ code: 'impersonation', label: '사칭/도용' }),
+        expect.objectContaining({ code: 'other', label: '기타' }),
       ])
     );
+    expect(payload.safety.report_reasons.find((reason) => reason.code === 'illegal')).toBeFalsy();
+  });
+
+  test('validates report reasons and detail rules at the server', async ({ request }) => {
+    const viewerHeaders = buildAuthHeaders(9501);
+
+    const emptyOtherResponse = await request.post('/api/posts/9601/report', {
+      headers: viewerHeaders,
+      data: {
+        reason_code: 'other',
+        detail: '   ',
+      },
+    });
+    expect(emptyOtherResponse.status()).toBe(400);
+
+    const invalidReasonResponse = await request.post('/api/posts/9601/report', {
+      headers: viewerHeaders,
+      data: {
+        reason_code: 'illegal',
+        detail: 'unsupported reason',
+      },
+    });
+    expect(invalidReasonResponse.status()).toBe(400);
+
+    const ignoredDetailResponse = await request.post('/api/posts/9601/report', {
+      headers: viewerHeaders,
+      data: {
+        reason_code: 'spam',
+        detail: '이 상세는 저장되면 안 됩니다.',
+      },
+    });
+    expect(ignoredDetailResponse.status()).toBe(200);
+    const ignoredDetailBody = await ignoredDetailResponse.json();
+
+    const storedSpamReport = await withDb((db) =>
+      dbGet(db, 'SELECT reason_code, detail FROM safety_reports WHERE id = ?', [ignoredDetailBody.report_id])
+    );
+    expect(storedSpamReport).toMatchObject({
+      reason_code: 'spam',
+      detail: null,
+    });
   });
 
   test('queues safety reports and allows admin resolution', async ({ request }) => {
@@ -155,8 +241,8 @@ test.describe.serial('Safety API', () => {
     const reportResponse = await request.post('/api/posts/9601/report', {
       headers: viewerHeaders,
       data: {
-        reason_code: 'spam',
-        detail: 'fixture report detail',
+        reason_code: 'other',
+        detail: '기타 사유 신고 상세입니다.',
       },
     });
 
@@ -179,7 +265,9 @@ test.describe.serial('Safety API', () => {
       target_post_id: 9601,
       target_user_id: 9502,
       status: 'queued',
-      reason_code: 'spam',
+      source: 'report',
+      reason_code: 'other',
+      detail: '기타 사유 신고 상세입니다.',
     });
 
     const resolveResponse = await request.post(
@@ -202,13 +290,17 @@ test.describe.serial('Safety API', () => {
     });
   });
 
-  test('blocking a user hides their content from viewer-facing APIs', async ({ request }) => {
+  test('blocking a user hides their content without creating a safety report row', async ({ request }) => {
     const viewerHeaders = buildAuthHeaders(9501);
+    const beforeCounts = await withDb((db) =>
+      dbGet(db, 'SELECT COUNT(*) AS count FROM safety_reports')
+    );
 
     const blockResponse = await request.post('/api/users/9502/block', {
       headers: viewerHeaders,
       data: {
         reason_code: 'harassment',
+        detail: '이 상세는 저장되면 안 됩니다.',
         context_post_id: 9601,
       },
     });
@@ -217,7 +309,13 @@ test.describe.serial('Safety API', () => {
     expect(blockBody).toMatchObject({
       ok: true,
       blocked_user_id: 9502,
+      report_id: null,
     });
+
+    const afterCounts = await withDb((db) =>
+      dbGet(db, 'SELECT COUNT(*) AS count FROM safety_reports')
+    );
+    expect(afterCounts.count).toBe(beforeCounts.count);
 
     const searchResponse = await request.get('/api/search', {
       headers: viewerHeaders,
@@ -262,9 +360,86 @@ test.describe.serial('Safety API', () => {
       expect.arrayContaining([
         expect.objectContaining({
           user_id: 9502,
+          display_name: expect.any(String),
+          nickname: 'blocked_author',
           reason_code: 'harassment',
+          detail: null,
+          created_at: expect.any(String),
         }),
       ])
     );
+  });
+
+  test('admin report list excludes block-source rows and reported-posts excludes dismissed while exposing unique reporter count', async ({ request }) => {
+    const adminHeaders = buildAuthHeaders(9599);
+
+    const activeReporters = [9501, 9503, 9504, 9505, 9506];
+    for (const reporterId of activeReporters) {
+      const response = await request.post('/api/posts/9601/report', {
+        headers: buildAuthHeaders(reporterId),
+        data: {
+          reason_code: 'spam',
+          detail: `ignored detail from ${reporterId}`,
+        },
+      });
+      expect(response.status()).toBe(200);
+    }
+
+    await withDb(async (db) => {
+      await dbRun(
+        db,
+        `INSERT INTO safety_reports (
+          reporter_id,
+          target_type,
+          target_post_id,
+          target_user_id,
+          source,
+          reason_code,
+          detail,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [9507, 'post', 9601, 9502, 'report', 'other', 'dismissed report detail', 'dismissed']
+      );
+      await dbRun(
+        db,
+        `INSERT INTO safety_reports (
+          reporter_id,
+          target_type,
+          target_post_id,
+          target_user_id,
+          source,
+          reason_code,
+          detail,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [9501, 'post', 9601, 9502, 'block', 'harassment', null, 'queued']
+      );
+    });
+
+    const adminListResponse = await request.get('/api/admin/safety/reports?limit=20', {
+      headers: adminHeaders,
+    });
+    expect(adminListResponse.status()).toBe(200);
+    const adminListBody = await adminListResponse.json();
+    expect(adminListBody.reports.length).toBe(6);
+    expect(adminListBody.reports.every((report) => report.source === 'report')).toBe(true);
+
+    const reportedPostsResponse = await request.get('/api/admin/safety/reported-posts?limit=10', {
+      headers: adminHeaders,
+    });
+    expect(reportedPostsResponse.status()).toBe(200);
+    const reportedPostsBody = await reportedPostsResponse.json();
+    const postSummary = reportedPostsBody.posts.find((item) => item.target_post_id === 9601);
+
+    expect(postSummary).toMatchObject({
+      target_post_id: 9601,
+      target_post_title: 'Fixture Safety Post',
+      target_user_id: 9502,
+      report_count: 5,
+      unique_reporter_count: 5,
+    });
+    expect(typeof postSummary.latest_reported_at).toBe('string');
   });
 });

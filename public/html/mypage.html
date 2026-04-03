@@ -116,7 +116,7 @@
         <section class="mpd-panel mpd-panel--content CardSoft MainGrid-main" aria-label="내 기록 관리">
           <div class="mpd-content-head">
             <h2 class="mpd-section-title gls-mb-0">내 기록</h2>
-            <p class="gls-text-small gls-text-muted gls-mb-0">탭을 전환해 작성글, 공감글, 팔로잉을 관리하세요.</p>
+            <p class="gls-text-small gls-text-muted gls-mb-0">탭을 전환해 작성글, 공감글, 팔로잉, 차단 사용자를 관리하세요.</p>
           </div>
 
           <div class="mpd-tabs" role="tablist" aria-label="마이페이지 글 목록 탭">
@@ -152,6 +152,17 @@
               tabindex="-1"
             >
               내가 팔로잉
+            </button>
+            <button
+              type="button"
+              class="mpd-tab"
+              id="tabBlockedUsers"
+              role="tab"
+              aria-controls="blockedUsersSection"
+              aria-selected="false"
+              tabindex="-1"
+            >
+              차단한 사용자
             </button>
             <a
               class="mpd-tab mpd-tab--link"
@@ -199,6 +210,19 @@
             >
               <div id="followingsList">
                 <p class="gls-text-muted">팔로잉 목록을 불러오는 중입니다...</p>
+              </div>
+            </section>
+
+            <section
+              id="blockedUsersSection"
+              class="mpd-tab-panel CardFlat gls-hidden"
+              role="tabpanel"
+              aria-labelledby="tabBlockedUsers"
+              tabindex="-1"
+              hidden
+            >
+              <div id="blockedUsersList">
+                <p class="gls-text-muted">차단 목록을 불러오는 중입니다...</p>
               </div>
             </section>
           </div>

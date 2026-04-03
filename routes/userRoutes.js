@@ -20,10 +20,10 @@ const {
   blockUser,
   createSafetyReport,
   getActiveUserSummary,
+  isSafetyValidationError,
   isUserBlockedByViewer,
   listBlockedUsers,
-  normalizeOptionalDetail,
-  normalizeReasonCode,
+  parseSafetyRequestPayload,
   unblockUser,
 } = require('../utils/safety');
 
@@ -56,14 +56,6 @@ const dbRun = (sql, params = []) =>
 function parseId(value) {
   const num = parseInt(value, 10);
   return Number.isNaN(num) ? null : num;
-}
-
-function parseSafetyRequestBody(body = {}) {
-  return {
-    reasonCode: normalizeReasonCode(body.reason_code),
-    detail: normalizeOptionalDetail(body.detail),
-    contextPostId: parseId(body.context_post_id),
-  };
 }
 
 function parseListPagination(query = {}) {
@@ -358,7 +350,10 @@ router.post('/users/:id/report', authRequired, async (req, res) => {
       return res.status(404).json({ ok: false, message: '해당 사용자를 찾을 수 없습니다.' });
     }
 
-    const payload = parseSafetyRequestBody(req.body);
+    const payload = parseSafetyRequestPayload(req.body, {
+      defaultReasonCode: 'other',
+      allowContextPostId: true,
+    });
     const report = await createSafetyReport({
       reporterId,
       targetType: 'user',
@@ -370,11 +365,17 @@ router.post('/users/:id/report', authRequired, async (req, res) => {
 
     return res.json({
       ok: true,
-      message: '신고가 접수되었어요. 운영팀이 확인 후 조치할게요.',
+      message: '신고가 운영 검토 큐에 접수되었어요.',
       report_id: report?.id || null,
       status: report?.status || 'queued',
     });
   } catch (error) {
+    if (isSafetyValidationError(error)) {
+      return res.status(400).json({
+        ok: false,
+        message: error.message,
+      });
+    }
     console.error('[users/report] failed:', error);
     return res.status(500).json({
       ok: false,
@@ -395,11 +396,14 @@ router.post('/users/:id/block', authRequired, async (req, res) => {
       return res.status(404).json({ ok: false, message: '해당 사용자를 찾을 수 없습니다.' });
     }
 
-    const payload = parseSafetyRequestBody(req.body);
+    const payload = parseSafetyRequestPayload(req.body, {
+      defaultReasonCode: 'harassment',
+      allowContextPostId: true,
+    });
     const result = await blockUser({
       blockerId,
       blockedUserId: targetUserId,
-      reasonCode: payload.reasonCode || 'harassment',
+      reasonCode: payload.reasonCode,
       detail: payload.detail,
       contextPostId: payload.contextPostId,
     });
@@ -409,10 +413,16 @@ router.post('/users/:id/block', authRequired, async (req, res) => {
       message: '사용자를 차단했어요. 이제 이 사용자의 글이 내 화면에서 숨겨져요.',
       blocked_user_id: targetUserId,
       hidden_post_count: result.hidden_post_count,
-      report_id: result.report?.id || null,
+      report_id: null,
       already_blocked: !result.created,
     });
   } catch (error) {
+    if (isSafetyValidationError(error)) {
+      return res.status(400).json({
+        ok: false,
+        message: error.message,
+      });
+    }
     console.error('[users/block] failed:', error);
     return res.status(500).json({
       ok: false,

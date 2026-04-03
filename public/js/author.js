@@ -515,9 +515,9 @@ async function handleAuthorReport() {
       targetType: 'user',
       eyebrow: 'REPORT USER',
       title: '작가 신고',
-      description: `${state.nickname || '이 작가'}를 신고하는 이유를 선택해 주세요. 운영팀이 접수 후 검토합니다.`,
+      description: `${state.nickname || '이 작가'}를 신고하는 이유를 선택해 주세요. 운영 검토 큐에 접수됩니다.`,
       confirmLabel: '신고하기',
-      detailPlaceholder: '문제가 된 프로필 또는 행동을 적어주세요.',
+      detailPlaceholder: '기타 사유를 200자 이내로 적어주세요.',
     });
 
     if (!payload) return;
@@ -526,7 +526,7 @@ async function handleAuthorReport() {
       reason_code: payload.reasonCode,
       detail: payload.detail,
     });
-    showUiNotice('신고가 접수되었습니다. 운영팀이 확인 후 조치합니다.', 'success', 2200);
+    showUiNotice('신고가 운영 검토 큐에 접수되었습니다.', 'success', 2200);
   } catch (error) {
     console.error(error);
     if (window.glsoopSafety?.isAuthRequiredError?.(error)) {
@@ -548,7 +548,7 @@ async function handleAuthorBlock() {
       description: `${state.nickname || '이 작가'}를 차단하면 이 사용자의 글과 프로필이 내 화면에서 숨겨집니다.`,
       confirmLabel: '차단하기',
       defaultReasonCode: 'harassment',
-      detailPlaceholder: '운영팀이 참고할 메모가 있다면 남겨주세요.',
+      detailPlaceholder: '기타 사유를 200자 이내로 적어주세요.',
     });
 
     if (!payload) return;
@@ -557,7 +557,7 @@ async function handleAuthorBlock() {
       reason_code: payload.reasonCode,
       detail: payload.detail,
     });
-    showUiNotice('작가를 차단했습니다. 탐색 화면으로 이동합니다.', 'success', 1800);
+    showUiNotice('작가를 차단했습니다. 이제 내 화면에서 이 사용자의 글과 프로필이 숨겨집니다.', 'success', 1800);
     window.setTimeout(() => {
       window.location.href = '/explore';
     }, 420);
