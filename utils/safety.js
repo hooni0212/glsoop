@@ -300,46 +300,68 @@ async function blockUser({
     throw new Error('invalid_block_request');
   }
 
-  const insertResult = await runAsync(
-    `
-    INSERT OR IGNORE INTO user_blocks (
-      blocker_id,
-      blocked_user_id,
-      reason_code,
-      detail
-    )
-    VALUES (?, ?, ?, ?)
-    `,
-    [
-      normalizedBlockerId,
-      normalizedBlockedUserId,
-      normalizedPayload.reasonCode,
-      normalizedPayload.detail,
-    ]
-  );
+  await runAsync('BEGIN IMMEDIATE TRANSACTION');
 
-  const blockRow = await getAsync(
-    `
-    SELECT blocker_id, blocked_user_id, reason_code, detail, created_at
-    FROM user_blocks
-    WHERE blocker_id = ? AND blocked_user_id = ?
-    LIMIT 1
-    `,
-    [normalizedBlockerId, normalizedBlockedUserId]
-  );
+  try {
+    const insertResult = await runAsync(
+      `
+      INSERT OR IGNORE INTO user_blocks (
+        blocker_id,
+        blocked_user_id,
+        reason_code,
+        detail
+      )
+      VALUES (?, ?, ?, ?)
+      `,
+      [
+        normalizedBlockerId,
+        normalizedBlockedUserId,
+        normalizedPayload.reasonCode,
+        normalizedPayload.detail,
+      ]
+    );
 
-  const postCountRow = await getAsync(
-    'SELECT COUNT(*) AS count FROM posts WHERE user_id = ?',
-    [normalizedBlockedUserId]
-  );
+    const blockRow = await getAsync(
+      `
+      SELECT blocker_id, blocked_user_id, reason_code, detail, created_at
+      FROM user_blocks
+      WHERE blocker_id = ? AND blocked_user_id = ?
+      LIMIT 1
+      `,
+      [normalizedBlockerId, normalizedBlockedUserId]
+    );
 
-  return {
-    created: Number(insertResult?.changes || 0) > 0,
-    block: blockRow || null,
-    hidden_post_count: Number(postCountRow?.count || 0),
-    report: null,
-    context_post_id: normalizedContextPostId,
-  };
+    const postCountRow = await getAsync(
+      'SELECT COUNT(*) AS count FROM posts WHERE user_id = ?',
+      [normalizedBlockedUserId]
+    );
+
+    const created = Number(insertResult?.changes || 0) > 0;
+    const report = created
+      ? await createSafetyReport({
+          reporterId: normalizedBlockerId,
+          targetType: 'user',
+          targetPostId: normalizedContextPostId,
+          targetUserId: normalizedBlockedUserId,
+          reasonCode: normalizedPayload.reasonCode,
+          detail: normalizedPayload.detail,
+          source: REPORT_SOURCE_BLOCK,
+        })
+      : null;
+
+    await runAsync('COMMIT');
+
+    return {
+      created,
+      block: blockRow || null,
+      hidden_post_count: Number(postCountRow?.count || 0),
+      report,
+      context_post_id: normalizedContextPostId,
+    };
+  } catch (error) {
+    await runAsync('ROLLBACK');
+    throw error;
+  }
 }
 
 async function unblockUser({ blockerId, blockedUserId }) {

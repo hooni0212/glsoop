@@ -290,8 +290,9 @@ test.describe.serial('Safety API', () => {
     });
   });
 
-  test('blocking a user hides their content without creating a safety report row', async ({ request }) => {
+  test('blocking a user hides their content and creates an admin-visible safety report', async ({ request }) => {
     const viewerHeaders = buildAuthHeaders(9501);
+    const adminHeaders = buildAuthHeaders(9599);
     const beforeCounts = await withDb((db) =>
       dbGet(db, 'SELECT COUNT(*) AS count FROM safety_reports')
     );
@@ -309,13 +310,59 @@ test.describe.serial('Safety API', () => {
     expect(blockBody).toMatchObject({
       ok: true,
       blocked_user_id: 9502,
-      report_id: null,
+      report_id: expect.any(Number),
+      already_blocked: false,
     });
 
     const afterCounts = await withDb((db) =>
       dbGet(db, 'SELECT COUNT(*) AS count FROM safety_reports')
     );
-    expect(afterCounts.count).toBe(beforeCounts.count);
+    expect(afterCounts.count).toBe(beforeCounts.count + 1);
+
+    const storedBlockReport = await withDb((db) =>
+      dbGet(
+        db,
+        `SELECT
+          id,
+          reporter_id,
+          target_type,
+          target_post_id,
+          target_user_id,
+          source,
+          reason_code,
+          detail,
+          status
+        FROM safety_reports
+        WHERE id = ?`,
+        [blockBody.report_id]
+      )
+    );
+    expect(storedBlockReport).toMatchObject({
+      id: blockBody.report_id,
+      reporter_id: 9501,
+      target_type: 'user',
+      target_post_id: 9601,
+      target_user_id: 9502,
+      source: 'block',
+      reason_code: 'harassment',
+      detail: null,
+      status: 'queued',
+    });
+
+    const adminListResponse = await request.get('/api/admin/safety/reports?limit=20', {
+      headers: adminHeaders,
+    });
+    expect(adminListResponse.status()).toBe(200);
+    const adminListBody = await adminListResponse.json();
+    const blockQueueItem = adminListBody.reports.find((item) => item.id === blockBody.report_id);
+    expect(blockQueueItem).toMatchObject({
+      id: blockBody.report_id,
+      source: 'block',
+      target_type: 'user',
+      target_post_id: 9601,
+      target_user_id: 9502,
+      status: 'queued',
+    });
 
     const searchResponse = await request.get('/api/search', {
       headers: viewerHeaders,
@@ -370,7 +417,7 @@ test.describe.serial('Safety API', () => {
     );
   });
 
-  test('admin report list excludes block-source rows and reported-posts excludes dismissed while exposing unique reporter count', async ({ request }) => {
+  test('admin report list includes block-source rows while reported-posts keeps explicit reports only', async ({ request }) => {
     const adminHeaders = buildAuthHeaders(9599);
 
     const activeReporters = [9501, 9503, 9504, 9505, 9506];
@@ -423,8 +470,9 @@ test.describe.serial('Safety API', () => {
     });
     expect(adminListResponse.status()).toBe(200);
     const adminListBody = await adminListResponse.json();
-    expect(adminListBody.reports.length).toBe(6);
-    expect(adminListBody.reports.every((report) => report.source === 'report')).toBe(true);
+    expect(adminListBody.reports.length).toBe(7);
+    expect(adminListBody.reports.filter((report) => report.source === 'report')).toHaveLength(6);
+    expect(adminListBody.reports.filter((report) => report.source === 'block')).toHaveLength(1);
 
     const reportedPostsResponse = await request.get('/api/admin/safety/reported-posts?limit=10', {
       headers: adminHeaders,

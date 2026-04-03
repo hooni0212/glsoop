@@ -410,10 +410,12 @@ router.post('/users/:id/block', authRequired, async (req, res) => {
 
     return res.json({
       ok: true,
-      message: '사용자를 차단했어요. 이제 이 사용자의 글이 내 화면에서 숨겨져요.',
+      message: result.created
+        ? '사용자를 차단했어요. 이제 이 사용자의 글이 내 화면에서 숨겨지고 운영 검토 큐에도 접수돼요.'
+        : '이미 차단한 사용자예요. 이 사용자의 글은 계속 내 화면에서 숨겨져요.',
       blocked_user_id: targetUserId,
       hidden_post_count: result.hidden_post_count,
-      report_id: null,
+      report_id: result.report?.id || null,
       already_blocked: !result.created,
     });
   } catch (error) {

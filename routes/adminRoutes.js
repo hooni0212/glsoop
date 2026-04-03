@@ -138,11 +138,12 @@ router.get('/safety/reports', async (req, res) => {
   }
 
   try {
+    const sources = ['report', 'block'];
     const reports = await listSafetyReports({
       status,
       limit,
       offset,
-      sources: ['report'],
+      sources,
     });
     return res.json({
       ok: true,
@@ -153,7 +154,8 @@ router.get('/safety/reports', async (req, res) => {
         offset,
         count: reports.length,
         status: status || 'all',
-        source: 'report',
+        source: 'report+block',
+        sources,
       },
     });
   } catch (error) {

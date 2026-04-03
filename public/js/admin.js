@@ -702,6 +702,13 @@ Glsoop.AdminPage = (function () {
       return '<p class="gls-text-muted gls-mb-0">조건에 맞는 신고가 없습니다.</p>';
     }
 
+    function formatSafetySource(source) {
+      if (String(source || '').trim().toLowerCase() === 'block') {
+        return '차단 자동 접수';
+      }
+      return '사용자 신고';
+    }
+
     const rowsHtml = reports
       .map((report) => {
         const reporter = resolveSafetyDisplayName(
@@ -728,6 +735,7 @@ Glsoop.AdminPage = (function () {
           '<td>' + escapeHtml(reporter) + '</td>',
           '<td>' + escapeHtml(targetUser) + '</td>',
           '<td>' + escapeHtml(targetPost) + '</td>',
+          '<td><span class="admin-safety-pill">' + escapeHtml(formatSafetySource(report.source)) + '</span></td>',
           '<td><span class="admin-safety-pill">' + escapeHtml(report.reason_code || '-') + '</span></td>',
           '<td>' + detail + '</td>',
           '<td>' + escapeHtml(formatAdminDateTime(report.created_at)) + '</td>',
@@ -745,6 +753,7 @@ Glsoop.AdminPage = (function () {
       '        <th>신고자</th>',
       '        <th>대상 사용자</th>',
       '        <th>대상 글</th>',
+      '        <th>접수 경로</th>',
       '        <th>사유</th>',
       '        <th>상세</th>',
       '        <th>접수 시각</th>',

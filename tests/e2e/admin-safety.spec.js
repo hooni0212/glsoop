@@ -205,6 +205,7 @@ async function mockAdminBootApis(page) {
             target_user_nickname: '일반사용자',
             target_post_id: 11,
             target_post_title: 'Poem Post',
+            source: 'report',
             reason_code: 'other',
             detail: '운영 검토가 필요한 내용입니다.',
             status: 'queued',
@@ -213,7 +214,8 @@ async function mockAdminBootApis(page) {
         ],
         meta: {
           count: 1,
-          source: 'report',
+          source: 'report+block',
+          sources: ['report', 'block'],
         },
       }),
     })
