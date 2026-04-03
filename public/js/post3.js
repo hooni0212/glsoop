@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const likeCountEl = document.getElementById('post3LikeCount');
   const bookmarkBtn = document.getElementById('post3BookmarkBtn');
   const shareBtn = document.getElementById('post3ShareBtn');
+  const safetyBtn = document.getElementById('post3SafetyBtn');
   const legacyLinkEl = document.getElementById('post3LegacyLink');
   const proxyMountEl = document.getElementById('post3ProxyCardMount');
   const relatedHighlightEl = document.getElementById('post3RelatedHighlight');
@@ -200,6 +201,184 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     window.prompt('아래 링크를 복사해 공유하세요.', permalink);
+  }
+
+  function isViewerLikelyLoggedIn() {
+    const afterLoginNav = document.querySelector('.after-login');
+    if (!afterLoginNav) return false;
+    return !afterLoginNav.classList.contains('is-hidden');
+  }
+
+  function ensurePost3SafetyMenuModal() {
+    if (document.getElementById('post3SafetyMenuModal')) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+      <div class="modal fade" id="post3SafetyMenuModal" tabindex="-1" aria-labelledby="post3SafetyMenuLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content post-login-prompt-modal">
+            <div class="modal-header">
+              <div>
+                <p class="post-login-prompt-modal__eyebrow gls-mb-1">MORE</p>
+                <h5 class="modal-title" id="post3SafetyMenuLabel">더보기</h5>
+              </div>
+              <button type="button" class="gls-modal-close" data-gls-dismiss="modal" aria-label="닫기"></button>
+            </div>
+            <div class="modal-body post-login-prompt-modal__body">
+              <p class="gls-mb-3" id="post3SafetyMenuDescription">
+                공유, 게시글 신고, 작성자 차단, 커뮤니티 가이드라인 확인을 할 수 있습니다.
+              </p>
+              <div class="gls-flex gls-flex-col gls-gap-2">
+                <button type="button" class="gls-btn gls-btn-secondary" id="post3SafetyShareBtn">공유하기</button>
+                <button type="button" class="gls-btn gls-btn-secondary" id="post3SafetyReportBtn">게시글 신고</button>
+                <button type="button" class="gls-btn gls-btn-secondary" id="post3SafetyBlockBtn">작성자 차단</button>
+                <button type="button" class="gls-btn gls-btn-ghost" id="post3SafetyGuidelinesBtn">가이드라인 보기</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrapper.firstElementChild);
+
+    const modalEl = document.getElementById('post3SafetyMenuModal');
+    document.getElementById('post3SafetyShareBtn')?.addEventListener('click', () => {
+      if (window.glsModal && modalEl) {
+        window.glsModal.close(modalEl);
+      }
+      shareCurrentPage();
+    });
+    document.getElementById('post3SafetyReportBtn')?.addEventListener('click', async () => {
+      if (window.glsModal && modalEl) {
+        window.glsModal.close(modalEl);
+      }
+      await handlePost3Report();
+    });
+    document.getElementById('post3SafetyBlockBtn')?.addEventListener('click', async () => {
+      if (window.glsModal && modalEl) {
+        window.glsModal.close(modalEl);
+      }
+      await handlePost3BlockAuthor();
+    });
+    document.getElementById('post3SafetyGuidelinesBtn')?.addEventListener('click', async () => {
+      if (window.glsModal && modalEl) {
+        window.glsModal.close(modalEl);
+      }
+      await handlePost3Guidelines();
+    });
+  }
+
+  function openPost3SafetyMenu() {
+    ensurePost3SafetyMenuModal();
+    const descriptionEl = document.getElementById('post3SafetyMenuDescription');
+    const authorName = buildAuthorDisplay(post);
+    if (descriptionEl) {
+      descriptionEl.textContent = `${authorName}의 글을 공유하거나 신고하고 작성자를 차단할 수 있습니다.`;
+    }
+    const modalEl = document.getElementById('post3SafetyMenuModal');
+    if (window.glsModal && modalEl) {
+      window.glsModal.open(modalEl);
+    }
+  }
+
+  function ensurePost3SafetyAccess(actionLabel) {
+    if (isViewerLikelyLoggedIn()) {
+      return true;
+    }
+
+    if (window.glsoopSafety && typeof window.glsoopSafety.openLoginGate === 'function') {
+      window.glsoopSafety.openLoginGate({
+        actionLabel,
+        source: 'post3-safety',
+      });
+    } else if (typeof redirectToLoginWithNext === 'function') {
+      redirectToLoginWithNext({
+        alertMessage: `${actionLabel}은 로그인 후 이용할 수 있습니다.`,
+        source: 'post3-safety',
+      });
+    } else {
+      window.location.href = '/html/login.html';
+    }
+    return false;
+  }
+
+  async function handlePost3Guidelines() {
+    try {
+      if (window.glsoopSafety && typeof window.glsoopSafety.openGuidelines === 'function') {
+        await window.glsoopSafety.openGuidelines();
+        return;
+      }
+      window.open('/html/community-guidelines.html', '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error(error);
+      alert('가이드라인을 열지 못했습니다.');
+    }
+  }
+
+  async function handlePost3Report() {
+    if (!post?.id) return;
+    if (!ensurePost3SafetyAccess('게시글 신고')) return;
+
+    try {
+      const payload = await window.glsoopSafety?.openPrompt?.({
+        targetType: 'post',
+        eyebrow: 'REPORT POST',
+        title: '게시글 신고',
+        description: '문제가 되는 게시글이라면 사유를 선택해 신고해 주세요.',
+        confirmLabel: '신고하기',
+        detailPlaceholder: '문제가 된 표현이나 맥락을 적어주세요.',
+      });
+
+      if (!payload) return;
+
+      await window.glsoopSafety.reportPost(post.id, {
+        reason_code: payload.reasonCode,
+        detail: payload.detail,
+      });
+      alert('게시글 신고가 접수되었습니다.');
+    } catch (error) {
+      console.error(error);
+      if (window.glsoopSafety?.isAuthRequiredError?.(error)) {
+        ensurePost3SafetyAccess('게시글 신고');
+        return;
+      }
+      alert(error.message || '게시글 신고에 실패했습니다.');
+    }
+  }
+
+  async function handlePost3BlockAuthor() {
+    const authorId = post?.author_id || post?.user_id;
+    if (!authorId) return;
+    if (!ensurePost3SafetyAccess('작성자 차단')) return;
+
+    try {
+      const payload = await window.glsoopSafety?.openPrompt?.({
+        targetType: 'user',
+        eyebrow: 'BLOCK USER',
+        title: '작성자 차단',
+        description: `${buildAuthorDisplay(post)}을 차단하면 이 작성자의 글이 내 화면에서 숨겨집니다.`,
+        confirmLabel: '차단하기',
+        defaultReasonCode: 'harassment',
+        detailPlaceholder: '운영팀이 참고할 내용이 있다면 적어주세요.',
+      });
+
+      if (!payload) return;
+
+      await window.glsoopSafety.blockUser(authorId, {
+        reason_code: payload.reasonCode,
+        detail: payload.detail,
+        context_post_id: post?.id || null,
+      });
+      alert('작성자를 차단했습니다. 탐색 화면으로 이동합니다.');
+      window.location.href = '/explore';
+    } catch (error) {
+      console.error(error);
+      if (window.glsoopSafety?.isAuthRequiredError?.(error)) {
+        ensurePost3SafetyAccess('작성자 차단');
+        return;
+      }
+      alert(error.message || '작성자 차단에 실패했습니다.');
+    }
   }
 
   function syncActionState() {
@@ -529,6 +708,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     shareCurrentPage();
+  });
+
+  safetyBtn?.addEventListener('click', () => {
+    trackUxEvent('post3_action_click', { action: 'safety', post_id: Number(postId) || null });
+    openPost3SafetyMenu();
   });
 
   const loaded = await loadPost();

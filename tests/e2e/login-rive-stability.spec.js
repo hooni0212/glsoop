@@ -66,12 +66,46 @@ test.describe('Login Rive stability', () => {
   });
 
   test('starts API request immediately and applies minimum visual delay before success transition', async ({ page }) => {
-    let requestAt = 0;
+    await page.addInitScript(() => {
+      const SUBMIT_KEY = 'glsoop:e2e:login_submit_started_at';
+      const FETCH_KEY = 'glsoop:e2e:login_fetch_started_at';
+
+      if (window.location.pathname.endsWith('/html/login.html')) {
+        window.sessionStorage.removeItem(SUBMIT_KEY);
+        window.sessionStorage.removeItem(FETCH_KEY);
+      }
+
+      document.addEventListener(
+        'submit',
+        (event) => {
+          if (event.target && event.target.id === 'loginForm') {
+            window.sessionStorage.setItem(SUBMIT_KEY, String(Date.now()));
+          }
+        },
+        true
+      );
+
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (...args) => {
+        const [input] = args;
+        const url =
+          typeof input === 'string'
+            ? input
+            : input && typeof input.url === 'string'
+              ? input.url
+              : '';
+
+        if (String(url).includes('/api/login') && !window.sessionStorage.getItem(FETCH_KEY)) {
+          window.sessionStorage.setItem(FETCH_KEY, String(Date.now()));
+        }
+
+        return originalFetch(...args);
+      };
+    });
 
     await mockMe(page, true);
     await mockUxEvents(page);
     await page.route('**/api/login', (route) => {
-      requestAt = Date.now();
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -94,9 +128,14 @@ test.describe('Login Rive stability', () => {
       page.click('#loginForm button[type="submit"]'),
     ]);
     const navigatedAt = Date.now();
+    const timing = await page.evaluate(() => ({
+      submitAt: Number(window.sessionStorage.getItem('glsoop:e2e:login_submit_started_at') || 0),
+      fetchAt: Number(window.sessionStorage.getItem('glsoop:e2e:login_fetch_started_at') || 0),
+    }));
 
-    expect(requestAt).toBeGreaterThan(0);
-    expect(requestAt - clickAt).toBeLessThan(450);
+    expect(timing.submitAt).toBeGreaterThan(0);
+    expect(timing.fetchAt).toBeGreaterThan(0);
+    expect(timing.fetchAt - timing.submitAt).toBeLessThan(150);
     expect(navigatedAt - clickAt).toBeGreaterThanOrEqual(800);
   });
 

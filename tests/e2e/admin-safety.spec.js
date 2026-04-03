@@ -1,5 +1,48 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
+const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
+
+const REPO_ROOT = process.cwd();
+const DB_PATH = process.env.DB_PATH
+  ? path.resolve(REPO_ROOT, process.env.DB_PATH)
+  : path.join(REPO_ROOT, 'tmp', 'e2e_playwright.sqlite');
+
+const dbRun = (db, sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.run(sql, params, function onRun(err) {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(this);
+    });
+  });
+
+const waitForFile = async (filePath, timeoutMs = 10000) => {
+  const startedAt = Date.now();
+  while (!fs.existsSync(filePath)) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error(`Timed out waiting for ${filePath}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+};
+
+async function seedAdminGuardFixtures() {
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  await waitForFile(DB_PATH, 20000);
+
+  const db = new sqlite3.Database(DB_PATH);
+  await dbRun(
+    db,
+    `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [1, 'Admin', '관리자', 'admin@glsoop.test', 'password', 1, 1]
+  );
+  await new Promise((resolve) => db.close(resolve));
+}
 
 async function applyAdminCookie(page, baseURL) {
   const token = jwt.sign(
@@ -155,6 +198,10 @@ async function mockAdminBootApis(page) {
 }
 
 test.describe('Admin dangerous action safety', () => {
+  test.beforeEach(async () => {
+    await seedAdminGuardFixtures();
+  });
+
   test('requires two-step confirmation and prevents duplicate delete requests', async ({ page }, testInfo) => {
     const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
     let deleteCalls = 0;

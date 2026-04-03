@@ -159,6 +159,9 @@ function cacheAuthorDom() {
   dom.overflowMenu = document.getElementById('authorOverflowMenu');
   dom.shareBtn = document.getElementById('authorShareBtn');
   dom.sortBtn = document.getElementById('authorSortBtn');
+  dom.reportBtn = document.getElementById('authorReportBtn');
+  dom.blockBtn = document.getElementById('authorBlockBtn');
+  dom.guidelinesBtn = document.getElementById('authorGuidelinesBtn');
 
   dom.sortModal = document.getElementById('authorSortModal');
   dom.sortOptions = Array.from(document.querySelectorAll('.author-sort-options input[name="authorSort"]'));
@@ -406,6 +409,166 @@ function setupAuthorToolbarActions() {
     });
     dom.sortBtn.dataset.bound = 'true';
   }
+
+  if (dom.reportBtn && !dom.reportBtn.dataset.bound) {
+    dom.reportBtn.addEventListener('click', async () => {
+      trackUxEvent('author_overflow_click', {
+        author_id: state.authorId,
+        action: 'report',
+        source: 'overflow_menu',
+        mobile: isMobileViewport(),
+      });
+      closeAuthorOverflowMenu({ restoreFocus: true });
+      await handleAuthorReport();
+    });
+    dom.reportBtn.dataset.bound = 'true';
+  }
+
+  if (dom.blockBtn && !dom.blockBtn.dataset.bound) {
+    dom.blockBtn.addEventListener('click', async () => {
+      trackUxEvent('author_overflow_click', {
+        author_id: state.authorId,
+        action: 'block',
+        source: 'overflow_menu',
+        mobile: isMobileViewport(),
+      });
+      closeAuthorOverflowMenu({ restoreFocus: true });
+      await handleAuthorBlock();
+    });
+    dom.blockBtn.dataset.bound = 'true';
+  }
+
+  if (dom.guidelinesBtn && !dom.guidelinesBtn.dataset.bound) {
+    dom.guidelinesBtn.addEventListener('click', async () => {
+      trackUxEvent('author_overflow_click', {
+        author_id: state.authorId,
+        action: 'guidelines',
+        source: 'overflow_menu',
+        mobile: isMobileViewport(),
+      });
+      closeAuthorOverflowMenu({ restoreFocus: true });
+      await handleOpenAuthorGuidelines();
+    });
+    dom.guidelinesBtn.dataset.bound = 'true';
+  }
+}
+
+function updateAuthorOverflowSafetyUI() {
+  const shouldHideViewerOnlyActions = !state.authorId || state.followState.isOwnProfile;
+  [dom.reportBtn, dom.blockBtn].forEach((button) => {
+    if (!button) return;
+    button.hidden = shouldHideViewerOnlyActions;
+    button.disabled = shouldHideViewerOnlyActions;
+  });
+}
+
+function ensureAuthorSafetyAccess(actionLabel) {
+  if (!state.authorId) {
+    showUiNotice('작가 정보를 불러온 뒤 다시 시도해주세요.', 'error');
+    return false;
+  }
+
+  if (state.followState.isOwnProfile) {
+    showUiNotice('내 프로필에는 사용할 수 없는 기능입니다.', 'error');
+    return false;
+  }
+
+  if (state.followState.isLoggedIn) {
+    return true;
+  }
+
+  if (window.glsoopSafety && typeof window.glsoopSafety.openLoginGate === 'function') {
+    window.glsoopSafety.openLoginGate({
+      actionLabel,
+      source: 'author-safety',
+    });
+  } else if (typeof redirectToLoginWithNext === 'function') {
+    redirectToLoginWithNext({
+      alertMessage: `${actionLabel}은 로그인 후 이용할 수 있습니다.`,
+      source: 'author-safety',
+    });
+  } else {
+    window.location.href = '/html/login.html';
+  }
+
+  return false;
+}
+
+async function handleOpenAuthorGuidelines() {
+  try {
+    if (window.glsoopSafety && typeof window.glsoopSafety.openGuidelines === 'function') {
+      await window.glsoopSafety.openGuidelines();
+      return;
+    }
+    window.open('/html/community-guidelines.html', '_blank', 'noopener,noreferrer');
+  } catch (error) {
+    console.error(error);
+    showUiNotice('가이드라인을 열지 못했습니다.', 'error');
+  }
+}
+
+async function handleAuthorReport() {
+  if (!ensureAuthorSafetyAccess('작가 신고')) return;
+
+  try {
+    const payload = await window.glsoopSafety?.openPrompt?.({
+      targetType: 'user',
+      eyebrow: 'REPORT USER',
+      title: '작가 신고',
+      description: `${state.nickname || '이 작가'}를 신고하는 이유를 선택해 주세요. 운영팀이 접수 후 검토합니다.`,
+      confirmLabel: '신고하기',
+      detailPlaceholder: '문제가 된 프로필 또는 행동을 적어주세요.',
+    });
+
+    if (!payload) return;
+
+    await window.glsoopSafety.reportUser(state.authorId, {
+      reason_code: payload.reasonCode,
+      detail: payload.detail,
+    });
+    showUiNotice('신고가 접수되었습니다. 운영팀이 확인 후 조치합니다.', 'success', 2200);
+  } catch (error) {
+    console.error(error);
+    if (window.glsoopSafety?.isAuthRequiredError?.(error)) {
+      ensureAuthorSafetyAccess('작가 신고');
+      return;
+    }
+    showUiNotice(error.message || '신고를 접수하지 못했습니다.', 'error');
+  }
+}
+
+async function handleAuthorBlock() {
+  if (!ensureAuthorSafetyAccess('작가 차단')) return;
+
+  try {
+    const payload = await window.glsoopSafety?.openPrompt?.({
+      targetType: 'user',
+      eyebrow: 'BLOCK USER',
+      title: '작가 차단',
+      description: `${state.nickname || '이 작가'}를 차단하면 이 사용자의 글과 프로필이 내 화면에서 숨겨집니다.`,
+      confirmLabel: '차단하기',
+      defaultReasonCode: 'harassment',
+      detailPlaceholder: '운영팀이 참고할 메모가 있다면 남겨주세요.',
+    });
+
+    if (!payload) return;
+
+    await window.glsoopSafety.blockUser(state.authorId, {
+      reason_code: payload.reasonCode,
+      detail: payload.detail,
+    });
+    showUiNotice('작가를 차단했습니다. 탐색 화면으로 이동합니다.', 'success', 1800);
+    window.setTimeout(() => {
+      window.location.href = '/explore';
+    }, 420);
+  } catch (error) {
+    console.error(error);
+    if (window.glsoopSafety?.isAuthRequiredError?.(error)) {
+      ensureAuthorSafetyAccess('작가 차단');
+      return;
+    }
+    showUiNotice(error.message || '차단 처리 중 오류가 발생했습니다.', 'error');
+  }
 }
 
 async function handleAuthorShare() {
@@ -523,6 +686,8 @@ function updateAuthorProfileActionUI() {
   } else {
     dom.profileActionBtn.classList.add('gls-hidden');
   }
+
+  updateAuthorOverflowSafetyUI();
 }
 
 function updateAuthorFollowUI() {

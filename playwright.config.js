@@ -1,3 +1,4 @@
+const path = require('path');
 const { defineConfig, devices } = require('@playwright/test');
 
 const buildRunId = () => {
@@ -9,6 +10,12 @@ const buildRunId = () => {
 };
 
 process.env.GLSOOP_SNAPSHOT_RUN_ID = process.env.GLSOOP_SNAPSHOT_RUN_ID || buildRunId();
+
+const e2eDbRelativePath =
+  process.env.DB_PATH ||
+  path.posix.join('tmp', `e2e_playwright_${process.env.GLSOOP_SNAPSHOT_RUN_ID}.sqlite`);
+
+process.env.DB_PATH = e2eDbRelativePath;
 
 module.exports = defineConfig({
   testDir: './tests',
@@ -34,7 +41,7 @@ module.exports = defineConfig({
     env: {
       PORT: '3100',
       NODE_ENV: 'development',
-      DB_PATH: 'tmp/e2e_playwright.sqlite',
+      DB_PATH: e2eDbRelativePath,
       DB_AUTOINIT: 'false',
       JWT_SECRET: 'devsecret',
       JWT_ISSUER: 'glsoop',

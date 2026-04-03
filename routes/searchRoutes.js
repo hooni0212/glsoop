@@ -1,6 +1,12 @@
 const express = require('express');
 const db = require('../db');
-const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
+const { authOptional } = require('../middleware/auth');
+const {
+  buildPublicDisplayName,
+  normalizePublicPostAuthor,
+} = require('../utils/accountLifecycle');
+const { buildPostExcerpt } = require('../utils/postPreview');
+const { appendViewerBlockedAuthorCondition } = require('../utils/safety');
 
 const router = express.Router();
 
@@ -86,16 +92,27 @@ function escapeLike(value) {
     .replace(/_/g, '\\_');
 }
 
-async function searchPosts(keyword, limit, offset) {
+async function searchPosts(keyword, limit, offset, viewerId = null) {
+  const params = [keyword, keyword, keyword];
+  const conditions = [
+    `(
+      p.title LIKE ? ESCAPE '\\'
+      OR p.content LIKE ? ESCAPE '\\'
+      OR (
+        COALESCE(u.account_status, 'active') = 'active'
+        AND (
+          COALESCE(u.nickname, '') LIKE ? ESCAPE '\\'
+        )
+      )
+    )`,
+  ];
+  appendViewerBlockedAuthorCondition(conditions, params, viewerId, 'p.user_id');
+
   const sql = `
     SELECT
       p.id,
       p.title,
-      CASE
-        WHEN LENGTH(TRIM(REPLACE(REPLACE(COALESCE(p.content, ''), char(10), ' '), char(13), ' '))) > 140
-          THEN SUBSTR(TRIM(REPLACE(REPLACE(COALESCE(p.content, ''), char(10), ' '), char(13), ' ')), 1, 140) || '...'
-        ELSE TRIM(REPLACE(REPLACE(COALESCE(p.content, ''), char(10), ' '), char(13), ' '))
-      END AS excerpt,
+      p.content,
       ${CATEGORY_SQL} AS category,
       p.created_at,
       u.id AS author_id,
@@ -116,30 +133,36 @@ async function searchPosts(keyword, limit, offset) {
       FROM bookmark_items
       GROUP BY post_id
     ) bc ON bc.post_id = p.id
-    WHERE (
-      p.title LIKE ? ESCAPE '\\'
-      OR p.content LIKE ? ESCAPE '\\'
-      OR (
-        COALESCE(u.account_status, 'active') = 'active'
-        AND (
-          u.name LIKE ? ESCAPE '\\'
-          OR COALESCE(u.nickname, '') LIKE ? ESCAPE '\\'
-        )
-      )
-    )
+    WHERE ${conditions.join('\n      AND ')}
     ORDER BY like_count DESC, bookmark_count DESC, p.created_at DESC
     LIMIT ? OFFSET ?
   `;
 
-  return dbAll(sql, [keyword, keyword, keyword, keyword, limit, offset]);
+  return dbAll(sql, [...params, limit, offset]);
 }
 
-async function searchAuthors(keyword, limit, offset) {
+function mapPublicSearchPost(row) {
+  const normalized = normalizePublicPostAuthor({
+    ...row,
+    excerpt: buildPostExcerpt(row?.content, 140),
+  });
+  delete normalized.content;
+  return normalized;
+}
+
+async function searchAuthors(keyword, limit, offset, viewerId = null) {
+  const params = [keyword];
+  const conditions = [
+    `(COALESCE(u.nickname, '') LIKE ? ESCAPE '\\')`,
+    `COALESCE(u.account_status, 'active') = 'active'`,
+  ];
+  appendViewerBlockedAuthorCondition(conditions, params, viewerId, 'u.id');
+
   const sql = `
     SELECT
       u.id,
-      u.name,
       u.nickname,
+      COALESCE(u.account_status, 'active') AS account_status,
       IFNULL(ps.post_count, 0) AS post_count,
       IFNULL(fs.follower_count, 0) AS follower_count,
       ps.latest_post_at
@@ -154,19 +177,34 @@ async function searchAuthors(keyword, limit, offset) {
       FROM follows
       GROUP BY followee_id
     ) fs ON fs.followee_id = u.id
-    WHERE (
-      u.name LIKE ? ESCAPE '\\'
-      OR COALESCE(u.nickname, '') LIKE ? ESCAPE '\\'
-    )
-      AND COALESCE(u.account_status, 'active') = 'active'
+    WHERE ${conditions.join('\n      AND ')}
     ORDER BY post_count DESC, follower_count DESC, ps.latest_post_at DESC, u.id DESC
     LIMIT ? OFFSET ?
   `;
 
-  return dbAll(sql, [keyword, keyword, limit, offset]);
+  return dbAll(sql, [...params, limit, offset]);
 }
 
-router.get('/search', async (req, res) => {
+function mapPublicSearchAuthor(row) {
+  const displayName = buildPublicDisplayName(
+    row?.nickname,
+    row?.account_status
+  );
+
+  return {
+    id: row.id,
+    display_name: displayName,
+    name: displayName,
+    nickname: typeof row?.nickname === 'string' && row.nickname.trim()
+      ? row.nickname.trim()
+      : null,
+    post_count: row.post_count || 0,
+    follower_count: row.follower_count || 0,
+    latest_post_at: row.latest_post_at || null,
+  };
+}
+
+router.get('/search', authOptional, async (req, res) => {
   const parsed = parseSearchQuery(req.query || {});
   if (parsed.error) {
     return sendSearchError(res, 400, 'INVALID_REQUEST', parsed.error);
@@ -174,12 +212,15 @@ router.get('/search', async (req, res) => {
 
   const { q, type, limit, offset } = parsed;
   const keyword = `%${escapeLike(q)}%`;
+  const viewerId = req.user?.id || null;
 
   try {
     const [posts, authors] = await Promise.all([
-      type === 'all' || type === 'posts' ? searchPosts(keyword, limit, offset) : Promise.resolve([]),
+      type === 'all' || type === 'posts'
+        ? searchPosts(keyword, limit, offset, viewerId)
+        : Promise.resolve([]),
       type === 'all' || type === 'authors'
-        ? searchAuthors(keyword, limit, offset)
+        ? searchAuthors(keyword, limit, offset, viewerId)
         : Promise.resolve([]),
     ]);
 
@@ -188,8 +229,8 @@ router.get('/search', async (req, res) => {
       message: '검색 결과를 불러왔습니다.',
       query: q,
       type,
-      posts: posts.map((post) => normalizePublicPostAuthor(post)),
-      authors,
+      posts: posts.map((post) => mapPublicSearchPost(post)),
+      authors: authors.map((author) => mapPublicSearchAuthor(author)),
       meta: {
         posts_count: posts.length,
         authors_count: authors.length,

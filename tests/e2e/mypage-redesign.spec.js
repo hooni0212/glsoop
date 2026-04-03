@@ -258,9 +258,9 @@ test.describe('MyPage redesign', () => {
     });
 
     await page.goto('/html/mypage.html');
-    await expect(page.locator('#userInfo')).toContainText('로그인이 필요합니다');
-    await page.waitForURL(/\/html\/login\.html\?/, { timeout: 5000 });
+    await expect(page).toHaveURL(/\/html\/login\.html\?/, { timeout: 5000 });
     await expect(page).toHaveURL(/from=mypage/);
+    await expect(page.locator('#loginForm')).toBeVisible();
   });
 
   test('supports keyboard tab navigation and section switching', async ({ page }) => {

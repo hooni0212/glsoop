@@ -65,7 +65,7 @@ const seedSearchData = async () => {
       9201,
       9101,
       'Alpha Search Post',
-      'This post is seeded to verify search endpoint behavior for both post and author results.',
+      '<!--FONT:serif--><p>This <strong>post</strong> is seeded &amp; safe.<br>Second line for excerpt.</p>',
       'essay',
     ]
   );
@@ -163,20 +163,31 @@ test.describe('Search API', () => {
       category: expect.any(String),
       created_at: expect.any(String),
       author_id: expect.any(Number),
+      author_display_name: expect.any(String),
       author_name: expect.any(String),
       author_nickname: expect.any(String),
       like_count: expect.any(Number),
       bookmark_count: expect.any(Number),
     });
+    expect(post.author_name).toBe(post.author_display_name);
+    expect(post.author_name).toBe('alpha_writer');
+    expect(post.excerpt).toContain('This post is seeded');
+    expect(post.excerpt).toContain('Second line for excerpt.');
+    expect(post.excerpt).not.toContain('<!--');
+    expect(post.excerpt).not.toContain('<p>');
+    expect(post.excerpt).not.toContain('<br>');
 
     const author = payload.authors.find((item) => item.id === 9101);
     expect(author).toMatchObject({
       id: 9101,
+      display_name: expect.any(String),
       name: expect.any(String),
       nickname: expect.any(String),
       post_count: expect.any(Number),
       follower_count: expect.any(Number),
     });
+    expect(author.name).toBe(author.display_name);
+    expect(author.name).toBe('alpha_writer');
   });
 
   test('respects type filter', async ({ request }) => {
@@ -195,6 +206,43 @@ test.describe('Search API', () => {
     const authorsOnly = await authorsOnlyResponse.json();
     expect(Array.isArray(authorsOnly.authors)).toBe(true);
     expect(authorsOnly.posts).toEqual([]);
+  });
+
+  test('matches authors by nickname only and not by real name', async ({ request }) => {
+    const nicknameResponse = await request.get('/api/search', {
+      params: { q: 'reader_fan', type: 'authors' },
+    });
+    expect(nicknameResponse.status()).toBe(200);
+    const nicknameBody = await nicknameResponse.json();
+    expect(nicknameBody.authors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 9102,
+          display_name: 'reader_fan',
+          name: 'reader_fan',
+        }),
+      ])
+    );
+
+    const realNameResponse = await request.get('/api/search', {
+      params: { q: 'Reader Fan', type: 'authors' },
+    });
+    expect(realNameResponse.status()).toBe(200);
+    const realNameBody = await realNameResponse.json();
+    expect(realNameBody.authors).toEqual([]);
+  });
+
+  test('hides real name and email in public profile payloads', async ({ request }) => {
+    const profileResponse = await request.get('/api/users/9101/profile');
+    expect(profileResponse.status()).toBe(200);
+    const profileBody = await profileResponse.json();
+    expect(profileBody.user).toMatchObject({
+      id: 9101,
+      display_name: 'alpha_writer',
+      name: 'alpha_writer',
+      nickname: 'alpha_writer',
+      email: null,
+    });
   });
 
   test('keeps deactivated author posts searchable as anonymous and hides public profile', async ({ request }) => {
@@ -222,6 +270,7 @@ test.describe('Search API', () => {
     expect(postDetailBody.post).toMatchObject({
       id: 9202,
       author_id: null,
+      author_display_name: '익명',
       author_name: '익명',
       author_nickname: '익명',
       author_email: null,

@@ -5,7 +5,9 @@ const {
   fetchGrowthSummary,
   fetchUserAchievements,
 } = require('../utils/growth-service');
+const { buildPublicDisplayName } = require('../utils/accountLifecycle');
 const { getActiveQuestsForUser } = require('../utils/questService');
+const { buildPostExcerpt } = require('../utils/postPreview');
 const { mapCosmeticItem } = require('../utils/profileCosmetics');
 const { normalizeUtcDateTime } = require('../utils/dateTime');
 const db = require('../db');
@@ -253,13 +255,6 @@ function mapCampaigns(campaigns = [], entitlementKeySet = new Set()) {
   }));
 }
 
-function toExcerpt(content, maxLength = 100) {
-  const normalized = String(content || '').replace(/\s+/g, ' ').trim();
-  if (!normalized) return '';
-  if (normalized.length <= maxLength) return normalized;
-  return `${normalized.slice(0, maxLength - 3)}...`;
-}
-
 function normalizeTopPostCategory(category) {
   const normalized = String(category || '').trim().toLowerCase();
   if (normalized === 'poem' || normalized === 'essay' || normalized === 'short') {
@@ -272,8 +267,15 @@ function mapTopPosts(posts = []) {
   return posts.map((item) => ({
     id: item.id,
     title: item.title,
-    excerpt: toExcerpt(item.content),
-    author_name: item.author_name || '',
+    excerpt: buildPostExcerpt(item.content, 100),
+    author_display_name: buildPublicDisplayName(
+      item.author_nickname,
+      item.author_account_status
+    ),
+    author_name: buildPublicDisplayName(
+      item.author_nickname,
+      item.author_account_status
+    ),
     category: normalizeTopPostCategory(item.category),
     created_at: item.created_at ? normalizeUtcDateTime(item.created_at) : null,
     like_count: Number(item.like_count) || 0,
@@ -295,7 +297,8 @@ async function fetchGrowthTopPosts(limit = 3) {
         p.content,
         p.category,
         p.created_at,
-        u.name AS author_name,
+        u.nickname AS author_nickname,
+        COALESCE(u.account_status, 'active') AS author_account_status,
         IFNULL(lc.like_count, 0) AS like_count,
         IFNULL(bc.bookmark_count, 0) AS bookmark_count
       FROM posts p

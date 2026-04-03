@@ -12,8 +12,20 @@ const {
 } = require('../utils/profileCosmetics');
 const {
   ACCOUNT_STATUS_ACTIVE,
+  buildPublicDisplayName,
   normalizePublicPostAuthor,
 } = require('../utils/accountLifecycle');
+const {
+  appendViewerBlockedAuthorCondition,
+  blockUser,
+  createSafetyReport,
+  getActiveUserSummary,
+  isUserBlockedByViewer,
+  listBlockedUsers,
+  normalizeOptionalDetail,
+  normalizeReasonCode,
+  unblockUser,
+} = require('../utils/safety');
 
 const router = express.Router();
 
@@ -44,6 +56,14 @@ const dbRun = (sql, params = []) =>
 function parseId(value) {
   const num = parseInt(value, 10);
   return Number.isNaN(num) ? null : num;
+}
+
+function parseSafetyRequestBody(body = {}) {
+  return {
+    reasonCode: normalizeReasonCode(body.reason_code),
+    detail: normalizeOptionalDetail(body.detail),
+    contextPostId: parseId(body.context_post_id),
+  };
 }
 
 function parseListPagination(query = {}) {
@@ -105,11 +125,10 @@ async function buildAuthorProfile(authorId) {
     `
     SELECT
       id,
-      name,
       nickname,
-      email,
       bio,
       about,
+      COALESCE(account_status, 'active') AS account_status,
       COALESCE(level, 1) AS level
     FROM users
     WHERE id = ?
@@ -147,6 +166,12 @@ async function buildAuthorProfile(authorId) {
     follower_count: followStats?.follower_count || 0,
     following_count: followStats?.following_count || 0,
   };
+}
+
+function normalizeOptionalNickname(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed || null;
 }
 
 async function fetchExpandedProfileCosmetics(userId) {
@@ -229,6 +254,12 @@ router.get('/users/:id/profile', authOptional, async (req, res) => {
   const viewerId = req.user?.id || null;
 
   try {
+    if (viewerId && (await isUserBlockedByViewer(viewerId, authorId))) {
+      return res
+        .status(404)
+        .json({ ok: false, message: '해당 작가를 찾을 수 없습니다.' });
+    }
+
     const profile = await buildAuthorProfile(authorId);
     if (!profile) {
       return res
@@ -249,9 +280,16 @@ router.get('/users/:id/profile', authOptional, async (req, res) => {
       message: '작가 프로필을 불러왔습니다.',
       user: {
         id: profile.user.id,
-        name: profile.user.name,
-        nickname: profile.user.nickname,
-        email: profile.user.email,
+        display_name: buildPublicDisplayName(
+          profile.user.nickname,
+          profile.user.account_status
+        ),
+        name: buildPublicDisplayName(
+          profile.user.nickname,
+          profile.user.account_status
+        ),
+        nickname: normalizeOptionalNickname(profile.user.nickname),
+        email: null,
         bio: profile.user.bio || null,
         about: profile.user.about || null,
         level: profile.user.level || 1,
@@ -308,6 +346,123 @@ router.post('/users/:id/follow', authRequired, async (req, res) => {
   }
 });
 
+router.post('/users/:id/report', authRequired, async (req, res) => {
+  const targetUserId = parseId(req.params.id);
+  const reporterId = req.user.id;
+
+  if (!validateFollowTarget(targetUserId, reporterId, res)) return;
+
+  try {
+    const targetUser = await getActiveUserSummary(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ ok: false, message: '해당 사용자를 찾을 수 없습니다.' });
+    }
+
+    const payload = parseSafetyRequestBody(req.body);
+    const report = await createSafetyReport({
+      reporterId,
+      targetType: 'user',
+      targetUserId,
+      targetPostId: payload.contextPostId,
+      reasonCode: payload.reasonCode,
+      detail: payload.detail,
+    });
+
+    return res.json({
+      ok: true,
+      message: '신고가 접수되었어요. 운영팀이 확인 후 조치할게요.',
+      report_id: report?.id || null,
+      status: report?.status || 'queued',
+    });
+  } catch (error) {
+    console.error('[users/report] failed:', error);
+    return res.status(500).json({
+      ok: false,
+      message: '신고를 접수하지 못했어요. 잠시 후 다시 시도해주세요.',
+    });
+  }
+});
+
+router.post('/users/:id/block', authRequired, async (req, res) => {
+  const targetUserId = parseId(req.params.id);
+  const blockerId = req.user.id;
+
+  if (!validateFollowTarget(targetUserId, blockerId, res)) return;
+
+  try {
+    const targetUser = await getActiveUserSummary(targetUserId);
+    if (!targetUser) {
+      return res.status(404).json({ ok: false, message: '해당 사용자를 찾을 수 없습니다.' });
+    }
+
+    const payload = parseSafetyRequestBody(req.body);
+    const result = await blockUser({
+      blockerId,
+      blockedUserId: targetUserId,
+      reasonCode: payload.reasonCode || 'harassment',
+      detail: payload.detail,
+      contextPostId: payload.contextPostId,
+    });
+
+    return res.json({
+      ok: true,
+      message: '사용자를 차단했어요. 이제 이 사용자의 글이 내 화면에서 숨겨져요.',
+      blocked_user_id: targetUserId,
+      hidden_post_count: result.hidden_post_count,
+      report_id: result.report?.id || null,
+      already_blocked: !result.created,
+    });
+  } catch (error) {
+    console.error('[users/block] failed:', error);
+    return res.status(500).json({
+      ok: false,
+      message: '차단 처리에 실패했어요. 잠시 후 다시 시도해주세요.',
+    });
+  }
+});
+
+router.delete('/users/:id/block', authRequired, async (req, res) => {
+  const targetUserId = parseId(req.params.id);
+  const blockerId = req.user.id;
+
+  if (!validateFollowTarget(targetUserId, blockerId, res)) return;
+
+  try {
+    const result = await unblockUser({ blockerId, blockedUserId: targetUserId });
+    return res.json({
+      ok: true,
+      message: result.removed
+        ? '사용자 차단을 해제했어요.'
+        : '이미 차단이 해제된 상태예요.',
+      blocked_user_id: targetUserId,
+      removed: result.removed,
+    });
+  } catch (error) {
+    console.error('[users/unblock] failed:', error);
+    return res.status(500).json({
+      ok: false,
+      message: '차단 해제에 실패했어요. 잠시 후 다시 시도해주세요.',
+    });
+  }
+});
+
+router.get('/me/blocks', authRequired, async (req, res) => {
+  try {
+    const blocks = await listBlockedUsers(req.user.id);
+    return res.json({
+      ok: true,
+      message: '차단 목록을 불러왔습니다.',
+      blocks,
+    });
+  } catch (error) {
+    console.error('[me/blocks] failed:', error);
+    return res.status(500).json({
+      ok: false,
+      message: '차단 목록을 불러오지 못했습니다.',
+    });
+  }
+});
+
 // 8-2) 특정 작가의 글 목록 (무한스크롤용)
 router.get('/users/:id/posts', authOptional, async (req, res) => {
   const authorId = parseId(req.params.id);
@@ -344,9 +499,8 @@ router.get('/users/:id/posts', authOptional, async (req, res) => {
       p.created_at,
       (CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END) AS category,
       p.user_id AS author_id,
-      u.name    AS author_name,
       u.nickname AS author_nickname,
-      u.email   AS author_email,
+      COALESCE(u.account_status, 'active') AS author_account_status,
       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
   `;
@@ -356,10 +510,6 @@ router.get('/users/:id/posts', authOptional, async (req, res) => {
     LEFT JOIN post_hashtags ph ON ph.post_id = p.id
     LEFT JOIN hashtags h ON h.id = ph.hashtag_id
     JOIN users u ON p.user_id = u.id
-  `;
-
-  const baseWhere = `
-    WHERE p.user_id = ?
   `;
 
   const baseGroupOrder = `
@@ -372,6 +522,9 @@ router.get('/users/:id/posts', authOptional, async (req, res) => {
   let params = [];
 
   if (userId) {
+    const conditions = ['p.user_id = ?'];
+    const viewerScopedParams = [];
+    appendViewerBlockedAuthorCondition(conditions, viewerScopedParams, userId, 'p.user_id');
     sql = `
       ${baseSelect},
       CASE
@@ -382,22 +535,29 @@ router.get('/users/:id/posts', authOptional, async (req, res) => {
         ELSE 0
       END AS user_liked
       ${baseFromJoin}
-      ${baseWhere}
+      WHERE ${conditions.join(' AND ')}
       ${baseGroupOrder}
     `;
-    params = [userId, authorId, limit, offset];
+    params = [userId, authorId, ...viewerScopedParams, limit, offset];
   } else {
     sql = `
       ${baseSelect},
       0 AS user_liked
       ${baseFromJoin}
-      ${baseWhere}
+      WHERE p.user_id = ?
       ${baseGroupOrder}
     `;
     params = [authorId, limit, offset];
   }
 
   try {
+    if (userId && (await isUserBlockedByViewer(userId, authorId))) {
+      return res.status(404).json({
+        ok: false,
+        message: '해당 작가를 찾을 수 없습니다.',
+      });
+    }
+
     const author = await dbGet(
       'SELECT id FROM users WHERE id = ? AND COALESCE(account_status, ?) = ? LIMIT 1',
       [authorId, ACCOUNT_STATUS_ACTIVE, ACCOUNT_STATUS_ACTIVE]
