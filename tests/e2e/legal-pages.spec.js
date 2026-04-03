@@ -10,6 +10,7 @@ test.describe('Legal pages', () => {
       { path: '/html/terms.html', heading: '글숲 이용약관' },
       { path: '/html/privacy.html', heading: '개인정보 처리방침' },
       { path: '/html/community-guidelines.html', heading: '글숲 커뮤니티 가이드라인' },
+      { path: '/support', heading: '글숲 지원 안내', includes: 'glsoop1752@gmail.com' },
     ];
 
     for (const pageInfo of pages) {
@@ -17,6 +18,9 @@ test.describe('Legal pages', () => {
       expect(response.status(), pageInfo.path).toBe(200);
       const html = await response.text();
       expect(html).toContain(pageInfo.heading);
+      if (pageInfo.includes) {
+        expect(html).toContain(pageInfo.includes);
+      }
     }
   });
 

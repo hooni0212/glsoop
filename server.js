@@ -123,6 +123,10 @@ app.get(['/explore', '/explore/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'explore.html'));
 });
 
+app.get(['/support', '/support/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'html', 'support.html'));
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
