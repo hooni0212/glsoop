@@ -32,6 +32,13 @@ Glsoop.AdminPage = (function () {
     initialized: false,
   };
 
+  const safetyState = {
+    status: 'all',
+    limit: 100,
+    summaryLimit: 50,
+    initialized: false,
+  };
+
   const THEME_LABELS = {
     default: '기본',
     spring: '봄',
@@ -76,10 +83,20 @@ Glsoop.AdminPage = (function () {
     const usersBox = document.getElementById('adminUsers');
     const postsBox = document.getElementById('adminPosts');
     const shareSummaryBox = document.getElementById('adminShareSummary');
+    const safetyReportsBox = document.getElementById('adminSafetyReports');
+    const reportedPostsBox = document.getElementById('adminReportedPosts');
 
-    if (!statusBox || !contentBox || !usersBox || !postsBox || !shareSummaryBox) {
+    if (
+      !statusBox ||
+      !contentBox ||
+      !usersBox ||
+      !postsBox ||
+      !shareSummaryBox ||
+      !safetyReportsBox ||
+      !reportedPostsBox
+    ) {
       console.error(
-        'adminStatus / adminContent / adminUsers / adminPosts / adminShareSummary 요소를 찾을 수 없습니다.'
+        'adminStatus / adminContent / adminUsers / adminPosts / adminShareSummary / adminSafetyReports / adminReportedPosts 요소를 찾을 수 없습니다.'
       );
       return;
     }
@@ -97,7 +114,7 @@ Glsoop.AdminPage = (function () {
         <strong>${escapeHtml(me.name)}</strong> 님, 관리자 권한으로 접속했습니다.
       </p>
       <p class="gls-text-muted gls-mb-0">
-        회원과 게시글, 퀘스트를 이 페이지에서 관리할 수 있습니다.
+        회원, 글, 신고, 퀘스트를 이 페이지에서 관리할 수 있습니다.
       </p>
     `;
     contentBox.classList.remove('is-hidden');
@@ -105,6 +122,8 @@ Glsoop.AdminPage = (function () {
     await loadUsers(usersBox);
     setupPostsUi(postsBox);
     await loadPosts(postsBox);
+    setupSafetyUi(safetyReportsBox, reportedPostsBox);
+    await loadSafetyDashboard(safetyReportsBox, reportedPostsBox);
     await loadQuestTemplates();
     await loadQuestCampaigns();
     setupAchievementBackfillButton();
@@ -318,6 +337,21 @@ Glsoop.AdminPage = (function () {
     return response.json().catch(() => ({}));
   }
 
+  function formatAdminDateTime(value) {
+    if (!value) return '-';
+    if (typeof window.formatKoreanDateTime === 'function') {
+      return window.formatKoreanDateTime(value) || '-';
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString('ko-KR');
+  }
+
+  function resolveSafetyDisplayName(displayName, nickname, fallback = '-') {
+    if (typeof displayName === 'string' && displayName.trim()) return displayName.trim();
+    if (typeof nickname === 'string' && nickname.trim()) return nickname.trim();
+    return fallback;
+  }
+
   function setupDangerConfirmModal() {
     if (dangerModalState.bound) return;
 
@@ -493,6 +527,305 @@ Glsoop.AdminPage = (function () {
   }
 
 
+
+  function setupSafetyUi(safetyReportsBox, reportedPostsBox) {
+    const filterBox = document.getElementById('adminSafetyFilters');
+    if (!safetyReportsBox || !reportedPostsBox || !filterBox || safetyState.initialized) return;
+
+    safetyState.initialized = true;
+    renderSafetyFilters(filterBox);
+
+    filterBox.addEventListener('click', (event) => {
+      if (event.target.id !== 'adminSafetyApply') return;
+      event.preventDefault();
+      applySafetyFilters(filterBox);
+      loadSafetyDashboard(safetyReportsBox, reportedPostsBox);
+    });
+
+    filterBox.addEventListener('submit', (event) => {
+      if (event.target.id !== 'adminSafetyForm') return;
+      event.preventDefault();
+      applySafetyFilters(filterBox);
+      loadSafetyDashboard(safetyReportsBox, reportedPostsBox);
+    });
+  }
+
+  function renderSafetyFilters(filterBox) {
+    filterBox.innerHTML = [
+      '<form id="adminSafetyForm" class="admin-toolbar admin-share-toolbar admin-safety-toolbar">',
+      '  <label>상태<select class="gls-select gls-select-sm" id="adminSafetyStatus">' +
+        buildSafetyStatusOptions(safetyState.status) +
+        '</select></label>',
+      '  <label>신고 수<input type="number" class="gls-input gls-input-sm" id="adminSafetyLimit" min="1" max="100" value="' +
+        String(safetyState.limit) +
+        '"></label>',
+      '  <label>요약 수<input type="number" class="gls-input gls-input-sm" id="adminSafetySummaryLimit" min="1" max="100" value="' +
+        String(safetyState.summaryLimit) +
+        '"></label>',
+      '  <div class="admin-share-toolbar__actions">',
+      '    <button class="gls-btn gls-btn-primary gls-btn-sm" type="submit" id="adminSafetyApply">적용</button>',
+      '  </div>',
+      '</form>',
+    ].join('');
+  }
+
+  function buildSafetyStatusOptions(selected) {
+    const options = [
+      { value: 'all', label: '전체' },
+      { value: 'queued', label: '접수' },
+      { value: 'reviewing', label: '검토 중' },
+      { value: 'actioned', label: '조치 완료' },
+      { value: 'dismissed', label: '기각' },
+    ];
+
+    return options
+      .map((option) => {
+        const selectedAttr = option.value === selected ? ' selected' : '';
+        return '<option value="' + option.value + '"' + selectedAttr + '>' + option.label + '</option>';
+      })
+      .join('');
+  }
+
+  function applySafetyFilters(filterBox) {
+    const statusInput = filterBox.querySelector('#adminSafetyStatus');
+    const limitInput = filterBox.querySelector('#adminSafetyLimit');
+    const summaryLimitInput = filterBox.querySelector('#adminSafetySummaryLimit');
+
+    const nextStatus = String(statusInput?.value || 'all').trim().toLowerCase();
+    safetyState.status = ['all', 'queued', 'reviewing', 'actioned', 'dismissed'].includes(nextStatus)
+      ? nextStatus
+      : 'all';
+    safetyState.limit = clampShareLimit(limitInput?.value, 1, 100, 100);
+    safetyState.summaryLimit = clampShareLimit(summaryLimitInput?.value, 1, 100, 50);
+  }
+
+  async function loadSafetyDashboard(safetyReportsBox, reportedPostsBox) {
+    await Promise.all([
+      loadSafetyReports(safetyReportsBox),
+      loadReportedPosts(reportedPostsBox),
+    ]);
+  }
+
+  async function loadSafetyReports(safetyReportsBox) {
+    safetyReportsBox.innerHTML = '<p class="gls-text-muted">신고 목록을 불러오는 중입니다...</p>';
+
+    try {
+      const params = new URLSearchParams();
+      params.set('limit', String(safetyState.limit));
+      if (safetyState.status !== 'all') {
+        params.set('status', safetyState.status);
+      }
+
+      const response = await fetch('/api/admin/safety/reports?' + params.toString(), {
+        cache: 'no-store',
+      });
+      const payload = await parseJsonSafe(response);
+
+      if (response.status === 401) {
+        alert('로그인이 필요한 페이지입니다.');
+        window.location.href = '/html/login.html?next=/admin';
+        return;
+      }
+
+      if (response.status === 403) {
+        alert('관리자 권한이 필요합니다.');
+        window.location.href = '/index.html';
+        return;
+      }
+
+      if (!response.ok || !payload.ok) {
+        setTabCount('safetyTab', '-');
+        const message =
+          typeof payload?.message === 'string'
+            ? payload.message
+            : '신고 목록을 불러오지 못했습니다.';
+        safetyReportsBox.innerHTML = '<p class="text-danger">' + escapeHtml(message) + '</p>';
+        return;
+      }
+
+      const reports = Array.isArray(payload.reports) ? payload.reports : [];
+      setTabCount('safetyTab', reports.length);
+      safetyReportsBox.innerHTML = renderSafetyReportsHtml(reports);
+    } catch (error) {
+      console.error('safety reports 로드 실패:', error);
+      setTabCount('safetyTab', '-');
+      safetyReportsBox.innerHTML =
+        '<p class="text-danger">신고 목록을 불러오는 중 오류가 발생했습니다.</p>';
+    }
+  }
+
+  async function loadReportedPosts(reportedPostsBox) {
+    reportedPostsBox.innerHTML = '<p class="gls-text-muted">누적 신고 글을 불러오는 중입니다...</p>';
+
+    try {
+      const params = new URLSearchParams({
+        limit: String(safetyState.summaryLimit),
+        threshold: '5',
+      });
+      const response = await fetch('/api/admin/safety/reported-posts?' + params.toString(), {
+        cache: 'no-store',
+      });
+      const payload = await parseJsonSafe(response);
+
+      if (response.status === 401) {
+        alert('로그인이 필요한 페이지입니다.');
+        window.location.href = '/html/login.html?next=/admin';
+        return;
+      }
+
+      if (response.status === 403) {
+        alert('관리자 권한이 필요합니다.');
+        window.location.href = '/index.html';
+        return;
+      }
+
+      if (!response.ok || !payload.ok) {
+        const message =
+          typeof payload?.message === 'string'
+            ? payload.message
+            : '누적 신고 글을 불러오지 못했습니다.';
+        reportedPostsBox.innerHTML = '<p class="text-danger">' + escapeHtml(message) + '</p>';
+        return;
+      }
+
+      const posts = Array.isArray(payload.posts) ? payload.posts : [];
+      reportedPostsBox.innerHTML = renderReportedPostsHtml(posts);
+    } catch (error) {
+      console.error('reported posts 로드 실패:', error);
+      reportedPostsBox.innerHTML =
+        '<p class="text-danger">누적 신고 글을 불러오는 중 오류가 발생했습니다.</p>';
+    }
+  }
+
+  function renderSafetyReportsHtml(reports) {
+    if (!reports.length) {
+      return '<p class="gls-text-muted gls-mb-0">조건에 맞는 신고가 없습니다.</p>';
+    }
+
+    function formatSafetySource(source) {
+      if (String(source || '').trim().toLowerCase() === 'block') {
+        return '차단 자동 접수';
+      }
+      return '사용자 신고';
+    }
+
+    const rowsHtml = reports
+      .map((report) => {
+        const reporter = resolveSafetyDisplayName(
+          report.reporter_display_name,
+          report.reporter_nickname,
+          report.reporter_id ? `회원 #${report.reporter_id}` : '-'
+        );
+        const targetUser = resolveSafetyDisplayName(
+          report.target_user_display_name,
+          report.target_user_nickname,
+          report.target_user_id ? `회원 #${report.target_user_id}` : '-'
+        );
+        const targetPost = report.target_post_title
+          ? `${report.target_post_title} (#${report.target_post_id || '-'})`
+          : report.target_post_id
+            ? `글 #${report.target_post_id}`
+            : '-';
+        const detail = report.detail && String(report.detail).trim()
+          ? escapeHtml(report.detail)
+          : '<span class="gls-text-muted">-</span>';
+
+        return [
+          '<tr>',
+          '<td>' + escapeHtml(reporter) + '</td>',
+          '<td>' + escapeHtml(targetUser) + '</td>',
+          '<td>' + escapeHtml(targetPost) + '</td>',
+          '<td><span class="admin-safety-pill">' + escapeHtml(formatSafetySource(report.source)) + '</span></td>',
+          '<td><span class="admin-safety-pill">' + escapeHtml(report.reason_code || '-') + '</span></td>',
+          '<td>' + detail + '</td>',
+          '<td>' + escapeHtml(formatAdminDateTime(report.created_at)) + '</td>',
+          '<td>' + buildSafetyStatusBadge(report.status) + '</td>',
+          '</tr>',
+        ].join('');
+      })
+      .join('');
+
+    return [
+      '<div class="table-responsive">',
+      '  <table class="table table-sm align-middle admin-safety-table">',
+      '    <thead>',
+      '      <tr>',
+      '        <th>신고자</th>',
+      '        <th>대상 사용자</th>',
+      '        <th>대상 글</th>',
+      '        <th>접수 경로</th>',
+      '        <th>사유</th>',
+      '        <th>상세</th>',
+      '        <th>접수 시각</th>',
+      '        <th>상태</th>',
+      '      </tr>',
+      '    </thead>',
+      '    <tbody>',
+      rowsHtml,
+      '    </tbody>',
+      '  </table>',
+      '</div>',
+    ].join('');
+  }
+
+  function renderReportedPostsHtml(posts) {
+    if (!posts.length) {
+      return '<p class="gls-text-muted gls-mb-0">누적 신고 5건 이상인 글이 없습니다.</p>';
+    }
+
+    const rowsHtml = posts
+      .map((post) => {
+        const author = resolveSafetyDisplayName(
+          post.target_user_display_name,
+          post.target_user_nickname,
+          post.target_user_id ? `회원 #${post.target_user_id}` : '-'
+        );
+
+        return [
+          '<tr>',
+          '<td>' + escapeHtml(post.target_post_title || `글 #${post.target_post_id || '-'}`) + '</td>',
+          '<td>' + escapeHtml(author) + '</td>',
+          '<td class="gls-text-end">' + formatCount(post.report_count) + '</td>',
+          '<td class="gls-text-end">' + formatCount(post.unique_reporter_count) + '</td>',
+          '<td>' + escapeHtml(formatAdminDateTime(post.latest_reported_at)) + '</td>',
+          '</tr>',
+        ].join('');
+      })
+      .join('');
+
+    return [
+      '<div class="table-responsive">',
+      '  <table class="table table-sm align-middle admin-safety-summary-table">',
+      '    <thead>',
+      '      <tr>',
+      '        <th>글 제목</th>',
+      '        <th>작성자</th>',
+      '        <th class="gls-text-end">report_count</th>',
+      '        <th class="gls-text-end">unique_reporter_count</th>',
+      '        <th>latest_reported_at</th>',
+      '      </tr>',
+      '    </thead>',
+      '    <tbody>',
+      rowsHtml,
+      '    </tbody>',
+      '  </table>',
+      '</div>',
+    ].join('');
+  }
+
+  function buildSafetyStatusBadge(status) {
+    const normalized = String(status || '').trim().toLowerCase() || 'queued';
+    const labelMap = {
+      queued: '접수',
+      reviewing: '검토 중',
+      actioned: '조치 완료',
+      dismissed: '기각',
+    };
+    const safeStatus = labelMap[normalized] ? normalized : 'queued';
+    return '<span class="admin-safety-status admin-safety-status--' + safeStatus + '">' +
+      escapeHtml(labelMap[safeStatus]) +
+      '</span>';
+  }
 
   function setupShareSummaryUi(shareSummaryBox) {
     const filterBox = document.getElementById('adminShareSummaryFilters');

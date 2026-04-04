@@ -1,4 +1,5 @@
 const db = require('../db');
+const { normalizeDateFields } = require('./dateTime');
 
 const ACCOUNT_STATUS_ACTIVE = 'active';
 const ACCOUNT_STATUS_DEACTIVATED = 'deactivated';
@@ -57,24 +58,60 @@ function isWithinDeactivationGracePeriod(row, nowMs = Date.now()) {
   return Boolean(purgeAtMs && purgeAtMs > nowMs);
 }
 
-function normalizePublicPostAuthor(row) {
-  if (!row || !isDeactivatedAccount(row.author_account_status)) {
-    if (!row || !Object.prototype.hasOwnProperty.call(row, 'author_account_status')) {
-      return row;
-    }
-    const nextRow = { ...row };
-    delete nextRow.author_account_status;
-    return nextRow;
+function normalizeTrimmedText(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+}
+
+function buildPublicDisplayName(nickname, accountStatus = ACCOUNT_STATUS_ACTIVE) {
+  if (isDeactivatedAccount(accountStatus)) {
+    return ANONYMOUS_AUTHOR_NAME;
   }
 
+  const normalizedNickname = normalizeTrimmedText(nickname);
+  return normalizedNickname || ANONYMOUS_AUTHOR_NAME;
+}
+
+function normalizePublicPostAuthor(row) {
+  const normalizedRow = normalizeDateFields(row, ['created_at']);
+  if (!normalizedRow) {
+    return normalizedRow;
+  }
+
+  const hasAuthorAccountStatus = Object.prototype.hasOwnProperty.call(
+    normalizedRow,
+    'author_account_status'
+  );
+  const displayName = hasAuthorAccountStatus
+    ? buildPublicDisplayName(
+        normalizedRow.author_nickname,
+        normalizedRow.author_account_status
+      )
+    : normalizeTrimmedText(normalizedRow.author_nickname) ||
+      normalizeTrimmedText(normalizedRow.author_name) ||
+      ANONYMOUS_AUTHOR_NAME;
+  const normalizedNickname = hasAuthorAccountStatus
+    ? displayName === ANONYMOUS_AUTHOR_NAME
+      ? ANONYMOUS_AUTHOR_NAME
+      : normalizeTrimmedText(normalizedRow.author_nickname) || ANONYMOUS_AUTHOR_NAME
+    : normalizeTrimmedText(normalizedRow.author_nickname) || null;
+
   const nextRow = {
-    ...row,
-    author_id: null,
-    author_name: ANONYMOUS_AUTHOR_NAME,
-    author_nickname: ANONYMOUS_AUTHOR_NAME,
+    ...normalizedRow,
+    author_display_name: displayName,
+    author_name: displayName,
+    author_nickname: normalizedNickname,
     author_email: null,
   };
-  delete nextRow.author_account_status;
+
+  if (hasAuthorAccountStatus && isDeactivatedAccount(normalizedRow.author_account_status)) {
+    nextRow.author_id = null;
+  }
+
+  if (hasAuthorAccountStatus) {
+    delete nextRow.author_account_status;
+  }
+
   return nextRow;
 }
 
@@ -234,6 +271,7 @@ module.exports = {
   normalizeAccountStatus,
   isDeactivatedAccount,
   isWithinDeactivationGracePeriod,
+  buildPublicDisplayName,
   normalizePublicPostAuthor,
   purgeUserAccount,
   deactivateUserAccount,

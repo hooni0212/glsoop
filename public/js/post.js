@@ -520,6 +520,234 @@ function openPostShareModal(post, card) {
   }
 }
 
+function isViewerLikelyLoggedIn() {
+  const afterLoginNav = document.querySelector('.after-login');
+  if (!afterLoginNav) return false;
+  return !afterLoginNav.classList.contains('is-hidden');
+}
+
+function ensurePostSafetyMenuModal() {
+  if (document.getElementById('postSafetyMenuModal')) return;
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div class="modal fade" id="postSafetyMenuModal" tabindex="-1" aria-labelledby="postSafetyMenuLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content post-login-prompt-modal">
+          <div class="modal-header">
+            <div>
+              <p class="post-login-prompt-modal__eyebrow gls-mb-1">MORE</p>
+              <h5 class="modal-title" id="postSafetyMenuLabel">더보기</h5>
+            </div>
+            <button type="button" class="gls-modal-close" data-gls-dismiss="modal" aria-label="닫기"></button>
+          </div>
+          <div class="modal-body post-login-prompt-modal__body">
+            <p class="gls-mb-3" id="postSafetyMenuDescription">
+              공유, 게시글 신고, 작성자 차단, 커뮤니티 가이드라인 확인을 할 수 있습니다.
+            </p>
+            <div class="gls-flex gls-flex-col gls-gap-2">
+              <button type="button" class="gls-btn gls-btn-secondary" id="postSafetyShareBtn">공유하기</button>
+              <button type="button" class="gls-btn gls-btn-secondary" id="postSafetyReportBtn">게시글 신고</button>
+              <button type="button" class="gls-btn gls-btn-secondary" id="postSafetyBlockBtn">작성자 차단</button>
+              <button type="button" class="gls-btn gls-btn-ghost" id="postSafetyGuidelinesBtn">가이드라인 보기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrapper.firstElementChild);
+
+  const modalEl = document.getElementById('postSafetyMenuModal');
+  const shareBtn = document.getElementById('postSafetyShareBtn');
+  const reportBtn = document.getElementById('postSafetyReportBtn');
+  const blockBtn = document.getElementById('postSafetyBlockBtn');
+  const guidelinesBtn = document.getElementById('postSafetyGuidelinesBtn');
+
+  shareBtn?.addEventListener('click', () => {
+    if (window.glsModal && modalEl) {
+      window.glsModal.close(modalEl);
+    }
+    const state = window.__glsoopPostSafetyState || {};
+    if (state.post && state.card) {
+      openPostShareModal(state.post, state.card);
+    }
+  });
+
+  reportBtn?.addEventListener('click', async () => {
+    if (window.glsModal && modalEl) {
+      window.glsModal.close(modalEl);
+    }
+    await handlePostReport(window.__glsoopPostSafetyState?.post);
+  });
+
+  blockBtn?.addEventListener('click', async () => {
+    if (window.glsModal && modalEl) {
+      window.glsModal.close(modalEl);
+    }
+    await handlePostBlockAuthor(window.__glsoopPostSafetyState?.post);
+  });
+
+  guidelinesBtn?.addEventListener('click', async () => {
+    if (window.glsModal && modalEl) {
+      window.glsModal.close(modalEl);
+    }
+    await handleOpenPostGuidelines();
+  });
+}
+
+function openPostSafetyMenu(post, card) {
+  ensurePostSafetyMenuModal();
+  const modalEl = document.getElementById('postSafetyMenuModal');
+  const descriptionEl = document.getElementById('postSafetyMenuDescription');
+  const authorName = String(post?.author_nickname || post?.author_name || '이 글 작성자').trim() || '이 글 작성자';
+
+  window.__glsoopPostSafetyState = { post, card };
+  if (descriptionEl) {
+    descriptionEl.textContent = `${authorName}의 글을 공유하거나 신고하고 작성자를 차단할 수 있습니다.`;
+  }
+
+  if (window.glsModal && modalEl) {
+    window.glsModal.open(modalEl);
+  }
+}
+
+function ensurePostSafetyAccess(actionLabel) {
+  if (isViewerLikelyLoggedIn()) {
+    return true;
+  }
+
+  if (window.glsoopSafety && typeof window.glsoopSafety.openLoginGate === 'function') {
+    window.glsoopSafety.openLoginGate({
+      actionLabel,
+      source: 'post-safety',
+    });
+  } else if (typeof redirectToLoginWithNext === 'function') {
+    redirectToLoginWithNext({
+      alertMessage: `${actionLabel}은 로그인 후 이용할 수 있습니다.`,
+      source: 'post-safety',
+    });
+  } else {
+    window.location.href = '/html/login.html';
+  }
+
+  return false;
+}
+
+async function handleOpenPostGuidelines() {
+  try {
+    if (window.glsoopSafety && typeof window.glsoopSafety.openGuidelines === 'function') {
+      await window.glsoopSafety.openGuidelines();
+      return;
+    }
+    window.open('/html/community-guidelines.html', '_blank', 'noopener,noreferrer');
+  } catch (error) {
+    console.error(error);
+    if (window.glsoopUi?.showPageNotice) {
+      window.glsoopUi.showPageNotice('가이드라인을 열지 못했습니다.', { type: 'error', autoHideMs: 2200 });
+      return;
+    }
+    alert('가이드라인을 열지 못했습니다.');
+  }
+}
+
+async function handlePostReport(post) {
+  if (!post?.id) return;
+  if (!ensurePostSafetyAccess('게시글 신고')) return;
+
+  try {
+    const payload = await window.glsoopSafety?.openPrompt?.({
+      targetType: 'post',
+      eyebrow: 'REPORT POST',
+      title: '게시글 신고',
+      description: '문제가 되는 게시글이라면 사유를 선택해 신고해 주세요. 운영 검토 큐에 접수됩니다.',
+      confirmLabel: '신고하기',
+      detailPlaceholder: '기타 사유를 200자 이내로 적어주세요.',
+    });
+
+    if (!payload) return;
+
+    await window.glsoopSafety.reportPost(post.id, {
+      reason_code: payload.reasonCode,
+      detail: payload.detail,
+    });
+
+    if (window.glsoopUi?.showPageNotice) {
+      window.glsoopUi.showPageNotice('게시글 신고가 운영 검토 큐에 접수되었습니다.', {
+        type: 'success',
+        autoHideMs: 2200,
+      });
+      return;
+    }
+    alert('게시글 신고가 접수되었습니다.');
+  } catch (error) {
+    console.error(error);
+    if (window.glsoopSafety?.isAuthRequiredError?.(error)) {
+      ensurePostSafetyAccess('게시글 신고');
+      return;
+    }
+    if (window.glsoopUi?.showPageNotice) {
+      window.glsoopUi.showPageNotice(error.message || '게시글 신고에 실패했습니다.', {
+        type: 'error',
+        autoHideMs: 2400,
+      });
+      return;
+    }
+    alert(error.message || '게시글 신고에 실패했습니다.');
+  }
+}
+
+async function handlePostBlockAuthor(post) {
+  const authorId = post?.author_id || post?.user_id;
+  const authorName = String(post?.author_nickname || post?.author_name || '이 작성자').trim() || '이 작성자';
+  if (!authorId) return;
+  if (!ensurePostSafetyAccess('작성자 차단')) return;
+
+  try {
+    const payload = await window.glsoopSafety?.openPrompt?.({
+      targetType: 'user',
+      eyebrow: 'BLOCK USER',
+      title: '작성자 차단',
+      description: `${authorName}을 차단하면 이 작성자의 글이 내 화면에서 바로 숨겨집니다.`,
+      confirmLabel: '차단하기',
+      defaultReasonCode: 'harassment',
+      detailPlaceholder: '기타 사유를 200자 이내로 적어주세요.',
+    });
+
+    if (!payload) return;
+
+    await window.glsoopSafety.blockUser(authorId, {
+      reason_code: payload.reasonCode,
+      detail: payload.detail,
+      context_post_id: post?.id || null,
+    });
+
+    if (window.glsoopUi?.showPageNotice) {
+      window.glsoopUi.showPageNotice('작성자를 차단했습니다. 이제 내 화면에서 이 작성자의 글과 프로필이 숨겨집니다.', {
+        type: 'success',
+        autoHideMs: 1800,
+      });
+    }
+    window.setTimeout(() => {
+      window.location.href = '/explore';
+    }, 420);
+  } catch (error) {
+    console.error(error);
+    if (window.glsoopSafety?.isAuthRequiredError?.(error)) {
+      ensurePostSafetyAccess('작성자 차단');
+      return;
+    }
+    if (window.glsoopUi?.showPageNotice) {
+      window.glsoopUi.showPageNotice(error.message || '작성자 차단에 실패했습니다.', {
+        type: 'error',
+        autoHideMs: 2400,
+      });
+      return;
+    }
+    alert(error.message || '작성자 차단에 실패했습니다.');
+  }
+}
+
 function hasTitleBoxLayout(rawLayout) {
   if (rawLayout == null) return false;
 
@@ -688,8 +916,9 @@ function bindSideActions(card, post) {
   const sideLikeCount = document.getElementById('sideLikeCount');
   const sideBookmarkBtn = document.getElementById('sideBookmarkBtn');
   const sideShareBtn = document.getElementById('sideShareBtn');
+  const sideSafetyBtn = document.getElementById('sideSafetyBtn');
 
-  if (!sideLikeBtn || !sideBookmarkBtn || !sideShareBtn) return;
+  if (!sideLikeBtn || !sideBookmarkBtn || !sideShareBtn || !sideSafetyBtn) return;
   if (!card) return;
 
   const likeBtn = card.querySelector('.like-btn');
@@ -758,6 +987,15 @@ function bindSideActions(card, post) {
         console.error(err);
         alert('공유 모달을 열지 못했습니다. 잠시 후 다시 시도해주세요.');
       }
+    });
+  }
+
+  if (sideSafetyBtn.dataset.boundSideSafety !== '1') {
+    sideSafetyBtn.dataset.boundSideSafety = '1';
+    sideSafetyBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      trackUxEvent('post_action_click', { action: 'safety' });
+      openPostSafetyMenu(post, card);
     });
   }
 }

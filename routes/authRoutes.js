@@ -23,6 +23,7 @@ const { logUxEvent } = require('../utils/uxEvents');
 const {
   ACCOUNT_STATUS_ACTIVE,
   ACCOUNT_CLOSURE_CONFIRM_TEXT,
+  buildPublicDisplayName,
   isDeactivatedAccount,
   isWithinDeactivationGracePeriod,
   purgeUserAccount,
@@ -46,6 +47,7 @@ const {
 } = require('../utils/authSession');
 const { extractToken } = require('../utils/token');
 const { setAuthCookie, clearAuthCookie } = require('../utils/authCookie');
+const { appendViewerBlockedAuthorCondition } = require('../utils/safety');
 
 const router = express.Router();
 
@@ -1873,24 +1875,28 @@ router.post('/me/account-closure', authRequired, async (req, res) => {
 // 7-1-1) 내가 팔로잉 중인 사용자 목록 조회
 router.get('/me/followings', authRequired, (req, res) => {
   const userId = req.user.id;
+  const conditions = [
+    'f.follower_id = ?',
+    "COALESCE(u.account_status, 'active') = 'active'",
+  ];
+  const params = [userId];
+  appendViewerBlockedAuthorCondition(conditions, params, userId, 'u.id');
 
   db.all(
     `
     SELECT
       u.id,
-      u.name,
       u.nickname,
       u.bio,
       u.about,
-      u.email,
+      COALESCE(u.account_status, 'active') AS account_status,
       (SELECT COUNT(*) FROM follows f2 WHERE f2.followee_id = u.id) AS follower_count
     FROM follows f
     INNER JOIN users u ON u.id = f.followee_id
-    WHERE f.follower_id = ?
-      AND COALESCE(u.account_status, 'active') = 'active'
+    WHERE ${conditions.join('\n      AND ')}
     ORDER BY (u.nickname IS NULL OR u.nickname = ''), u.nickname, u.name
     `,
-    [userId],
+    params,
     (err, rows) => {
       if (err) {
         console.error(err);
@@ -1902,15 +1908,24 @@ router.get('/me/followings', authRequired, (req, res) => {
         );
       }
 
-      const followings = (rows || []).map((row) => ({
-        id: row.id,
-        name: row.name,
-        nickname: row.nickname,
-        bio: row.bio || null,
-        about: row.about || null,
-        email: row.email,
-        follower_count: row.follower_count || 0,
-      }));
+      const followings = (rows || []).map((row) => {
+        const nickname =
+          typeof row?.nickname === 'string' && row.nickname.trim()
+            ? row.nickname.trim()
+            : null;
+        const displayName = buildPublicDisplayName(nickname, row?.account_status);
+
+        return {
+          id: row.id,
+          display_name: displayName,
+          name: displayName,
+          nickname,
+          bio: row.bio || null,
+          about: row.about || null,
+          email: null,
+          follower_count: row.follower_count || 0,
+        };
+      });
 
       return res.json({
         ok: true,

@@ -2,6 +2,8 @@ const express = require('express');
 const db = require('../db');
 const { authRequired } = require('../middleware/auth');
 const { handleBookmarkAdded } = require('../utils/growth-service');
+const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
+const { appendViewerBlockedAuthorCondition } = require('../utils/safety');
 
 const router = express.Router();
 
@@ -438,13 +440,16 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
             ELSE 'short'
           END AS category,
           u.id       AS author_id,
-          u.name     AS author_name,
           u.nickname AS author_nickname,
-          u.email    AS author_email,
+          COALESCE(u.account_status, 'active') AS author_account_status,
           IFNULL(lc.like_count, 0) AS like_count,
           CASE WHEN my.user_id IS NULL THEN 0 ELSE 1 END AS user_liked,
           GROUP_CONCAT(DISTINCT h.name) AS hashtags
       `;
+
+      const conditions = ['bi.list_id = ?'];
+      const params = [userId, listId];
+      appendViewerBlockedAuthorCondition(conditions, params, userId, 'p.user_id');
 
       const sql = `
         ${selectClause}
@@ -455,13 +460,13 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
         LEFT JOIN hashtags h ON h.id = ph.hashtag_id
         LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM likes GROUP BY post_id) lc ON lc.post_id = p.id
         LEFT JOIN likes my ON my.post_id = p.id AND my.user_id = ?
-        WHERE bi.list_id = ?
+        WHERE ${conditions.join(' AND ')}
         GROUP BY p.id
         ORDER BY bi.created_at DESC
         LIMIT ? OFFSET ?
       `;
 
-      db.all(sql, [userId, listId, limit, offset], (err2, rows) => {
+      db.all(sql, [...params, limit, offset], (err2, rows) => {
         if (err2) {
           console.error(err2);
           return sendBookmarkError(
@@ -475,7 +480,7 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
         return res.json({
           ok: true,
           message: '북마크 글 목록을 불러왔습니다.',
-          posts: rows || [],
+          posts: (rows || []).map((row) => normalizePublicPostAuthor(row)),
           has_more: (rows || []).length === limit,
         });
       });

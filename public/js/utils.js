@@ -106,11 +106,52 @@ function escapeHtml(str) {
 }
 
 let glsoopRuntimeConfigPromise = null;
+const GLS_KST_TIME_ZONE = 'Asia/Seoul';
+const GLS_SQLITE_UTC_DATETIME_RE =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?)?$/;
+const GLS_FALLBACK_LEGAL_URLS = Object.freeze({
+  terms: '/html/terms.html',
+  privacy: '/html/privacy.html',
+  guidelines: '/html/community-guidelines.html',
+});
+const GLS_FALLBACK_SAFETY_DETAIL_MAX_LENGTH = 200;
+const GLS_FALLBACK_SAFETY_REASONS = Object.freeze([
+  { code: 'harassment', label: '괴롭힘/비방', target_types: ['post', 'user'] },
+  { code: 'hate', label: '혐오/차별', target_types: ['post', 'user'] },
+  { code: 'sexual', label: '선정성/음란성', target_types: ['post', 'user'] },
+  { code: 'violence', label: '폭력성/자해/위협', target_types: ['post', 'user'] },
+  { code: 'spam', label: '광고/스팸', target_types: ['post', 'user'] },
+  { code: 'impersonation', label: '사칭/도용', target_types: ['post', 'user'] },
+  { code: 'other', label: '기타', target_types: ['post', 'user'] },
+]);
+const glsKoreanDateTimeFormatter = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: GLS_KST_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  hourCycle: 'h23',
+});
 
 function getGlsoopRuntimeConfig() {
   if (glsoopRuntimeConfigPromise) return glsoopRuntimeConfigPromise;
 
-  const fallback = { safe_area_guides: false };
+  const fallback = {
+    safe_area_guides: false,
+    legal: {
+      urls: { ...GLS_FALLBACK_LEGAL_URLS },
+    },
+    safety: {
+      report_enabled: true,
+      block_enabled: true,
+      moderation_sla_hours: 24,
+      report_detail_max_length: GLS_FALLBACK_SAFETY_DETAIL_MAX_LENGTH,
+      report_detail_required_reason_codes: ['other'],
+      report_reasons: [...GLS_FALLBACK_SAFETY_REASONS],
+    },
+  };
 
   if (typeof window === 'undefined' || typeof fetch !== 'function') {
     glsoopRuntimeConfigPromise = Promise.resolve(fallback);
@@ -124,14 +165,161 @@ function getGlsoopRuntimeConfig() {
       const payload = await response.json().catch(() => null);
       const safeAreaGuidesEnabled =
         payload?.ok === true && payload?.flags?.safe_area_guides === true;
+      const legalUrls = {
+        ...GLS_FALLBACK_LEGAL_URLS,
+        ...(payload?.legal?.urls && typeof payload.legal.urls === 'object'
+          ? payload.legal.urls
+          : {}),
+      };
+      const runtimeReasons = Array.isArray(payload?.safety?.report_reasons)
+        ? payload.safety.report_reasons
+            .map((reason) => {
+              const code = typeof reason?.code === 'string' ? reason.code.trim() : '';
+              const label = typeof reason?.label === 'string' ? reason.label.trim() : '';
+              const targetTypes = Array.isArray(reason?.target_types)
+                ? reason.target_types.filter((type) => type === 'post' || type === 'user')
+                : [];
+              if (!code || !label || !targetTypes.length) return null;
+              return {
+                code,
+                label,
+                target_types: targetTypes,
+              };
+            })
+            .filter(Boolean)
+        : [];
 
       return {
         safe_area_guides: safeAreaGuidesEnabled,
+        legal: {
+          ...(payload?.legal && typeof payload.legal === 'object' ? payload.legal : {}),
+          urls: legalUrls,
+        },
+        safety: {
+          report_enabled: payload?.safety?.report_enabled !== false,
+          block_enabled: payload?.safety?.block_enabled !== false,
+          moderation_sla_hours: Number(payload?.safety?.moderation_sla_hours) || 24,
+          report_detail_max_length:
+            Number(payload?.safety?.report_detail_max_length) || GLS_FALLBACK_SAFETY_DETAIL_MAX_LENGTH,
+          report_detail_required_reason_codes:
+            Array.isArray(payload?.safety?.report_detail_required_reason_codes) &&
+            payload.safety.report_detail_required_reason_codes.length
+              ? payload.safety.report_detail_required_reason_codes
+                  .map((code) => String(code || '').trim().toLowerCase())
+                  .filter(Boolean)
+              : ['other'],
+          report_reasons: runtimeReasons.length ? runtimeReasons : [...GLS_FALLBACK_SAFETY_REASONS],
+        },
       };
     })
     .catch(() => fallback);
 
   return glsoopRuntimeConfigPromise;
+}
+
+function parseGlsoopDateTime(value) {
+  if (!value && value !== 0) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
+  }
+
+  if (typeof value === 'number') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const sqliteMatch = trimmed.match(GLS_SQLITE_UTC_DATETIME_RE);
+    if (sqliteMatch) {
+      const [
+        ,
+        year,
+        month,
+        day,
+        hour = '00',
+        minute = '00',
+        second = '00',
+        fraction = '',
+      ] = sqliteMatch;
+      const millisecond = fraction
+        ? Number(String(fraction).slice(0, 3).padEnd(3, '0'))
+        : 0;
+      return new Date(
+        Date.UTC(
+          Number(year),
+          Number(month) - 1,
+          Number(day),
+          Number(hour),
+          Number(minute),
+          Number(second),
+          millisecond
+        )
+      );
+    }
+
+    const parsed = new Date(trimmed);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getGlsoopFallbackLegalUrl(documentKey) {
+  const key = typeof documentKey === 'string' ? documentKey.trim().toLowerCase() : '';
+  return GLS_FALLBACK_LEGAL_URLS[key] || GLS_FALLBACK_LEGAL_URLS.terms;
+}
+
+async function getGlsoopLegalUrl(documentKey) {
+  const key = typeof documentKey === 'string' ? documentKey.trim().toLowerCase() : '';
+  if (!key) return GLS_FALLBACK_LEGAL_URLS.terms;
+
+  try {
+    const runtimeConfig = await getGlsoopRuntimeConfig();
+    const runtimeUrl = runtimeConfig?.legal?.urls?.[key];
+    return typeof runtimeUrl === 'string' && runtimeUrl.trim()
+      ? runtimeUrl.trim()
+      : getGlsoopFallbackLegalUrl(key);
+  } catch (_error) {
+    return getGlsoopFallbackLegalUrl(key);
+  }
+}
+
+async function getGlsoopSafetyReasons(targetType = 'post') {
+  const normalizedTargetType = targetType === 'user' ? 'user' : 'post';
+
+  try {
+    const runtimeConfig = await getGlsoopRuntimeConfig();
+    const runtimeReasons = Array.isArray(runtimeConfig?.safety?.report_reasons)
+      ? runtimeConfig.safety.report_reasons
+      : [];
+    const filteredRuntimeReasons = runtimeReasons.filter((reason) =>
+      Array.isArray(reason?.target_types) && reason.target_types.includes(normalizedTargetType)
+    );
+    if (filteredRuntimeReasons.length) {
+      return filteredRuntimeReasons;
+    }
+  } catch (_error) {
+    // no-op: fallback reasons are returned below
+  }
+
+  return GLS_FALLBACK_SAFETY_REASONS.filter((reason) =>
+    Array.isArray(reason?.target_types) && reason.target_types.includes(normalizedTargetType)
+  );
+}
+
+function getFormatterParts(formatter, date) {
+  const parts = formatter.formatToParts(date);
+  return parts.reduce((acc, part) => {
+    if (part.type !== 'literal') {
+      acc[part.type] = part.value;
+    }
+    return acc;
+  }, {});
 }
 
 /**
@@ -149,54 +337,14 @@ function getGlsoopRuntimeConfig() {
 function formatKoreanDateTime(value) {
   if (!value) return '';
 
-  let date;
-
-  if (typeof value === 'string') {
-    // 1) ISO 형식: "2025-11-29T11:26:00.000Z" 같은 형태
-    //   - 대략 T 또는 Z가 들어가면 Date 생성자에게 그대로 맡김
-    if (value.includes('T') || value.endsWith('Z') || value.match(/\dZ$/)) {
-      date = new Date(value);
-    } else {
-      // 2) "YYYY-MM-DD HH:MM[:SS]" 형식 → "UTC"라고 가정해서 직접 파싱
-      const m = value.match(
-        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/
-      );
-      if (m) {
-        const year = Number(m[1]);
-        const month = Number(m[2]) - 1; // JS Date의 month는 0~11
-        const day = Number(m[3]);
-        const hour = Number(m[4]);
-        const minute = Number(m[5]);
-        const second = m[6] ? Number(m[6]) : 0;
-
-        // ✅ UTC 기준 timestamp 생성
-        const utcMs = Date.UTC(year, month, day, hour, minute, second);
-
-        // 이 Date 인스턴스를 브라우저에서 읽으면 로컬 시간대(KST)로 보임
-        date = new Date(utcMs);
-      } else {
-        // 형식이 예측 불가능하면 마지막으로 Date 생성자에 그대로 맡김
-        date = new Date(value);
-      }
-    }
-  } else {
-    // Date 객체나 숫자(timestamp)인 경우도 그대로 Date로 래핑
-    date = new Date(value);
-  }
-
-  // Date 생성에 실패했을 때(Invalid Date)는 원본 문자열을 그대로 반환
-  if (Number.isNaN(date.getTime())) {
+  const date = parseGlsoopDateTime(value);
+  if (!date) {
     return String(value);
   }
 
-  // 각 구성 요소 추출 + 2자리 포맷
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  const h = String(date.getHours()).padStart(2, '0');
-  const min = String(date.getMinutes()).padStart(2, '0');
+  const parts = getFormatterParts(glsKoreanDateTimeFormatter, date);
 
-  return `${y}-${m}-${d} ${h}:${min}`;
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
 }
 
 /**
@@ -499,6 +647,410 @@ function ensureAuthGateModal() {
   };
 
   window.glsoopAuthGateModal = { open, close };
+})();
+
+function ensureGlsoopSafetyModal() {
+  let modalEl = document.getElementById('glsoopSafetyModal');
+  if (modalEl) return modalEl;
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div class="modal fade" id="glsoopSafetyModal" tabindex="-1" aria-labelledby="glsoopSafetyModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content gls-auth-gate-modal">
+          <div class="modal-header">
+            <div>
+              <p class="gls-auth-gate-modal__eyebrow gls-mb-1" id="glsoopSafetyModalEyebrow">SAFETY</p>
+              <h5 class="modal-title" id="glsoopSafetyModalLabel">신고하기</h5>
+            </div>
+            <button type="button" class="gls-modal-close" data-gls-dismiss="modal" aria-label="닫기"></button>
+          </div>
+          <div class="modal-body gls-auth-gate-modal__body">
+            <p class="gls-mb-3" id="glsoopSafetyModalDescription">사유를 선택해 주세요.</p>
+            <div class="gls-feedback gls-feedback--error" id="glsoopSafetyModalFeedback" hidden></div>
+            <div class="gls-mb-3" id="glsoopSafetyReasonList" role="radiogroup" aria-label="신고 사유"></div>
+            <div id="glsoopSafetyDetailField" hidden>
+              <label class="gls-text-small gls-text-muted gls-mb-1" for="glsoopSafetyDetailInput">상세 설명</label>
+              <textarea
+                id="glsoopSafetyDetailInput"
+                class="form-control"
+                maxlength="200"
+                rows="4"
+                placeholder="기타 사유를 200자 이내로 적어주세요."
+              ></textarea>
+              <p class="gls-text-small gls-text-muted gls-mt-2 gls-mb-0" id="glsoopSafetyDetailHint">
+                기타 사유를 선택했을 때만 입력할 수 있습니다.
+              </p>
+            </div>
+          </div>
+          <div class="modal-footer gls-auth-gate-modal__footer">
+            <button type="button" class="gls-btn gls-btn-secondary" id="glsoopSafetyCancelBtn">취소</button>
+            <button type="button" class="gls-btn gls-btn-primary" id="glsoopSafetyConfirmBtn">확인</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(wrapper.firstElementChild);
+  return document.getElementById('glsoopSafetyModal');
+}
+
+(function bootstrapGlsoopSafetyHelpers() {
+  if (window.glsoopSafety && typeof window.glsoopSafety.openPrompt === 'function') return;
+
+  const state = {
+    resolver: null,
+    runtimeOptions: null,
+  };
+
+  const closePrompt = () => {
+    const modalEl = document.getElementById('glsoopSafetyModal');
+    if (!modalEl) return;
+    if (window.glsModal) {
+      window.glsModal.close(modalEl);
+      if (!(window.bootstrap && window.bootstrap.Modal)) {
+        settlePrompt(null);
+      }
+      return;
+    }
+    modalEl.classList.remove('show');
+    modalEl.setAttribute('aria-hidden', 'true');
+    settlePrompt(null);
+  };
+
+  const settlePrompt = (result) => {
+    const resolver = state.resolver;
+    state.resolver = null;
+    state.runtimeOptions = null;
+    if (typeof resolver === 'function') {
+      resolver(result);
+    }
+  };
+
+  const setModalFeedback = (message = '') => {
+    const feedbackEl = document.getElementById('glsoopSafetyModalFeedback');
+    if (!feedbackEl) return;
+
+    if (!message) {
+      feedbackEl.hidden = true;
+      feedbackEl.textContent = '';
+      return;
+    }
+
+    feedbackEl.hidden = false;
+    feedbackEl.textContent = message;
+  };
+
+  const normalizeReasonCodeList = (codes) => {
+    if (!Array.isArray(codes) || !codes.length) return ['other'];
+    const normalized = codes
+      .map((code) => String(code || '').trim().toLowerCase())
+      .filter(Boolean);
+    return normalized.length ? [...new Set(normalized)] : ['other'];
+  };
+
+  const getDetailPolicy = (options = {}) => {
+    const detailMaxLength = Number(options.detailMaxLength) > 0
+      ? Number(options.detailMaxLength)
+      : GLS_FALLBACK_SAFETY_DETAIL_MAX_LENGTH;
+    const detailRequiredReasonCodes = normalizeReasonCodeList(
+      options.detailRequiredReasonCodes
+    );
+    return {
+      detailMaxLength,
+      detailRequiredReasonCodes,
+    };
+  };
+
+  const syncDetailFieldVisibility = (modalEl, options = {}) => {
+    const detailField = document.getElementById('glsoopSafetyDetailField');
+    const detailInput = document.getElementById('glsoopSafetyDetailInput');
+    const checkedInput = modalEl?.querySelector('input[name="glsoopSafetyReason"]:checked');
+    const selectedReasonCode = String(checkedInput?.value || '').trim().toLowerCase();
+    const { detailRequiredReasonCodes, detailMaxLength } = getDetailPolicy(options);
+    const shouldShowDetail = detailRequiredReasonCodes.includes(selectedReasonCode);
+
+    if (detailField) {
+      detailField.hidden = !shouldShowDetail;
+    }
+
+    if (detailInput) {
+      detailInput.maxLength = String(detailMaxLength);
+      detailInput.setAttribute('maxlength', String(detailMaxLength));
+      if (!shouldShowDetail) {
+        detailInput.value = '';
+      }
+    }
+  };
+
+  const bindPromptEvents = (modalEl) => {
+    if (!modalEl || modalEl.dataset.bound === '1') return;
+    modalEl.dataset.bound = '1';
+
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      settlePrompt(null);
+    });
+
+    const cancelBtn = document.getElementById('glsoopSafetyCancelBtn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        closePrompt();
+      });
+    }
+
+    modalEl.querySelectorAll('[data-gls-dismiss="modal"]').forEach((button) => {
+      button.addEventListener('click', () => {
+        closePrompt();
+      });
+    });
+
+    modalEl.addEventListener('change', (event) => {
+      if (event.target?.name !== 'glsoopSafetyReason') return;
+      setModalFeedback('');
+      syncDetailFieldVisibility(modalEl, state.runtimeOptions || {});
+    });
+
+    const confirmBtn = document.getElementById('glsoopSafetyConfirmBtn');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => {
+        const activeOptions = state.runtimeOptions || {};
+        const checkedInput = modalEl.querySelector('input[name="glsoopSafetyReason"]:checked');
+        const detailInput = document.getElementById('glsoopSafetyDetailInput');
+        const selectedReasonCode = checkedInput?.value || activeOptions.defaultReasonCode || '';
+        const detail = typeof detailInput?.value === 'string'
+          ? detailInput.value.trim()
+          : '';
+        const { detailRequiredReasonCodes, detailMaxLength } = getDetailPolicy(activeOptions);
+        const requiresDetail = detailRequiredReasonCodes.includes(
+          String(selectedReasonCode).trim().toLowerCase()
+        );
+
+        if (activeOptions.requireReason !== false && !selectedReasonCode) {
+          setModalFeedback('신고 사유를 선택해 주세요.');
+          return;
+        }
+        if (requiresDetail && !detail) {
+          setModalFeedback(`기타 사유를 선택한 경우 1자 이상 ${detailMaxLength}자 이하로 입력해 주세요.`);
+          detailInput?.focus();
+          return;
+        }
+        if (requiresDetail && detail.length > detailMaxLength) {
+          setModalFeedback(`상세 설명은 ${detailMaxLength}자 이하로 입력해 주세요.`);
+          detailInput?.focus();
+          return;
+        }
+
+        setModalFeedback('');
+        settlePrompt({
+          reasonCode: selectedReasonCode || 'other',
+          detail: requiresDetail ? detail : '',
+        });
+        closePrompt();
+      });
+    }
+  };
+
+  const renderPrompt = (modalEl, options = {}) => {
+    const titleEl = document.getElementById('glsoopSafetyModalLabel');
+    const eyebrowEl = document.getElementById('glsoopSafetyModalEyebrow');
+    const descriptionEl = document.getElementById('glsoopSafetyModalDescription');
+    const reasonListEl = document.getElementById('glsoopSafetyReasonList');
+    const detailInput = document.getElementById('glsoopSafetyDetailInput');
+    const detailHintEl = document.getElementById('glsoopSafetyDetailHint');
+    const confirmBtn = document.getElementById('glsoopSafetyConfirmBtn');
+
+    const title = typeof options.title === 'string' && options.title.trim()
+      ? options.title.trim()
+      : '신고하기';
+    const description = typeof options.description === 'string' && options.description.trim()
+      ? options.description.trim()
+      : '사유를 선택해 주세요.';
+    const confirmLabel = typeof options.confirmLabel === 'string' && options.confirmLabel.trim()
+      ? options.confirmLabel.trim()
+      : '확인';
+    const eyebrow = typeof options.eyebrow === 'string' && options.eyebrow.trim()
+      ? options.eyebrow.trim()
+      : 'SAFETY';
+    const reasons = Array.isArray(options.reasons) ? options.reasons : [];
+    const defaultReasonCode = typeof options.defaultReasonCode === 'string'
+      ? options.defaultReasonCode.trim()
+      : '';
+    const { detailMaxLength } = getDetailPolicy(options);
+
+    if (titleEl) titleEl.textContent = title;
+    if (eyebrowEl) eyebrowEl.textContent = eyebrow;
+    if (descriptionEl) descriptionEl.textContent = description;
+    if (confirmBtn) confirmBtn.textContent = confirmLabel;
+    setModalFeedback('');
+
+    if (reasonListEl) {
+      reasonListEl.innerHTML = reasons
+        .map((reason, index) => {
+          const checked =
+            defaultReasonCode
+              ? reason.code === defaultReasonCode
+              : index === 0;
+          return `
+            <label class="gls-auth-gate-modal__body gls-mb-2" style="display:block; padding:10px 12px; border:1px solid rgba(72, 58, 44, 0.12); border-radius:12px; background:rgba(255,255,255,0.72);">
+              <input
+                type="radio"
+                name="glsoopSafetyReason"
+                value="${escapeHtml(reason.code || '')}"
+                ${checked ? 'checked' : ''}
+                style="margin-right:10px;"
+              />
+              <span>${escapeHtml(reason.label || reason.code || '기타')}</span>
+            </label>
+          `;
+        })
+        .join('');
+    }
+
+    if (detailInput) {
+      detailInput.value = '';
+      detailInput.maxLength = String(detailMaxLength);
+      detailInput.setAttribute('maxlength', String(detailMaxLength));
+      detailInput.placeholder = typeof options.detailPlaceholder === 'string' && options.detailPlaceholder.trim()
+        ? options.detailPlaceholder.trim()
+        : `기타 사유를 ${detailMaxLength}자 이내로 적어주세요.`;
+    }
+    if (detailHintEl) {
+      detailHintEl.textContent = `기타 사유를 선택했을 때만 ${detailMaxLength}자까지 입력할 수 있습니다.`;
+    }
+
+    syncDetailFieldVisibility(modalEl, options);
+  };
+
+  async function openPrompt(options = {}) {
+    const modalEl = ensureGlsoopSafetyModal();
+    bindPromptEvents(modalEl);
+    if (state.resolver) {
+      settlePrompt(null);
+    }
+
+    const targetType = options.targetType === 'user' ? 'user' : 'post';
+    const runtimeConfig = await getGlsoopRuntimeConfig().catch(() => null);
+    const reasons = Array.isArray(options.reasons) && options.reasons.length
+      ? options.reasons
+      : await getGlsoopSafetyReasons(targetType);
+    const detailMaxLength = Number(options.detailMaxLength) > 0
+      ? Number(options.detailMaxLength)
+      : Number(runtimeConfig?.safety?.report_detail_max_length) || GLS_FALLBACK_SAFETY_DETAIL_MAX_LENGTH;
+    const detailRequiredReasonCodes = Array.isArray(options.detailRequiredReasonCodes)
+      ? options.detailRequiredReasonCodes
+      : runtimeConfig?.safety?.report_detail_required_reason_codes;
+
+    renderPrompt(modalEl, {
+      ...options,
+      detailMaxLength,
+      detailRequiredReasonCodes,
+      reasons,
+    });
+
+    return new Promise((resolve) => {
+      state.resolver = resolve;
+      state.runtimeOptions = {
+        ...options,
+        detailMaxLength,
+        detailRequiredReasonCodes,
+        reasons,
+      };
+      if (window.glsModal) {
+        window.glsModal.open(modalEl);
+      } else {
+        modalEl.classList.add('show');
+        modalEl.classList.add('is-flex-visible');
+        modalEl.removeAttribute('hidden');
+        modalEl.setAttribute('aria-hidden', 'false');
+      }
+    });
+  }
+
+  async function sendSafetyRequest(path, payload = {}, options = {}) {
+    const response = await fetch(path, {
+      method: options.method || 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload || {}),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok && data?.ok) {
+      return data;
+    }
+
+    const error = new Error(
+      data?.message ||
+        (response.status === 401
+          ? '로그인 후 이용할 수 있습니다.'
+          : '안전 관련 요청을 처리하지 못했습니다.')
+    );
+    error.status = response.status;
+    error.code = response.status === 401 ? 'auth_required' : 'request_failed';
+    error.payload = data;
+    throw error;
+  }
+
+  function openLoginGate(options = {}) {
+    const actionLabel = typeof options.actionLabel === 'string' && options.actionLabel.trim()
+      ? options.actionLabel.trim()
+      : '이 기능';
+    const source = typeof options.source === 'string' ? options.source.trim() : 'safety-action';
+    const nextPath = typeof options.nextPath === 'string' && options.nextPath.trim()
+      ? options.nextPath.trim()
+      : `${window.location.pathname}${window.location.search || ''}`;
+
+    if (window.glsoopAuthGateModal && typeof window.glsoopAuthGateModal.open === 'function') {
+      window.glsoopAuthGateModal.open({
+        title: '로그인 후 이용할 수 있어요',
+        message: `${actionLabel}은 로그인한 회원만 이용할 수 있는 기능입니다.`,
+        description: '로그인하면 신고, 차단, 북마크 같은 개인화 기능을 함께 이용할 수 있습니다.',
+        source,
+        nextPath,
+      });
+      return;
+    }
+
+    redirectToLoginWithNext({
+      source,
+      nextPath,
+      alertMessage: `${actionLabel}은 로그인 후 이용할 수 있습니다.`,
+    });
+  }
+
+  async function openGuidelines(options = {}) {
+    const url = await getGlsoopLegalUrl('guidelines');
+    if (options.newTab === false) {
+      window.location.href = url;
+      return url;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return url;
+  }
+
+  window.glsoopSafety = {
+    openPrompt,
+    openGuidelines,
+    openLoginGate,
+    isAuthRequiredError(error) {
+      return Number(error?.status) === 401 || error?.code === 'auth_required';
+    },
+    getLegalUrl: getGlsoopLegalUrl,
+    getReasons: getGlsoopSafetyReasons,
+    reportPost(postId, payload = {}) {
+      return sendSafetyRequest(`/api/posts/${encodeURIComponent(postId)}/report`, payload);
+    },
+    reportUser(userId, payload = {}) {
+      return sendSafetyRequest(`/api/users/${encodeURIComponent(userId)}/report`, payload);
+    },
+    blockUser(userId, payload = {}) {
+      return sendSafetyRequest(`/api/users/${encodeURIComponent(userId)}/block`, payload);
+    },
+  };
 })();
 
 function ensureFormFeedbackElement(form, elementId) {

@@ -10,6 +10,9 @@ const {
 const router = express.Router();
 const PREVIEW_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
 const LAYOUT_UNIT_NORMALIZED = 'normalized';
+const PREVIEW_FONT_SCALE_RANGE = { min: 0.7, max: 2.0 };
+const PREVIEW_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.2 };
+const PREVIEW_LETTER_SPACING_RANGE = { min: -0.04, max: 0.08 };
 
 function dbGetAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -49,6 +52,7 @@ function parsePreviewLayoutBox({
   query = {},
   baseKey = '',
   required = false,
+  allowLetterSpacing = false,
 }) {
   const keyPrefix = baseKey ? `layout_${baseKey}_` : 'layout_';
   const xKey = `${keyPrefix}x`;
@@ -58,6 +62,7 @@ function parsePreviewLayoutBox({
   const alignKey = `${keyPrefix}align`;
   const fontScaleKey = `${keyPrefix}font_scale`;
   const lineHeightKey = `${keyPrefix}line_height`;
+  const letterSpacingKey = `${keyPrefix}letter_spacing`;
 
   const xRaw = query[xKey];
   const yRaw = query[yKey];
@@ -65,7 +70,16 @@ function parsePreviewLayoutBox({
   const hRaw = query[hKey];
 
   const hasAny =
-    [xRaw, yRaw, wRaw, hRaw, query[alignKey], query[fontScaleKey], query[lineHeightKey]]
+    [
+      xRaw,
+      yRaw,
+      wRaw,
+      hRaw,
+      query[alignKey],
+      query[fontScaleKey],
+      query[lineHeightKey],
+      query[letterSpacingKey],
+    ]
       .some((value) => value !== undefined && value !== null && String(value).trim() !== '');
 
   if (!hasAny) {
@@ -115,7 +129,11 @@ function parsePreviewLayoutBox({
     String(query[fontScaleKey]).trim() !== ''
   ) {
     const fontScale = toFiniteQueryNumber(query[fontScaleKey]);
-    if (fontScale == null || fontScale <= 0) {
+    if (
+      fontScale == null ||
+      fontScale < PREVIEW_FONT_SCALE_RANGE.min ||
+      fontScale > PREVIEW_FONT_SCALE_RANGE.max
+    ) {
       return { error: true };
     }
     box.font_scale = roundLayoutNumber(fontScale, 3);
@@ -127,10 +145,31 @@ function parsePreviewLayoutBox({
     String(query[lineHeightKey]).trim() !== ''
   ) {
     const lineHeight = toFiniteQueryNumber(query[lineHeightKey]);
-    if (lineHeight == null || lineHeight <= 0) {
+    if (
+      lineHeight == null ||
+      lineHeight < PREVIEW_LINE_HEIGHT_RANGE.min ||
+      lineHeight > PREVIEW_LINE_HEIGHT_RANGE.max
+    ) {
       return { error: true };
     }
     box.line_height = roundLayoutNumber(lineHeight, 3);
+  }
+
+  if (
+    allowLetterSpacing &&
+    query[letterSpacingKey] !== undefined &&
+    query[letterSpacingKey] !== null &&
+    String(query[letterSpacingKey]).trim() !== ''
+  ) {
+    const letterSpacing = toFiniteQueryNumber(query[letterSpacingKey]);
+    if (
+      letterSpacing == null ||
+      letterSpacing < PREVIEW_LETTER_SPACING_RANGE.min ||
+      letterSpacing > PREVIEW_LETTER_SPACING_RANGE.max
+    ) {
+      return { error: true };
+    }
+    box.letter_spacing = roundLayoutNumber(letterSpacing, 3);
   }
 
   return {
@@ -144,11 +183,13 @@ function parsePreviewLayoutFromQuery(query = {}) {
     query,
     baseKey: '',
     required: false,
+    allowLetterSpacing: true,
   });
   const titleBoxResult = parsePreviewLayoutBox({
     query,
     baseKey: 'title',
     required: false,
+    allowLetterSpacing: true,
   });
   const footerBoxResult = parsePreviewLayoutBox({
     query,

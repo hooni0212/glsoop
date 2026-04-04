@@ -118,6 +118,10 @@
               <span class="admin-tab-label">글</span>
               <span class="admin-tab-count" data-tab-count="postsTab">-</span>
             </button>
+            <button class="nav-link" data-target="safetyTab" type="button">
+              <span class="admin-tab-label">신고</span>
+              <span class="admin-tab-count" data-tab-count="safetyTab">-</span>
+            </button>
             <button class="nav-link" data-target="shareSummaryTab" type="button">
               <span class="admin-tab-label">공유</span>
               <span class="admin-tab-count" data-tab-count="shareSummaryTab">-</span>
@@ -277,6 +281,36 @@
                   </div>
                   <div id="adminShareSummary">
                     <p class="gls-text-muted">공유 이벤트 통계를 불러오는 중입니다...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-panel gls-hidden" id="safetyTab">
+              <div class="admin-panel card glass-card gls-mb-4">
+                <div class="card-body">
+                  <div class="gls-flex gls-flex-wrap gls-gap-2 gls-items-center gls-justify-between gls-mb-3 sticky-admin-toolbar">
+                    <div>
+                      <h3 class="gls-mb-0">신고 관리</h3>
+                      <p class="gls-text-muted gls-text-small gls-mb-0">실제 신고 로그와 누적 위험 글을 함께 확인하세요.</p>
+                    </div>
+                    <div class="admin-filter-group" id="adminSafetyFilters"></div>
+                  </div>
+                  <div class="admin-safety-stack">
+                    <section class="admin-safety-section">
+                      <div id="adminSafetyReports">
+                        <p class="gls-text-muted">신고 목록을 불러오는 중입니다...</p>
+                      </div>
+                    </section>
+                    <section class="admin-safety-section">
+                      <div class="gls-flex gls-flex-col gls-gap-1 gls-mb-2">
+                        <h4 class="gls-mb-0">누적 신고 5건 이상 글</h4>
+                        <p class="gls-text-muted gls-text-small gls-mb-0">원본 로그를 대체하지 않는 운영 우선순위 확인용 요약 뷰입니다.</p>
+                      </div>
+                      <div id="adminReportedPosts">
+                        <p class="gls-text-muted">누적 신고 글을 불러오는 중입니다...</p>
+                      </div>
+                    </section>
                   </div>
                 </div>
               </div>

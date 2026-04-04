@@ -28,11 +28,23 @@ const { handlePostCreated, handleLikeAdded } = require('../utils/growth-service'
 const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
 const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
+const { normalizeUtcDateTime } = require('../utils/dateTime');
+const {
+  appendViewerBlockedAuthorCondition,
+  createSafetyReport,
+  getActiveUserSummary,
+  getPostSafetySummary,
+  isSafetyValidationError,
+  parseSafetyRequestPayload,
+} = require('../utils/safety');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
 const ALLOWED_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
 const LAYOUT_UNIT_NORMALIZED = 'normalized';
 const LAYOUT_VALIDATION_ERROR_MESSAGE = '레이아웃 데이터가 올바르지 않습니다.';
+const LAYOUT_FONT_SCALE_RANGE = { min: 0.7, max: 2.0 };
+const LAYOUT_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.2 };
+const LAYOUT_LETTER_SPACING_RANGE = { min: -0.04, max: 0.08 };
 const CATEGORY_SQL =
   "CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END";
 
@@ -73,6 +85,11 @@ function parsePagination(query = {}) {
   return { limit, offset };
 }
 
+function parseId(value) {
+  const num = parseInt(value, 10);
+  return Number.isNaN(num) ? null : num;
+}
+
 function normalizePublicPostRows(rows) {
   return Array.isArray(rows) ? rows.map((row) => normalizePublicPostAuthor(row)) : [];
 }
@@ -96,7 +113,7 @@ function normalizeLayoutNumber(value, precision = 4) {
   return Math.round(value * factor) / factor;
 }
 
-function normalizeLayoutBox(raw, { required = false } = {}) {
+function normalizeLayoutBox(raw, { required = false, allowLetterSpacing = false } = {}) {
   if (raw === undefined || raw === null || raw === '') {
     return required ? null : null;
   }
@@ -135,7 +152,11 @@ function normalizeLayoutBox(raw, { required = false } = {}) {
 
   if (raw.font_scale !== undefined) {
     const fontScale = toFiniteNumber(raw.font_scale);
-    if (fontScale == null || fontScale <= 0) {
+    if (
+      fontScale == null ||
+      fontScale < LAYOUT_FONT_SCALE_RANGE.min ||
+      fontScale > LAYOUT_FONT_SCALE_RANGE.max
+    ) {
       return null;
     }
     normalized.font_scale = normalizeLayoutNumber(fontScale, 3);
@@ -143,10 +164,26 @@ function normalizeLayoutBox(raw, { required = false } = {}) {
 
   if (raw.line_height !== undefined) {
     const lineHeight = toFiniteNumber(raw.line_height);
-    if (lineHeight == null || lineHeight <= 0) {
+    if (
+      lineHeight == null ||
+      lineHeight < LAYOUT_LINE_HEIGHT_RANGE.min ||
+      lineHeight > LAYOUT_LINE_HEIGHT_RANGE.max
+    ) {
       return null;
     }
     normalized.line_height = normalizeLayoutNumber(lineHeight, 3);
+  }
+
+  if (allowLetterSpacing && raw.letter_spacing !== undefined) {
+    const letterSpacing = toFiniteNumber(raw.letter_spacing);
+    if (
+      letterSpacing == null ||
+      letterSpacing < LAYOUT_LETTER_SPACING_RANGE.min ||
+      letterSpacing > LAYOUT_LETTER_SPACING_RANGE.max
+    ) {
+      return null;
+    }
+    normalized.letter_spacing = normalizeLayoutNumber(letterSpacing, 3);
   }
 
   return normalized;
@@ -187,14 +224,20 @@ function normalizeLayoutPayload(raw) {
     return { ok: false };
   }
 
-  const textBox = normalizeLayoutBox(payload.text_box, { required: true });
+  const textBox = normalizeLayoutBox(payload.text_box, {
+    required: true,
+    allowLetterSpacing: true,
+  });
   if (!textBox) {
     return { ok: false };
   }
 
   let titleBox = null;
   if (hasOwn(payload, 'title_box')) {
-    titleBox = normalizeLayoutBox(payload.title_box, { required: false });
+    titleBox = normalizeLayoutBox(payload.title_box, {
+      required: false,
+      allowLetterSpacing: true,
+    });
     if (payload.title_box != null && !titleBox) {
       return { ok: false };
     }
@@ -550,7 +593,7 @@ router.get('/posts/my', authRequired, (req, res) => {
       return res.json({
         ok: true,
         message: '내 글 목록을 불러왔습니다.',
-        posts: rows,
+        posts: normalizePublicPostRows(rows),
       });
     }
   );
@@ -583,9 +626,15 @@ router.get('/posts/liked', authRequired, (req, res) => {
     INNER JOIN likes l ON l.post_id = p.id
     JOIN users u ON p.user_id = u.id
     WHERE l.user_id = ?
+      AND NOT EXISTS (
+        SELECT 1
+        FROM user_blocks ub
+        WHERE ub.blocker_id = ?
+          AND ub.blocked_user_id = p.user_id
+      )
     ORDER BY l.created_at DESC
     `,
-    [userId],
+    [userId, userId],
     (err, rows) => {
       if (err) {
         console.error(err);
@@ -676,6 +725,8 @@ function handleFeedRequest(req, res) {
     }
 
     const conditions = [];
+
+    appendViewerBlockedAuthorCondition(conditions, params, userId, 'p.user_id');
 
     if (tagCount > 0) {
       const placeholders = tags.map(() => '?').join(', ');
@@ -815,6 +866,36 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
           .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
       }
 
+      if (userId) {
+        db.get(
+          'SELECT 1 AS present FROM user_blocks WHERE blocker_id = ? AND blocked_user_id = ? LIMIT 1',
+          [userId, current.author_id],
+          (blockErr, blockRow) => {
+            if (blockErr) {
+              console.error(blockErr);
+              return res.status(500).json({
+                ok: false,
+                message: '관련 글을 불러오는 중 오류가 발생했습니다.',
+              });
+            }
+
+            if (blockRow?.present) {
+              return res.status(404).json({
+                ok: false,
+                message: '해당 글을 찾을 수 없습니다.',
+              });
+            }
+
+            return loadRelatedCandidates();
+          }
+        );
+        return;
+      }
+
+      return loadRelatedCandidates();
+
+      function loadRelatedCandidates() {
+
       const currentTags = current.hashtags
         ? current.hashtags
             .split(',')
@@ -861,6 +942,16 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
         LEFT JOIN post_hashtags ph ON ph.post_id = p.id
         LEFT JOIN hashtags h ON h.id = ph.hashtag_id
         WHERE p.id != ?
+          ${
+            userId
+              ? `AND NOT EXISTS (
+                  SELECT 1
+                  FROM user_blocks ub
+                  WHERE ub.blocker_id = ?
+                    AND ub.blocked_user_id = p.user_id
+                )`
+              : ''
+          }
         GROUP BY p.id
         ORDER BY p.created_at DESC
         LIMIT ?
@@ -868,7 +959,7 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
         // 파라미터 순서: 1) userId (my.user_id = ?)
         //              2) postId (p.id != ?)
         //              3) CANDIDATE_LIMIT (LIMIT ?)
-        [userId, postId, CANDIDATE_LIMIT],
+        userId ? [userId, postId, userId, CANDIDATE_LIMIT] : [userId, postId, CANDIDATE_LIMIT],
         (err2, rows) => {
           if (err2) {
             console.error(err2);
@@ -935,6 +1026,7 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
             });
         }
       );
+      }
     }
   );
 });
@@ -989,7 +1081,7 @@ router.get('/posts/:id/edit', authRequired, (req, res) => {
           content: row.content,
           layout_json: row.layout_json || null,
           category: row.category,
-          created_at: row.created_at,
+          created_at: normalizeUtcDateTime(row.created_at),
           hashtags: tags,
         },
       });
@@ -1155,6 +1247,58 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
   });
 });
 
+router.post('/posts/:id/report', authRequired, async (req, res) => {
+  const postId = parseId(req.params.id);
+  const reporterId = req.user.id;
+
+  if (!postId) {
+    return res.status(400).json({ ok: false, message: '잘못된 글 ID입니다.' });
+  }
+
+  try {
+    const post = await getPostSafetySummary(postId);
+    if (!post) {
+      return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+    }
+
+    const author = await getActiveUserSummary(post.author_id);
+    if (!author) {
+      return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+    }
+
+    const payload = parseSafetyRequestPayload(req.body, {
+      defaultReasonCode: 'other',
+    });
+    const report = await createSafetyReport({
+      reporterId,
+      targetType: 'post',
+      targetPostId: postId,
+      targetUserId: post.author_id,
+      reasonCode: payload.reasonCode,
+      detail: payload.detail,
+    });
+
+    return res.json({
+      ok: true,
+      message: '게시글 신고가 운영 검토 큐에 접수되었어요.',
+      report_id: report?.id || null,
+      status: report?.status || 'queued',
+    });
+  } catch (error) {
+    if (isSafetyValidationError(error)) {
+      return res.status(400).json({
+        ok: false,
+        message: error.message,
+      });
+    }
+    console.error('[posts/report] failed:', error);
+    return res.status(500).json({
+      ok: false,
+      message: '게시글 신고를 접수하지 못했어요. 잠시 후 다시 시도해주세요.',
+    });
+  }
+});
+
 // 9-10) 공개 글 상세 조회 (좋아요 개수 + 내가 눌렀는지 여부까지)
 // - ✅ 표준:  GET /api/posts/:id
 function handlePublicPostDetail(req, res) {
@@ -1167,6 +1311,9 @@ function handlePublicPostDetail(req, res) {
 
   // 로그인 유저(있으면 user_liked 계산)
   const userId = getOptionalUserId(req);
+  const detailConditions = ['p.id = ?'];
+  const detailParams = [postId];
+  appendViewerBlockedAuthorCondition(detailConditions, detailParams, userId, 'p.user_id');
 
   const baseSelect = `
     SELECT
@@ -1192,7 +1339,7 @@ function handlePublicPostDetail(req, res) {
     ) l ON l.post_id = p.id
     LEFT JOIN post_hashtags ph ON ph.post_id = p.id
     LEFT JOIN hashtags h ON h.id = ph.hashtag_id
-    WHERE p.id = ?
+    WHERE ${detailConditions.join(' AND ')}
     GROUP BY p.id
   `;
 
@@ -1210,13 +1357,13 @@ function handlePublicPostDetail(req, res) {
         END AS user_liked
       FROM (${baseSelect}) AS sub
     `;
-    params = [userId, postId];
+    params = [userId, ...detailParams];
   } else {
     sql = `
       SELECT sub.*, 0 AS user_liked
       FROM (${baseSelect}) AS sub
     `;
-    params = [postId];
+    params = detailParams;
   }
 
   db.get(sql, params, (err, row) => {
@@ -1255,6 +1402,7 @@ function handlePublicPostDetail(req, res) {
         category: normalizedRow.category,
         created_at: normalizedRow.created_at,
         author_id: normalizedRow.author_id,
+        author_display_name: normalizedRow.author_display_name,
         author_name: normalizedRow.author_name,
         author_nickname: normalizedRow.author_nickname,
         author_email: normalizedRow.author_email,

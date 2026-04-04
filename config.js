@@ -146,6 +146,7 @@ if (isProduction) {
 }
 
 module.exports = {
+  BASE_URL: baseUrl,
   transporter,
   JWT_SECRET,
   JWT_ALGORITHM,

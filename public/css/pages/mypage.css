@@ -261,12 +261,14 @@ body.page-mypage .mpd-tab-panel {
 }
 
 body.page-mypage .mpd-post-list,
-body.page-mypage .mpd-following-list {
+body.page-mypage .mpd-following-list,
+body.page-mypage .mpd-blocked-list {
   display: grid;
   gap: 12px;
 }
 
-body.page-mypage .mpd-following-card {
+body.page-mypage .mpd-following-card,
+body.page-mypage .mpd-blocked-card {
   border: 1px solid color-mix(in srgb, var(--mpd-border) 86%, rgba(255, 255, 255, 0.28));
   border-radius: 14px;
   background: color-mix(in srgb, var(--mpd-surface-soft) 82%, rgba(255, 255, 255, 0.4));
@@ -286,7 +288,7 @@ body.page-mypage .mpd-post-card {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  body.page-mypage .mpd-following-card:hover {
+  body.page-mypage :is(.mpd-following-card, .mpd-blocked-card):hover {
     transform: translateY(-1px);
     box-shadow: var(--mpd-shadow-hover);
     border-color: color-mix(in srgb, var(--mpd-border-strong) 76%, rgba(255, 255, 255, 0.2));
@@ -491,21 +493,26 @@ body.page-mypage .mpd-post-foot > .gls-btn {
   min-width: 58px;
 }
 
-body.page-mypage .mpd-following-card {
+body.page-mypage .mpd-following-card,
+body.page-mypage .mpd-blocked-card {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
-body.page-mypage .mpd-following-main {
+body.page-mypage .mpd-following-main,
+body.page-mypage .mpd-blocked-main {
   min-width: 0;
 }
 
 body.page-mypage .mpd-following-email,
 body.page-mypage .mpd-following-meta,
 body.page-mypage .mpd-following-bio,
-body.page-mypage .mpd-following-about {
+body.page-mypage .mpd-following-about,
+body.page-mypage .mpd-blocked-meta,
+body.page-mypage .mpd-blocked-note,
+body.page-mypage .mpd-blocked-nickname {
   margin: 0;
   color: var(--mpd-muted);
   font-size: 0.86rem;
@@ -516,10 +523,24 @@ body.page-mypage .mpd-following-about {
   margin-top: 4px;
 }
 
+body.page-mypage .mpd-blocked-note {
+  margin-top: 6px;
+}
+
 body.page-mypage .mpd-following-actions {
   display: grid;
   gap: 6px;
   justify-items: end;
+}
+
+body.page-mypage .mpd-blocked-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+body.page-mypage .mpd-blocked-actions .gls-btn {
+  min-width: 88px;
 }
 
 body.page-mypage .mpd-empty-state,

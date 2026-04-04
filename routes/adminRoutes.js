@@ -8,6 +8,11 @@ const {
   reconcileMonetizationState,
 } = require('../utils/monetizationState');
 const { purgeUserAccount } = require('../utils/accountLifecycle');
+const {
+  listReportedPosts,
+  listSafetyReports,
+  resolveSafetyReport,
+} = require('../utils/safety');
 
 const router = express.Router();
 
@@ -119,6 +124,139 @@ function parsePositiveInt(raw) {
   if (!Number.isFinite(parsed) || parsed < 1) return null;
   return parsed;
 }
+
+router.get('/safety/reports', async (req, res) => {
+  const limit = parseBoundedInt(req.query.limit, 50, 1, 100);
+  const offset = parseBoundedInt(req.query.offset, 0, 0, 5000);
+  const status =
+    typeof req.query.status === 'string' && req.query.status.trim()
+      ? req.query.status.trim().toLowerCase()
+      : null;
+
+  if (limit === null || offset === null) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', 'limit 또는 offset 값이 올바르지 않습니다.');
+  }
+
+  try {
+    const sources = ['report', 'block'];
+    const reports = await listSafetyReports({
+      status,
+      limit,
+      offset,
+      sources,
+    });
+    return res.json({
+      ok: true,
+      message: '안전 신고 목록을 불러왔습니다.',
+      reports,
+      meta: {
+        limit,
+        offset,
+        count: reports.length,
+        status: status || 'all',
+        source: 'report+block',
+        sources,
+      },
+    });
+  } catch (error) {
+    console.error('[admin/safety/reports] failed:', error);
+    return sendAdminError(res, 500, 'INTERNAL_ERROR', '안전 신고 목록을 불러오는 중 오류가 발생했습니다.');
+  }
+});
+
+router.get('/safety/reported-posts', async (req, res) => {
+  const limit = parseBoundedInt(req.query.limit, 50, 1, 100);
+  const offset = parseBoundedInt(req.query.offset, 0, 0, 5000);
+  const threshold = parseBoundedInt(req.query.threshold, 5, 1, 100);
+
+  if (limit === null || offset === null || threshold === null) {
+    return sendAdminError(
+      res,
+      400,
+      'INVALID_REQUEST',
+      'limit, offset 또는 threshold 값이 올바르지 않습니다.'
+    );
+  }
+
+  try {
+    const posts = await listReportedPosts({
+      limit,
+      offset,
+      threshold,
+      excludeDismissed: true,
+    });
+
+    return res.json({
+      ok: true,
+      message: '누적 신고 글 목록을 불러왔습니다.',
+      posts,
+      meta: {
+        limit,
+        offset,
+        threshold,
+        count: posts.length,
+        source: 'report',
+        target_type: 'post',
+        dismissed_excluded: true,
+      },
+    });
+  } catch (error) {
+    console.error('[admin/safety/reported-posts] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '누적 신고 글 목록을 불러오는 중 오류가 발생했습니다.'
+    );
+  }
+});
+
+router.post('/safety/reports/:id/resolve', async (req, res) => {
+  const reportId = parsePositiveInt(req.params.id);
+  const status =
+    typeof req.body?.status === 'string' ? req.body.status.trim().toLowerCase() : '';
+  const action =
+    typeof req.body?.action === 'string' && req.body.action.trim()
+      ? req.body.action.trim().toLowerCase()
+      : null;
+  const actionDetail =
+    typeof req.body?.action_detail === 'string' ? req.body.action_detail.trim() : null;
+
+  if (!reportId) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', '잘못된 신고 ID입니다.');
+  }
+  if (!['reviewing', 'actioned', 'dismissed'].includes(status)) {
+    return sendAdminError(
+      res,
+      400,
+      'INVALID_REQUEST',
+      "status는 'reviewing', 'actioned', 'dismissed' 중 하나여야 합니다."
+    );
+  }
+
+  try {
+    const report = await resolveSafetyReport({
+      reportId,
+      status,
+      action,
+      actionDetail,
+      handledByUserId: req.user.id,
+    });
+
+    if (!report) {
+      return sendAdminError(res, 404, 'RESOURCE_NOT_FOUND', '신고를 찾을 수 없습니다.');
+    }
+
+    return res.json({
+      ok: true,
+      message: '안전 신고 상태를 업데이트했습니다.',
+      report,
+    });
+  } catch (error) {
+    console.error('[admin/safety/reports/resolve] failed:', error);
+    return sendAdminError(res, 500, 'INTERNAL_ERROR', '안전 신고 처리 중 오류가 발생했습니다.');
+  }
+});
 
 function normalizeEntitlementKey(raw) {
   if (typeof raw !== 'string') return null;
