@@ -24,6 +24,11 @@ test.describe('Legal pages', () => {
     }
   });
 
+  test('blocks direct support html path', async ({ request }) => {
+    const response = await request.get('/html/support.html');
+    expect(response.status()).toBe(404);
+  });
+
   test('signup page links to terms/privacy and opens community guideline modal', async ({ page }) => {
     await page.goto('/html/signup.html');
 

@@ -39,6 +39,7 @@ const monetizationWebhookRoutes = require('./routes/monetizationWebhookRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const adminPageRoutes = require('./routes/adminPageRoutes');
 const authPageRoutes = require('./routes/authPageRoutes');
+const supportPageRoutes = require('./routes/supportPageRoutes');
 
 
 const app = express();
@@ -98,6 +99,8 @@ app.use('/api', (req, res, next) => {
 app.use(adminPageRoutes);
 // 인증 페이지 접근 가드 (로그인 상태에서 로그인 페이지 재진입 차단)
 app.use(authPageRoutes);
+// support 페이지는 clean URL로만 노출
+app.use(supportPageRoutes);
 
 // 정적 파일 제공
 app.use(express.static(path.join(__dirname, 'public')));
@@ -121,10 +124,6 @@ app.use('/api/admin', adminRoutes);
 // 4. 루트 페이지
 app.get(['/explore', '/explore/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'explore.html'));
-});
-
-app.get(['/support', '/support/'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'html', 'support.html'));
 });
 
 app.get('/', (req, res) => {
