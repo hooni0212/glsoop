@@ -1280,7 +1280,8 @@ router.post('/posts/:id/report', authRequired, async (req, res) => {
 
     return res.json({
       ok: true,
-      message: '게시글 신고가 운영 검토 큐에 접수되었어요.',
+      message:
+        '신고가 접수되었습니다. 운영팀이 검토 후 24시간 내 조치합니다. 위반 시 콘텐츠 삭제 및 계정 제재가 이루어질 수 있습니다.',
       report_id: report?.id || null,
       status: report?.status || 'queued',
     });
