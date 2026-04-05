@@ -135,6 +135,9 @@ const parseLayoutJson = (value) => {
   return typeof value === 'string' ? JSON.parse(value) : value;
 };
 
+const buildLongMultilineContent = (lineCount = 120, prefix = '긴 글 테스트 본문') =>
+  Array.from({ length: lineCount }, (_item, index) => `${prefix} ${index + 1}`).join('\n');
+
 test.describe('Post layout letter spacing', () => {
   test.describe.configure({ mode: 'serial' });
 
@@ -283,5 +286,170 @@ test.describe('Post layout letter spacing', () => {
     });
     expect(renderedResponse.status()).toBe(200);
     expect(renderedResponse.headers()['content-type']).toContain('image/');
+  });
+
+  test('returns multipage render metadata and paged images for custom layout posts', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '멀티 페이지 렌더 확인',
+        content: buildLongMultilineContent(120),
+        category: 'essay',
+        layout_json: buildLayoutPayload(),
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    const detailResponse = await request.get(`/api/posts/${postId}`, {
+      headers,
+    });
+    expect(detailResponse.status()).toBe(200);
+
+    const detailBody = await detailResponse.json();
+    expect(detailBody.ok).toBe(true);
+    expect(detailBody.post.image_url).toBe(detailBody.post.primary_image);
+    expect(detailBody.post.primary_image).toBe(detailBody.post.images[0]);
+    expect(detailBody.post.has_multiple).toBe(true);
+    expect(detailBody.post.images.length).toBe(8);
+    expect(detailBody.post.render_images.primary_image).toBe(detailBody.post.primary_image);
+    expect(detailBody.post.render_images.images).toEqual(detailBody.post.images);
+    expect(detailBody.post.render_images.has_multiple).toBe(true);
+    expect(detailBody.post.render_images.page_count).toBe(8);
+    expect(detailBody.post.render_images.page_cap).toBe(8);
+    expect(detailBody.post.render_images.is_truncated).toBe(true);
+
+    const pageTwoResponse = await request.get(`/api/feed-images/post/${postId}`, {
+      params: { template: 'paper01', scale: '2', page: '2' },
+    });
+    expect(pageTwoResponse.status()).toBe(200);
+    expect(pageTwoResponse.headers()['content-type']).toContain('image/');
+    expect(pageTwoResponse.headers()['x-feed-image-page']).toBe('2');
+    expect(pageTwoResponse.headers()['x-feed-image-page-count']).toBe('8');
+    expect(pageTwoResponse.headers()['x-feed-image-truncated']).toBe('1');
+
+    const overflowPageResponse = await request.get(`/api/feed-images/post/${postId}`, {
+      params: { template: 'paper01', scale: '2', page: '9' },
+    });
+    expect(overflowPageResponse.status()).toBe(404);
+  });
+
+  test('keeps legacy posts on single rendered image metadata', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '레거시 렌더 확인',
+        content: buildLongMultilineContent(120, '레거시 본문'),
+        category: 'essay',
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    const detailResponse = await request.get(`/api/posts/${postId}`, {
+      headers,
+    });
+    expect(detailResponse.status()).toBe(200);
+
+    const detailBody = await detailResponse.json();
+    expect(detailBody.ok).toBe(true);
+    expect(detailBody.post.image_url).toBe(detailBody.post.primary_image);
+    expect(detailBody.post.primary_image).toBe(detailBody.post.images[0]);
+    expect(detailBody.post.images.length).toBe(1);
+    expect(detailBody.post.has_multiple).toBe(false);
+    expect(detailBody.post.render_images.page_count).toBe(1);
+    expect(detailBody.post.render_images.page_cap).toBe(8);
+    expect(detailBody.post.render_images.has_multiple).toBe(false);
+    expect(detailBody.post.render_images.is_truncated).toBe(true);
+
+    const secondPageResponse = await request.get(`/api/feed-images/post/${postId}`, {
+      params: { template: 'paper01', scale: '2', page: '2' },
+    });
+    expect(secondPageResponse.status()).toBe(404);
+  });
+
+  test('creates editor preview sessions with multipage manifest and page rendering', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const response = await request.post('/api/feed-images/preview/sessions', {
+      headers,
+      data: {
+        title: '에디터 미리보기 세션',
+        content: `<!--FONT:serif-->${Array.from({ length: 80 }, (_item, index) => `<p>미리보기 본문 ${index + 1}</p>`).join('')}`,
+        content_format: 'html',
+        category: 'essay',
+        template: 'paper01',
+        scale: 1,
+        layout_json: buildLayoutPayload(),
+      },
+    });
+
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.ok).toBe(true);
+    expect(typeof body.preview_session_id).toBe('string');
+    expect(body.image_url).toBe(body.primary_image);
+    expect(body.primary_image).toBe(body.images[0]);
+    expect(Array.isArray(body.images)).toBe(true);
+    expect(body.images.length).toBeGreaterThan(1);
+    expect(body.has_multiple).toBe(true);
+    expect(body.render_images.page_count).toBe(body.images.length);
+    expect(body.render_images.preview_session_id).toBe(body.preview_session_id);
+
+    const pageTwoResponse = await request.get(body.images[1], { headers });
+    expect(pageTwoResponse.status()).toBe(200);
+    expect(pageTwoResponse.headers()["content-type"]).toContain("image/webp");
+    expect(pageTwoResponse.headers()["x-feed-image-page"]).toBe("2");
+    expect(pageTwoResponse.headers()["x-feed-image-page-count"]).toBe(String(body.images.length));
+  });
+
+  test('caps preview sessions at eight pages and expires them with 410', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const response = await request.post('/api/feed-images/preview/sessions', {
+      headers,
+      data: {
+        title: '에디터 초장문 세션',
+        content: `<!--FONT:sans-->${buildLongMultilineContent(500, '프리뷰 초장문')}`,
+        content_format: 'plain',
+        category: 'essay',
+        template: 'paper01',
+        scale: 1,
+        layout_json: buildLayoutPayload(),
+      },
+    });
+
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.ok).toBe(true);
+    expect(body.images.length).toBe(8);
+    expect(body.render_images.page_count).toBe(8);
+    expect(body.render_images.page_cap).toBe(8);
+    expect(body.render_images.is_truncated).toBe(true);
+
+    const sessionPath = path.join(
+      REPO_ROOT,
+      'tmp',
+      'feed-preview-sessions',
+      `${body.preview_session_id}.json`
+    );
+    const sessionRaw = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
+    sessionRaw.expires_at = new Date(Date.now() - 60_000).toISOString();
+    fs.writeFileSync(sessionPath, JSON.stringify(sessionRaw));
+
+    const expiredResponse = await request.get(body.primary_image, { headers });
+    expect(expiredResponse.status()).toBe(410);
   });
 });

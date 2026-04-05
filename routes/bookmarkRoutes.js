@@ -3,6 +3,7 @@ const db = require('../db');
 const { authRequired } = require('../middleware/auth');
 const { handleBookmarkAdded } = require('../utils/growth-service');
 const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
+const { decoratePostRowsWithRenderImages } = require('../utils/postRenderImages');
 const { appendViewerBlockedAuthorCondition } = require('../utils/safety');
 
 const router = express.Router();
@@ -466,7 +467,7 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
         LIMIT ? OFFSET ?
       `;
 
-      db.all(sql, [...params, limit, offset], (err2, rows) => {
+      db.all(sql, [...params, limit, offset], async (err2, rows) => {
         if (err2) {
           console.error(err2);
           return sendBookmarkError(
@@ -477,12 +478,25 @@ router.get('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
           );
         }
 
-        return res.json({
-          ok: true,
-          message: '북마크 글 목록을 불러왔습니다.',
-          posts: (rows || []).map((row) => normalizePublicPostAuthor(row)),
-          has_more: (rows || []).length === limit,
-        });
+        try {
+          const posts = await decoratePostRowsWithRenderImages(
+            (rows || []).map((row) => normalizePublicPostAuthor(row))
+          );
+          return res.json({
+            ok: true,
+            message: '북마크 글 목록을 불러왔습니다.',
+            posts,
+            has_more: (rows || []).length === limit,
+          });
+        } catch (normalizeError) {
+          console.error(normalizeError);
+          return sendBookmarkError(
+            res,
+            500,
+            'INTERNAL_ERROR',
+            '북마크 글 응답을 가공하는 중 오류가 발생했습니다.'
+          );
+        }
       });
     }
   );

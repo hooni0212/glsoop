@@ -30,6 +30,10 @@ const { sanitizeForStorage } = require('../utils/sanitize');
 const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
 const { normalizeUtcDateTime } = require('../utils/dateTime');
 const {
+  decoratePostRowsWithRenderImages,
+  decoratePostWithRenderImages,
+} = require('../utils/postRenderImages');
+const {
   appendViewerBlockedAuthorCondition,
   createSafetyReport,
   getActiveUserSummary,
@@ -90,8 +94,16 @@ function parseId(value) {
   return Number.isNaN(num) ? null : num;
 }
 
-function normalizePublicPostRows(rows) {
-  return Array.isArray(rows) ? rows.map((row) => normalizePublicPostAuthor(row)) : [];
+async function normalizePublicPostRows(rows, options = {}) {
+  const normalizedRows = Array.isArray(rows)
+    ? rows.map((row) => normalizePublicPostAuthor(row))
+    : [];
+  return decoratePostRowsWithRenderImages(normalizedRows, options);
+}
+
+async function normalizePublicPostRow(row, options = {}) {
+  if (!row) return row;
+  return decoratePostWithRenderImages(normalizePublicPostAuthor(row), options);
 }
 
 function hasOwn(obj, key) {
@@ -579,7 +591,7 @@ router.get('/posts/my', authRequired, (req, res) => {
     ORDER BY p.created_at DESC
     `,
     [userId, userId],
-    (err, rows) => {
+    async (err, rows) => {
       if (err) {
         console.error(err);
         return res
@@ -590,11 +602,20 @@ router.get('/posts/my', authRequired, (req, res) => {
           });
       }
 
-      return res.json({
-        ok: true,
-        message: '내 글 목록을 불러왔습니다.',
-        posts: normalizePublicPostRows(rows),
-      });
+      try {
+        const posts = await normalizePublicPostRows(rows);
+        return res.json({
+          ok: true,
+          message: '내 글 목록을 불러왔습니다.',
+          posts,
+        });
+      } catch (normalizeError) {
+        console.error(normalizeError);
+        return res.status(500).json({
+          ok: false,
+          message: '글 목록 가공 중 오류가 발생했습니다.',
+        });
+      }
     }
   );
 });
@@ -635,7 +656,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
     ORDER BY l.created_at DESC
     `,
     [userId, userId],
-    (err, rows) => {
+    async (err, rows) => {
       if (err) {
         console.error(err);
         return res
@@ -646,11 +667,20 @@ router.get('/posts/liked', authRequired, (req, res) => {
           });
       }
 
-      return res.json({
-        ok: true,
-        message: '공감한 글 목록을 불러왔습니다.',
-        posts: normalizePublicPostRows(rows),
-      });
+      try {
+        const posts = await normalizePublicPostRows(rows);
+        return res.json({
+          ok: true,
+          message: '공감한 글 목록을 불러왔습니다.',
+          posts,
+        });
+      } catch (normalizeError) {
+        console.error(normalizeError);
+        return res.status(500).json({
+          ok: false,
+          message: '글 목록 가공 중 오류가 발생했습니다.',
+        });
+      }
     }
   );
 });
@@ -773,7 +803,7 @@ function handleFeedRequest(req, res) {
 
     params.push(limit, offset);
 
-    db.all(sql, params, (err, rows) => {
+    db.all(sql, params, async (err, rows) => {
       if (err) {
         console.error(err);
         return res.status(500).json({
@@ -782,19 +812,28 @@ function handleFeedRequest(req, res) {
         });
       }
 
-      return res.json({
-        ok: true,
-        message: '피드를 불러왔습니다.',
-        posts: normalizePublicPostRows(rows),
-        has_more: rows.length === limit,
-        context: {
-          feed_type: feedType,
-          sort,
-          following_count: followingCount,
-          tags,
-          category: category || null,
-        },
-      });
+      try {
+        const posts = await normalizePublicPostRows(rows);
+        return res.json({
+          ok: true,
+          message: '피드를 불러왔습니다.',
+          posts,
+          has_more: rows.length === limit,
+          context: {
+            feed_type: feedType,
+            sort,
+            following_count: followingCount,
+            tags,
+            category: category || null,
+          },
+        });
+      } catch (normalizeError) {
+        console.error(normalizeError);
+        return res.status(500).json({
+          ok: false,
+          message: '피드 응답 가공 중 오류가 발생했습니다.',
+        });
+      }
     });
   };
 
@@ -960,7 +999,7 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
         //              2) postId (p.id != ?)
         //              3) CANDIDATE_LIMIT (LIMIT ?)
         userId ? [userId, postId, userId, CANDIDATE_LIMIT] : [userId, postId, CANDIDATE_LIMIT],
-        (err2, rows) => {
+        async (err2, rows) => {
           if (err2) {
             console.error(err2);
             return res.status(500).json({
@@ -1019,11 +1058,20 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
             return copy;
           });
 
-          return res.json({
-              ok: true,
-              message: '관련 글을 불러왔습니다.',
-              posts: normalizePublicPostRows(finalPosts),
+          try {
+            const posts = await normalizePublicPostRows(finalPosts);
+            return res.json({
+                ok: true,
+                message: '관련 글을 불러왔습니다.',
+                posts,
+              });
+          } catch (normalizeError) {
+            console.error(normalizeError);
+            return res.status(500).json({
+              ok: false,
+              message: '관련 글 응답 가공 중 오류가 발생했습니다.',
             });
+          }
         }
       );
       }
@@ -1367,7 +1415,7 @@ function handlePublicPostDetail(req, res) {
     params = detailParams;
   }
 
-  db.get(sql, params, (err, row) => {
+  db.get(sql, params, async (err, row) => {
     if (err) {
       console.error(err);
       return res.status(500).json({
@@ -1390,28 +1438,43 @@ function handlePublicPostDetail(req, res) {
           .filter(Boolean)
       : [];
 
-    const normalizedRow = normalizePublicPostAuthor(row);
+    try {
+      const normalizedRow = await normalizePublicPostRow(row, {
+        includeNestedPages: true,
+      });
 
-    return res.json({
-      ok: true,
-      message: '글 상세 정보를 불러왔습니다.',
-      post: {
-        id: normalizedRow.id,
-        title: normalizedRow.title,
-        content: normalizedRow.content,
-        layout_json: normalizedRow.layout_json || null,
-        category: normalizedRow.category,
-        created_at: normalizedRow.created_at,
-        author_id: normalizedRow.author_id,
-        author_display_name: normalizedRow.author_display_name,
-        author_name: normalizedRow.author_name,
-        author_nickname: normalizedRow.author_nickname,
-        author_email: normalizedRow.author_email,
-        like_count: normalizedRow.like_count,
-        user_liked: normalizedRow.user_liked ? 1 : 0,
-        hashtags,
-      },
-    });
+      return res.json({
+        ok: true,
+        message: '글 상세 정보를 불러왔습니다.',
+        post: {
+          id: normalizedRow.id,
+          title: normalizedRow.title,
+          content: normalizedRow.content,
+          layout_json: normalizedRow.layout_json || null,
+          category: normalizedRow.category,
+          created_at: normalizedRow.created_at,
+          author_id: normalizedRow.author_id,
+          author_display_name: normalizedRow.author_display_name,
+          author_name: normalizedRow.author_name,
+          author_nickname: normalizedRow.author_nickname,
+          author_email: normalizedRow.author_email,
+          like_count: normalizedRow.like_count,
+          user_liked: normalizedRow.user_liked ? 1 : 0,
+          hashtags,
+          image_url: normalizedRow.image_url,
+          primary_image: normalizedRow.primary_image,
+          images: normalizedRow.images,
+          has_multiple: normalizedRow.has_multiple,
+          render_images: normalizedRow.render_images,
+        },
+      });
+    } catch (normalizeError) {
+      console.error(normalizeError);
+      return res.status(500).json({
+        ok: false,
+        message: '글 상세 응답 가공 중 오류가 발생했습니다.',
+      });
+    }
   });
 }
 

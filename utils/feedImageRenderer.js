@@ -5,8 +5,9 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v10';
+const RENDER_VERSION = 'feed-image-poc-v11';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
+const FEED_IMAGE_PAGE_CAP = 8;
 
 const TEMPLATE_CONFIG = {
   paper01: {
@@ -628,7 +629,7 @@ function clampLineWithEllipsis(line, maxWidthPx, fontSizePx, letterSpacingEm = 0
   return `${result}${ellipsis}`;
 }
 
-function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines, letterSpacingEm = 0) {
+function layoutAllTextLines(text, maxWidthPx, fontSizePx, letterSpacingEm = 0) {
   const paragraphs = String(text || '')
     .split('\n')
     .map((line) => line.trim());
@@ -647,6 +648,12 @@ function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines, letterSpacingEm
     lines.pop();
   }
 
+  return lines.length ? lines : [''];
+}
+
+function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines, letterSpacingEm = 0) {
+  const lines = layoutAllTextLines(text, maxWidthPx, fontSizePx, letterSpacingEm);
+
   if (lines.length <= maxLines) return lines;
 
   const truncated = lines.slice(0, maxLines);
@@ -657,6 +664,29 @@ function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines, letterSpacingEm
     letterSpacingEm
   );
   return truncated;
+}
+
+function paginateTextLines(lines, maxLinesPerPage, pageCap = FEED_IMAGE_PAGE_CAP) {
+  const safeLines = Array.isArray(lines) && lines.length > 0 ? lines : [''];
+  const pageLines = Math.max(1, Number(maxLinesPerPage) || 1);
+  const pages = [];
+  let cursor = 0;
+
+  while (cursor < safeLines.length && pages.length < pageCap) {
+    pages.push(safeLines.slice(cursor, cursor + pageLines));
+    cursor += pageLines;
+  }
+
+  if (!pages.length) {
+    pages.push(['']);
+  }
+
+  return {
+    pages,
+    pageCount: pages.length,
+    isTruncated: cursor < safeLines.length,
+    pageCap,
+  };
 }
 
 function escapeXml(text) {
@@ -686,7 +716,7 @@ async function getTemplateMetadata(filePath) {
   return value;
 }
 
-function buildCacheHash({ post, templateKey, scale, renderMode }) {
+function buildRenderVersion({ post, templateKey, scale, renderMode }) {
   const payload = JSON.stringify({
     render_version: RENDER_VERSION,
     template: templateKey,
@@ -697,6 +727,16 @@ function buildCacheHash({ post, templateKey, scale, renderMode }) {
     content: post?.content || '',
     created_at: post?.created_at || '',
     layout_json: post?.layout_json || '',
+  });
+
+  return crypto.createHash('sha1').update(payload).digest('hex');
+}
+
+function buildCacheHash({ post, templateKey, scale, renderMode, page = 1 }) {
+  const renderVersion = buildRenderVersion({ post, templateKey, scale, renderMode });
+  const payload = JSON.stringify({
+    render_version: renderVersion,
+    page: Math.max(1, Number.parseInt(page, 10) || 1),
   });
 
   return crypto.createHash('sha1').update(payload).digest('hex');
@@ -829,6 +869,14 @@ function resolveFittedMaxLines(boxHeightPx, lineHeightPx, presetMaxLines) {
   const fitted = Math.max(1, Math.floor(boxHeightPx / Math.max(1, lineHeightPx)));
   const normalizedPreset = Math.max(1, Number(presetMaxLines) || 1);
   return Math.max(1, Math.min(fitted, normalizedPreset));
+}
+
+function resolveBodyPageMaxLines(boxHeightPx, lineHeightPx, presetMaxLines = null) {
+  const fitted = Math.max(1, Math.floor(boxHeightPx / Math.max(1, lineHeightPx)));
+  if (presetMaxLines == null) {
+    return fitted;
+  }
+  return resolveFittedMaxLines(boxHeightPx, lineHeightPx, presetMaxLines);
 }
 
 function buildSvgTextGroup({
@@ -1012,9 +1060,8 @@ function buildSvgShareOverlay({
   `.trim();
 }
 
-async function renderFeedModeImageBuffer({
+function buildFeedModeRenderPlan({
   post,
-  template,
   outputWidth,
   outputHeight,
   scale,
@@ -1044,19 +1091,18 @@ async function renderFeedModeImageBuffer({
   let box = hasCustomBodyLayout
     ? resolveBoxFromNormalizedLayout(outputWidth, outputHeight, customBodyBox)
     : resolveFeedBoxFromPreset(outputWidth, outputHeight, effectivePreset);
-  let maxLines = hasCustomBodyLayout
-    ? resolveFittedMaxLines(box.height, lineHeightPx, Math.max(preset.maxLines, 24))
-    : preset.maxLines;
-  let lines = layoutTextLines(
+  let pageMaxLines = hasCustomBodyLayout
+    ? resolveBodyPageMaxLines(box.height, lineHeightPx)
+    : resolveBodyPageMaxLines(box.height, lineHeightPx, effectivePreset.maxLines);
+  let allLines = layoutAllTextLines(
     bodyText,
     Math.max(20, box.width),
     fontSizePx,
-    maxLines,
     bodyLetterSpacingEm
   );
 
   if (!hasCustomBodyLayout) {
-    const nonEmptyLineCount = lines.filter(
+    const nonEmptyLineCount = allLines.filter(
       (line) => String(line || '').trim().length > 0
     ).length;
     if (nonEmptyLineCount <= 1) {
@@ -1075,16 +1121,36 @@ async function renderFeedModeImageBuffer({
       );
       lineHeightPx = fontSizePx * bodyLineHeightRatio;
       box = resolveFeedBoxFromPreset(outputWidth, outputHeight, effectivePreset);
-      maxLines = effectivePreset.maxLines;
-      lines = layoutTextLines(
+      pageMaxLines = resolveBodyPageMaxLines(
+        box.height,
+        lineHeightPx,
+        effectivePreset.maxLines
+      );
+      allLines = layoutAllTextLines(
         bodyText,
         Math.max(20, box.width),
         fontSizePx,
-        maxLines,
         bodyLetterSpacingEm
       );
     }
   }
+
+  const pagination = hasCustomBodyLayout
+    ? paginateTextLines(allLines, pageMaxLines, FEED_IMAGE_PAGE_CAP)
+    : {
+        pages: [
+          layoutTextLines(
+            bodyText,
+            Math.max(20, box.width),
+            fontSizePx,
+            pageMaxLines,
+            bodyLetterSpacingEm
+          ),
+        ],
+        pageCount: 1,
+        isTruncated: allLines.length > pageMaxLines,
+        pageCap: FEED_IMAGE_PAGE_CAP,
+      };
 
   let titleConfig = null;
   if (shouldRenderTitleInImage) {
@@ -1149,18 +1215,55 @@ async function renderFeedModeImageBuffer({
     });
   }
 
-  const svgOverlay = buildSvgTextOverlay({
-    width: outputWidth,
-    height: outputHeight,
-    lines,
+  return {
+    pageCount: pagination.pageCount,
+    pageCap: pagination.pageCap,
+    isTruncated: pagination.isTruncated,
+    pages: pagination.pages,
+    titleConfig,
+    footerSignature,
     box,
     fontSizePx,
     lineHeightPx,
-    letterSpacingEm: bodyLetterSpacingEm,
+    bodyLetterSpacingEm,
     textAlign: customBodyBox?.align || effectivePreset.textAlign,
     verticalAlign: effectivePreset.verticalAlign,
-    title: titleConfig,
-    footerSignature,
+    layoutTag: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}${
+      shouldRenderTitleInImage ? '-with-title' : ''
+    }${hasCustomFooterLayout ? '-with-footer' : ''}`,
+  };
+}
+
+async function renderFeedModePageBuffer({
+  post,
+  template,
+  outputWidth,
+  outputHeight,
+  scale,
+  page = 1,
+}) {
+  const plan = buildFeedModeRenderPlan({
+    post,
+    outputWidth,
+    outputHeight,
+    scale,
+  });
+  const normalizedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const pageIndex = Math.min(normalizedPage, plan.pageCount) - 1;
+  const pageLines = plan.pages[pageIndex] || plan.pages[0] || [''];
+
+  const svgOverlay = buildSvgTextOverlay({
+    width: outputWidth,
+    height: outputHeight,
+    lines: pageLines,
+    box: plan.box,
+    fontSizePx: plan.fontSizePx,
+    lineHeightPx: plan.lineHeightPx,
+    letterSpacingEm: plan.bodyLetterSpacingEm,
+    textAlign: plan.textAlign,
+    verticalAlign: plan.verticalAlign,
+    title: pageIndex === 0 ? plan.titleConfig : null,
+    footerSignature: plan.footerSignature,
   });
 
   const imageBuffer = await sharp(template.filePath)
@@ -1183,10 +1286,33 @@ async function renderFeedModeImageBuffer({
 
   return {
     buffer: imageBuffer,
-    layout: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}${
-      shouldRenderTitleInImage ? '-with-title' : ''
-    }${hasCustomFooterLayout ? '-with-footer' : ''}`,
+    layout: `${plan.layoutTag}-page-${pageIndex + 1}of${plan.pageCount}${
+      plan.isTruncated ? '-truncated' : ''
+    }`,
+    manifest: {
+      pageCount: plan.pageCount,
+      pageCap: plan.pageCap,
+      isTruncated: plan.isTruncated,
+    },
   };
+}
+
+async function renderFeedModeImageBuffer({
+  post,
+  template,
+  outputWidth,
+  outputHeight,
+  scale,
+  page = 1,
+}) {
+  return renderFeedModePageBuffer({
+    post,
+    template,
+    outputWidth,
+    outputHeight,
+    scale,
+    page,
+  });
 }
 
 async function renderShareModeImageBuffer({
@@ -1319,6 +1445,7 @@ async function renderFeedImageBuffer({
   templateKey = 'paper01',
   scale = 1,
   renderMode = 'feed',
+  page = 1,
 }) {
   const template = TEMPLATE_CONFIG[templateKey] || TEMPLATE_CONFIG.paper01;
   const { width, height } = await getTemplateMetadata(template.filePath);
@@ -1333,6 +1460,7 @@ async function renderFeedImageBuffer({
       outputWidth,
       outputHeight,
       scale,
+      page: 1,
     });
   }
 
@@ -1342,6 +1470,7 @@ async function renderFeedImageBuffer({
     outputWidth,
     outputHeight,
     scale,
+    page,
   });
 }
 
@@ -1358,15 +1487,56 @@ async function loadCachedBuffer(cachePath) {
   }
 }
 
-async function renderFeedCardImage({ post, templateKey, scale, renderMode = 'feed' }) {
+async function getFeedCardImageManifest({
+  post,
+  templateKey = 'paper01',
+  scale = 1,
+}) {
+  const normalizedTemplate = normalizeTemplateKey(templateKey);
+  const normalizedScale = normalizeScale(scale);
+  const template = TEMPLATE_CONFIG[normalizedTemplate] || TEMPLATE_CONFIG.paper01;
+  const { width, height } = await getTemplateMetadata(template.filePath);
+  const outputWidth = normalizedScale === 2 ? width * 2 : width;
+  const outputHeight = normalizedScale === 2 ? height * 2 : height;
+  const plan = buildFeedModeRenderPlan({
+    post,
+    outputWidth,
+    outputHeight,
+    scale: normalizedScale,
+  });
+
+  return {
+    pageCount: plan.pageCount,
+    pageCap: plan.pageCap,
+    isTruncated: plan.isTruncated,
+    template: normalizedTemplate,
+    scale: normalizedScale,
+    version: buildRenderVersion({
+      post,
+      templateKey: normalizedTemplate,
+      scale: normalizedScale,
+      renderMode: 'feed',
+    }),
+  };
+}
+
+async function renderFeedCardImage({
+  post,
+  templateKey,
+  scale,
+  renderMode = 'feed',
+  page = 1,
+}) {
   const normalizedTemplate = normalizeTemplateKey(templateKey);
   const normalizedScale = normalizeScale(scale);
   const normalizedRenderMode = normalizeRenderMode(renderMode);
+  const normalizedPage = Math.max(1, Number.parseInt(page, 10) || 1);
   const cacheHash = buildCacheHash({
     post,
     templateKey: normalizedTemplate,
     scale: normalizedScale,
     renderMode: normalizedRenderMode,
+    page: normalizedPage,
   });
   const cachePath = path.join(CACHE_DIR, `${cacheHash}.webp`);
   const etag = `"feed-image-${cacheHash}"`;
@@ -1380,6 +1550,7 @@ async function renderFeedCardImage({ post, templateKey, scale, renderMode = 'fee
       cacheHit: true,
       template: normalizedTemplate,
       scale: normalizedScale,
+      page: normalizedPage,
     };
   }
 
@@ -1394,6 +1565,7 @@ async function renderFeedCardImage({ post, templateKey, scale, renderMode = 'fee
       templateKey: normalizedTemplate,
       scale: normalizedScale,
       renderMode: normalizedRenderMode,
+      page: normalizedPage,
     });
 
     try {
@@ -1411,6 +1583,8 @@ async function renderFeedCardImage({ post, templateKey, scale, renderMode = 'fee
       layout: rendered.layout,
       template: normalizedTemplate,
       scale: normalizedScale,
+      page: normalizedPage,
+      manifest: rendered.manifest || null,
     };
   })().finally(() => {
     inFlightRenders.delete(inflightKey);
@@ -1421,8 +1595,11 @@ async function renderFeedCardImage({ post, templateKey, scale, renderMode = 'fee
 }
 
 module.exports = {
+  buildRenderVersion,
+  getFeedCardImageManifest,
   renderFeedCardImage,
   normalizeScale,
   normalizeTemplateKey,
+  normalizePostText,
   parsePostLayout,
 };

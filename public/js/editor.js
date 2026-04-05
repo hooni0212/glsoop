@@ -7,11 +7,9 @@
 // - 새 글 작성 / 기존 글 수정(POST / PUT) 처리
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 🔢 본문 최대 글자 수
-  const MAX_CONTENT_LENGTH = 200;
   const DRAFT_KEY_PREFIX = 'glsoop:editor:draft:v1';
   const DRAFT_SAVE_DEBOUNCE_MS = 900;
-  const PREVIEW_IMAGE_DEBOUNCE_MS = 200;
+  const PREVIEW_SESSION_DEBOUNCE_MS = 450;
 
   // 해시태그 칩용 내부 리스트
   // ex) ['힐링', '위로']
@@ -22,12 +20,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isProgrammaticUpdate = false;
   let isNavigatingAfterSave = false;
   let isSaving = false;
-  let previewImageTimer = null;
-  let previewImageRequestSeq = 0;
+  let previewSessionTimer = null;
+  let previewSessionRequestSeq = 0;
+  let previewImageLoadSeq = 0;
+  let previewSessionAbortController = null;
   let layoutEditor = null;
   let layoutEditEnabled = false;
   let manualLayoutState = null;
   let pendingLoadedLayout = null;
+  let previewPageIndex = 0;
+  let previewSessionImages = [];
+  let previewSessionPageCount = 1;
+  let previewSessionTruncated = false;
+  let previewCreatedAt = new Date().toISOString();
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -167,6 +172,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const layoutEditToggleBtn = document.getElementById('layoutEditToggleBtn');
   const layoutResetBtn = document.getElementById('layoutResetBtn');
   const layoutSafeAreaHintEl = document.getElementById('layoutSafeAreaHint');
+  const previewSessionErrorEl = document.getElementById('previewSessionError');
+  const previewCarouselControlsEl = document.getElementById('previewCarouselControls');
+  const previewCarouselPrevBtn = document.getElementById('previewCarouselPrevBtn');
+  const previewCarouselNextBtn = document.getElementById('previewCarouselNextBtn');
+  const previewCarouselCurrentPageEl = document.getElementById('previewCarouselCurrentPage');
+  const previewCarouselTotalPagesEl = document.getElementById('previewCarouselTotalPages');
+  const previewTruncatedNoticeEl = document.getElementById('previewTruncatedNotice');
 
   // ✅ 남은 글자 수 표시 요소 (에디터 박스 오른쪽 아래)
   const charCounterEl = document.getElementById('charCounter');
@@ -365,6 +377,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateLayoutSafeAreaHint(false);
       updatePreview();
       onEditorUserMutation('layout_reset');
+    });
+  }
+
+  if (previewCarouselPrevBtn) {
+    previewCarouselPrevBtn.addEventListener('click', () => {
+      if (previewPageIndex <= 0) return;
+      previewPageIndex -= 1;
+      const previewCard = previewFeedCardMountEl?.querySelector('.gls-post-card');
+      if (previewCard) {
+        applyEditorPreviewPage(previewCard, previewSessionImages[previewPageIndex] || '');
+      } else {
+        syncPreviewCarouselUi();
+      }
+    });
+  }
+
+  if (previewCarouselNextBtn) {
+    previewCarouselNextBtn.addEventListener('click', () => {
+      if (previewPageIndex >= previewSessionImages.length - 1) return;
+      previewPageIndex += 1;
+      const previewCard = previewFeedCardMountEl?.querySelector('.gls-post-card');
+      if (previewCard) {
+        applyEditorPreviewPage(previewCard, previewSessionImages[previewPageIndex] || '');
+      } else {
+        syncPreviewCarouselUi();
+      }
     });
   }
 
@@ -569,24 +607,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * ✅ 남은 글자 수 업데이트 함수
-   * - 형식: (남은 글자수)/200
-   * - 30자 이하 남았을 때는 빨간색으로 경고
+   * ✅ 현재 글자 수 업데이트 함수
    */
   function updateCharCounter(currentLength) {
     if (!charCounterEl) return;
-
-    const remaining = Math.max(0, MAX_CONTENT_LENGTH - currentLength);
-    charCounterEl.textContent = `${remaining}/${MAX_CONTENT_LENGTH}`;
-
-    // 30자 이하 남았을 때 빨간색
-    if (remaining <= 30) {
-      charCounterEl.classList.remove('gls-text-muted');
-      charCounterEl.classList.add('text-danger');
-    } else {
-      charCounterEl.classList.remove('text-danger');
-      charCounterEl.classList.add('gls-text-muted');
-    }
+    charCounterEl.textContent = `${Math.max(0, Number(currentLength) || 0)}자`;
+    charCounterEl.classList.remove('text-danger');
+    charCounterEl.classList.add('gls-text-muted');
   }
 
   /**
@@ -627,17 +654,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         contentHtml,
         plainText,
       });
-      const layoutForPreview = manualLayoutState ? cloneLayout(manualLayoutState) : null;
-      const previewImageUrl = buildEditorPreviewRenderedImageUrl({
-        title: previewPost.title,
-        content: previewPost.content,
-        category: previewPost.category,
-        layout: layoutForPreview,
-      });
-      const previewCard = ensureEditorPreviewCard(previewPost, previewImageUrl);
+      const previewCard = ensureEditorPreviewCard(previewPost);
       syncEditorPreviewCardMeta(previewCard, previewPost);
       ensureEditorLayoutEditor(previewCard, previewPost, plainText);
-      scheduleEditorPreviewImageUpdate(previewCard, previewImageUrl);
+      requestEditorPreviewSession(previewPost);
     }
 
     // 하단 메타 갱신
@@ -647,9 +667,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   function buildEditorPreviewPost({ title, contentHtml, plainText }) {
     const selectedFontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
     const selectedCategory = categorySelectEl ? categorySelectEl.value || 'short' : 'short';
+    const emptyBodyPlaceholder =
+      '여기에 오늘의 문장을 적어 보시면, 이 카드에서 바로 미리 볼 수 있어요.';
     const normalizedContent = plainText
       ? contentHtml
-      : '<p>여기에 오늘의 문장을 적어 보시면, 이 카드에서 바로 미리 볼 수 있어요.</p>';
+      : `<p>${emptyBodyPlaceholder}</p>`;
     const contentWithFontMeta = `<!--FONT:${selectedFontKey}-->${normalizedContent}`;
 
     return {
@@ -659,61 +681,75 @@ document.addEventListener('DOMContentLoaded', async () => {
       content: contentWithFontMeta,
       hashtags: hashtagList.join(', '),
       category: selectedCategory,
-      created_at: new Date().toISOString(),
+      created_at: previewCreatedAt,
       like_count: 0,
       user_liked: 0,
       layout_json: manualLayoutState ? cloneLayout(manualLayoutState) : null,
     };
   }
 
-  function appendPreviewLayoutParams(params, layout) {
-    if (!layout || typeof layout !== 'object' || !layout.text_box) return;
-
-    const appendBox = (box, prefix = '') => {
-      if (!box || typeof box !== 'object') return;
-      const x = Number(box.x);
-      const y = Number(box.y);
-      const w = Number(box.w);
-      const h = Number(box.h);
-      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || !Number.isFinite(h)) {
-        return;
-      }
-      const key = prefix ? `layout_${prefix}_` : 'layout_';
-      params.set(`${key}x`, String(x));
-      params.set(`${key}y`, String(y));
-      params.set(`${key}w`, String(w));
-      params.set(`${key}h`, String(h));
-
-      if (typeof box.align === 'string' && box.align.trim()) {
-        params.set(`${key}align`, box.align.trim());
-      }
-      if (Number.isFinite(Number(box.font_scale))) {
-        params.set(`${key}font_scale`, String(Number(box.font_scale)));
-      }
-      if (Number.isFinite(Number(box.line_height))) {
-        params.set(`${key}line_height`, String(Number(box.line_height)));
-      }
-    };
-
-    appendBox(layout.text_box, '');
-    appendBox(layout.title_box, 'title');
+  function normalizePreviewImageUrls(payload) {
+    if (Array.isArray(payload?.images) && payload.images.length > 0) {
+      return payload.images.map((value) => String(value || '').trim()).filter(Boolean);
+    }
+    if (Array.isArray(payload?.render_images?.images) && payload.render_images.images.length > 0) {
+      return payload.render_images.images.map((value) => String(value || '').trim()).filter(Boolean);
+    }
+    const primaryImage =
+      typeof payload?.primary_image === 'string' && payload.primary_image.trim()
+        ? payload.primary_image.trim()
+        : typeof payload?.image_url === 'string' && payload.image_url.trim()
+          ? payload.image_url.trim()
+          : '';
+    return primaryImage ? [primaryImage] : [];
   }
 
-  function buildEditorPreviewRenderedImageUrl({ title, content, category, layout }) {
-    const params = new URLSearchParams();
-    params.set('title', title || '');
-    params.set('content', content || '');
-    params.set('category', category || 'short');
-    params.set('template', 'paper01');
-    // 에디터 프리뷰는 반응성을 우선해서 경량 렌더 스케일 사용
-    params.set('scale', '1');
-    appendPreviewLayoutParams(params, layout);
-    return `/api/feed-images/preview?${params.toString()}`;
+  function setPreviewSessionError(message = '') {
+    if (!previewSessionErrorEl) return;
+    if (message) {
+      previewSessionErrorEl.textContent = message;
+      previewSessionErrorEl.classList.remove('gls-hidden');
+      return;
+    }
+    previewSessionErrorEl.textContent = '';
+    previewSessionErrorEl.classList.add('gls-hidden');
   }
 
-  function ensureEditorPreviewCard(previewPost, previewImageUrl) {
+  function syncPreviewCarouselUi() {
+    const totalPages = Math.max(1, previewSessionPageCount || previewSessionImages.length || 1);
+    const currentPage = Math.max(1, Math.min(previewPageIndex + 1, totalPages));
+    const canNavigate = totalPages > 1;
+
+    if (previewCarouselCurrentPageEl) {
+      previewCarouselCurrentPageEl.textContent = String(currentPage);
+    }
+    if (previewCarouselTotalPagesEl) {
+      previewCarouselTotalPagesEl.textContent = String(totalPages);
+    }
+    if (previewCarouselControlsEl) {
+      previewCarouselControlsEl.classList.toggle('gls-hidden', totalPages <= 1);
+    }
+    if (previewCarouselPrevBtn) {
+      previewCarouselPrevBtn.disabled = !canNavigate || currentPage <= 1;
+    }
+    if (previewCarouselNextBtn) {
+      previewCarouselNextBtn.disabled = !canNavigate || currentPage >= totalPages;
+    }
+    if (previewTruncatedNoticeEl) {
+      previewTruncatedNoticeEl.classList.toggle('gls-hidden', !previewSessionTruncated);
+    }
+  }
+
+  function ensureEditorPreviewCard(previewPost) {
+    const renderedImageSrc =
+      previewSessionImages[Math.max(0, previewPageIndex)] ||
+      'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
     let previewCard = previewFeedCardMountEl.querySelector('.gls-post-card');
     if (previewCard) {
+      const imageEl = previewCard.querySelector('.feed-rendered-card-image');
+      if (imageEl && renderedImageSrc) {
+        imageEl.setAttribute('src', renderedImageSrc);
+      }
       return previewCard;
     }
 
@@ -723,7 +759,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       contentExpanded: true,
       cardClickable: false,
       cardExtraClass: 'editor-preview-feed-card',
-      renderedImageSrc: previewImageUrl,
+      renderedImageSrc,
     });
 
     previewCard = previewFeedCardMountEl.querySelector('.gls-post-card');
@@ -738,6 +774,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     layoutEditToggleBtn.setAttribute('aria-pressed', layoutEditEnabled ? 'true' : 'false');
     layoutEditToggleBtn.textContent = `레이아웃 편집: ${layoutEditEnabled ? 'ON' : 'OFF'}`;
     previewFeedCardMountEl?.classList.toggle('is-layout-editing', layoutEditEnabled);
+    syncPreviewCarouselUi();
   }
 
   function updateLayoutSafeAreaHint(shouldShow) {
@@ -819,6 +856,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     updateLayoutToggleUi();
     updateLayoutSafeAreaHint(getLayoutWarningState());
+    const previewCard = previewFeedCardMountEl?.querySelector('.gls-post-card');
+    if (previewCard) {
+      applyEditorPreviewPage(previewCard, previewSessionImages[previewPageIndex] || '');
+    }
   }
 
   function syncEditorPreviewCardMeta(previewCard, previewPost) {
@@ -861,7 +902,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function scheduleEditorPreviewImageUpdate(previewCard, previewImageUrl) {
+  function applyEditorPreviewPage(previewCard, previewImageUrl) {
     if (!previewCard || !previewImageUrl) return;
 
     const imageEl = previewCard.querySelector('.feed-rendered-card-image');
@@ -870,55 +911,126 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!imageEl) return;
 
     const currentSrc = imageEl.getAttribute('src') || '';
-    if (currentSrc === previewImageUrl) return;
-
-    if (previewImageTimer) {
-      clearTimeout(previewImageTimer);
+    if (currentSrc === previewImageUrl) {
+      syncPreviewCarouselUi();
+      return;
     }
 
-    const requestSeq = ++previewImageRequestSeq;
-    previewImageTimer = window.setTimeout(() => {
-      const loader = new Image();
-      loader.decoding = 'async';
-      if (imageShellEl) {
-        imageShellEl.classList.add('is-preview-loading');
+    const requestSeq = ++previewImageLoadSeq;
+    const loader = new Image();
+    loader.decoding = 'async';
+    if (imageShellEl) {
+      imageShellEl.classList.add('is-preview-loading');
+    }
+
+    loader.onload = () => {
+      if (requestSeq !== previewImageLoadSeq) return;
+      imageEl.src = previewImageUrl;
+      imageEl.classList.remove('is-hidden');
+      imageEl.removeAttribute('hidden');
+      if (fallbackEl) {
+        fallbackEl.hidden = true;
+        fallbackEl.classList.remove('is-active');
       }
+      if (imageShellEl) {
+        imageShellEl.classList.remove('is-preview-loading');
+      }
+      if (layoutEditor) {
+        layoutEditor.mount(previewCard);
+        layoutEditor.setEnabled(layoutEditEnabled);
+        updateLayoutSafeAreaHint(getLayoutWarningState());
+      }
+      syncPreviewCarouselUi();
+    };
 
-      loader.onload = () => {
-        if (requestSeq !== previewImageRequestSeq) return;
-        imageEl.src = previewImageUrl;
-        imageEl.classList.remove('is-hidden');
-        imageEl.removeAttribute('hidden');
-        if (fallbackEl) {
-          fallbackEl.hidden = true;
-          fallbackEl.classList.remove('is-active');
-        }
-        if (imageShellEl) {
-          imageShellEl.classList.remove('is-preview-loading');
-        }
-        if (layoutEditor) {
-          layoutEditor.mount(previewCard);
-          layoutEditor.setEnabled(layoutEditEnabled);
-          updateLayoutSafeAreaHint(getLayoutWarningState());
-        }
-      };
+    loader.onerror = () => {
+      if (requestSeq !== previewImageLoadSeq) return;
+      if (fallbackEl) {
+        imageEl.classList.add('is-hidden');
+        imageEl.setAttribute('hidden', '');
+        fallbackEl.hidden = false;
+        fallbackEl.classList.add('is-active');
+      }
+      if (imageShellEl) {
+        imageShellEl.classList.remove('is-preview-loading');
+      }
+      setPreviewSessionError('미리보기 이미지를 불러오지 못했어요. 저장은 계속할 수 있습니다.');
+      updateLayoutSafeAreaHint(false);
+      syncPreviewCarouselUi();
+    };
 
-      loader.onerror = () => {
-        if (requestSeq !== previewImageRequestSeq) return;
-        if (fallbackEl) {
-          imageEl.classList.add('is-hidden');
-          imageEl.setAttribute('hidden', '');
-          fallbackEl.hidden = false;
-          fallbackEl.classList.add('is-active');
-        }
-        if (imageShellEl) {
-          imageShellEl.classList.remove('is-preview-loading');
-        }
-        updateLayoutSafeAreaHint(false);
-      };
+    loader.src = previewImageUrl;
+  }
 
-      loader.src = previewImageUrl;
-    }, PREVIEW_IMAGE_DEBOUNCE_MS);
+  function requestEditorPreviewSession(previewPost) {
+    if (!previewFeedCardMountEl) return;
+
+    if (previewSessionTimer) {
+      clearTimeout(previewSessionTimer);
+    }
+
+    const layoutForPreview = manualLayoutState ? cloneLayout(manualLayoutState) : null;
+    const requestSeq = ++previewSessionRequestSeq;
+
+    previewSessionTimer = window.setTimeout(async () => {
+      if (previewSessionAbortController) {
+        previewSessionAbortController.abort();
+      }
+      previewSessionAbortController = new AbortController();
+
+      try {
+        setPreviewSessionError('');
+
+        const response = await fetch('/api/feed-images/preview/sessions', {
+          method: 'POST',
+          signal: previewSessionAbortController.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: previewPost.title,
+            content: previewPost.content,
+            content_format: 'html',
+            category: previewPost.category,
+            template: 'paper01',
+            scale: 1,
+            layout_json: layoutForPreview,
+            created_at: previewPost.created_at,
+          }),
+        });
+
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) {
+          throw new Error(payload?.message || '미리보기 세션 생성에 실패했습니다.');
+        }
+        if (requestSeq !== previewSessionRequestSeq) return;
+
+        previewSessionImages = normalizePreviewImageUrls(payload);
+        previewSessionPageCount = Math.max(
+          1,
+          Number.parseInt(String(payload?.render_images?.page_count || previewSessionImages.length || 1), 10) || 1
+        );
+        previewSessionTruncated = Boolean(payload?.render_images?.is_truncated);
+        if (!previewSessionImages.length) {
+          throw new Error('미리보기 이미지가 비어 있습니다.');
+        }
+        previewPageIndex = Math.max(0, Math.min(previewPageIndex, previewSessionImages.length - 1));
+
+        const previewCard = ensureEditorPreviewCard(previewPost);
+        syncEditorPreviewCardMeta(previewCard, previewPost);
+        ensureEditorLayoutEditor(previewCard, previewPost, quill.getText().trim());
+        applyEditorPreviewPage(previewCard, previewSessionImages[previewPageIndex] || previewSessionImages[0]);
+      } catch (error) {
+        if (requestSeq !== previewSessionRequestSeq) return;
+        if (error?.name === 'AbortError') return;
+        console.error('[editor] preview session failed:', error);
+        previewSessionImages = [];
+        previewSessionPageCount = 1;
+        previewSessionTruncated = false;
+        setPreviewSessionError(error?.message || '미리보기를 준비하지 못했습니다. 저장은 계속할 수 있어요.');
+        syncPreviewCarouselUi();
+      }
+    }, PREVIEW_SESSION_DEBOUNCE_MS);
   }
 
   function buildEditorStateSnapshot() {
@@ -1245,41 +1357,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // ✅ 본문 입력 제한 + 미리보기/글자 수 갱신
-  let isAdjusting = false; // 프로그램적 수정 중인지 플래그
+  // ✅ 본문 입력 시 글자 수/미리보기 갱신
   quill.on('text-change', (delta, oldDelta, source) => {
-    if (isAdjusting) return;
-
-    // 프로그램으로 내용 세팅할 때(초기 로드 등)는 제한 없이 바로 갱신
-    if (source !== 'user') {
-      const plainText = quill.getText().trim();
-      updateCharCounter(plainText.length);
-      updatePreview();
-      return;
-    }
-
     const plainText = quill.getText().trim();
-    const length = plainText.length;
-
-    // 최대 글자 수 초과 시 롤백
-    if (length > MAX_CONTENT_LENGTH) {
-      alert(`본문은 최대 ${MAX_CONTENT_LENGTH}자까지 입력할 수 있어요.`);
-
-      // 마지막 입력 이전 상태로 되돌리기
-      isAdjusting = true;
-      quill.setContents(oldDelta);
-      isAdjusting = false;
-
-      const revertedText = quill.getText().trim();
-      updateCharCounter(revertedText.length);
-      updatePreview();
-      return;
-    }
-
-    // 정상 범위면 그냥 카운터/미리보기 갱신
-    updateCharCounter(length);
+    updateCharCounter(plainText.length);
     updatePreview();
-    onEditorUserMutation('content_change');
+    if (source === 'user') {
+      onEditorUserMutation('content_change');
+    }
   });
 
   window.addEventListener('beforeunload', (event) => {
@@ -1328,11 +1413,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!selectedCategory) {
       showEditorError('카테고리를 선택해주세요.');
-      return;
-    }
-
-    if (length > MAX_CONTENT_LENGTH) {
-      showEditorError(`본문은 최대 ${MAX_CONTENT_LENGTH}자까지 입력할 수 있어요.`);
       return;
     }
 

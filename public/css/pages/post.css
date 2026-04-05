@@ -240,6 +240,60 @@ body.page-post #postDetail .gls-post-card.is-rendered-detail .feed-rendered-imag
   background: #e7dfd1;
 }
 
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-detail-carousel-nav {
+  width: min(680px, 100%);
+  margin: 14px auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-detail-carousel-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(55, 43, 28, 0.82);
+  color: #fffaf1;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-detail-carousel-btn[disabled] {
+  opacity: 0.42;
+  cursor: default;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-detail-carousel-status {
+  min-width: 74px;
+  text-align: center;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: rgba(58, 46, 30, 0.86);
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-detail-carousel-dots {
+  width: min(680px, 100%);
+  margin: 10px auto 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-detail-carousel-dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(76, 63, 48, 0.22);
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-detail-carousel-dot.is-active {
+  background: rgba(76, 63, 48, 0.78);
+}
+
 body.page-post #postDetail .gls-post-card.is-rendered-detail .feed-rendered-card-image {
   display: block;
   width: 100%;
@@ -256,6 +310,18 @@ body.page-post #postDetail .gls-post-card.is-rendered-detail .feed-rendered-fall
   background: linear-gradient(180deg, rgba(255, 252, 246, 0.95), rgba(241, 233, 221, 0.97));
   font-size: 1.06rem;
   line-height: 1.78;
+}
+
+body.page-post #postDetail .gls-post-card.is-rendered-detail .post-detail-truncated-notice {
+  width: min(680px, 100%);
+  margin: 18px auto 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(123, 93, 52, 0.1);
+  border: 1px solid rgba(123, 93, 52, 0.16);
+  color: rgba(70, 50, 23, 0.92);
+  font-size: 0.96rem;
+  line-height: 1.62;
 }
 
 body.page-post #postDetail .gls-post-card.is-rendered-detail .post-card-title-outside {

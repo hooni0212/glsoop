@@ -15,6 +15,7 @@ const {
   buildPublicDisplayName,
   normalizePublicPostAuthor,
 } = require('../utils/accountLifecycle');
+const { decoratePostRowsWithRenderImages } = require('../utils/postRenderImages');
 const {
   appendViewerBlockedAuthorCondition,
   blockUser,
@@ -583,10 +584,13 @@ router.get('/users/:id/posts', authOptional, async (req, res) => {
     }
 
     const rows = await dbAll(sql, params);
+    const posts = await decoratePostRowsWithRenderImages(
+      rows.map((row) => normalizePublicPostAuthor(row))
+    );
     return res.json({
       ok: true,
       message: '작가 글 목록을 불러왔습니다.',
-      posts: rows.map((row) => normalizePublicPostAuthor(row)),
+      posts,
       has_more: rows.length === limit,
     });
   } catch (error) {
