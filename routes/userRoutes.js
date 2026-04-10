@@ -15,6 +15,7 @@ const {
   buildPublicDisplayName,
   normalizePublicPostAuthor,
 } = require('../utils/accountLifecycle');
+const { decoratePostRowsWithRenderImages } = require('../utils/postRenderImages');
 const {
   appendViewerBlockedAuthorCondition,
   blockUser,
@@ -365,7 +366,8 @@ router.post('/users/:id/report', authRequired, async (req, res) => {
 
     return res.json({
       ok: true,
-      message: '신고가 운영 검토 큐에 접수되었어요.',
+      message:
+        '신고가 접수되었습니다. 운영팀이 검토 후 24시간 내 조치합니다. 위반 시 콘텐츠 삭제 및 계정 제재가 이루어질 수 있습니다.',
       report_id: report?.id || null,
       status: report?.status || 'queued',
     });
@@ -411,8 +413,8 @@ router.post('/users/:id/block', authRequired, async (req, res) => {
     return res.json({
       ok: true,
       message: result.created
-        ? '사용자를 차단했어요. 이제 이 사용자의 글이 내 화면에서 숨겨지고 운영 검토 큐에도 접수돼요.'
-        : '이미 차단한 사용자예요. 이 사용자의 글은 계속 내 화면에서 숨겨져요.',
+        ? '사용자를 차단했어요. 이 사용자의 글과 프로필이 내 화면에서 즉시 숨겨지고, 운영팀이 검토 후 필요한 경우 콘텐츠 삭제 또는 계정 제재를 진행할 수 있습니다.'
+        : '이미 차단한 사용자예요. 이 사용자의 글과 프로필은 계속 내 화면에서 숨겨집니다.',
       blocked_user_id: targetUserId,
       hidden_post_count: result.hidden_post_count,
       report_id: result.report?.id || null,
@@ -582,10 +584,13 @@ router.get('/users/:id/posts', authOptional, async (req, res) => {
     }
 
     const rows = await dbAll(sql, params);
+    const posts = await decoratePostRowsWithRenderImages(
+      rows.map((row) => normalizePublicPostAuthor(row))
+    );
     return res.json({
       ok: true,
       message: '작가 글 목록을 불러왔습니다.',
-      posts: rows.map((row) => normalizePublicPostAuthor(row)),
+      posts,
       has_more: rows.length === limit,
     });
   } catch (error) {

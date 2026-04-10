@@ -166,11 +166,48 @@ function buildFeedImageVersion(post) {
 }
 
 function buildFeedRenderedImageUrl(post, template = 'paper01') {
+  const explicitPrimaryImage =
+    typeof post?.primary_image === 'string' && post.primary_image.trim()
+      ? post.primary_image.trim()
+      : typeof post?.image_url === 'string' && post.image_url.trim()
+        ? post.image_url.trim()
+        : '';
+  if (explicitPrimaryImage) {
+    return explicitPrimaryImage;
+  }
+
   const postId = encodeURIComponent(post?.id || '');
   const version = buildFeedImageVersion(post);
   return `/api/feed-images/post/${postId}?template=${encodeURIComponent(
     template
   )}&scale=2&v=${encodeURIComponent(version)}`;
+}
+
+function getPostRenderedImageUrls(post, template = 'paper01') {
+  if (Array.isArray(post?.images) && post.images.length > 0) {
+    return post.images
+      .map((value) => String(value || '').trim())
+      .filter(Boolean);
+  }
+
+  if (Array.isArray(post?.render_images?.images) && post.render_images.images.length > 0) {
+    return post.render_images.images
+      .map((value) => String(value || '').trim())
+      .filter(Boolean);
+  }
+
+  const primary = buildFeedRenderedImageUrl(post, template);
+  return primary ? [primary] : [];
+}
+
+function getPostRenderedImagePageCount(post, template = 'paper01') {
+  const explicitPageCount = Number(post?.render_images?.page_count);
+  if (Number.isFinite(explicitPageCount) && explicitPageCount > 0) {
+    return explicitPageCount;
+  }
+
+  const urls = getPostRenderedImageUrls(post, template);
+  return urls.length > 0 ? urls.length : 1;
 }
 
 function hasLayoutTitleBox(post) {
@@ -192,7 +229,10 @@ function hasLayoutTitleBox(post) {
     return false;
   }
 
-  const box = parsed.title_box;
+  const box =
+    Number.parseInt(parsed.layout_version, 10) === 2
+      ? parsed?.base?.title_box
+      : parsed.title_box;
   if (!box || typeof box !== 'object' || Array.isArray(box)) {
     return false;
   }
@@ -207,9 +247,15 @@ function hasLayoutTitleBox(post) {
 
 function buildRenderedImageCardHtml(post, fallbackHtml, renderedImageSrc = '') {
   const src = renderedImageSrc || buildFeedRenderedImageUrl(post);
+  const pageCount = getPostRenderedImagePageCount(post);
+  const pageBadgeHtml =
+    !renderedImageSrc && pageCount > 1
+      ? `<span class="feed-rendered-page-badge" aria-label="총 ${pageCount}장">${pageCount}장</span>`
+      : '';
 
   return `
     <div class="feed-rendered-image-shell">
+      ${pageBadgeHtml}
       <img
         class="feed-rendered-card-image"
         data-feed-render-image

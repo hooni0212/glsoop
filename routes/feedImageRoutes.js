@@ -1,14 +1,26 @@
 const express = require('express');
 
 const db = require('../db');
+const { authRequired } = require('../middleware/auth');
 const {
+  getFeedCardImageManifest,
   normalizeScale,
   normalizeTemplateKey,
+  normalizePostText,
+  parsePostLayout,
   renderFeedCardImage,
 } = require('../utils/feedImageRenderer');
+const {
+  buildPreviewSessionResponse,
+  cleanupExpiredPreviewSessions,
+  createPreviewSession,
+  readPreviewSession,
+} = require('../utils/feedPreviewSessions');
 
 const router = express.Router();
 const PREVIEW_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
+const PREVIEW_CONTENT_FORMATS = new Set(['plain', 'html']);
+const PREVIEW_CATEGORIES = new Set(['poem', 'essay', 'short']);
 const LAYOUT_UNIT_NORMALIZED = 'normalized';
 const PREVIEW_FONT_SCALE_RANGE = { min: 0.7, max: 2.0 };
 const PREVIEW_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.2 };
@@ -25,6 +37,13 @@ function dbGetAsync(sql, params = []) {
 
 function parsePostId(raw) {
   const parsed = Number.parseInt(raw, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function parsePageNumber(raw) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return 1;
+  const parsed = Number.parseInt(String(raw).trim(), 10);
   if (!Number.isInteger(parsed) || parsed <= 0) return null;
   return parsed;
 }
@@ -46,6 +65,71 @@ function toFiniteQueryNumber(raw) {
 function roundLayoutNumber(value, precision = 4) {
   const factor = 10 ** precision;
   return Math.round(value * factor) / factor;
+}
+
+function parsePreviewCategory(raw) {
+  const normalized = String(raw || '').trim().toLowerCase();
+  if (!normalized || !PREVIEW_CATEGORIES.has(normalized)) {
+    return 'short';
+  }
+  return normalized;
+}
+
+function parsePreviewContentFormat(raw) {
+  const normalized = String(raw || '').trim().toLowerCase();
+  if (!normalized) return 'plain';
+  if (!PREVIEW_CONTENT_FORMATS.has(normalized)) return null;
+  return normalized;
+}
+
+function parsePreviewCreatedAt(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return new Date().toISOString();
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date().toISOString();
+  }
+  return parsed.toISOString();
+}
+
+function normalizePreviewDraftPost(body = {}) {
+  const title = pickPreviewText(body.title, 120) || '미리보기 제목';
+  const contentFormat = parsePreviewContentFormat(body.content_format);
+  if (!contentFormat) {
+    return {
+      error: 'content_format은 plain 또는 html이어야 합니다.',
+    };
+  }
+
+  const rawContent = typeof body.content === 'string' ? body.content : '';
+  const content = contentFormat === 'html' ? normalizePostText(rawContent) : rawContent.trim();
+  if (!content) {
+    return {
+      error: '미리보기 본문이 비어 있습니다.',
+    };
+  }
+
+  let layoutJson = null;
+  if (Object.prototype.hasOwnProperty.call(body, 'layout_json')) {
+    const parsedLayout = parsePostLayout(body.layout_json);
+    if (body.layout_json != null && !parsedLayout) {
+      return {
+        error: '미리보기 레이아웃 값이 올바르지 않습니다.',
+      };
+    }
+    layoutJson = parsedLayout || null;
+  }
+
+  return {
+    value: {
+      id: 'preview',
+      title,
+      content,
+      created_at: parsePreviewCreatedAt(body.created_at),
+      category: parsePreviewCategory(body.category),
+      layout_json: layoutJson,
+    },
+  };
 }
 
 function parsePreviewLayoutBox({
@@ -238,6 +322,13 @@ router.get('/feed-images/post/:postId', async (req, res) => {
 
   const template = normalizeTemplateKey(req.query.template);
   const scale = normalizeScale(req.query.scale);
+  const page = parsePageNumber(req.query.page);
+  if (!page) {
+    return res.status(400).json({
+      ok: false,
+      message: '잘못된 페이지 번호입니다.',
+    });
+  }
 
   try {
     const post = await dbGetAsync(
@@ -263,11 +354,24 @@ router.get('/feed-images/post/:postId', async (req, res) => {
       });
     }
 
+    const manifest = await getFeedCardImageManifest({
+      post,
+      templateKey: template,
+      scale,
+    });
+    if (page > manifest.pageCount) {
+      return res.status(404).json({
+        ok: false,
+        message: '해당 이미지 페이지를 찾을 수 없습니다.',
+      });
+    }
+
     const rendered = await renderFeedCardImage({
       post,
       templateKey: template,
       scale,
       renderMode: 'feed',
+      page,
     });
 
     res.set(
@@ -285,6 +389,9 @@ router.get('/feed-images/post/:postId', async (req, res) => {
     res.set('X-Feed-Image-Cache', rendered.cacheHit ? 'HIT' : 'MISS');
     res.set('X-Feed-Image-Template', rendered.template || template);
     res.set('X-Feed-Image-Scale', String(rendered.scale || scale));
+    res.set('X-Feed-Image-Page', String(rendered.page || page));
+    res.set('X-Feed-Image-Page-Count', String(manifest.pageCount));
+    res.set('X-Feed-Image-Truncated', manifest.isTruncated ? '1' : '0');
     if (rendered.layout) {
       res.set('X-Feed-Image-Layout', rendered.layout);
     }
@@ -310,6 +417,19 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
 
   const template = normalizeTemplateKey(req.query.template);
   const scale = normalizeScale(req.query.scale);
+  const page = parsePageNumber(req.query.page);
+  if (!page) {
+    return res.status(400).json({
+      ok: false,
+      message: '잘못된 페이지 번호입니다.',
+    });
+  }
+  if (page > 1) {
+    return res.status(404).json({
+      ok: false,
+      message: '공유 이미지는 첫 페이지 한 장만 지원합니다.',
+    });
+  }
 
   try {
     const post = await dbGetAsync(
@@ -340,6 +460,7 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
       templateKey: template,
       scale,
       renderMode: 'share',
+      page: 1,
     });
 
     res.set(
@@ -357,6 +478,8 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
     res.set('X-Feed-Image-Cache', rendered.cacheHit ? 'HIT' : 'MISS');
     res.set('X-Feed-Image-Template', rendered.template || template);
     res.set('X-Feed-Image-Scale', String(rendered.scale || scale));
+    res.set('X-Feed-Image-Page', '1');
+    res.set('X-Feed-Image-Page-Count', '1');
     if (rendered.layout) {
       res.set('X-Feed-Image-Layout', rendered.layout);
     }
@@ -367,6 +490,118 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
     return res.status(500).json({
       ok: false,
       message: '공유 이미지 생성 중 오류가 발생했습니다.',
+    });
+  }
+});
+
+router.post('/feed-images/preview/sessions', authRequired, async (req, res) => {
+  const template = normalizeTemplateKey(req.body?.template);
+  const scale = normalizeScale(req.body?.scale);
+  const previewDraft = normalizePreviewDraftPost(req.body || {});
+
+  if (previewDraft.error) {
+    return res.status(400).json({
+      ok: false,
+      message: previewDraft.error,
+    });
+  }
+
+  try {
+    const manifest = await getFeedCardImageManifest({
+      post: previewDraft.value,
+      templateKey: template,
+      scale,
+    });
+
+    const session = await createPreviewSession({
+      userId: req.user?.id,
+      post: previewDraft.value,
+      template,
+      scale,
+      manifest,
+    });
+
+    res.set('Cache-Control', 'no-store, max-age=0');
+    res.removeHeader('Pragma');
+    res.removeHeader('Expires');
+
+    return res.status(200).json(buildPreviewSessionResponse(session));
+  } catch (error) {
+    console.error('[feed-image/preview-session] create failed:', error);
+    return res.status(500).json({
+      ok: false,
+      message: '미리보기 세션 생성 중 오류가 발생했습니다.',
+    });
+  }
+});
+
+router.get('/feed-images/preview/sessions/:sessionId', authRequired, async (req, res) => {
+  const page = parsePageNumber(req.query.page);
+  if (!page) {
+    return res.status(400).json({
+      ok: false,
+      message: '잘못된 페이지 번호입니다.',
+    });
+  }
+
+  try {
+    const session = await readPreviewSession(req.params.sessionId);
+    cleanupExpiredPreviewSessions().catch((error) => {
+      console.warn('[feed-image/preview-session] cleanup failed:', error);
+    });
+    if (!session) {
+      return res.status(404).json({
+        ok: false,
+        message: '해당 미리보기 세션을 찾을 수 없습니다.',
+      });
+    }
+    if (session.expired) {
+      return res.status(410).json({
+        ok: false,
+        message: '미리보기 세션이 만료되었습니다.',
+      });
+    }
+    if (String(session.user_id) !== String(req.user?.id || '')) {
+      return res.status(404).json({
+        ok: false,
+        message: '해당 미리보기 세션을 찾을 수 없습니다.',
+      });
+    }
+    if (page > Math.max(1, Number(session.page_count) || 1)) {
+      return res.status(404).json({
+        ok: false,
+        message: '해당 이미지 페이지를 찾을 수 없습니다.',
+      });
+    }
+
+    const rendered = await renderFeedCardImage({
+      post: session.post,
+      templateKey: session.template,
+      scale: session.scale,
+      renderMode: 'feed',
+      page,
+    });
+
+    res.set('Cache-Control', 'no-store, max-age=0');
+    res.removeHeader('Pragma');
+    res.removeHeader('Expires');
+    res.set('Content-Type', rendered.contentType || 'image/webp');
+    res.set('X-Feed-Image-Cache', rendered.cacheHit ? 'HIT' : 'MISS');
+    res.set('X-Feed-Image-Template', rendered.template || session.template || 'paper01');
+    res.set('X-Feed-Image-Scale', String(rendered.scale || session.scale || 1));
+    res.set('X-Feed-Image-Page', String(rendered.page || page));
+    res.set('X-Feed-Image-Page-Count', String(session.page_count || 1));
+    res.set('X-Feed-Image-Truncated', session.is_truncated ? '1' : '0');
+    if (rendered.layout) {
+      res.set('X-Feed-Image-Layout', rendered.layout);
+    }
+
+    return res.status(200).send(rendered.buffer);
+  } catch (error) {
+    console.error('[feed-image/preview-session] render failed:', error);
+    return res.status(500).json({
+      ok: false,
+      message: '미리보기 이미지 생성 중 오류가 발생했습니다.',
     });
   }
 });

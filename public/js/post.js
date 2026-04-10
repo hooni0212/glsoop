@@ -85,6 +85,175 @@ function resolveDetailTitleSafeZone(lengthVariant) {
   return DETAIL_TITLE_SAFE_ZONE_BY_LENGTH.medium;
 }
 
+function getPostDetailImageUrls(post) {
+  const topLevelImages = Array.isArray(post?.images)
+    ? post.images.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+  if (topLevelImages.length > 0) return topLevelImages;
+
+  const nestedImages = Array.isArray(post?.render_images?.images)
+    ? post.render_images.images.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+  if (nestedImages.length > 0) return nestedImages;
+
+  const primaryImage =
+    typeof post?.primary_image === 'string' && post.primary_image.trim()
+      ? post.primary_image.trim()
+      : typeof post?.image_url === 'string' && post.image_url.trim()
+        ? post.image_url.trim()
+        : '';
+  if (primaryImage) return [primaryImage];
+
+  if (typeof buildFeedRenderedImageUrl === 'function') {
+    const fallback = buildFeedRenderedImageUrl(post);
+    return fallback ? [fallback] : [];
+  }
+
+  return [];
+}
+
+function buildPostDetailCarouselNavHtml(imageUrls = []) {
+  if (!Array.isArray(imageUrls) || imageUrls.length <= 1) return '';
+
+  const dots = imageUrls
+    .map(
+      (_url, index) => `
+        <button
+          type="button"
+          class="post-detail-carousel-dot${index === 0 ? ' is-active' : ''}"
+          data-post-carousel-dot="${index}"
+          aria-label="${index + 1}번째 페이지로 이동"
+          aria-pressed="${index === 0 ? 'true' : 'false'}"
+        ></button>
+      `
+    )
+    .join('');
+
+  return `
+    <div class="post-detail-carousel-nav" data-post-carousel-nav>
+      <button
+        type="button"
+        class="post-detail-carousel-btn"
+        data-post-carousel-prev
+        aria-label="이전 이미지"
+      >이전</button>
+      <div class="post-detail-carousel-status" aria-live="polite">
+        <span data-post-carousel-current>1</span>
+        <span>/</span>
+        <span>${imageUrls.length}</span>
+      </div>
+      <button
+        type="button"
+        class="post-detail-carousel-btn"
+        data-post-carousel-next
+        aria-label="다음 이미지"
+      >다음</button>
+    </div>
+    <div class="post-detail-carousel-dots" data-post-carousel-dots>
+      ${dots}
+    </div>
+  `;
+}
+
+function buildPostDetailReadingHtml(post) {
+  const showTruncatedNotice = Boolean(
+    post?.render_images?.is_truncated || post?.is_truncated
+  );
+  return showTruncatedNotice
+    ? `
+      <div class="post-detail-truncated-notice" role="note">
+        이미지에는 일부만 표시됩니다.
+      </div>
+    `
+    : '';
+}
+
+function setupPostDetailCarousel(card, imageUrls = []) {
+  if (!card || !Array.isArray(imageUrls) || imageUrls.length <= 1) return;
+
+  const imageEl = card.querySelector('.feed-rendered-card-image');
+  if (!imageEl) return;
+
+  const prevBtn = card.querySelector('[data-post-carousel-prev]');
+  const nextBtn = card.querySelector('[data-post-carousel-next]');
+  const currentEl = card.querySelector('[data-post-carousel-current]');
+  const dotEls = Array.from(card.querySelectorAll('[data-post-carousel-dot]'));
+
+  let currentIndex = 0;
+
+  const sync = () => {
+    const safeIndex = Math.max(0, Math.min(currentIndex, imageUrls.length - 1));
+    currentIndex = safeIndex;
+    imageEl.src = imageUrls[safeIndex];
+    imageEl.dataset.pageIndex = String(safeIndex + 1);
+    if (currentEl) {
+      currentEl.textContent = String(safeIndex + 1);
+    }
+    if (prevBtn) prevBtn.disabled = safeIndex === 0;
+    if (nextBtn) nextBtn.disabled = safeIndex >= imageUrls.length - 1;
+    dotEls.forEach((dotEl, index) => {
+      const isActive = index === safeIndex;
+      dotEl.classList.toggle('is-active', isActive);
+      dotEl.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  };
+
+  prevBtn?.addEventListener('click', () => {
+    currentIndex = Math.max(0, currentIndex - 1);
+    sync();
+  });
+
+  nextBtn?.addEventListener('click', () => {
+    currentIndex = Math.min(imageUrls.length - 1, currentIndex + 1);
+    sync();
+  });
+
+  dotEls.forEach((dotEl, index) => {
+    dotEl.addEventListener('click', () => {
+      currentIndex = index;
+      sync();
+    });
+  });
+
+  sync();
+}
+
+function hydratePostDetailRenderedContent(card, post) {
+  if (!card || !post) return;
+
+  const feedContent = card.querySelector('.feed-post-content');
+  const quoteCard = card.querySelector('.quote-card');
+  const imageShell = card.querySelector('.feed-rendered-image-shell');
+  const imageEl = card.querySelector('.feed-rendered-card-image');
+  if (!feedContent || !quoteCard || !imageShell || !imageEl) return;
+
+  const imageUrls = getPostDetailImageUrls(post);
+  const primaryImage = imageUrls[0] || imageEl.getAttribute('src') || '';
+  if (primaryImage) {
+    imageEl.src = primaryImage;
+  }
+
+  feedContent.classList.add('feed-post-content--detail-rendered');
+  card.classList.add('is-rendered-detail');
+
+  const existingNav = card.querySelector('[data-post-carousel-nav]');
+  const existingDots = card.querySelector('[data-post-carousel-dots]');
+  const existingReadingPanel = card.querySelector('.post-detail-reading-panel');
+  const existingTruncatedNotice = card.querySelector('.post-detail-truncated-notice');
+  existingNav?.remove();
+  existingDots?.remove();
+  existingReadingPanel?.remove();
+  existingTruncatedNotice?.remove();
+
+  const navMarkup = buildPostDetailCarouselNavHtml(imageUrls);
+  if (navMarkup) {
+    imageShell.insertAdjacentHTML('afterend', navMarkup);
+  }
+
+  feedContent.insertAdjacentHTML('beforeend', buildPostDetailReadingHtml(post));
+  setupPostDetailCarousel(card, imageUrls);
+}
+
 async function setupPostSafeAreaGuides() {
   const body = document.body;
   if (!body) return;
@@ -766,7 +935,10 @@ function hasTitleBoxLayout(rawLayout) {
     return false;
   }
 
-  const titleBox = parsed.title_box;
+  const titleBox =
+    Number.parseInt(parsed.layout_version, 10) === 2
+      ? parsed?.base?.title_box
+      : parsed.title_box;
   if (!titleBox || typeof titleBox !== 'object' || Array.isArray(titleBox)) {
     return false;
   }
@@ -827,15 +999,10 @@ function renderPostDetail(container, post) {
 
     const feedContent = card.querySelector('.feed-post-content');
     const hasRenderedImage = !!card.querySelector('.feed-rendered-card-image');
-    const hasImageTitleLayout = hasTitleBoxLayout(post.layout_json);
     if (feedContent) {
       feedContent.classList.add('expanded');
       if (hasRenderedImage) {
-        feedContent.classList.add('feed-post-content--detail-rendered');
-        card.classList.add('is-rendered-detail');
-        if (!hasImageTitleLayout) {
-          applyDetailImageTitleOverlay(card, post.title || '제목 없음');
-        }
+        hydratePostDetailRenderedContent(card, post);
       } else {
         feedContent.classList.add('post-inner-surface', 'post-content-surface');
       }
@@ -1156,6 +1323,11 @@ function cacheAndNavigateToDetail(post) {
 
       like_count: typeof post.like_count === 'number' ? post.like_count : 0,
       user_liked: post.user_liked === 1 || post.user_liked === true ? 1 : 0,
+      image_url: post.image_url || null,
+      primary_image: post.primary_image || null,
+      images: Array.isArray(post.images) ? post.images : [],
+      has_multiple: post.has_multiple === true,
+      render_images: post.render_images || null,
     };
 
     localStorage.setItem('glsoop_lastPost', JSON.stringify(detailData));

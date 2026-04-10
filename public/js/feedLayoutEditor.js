@@ -118,6 +118,18 @@
       return null;
     }
 
+    const version =
+      parsed.layout_version === undefined
+        ? 1
+        : Number.parseInt(parsed.layout_version, 10);
+    if (version === 2 && parsed.base && typeof parsed.base === 'object' && !Array.isArray(parsed.base)) {
+      parsed = {
+        layout_version: 1,
+        title_box: parsed.base.title_box,
+        text_box: parsed.base.text_box,
+      };
+    }
+
     const textBox = normalizeLayoutBox(parsed.text_box, DEFAULT_LAYOUT.text_box);
     if (!textBox) return null;
 

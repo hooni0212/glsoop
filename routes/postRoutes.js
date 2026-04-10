@@ -30,6 +30,10 @@ const { sanitizeForStorage } = require('../utils/sanitize');
 const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
 const { normalizeUtcDateTime } = require('../utils/dateTime');
 const {
+  decoratePostRowsWithRenderImages,
+  decoratePostWithRenderImages,
+} = require('../utils/postRenderImages');
+const {
   appendViewerBlockedAuthorCondition,
   createSafetyReport,
   getActiveUserSummary,
@@ -45,6 +49,15 @@ const LAYOUT_VALIDATION_ERROR_MESSAGE = '레이아웃 데이터가 올바르지 
 const LAYOUT_FONT_SCALE_RANGE = { min: 0.7, max: 2.0 };
 const LAYOUT_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.2 };
 const LAYOUT_LETTER_SPACING_RANGE = { min: -0.04, max: 0.08 };
+const DEFAULT_LAYOUT_TITLE_BOX = {
+  x: 0.336,
+  y: 0.256,
+  w: 0.424,
+  h: 0.122,
+  align: 'center',
+  font_scale: 1,
+  line_height: 1.15,
+};
 const CATEGORY_SQL =
   "CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END";
 
@@ -90,8 +103,16 @@ function parseId(value) {
   return Number.isNaN(num) ? null : num;
 }
 
-function normalizePublicPostRows(rows) {
-  return Array.isArray(rows) ? rows.map((row) => normalizePublicPostAuthor(row)) : [];
+async function normalizePublicPostRows(rows, options = {}) {
+  const normalizedRows = Array.isArray(rows)
+    ? rows.map((row) => normalizePublicPostAuthor(row))
+    : [];
+  return decoratePostRowsWithRenderImages(normalizedRows, options);
+}
+
+async function normalizePublicPostRow(row, options = {}) {
+  if (!row) return row;
+  return decoratePostWithRenderImages(normalizePublicPostAuthor(row), options);
 }
 
 function hasOwn(obj, key) {
@@ -189,6 +210,114 @@ function normalizeLayoutBox(raw, { required = false, allowLetterSpacing = false 
   return normalized;
 }
 
+function normalizeLayoutOverrideBox(raw, { allowLetterSpacing = false } = {}) {
+  if (raw === undefined || raw === null || raw === '') {
+    return null;
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const normalized = {};
+  let hasAny = false;
+
+  if (raw.x !== undefined) {
+    const x = toFiniteNumber(raw.x);
+    if (x == null || x < 0 || x > 1) {
+      return null;
+    }
+    normalized.x = normalizeLayoutNumber(x);
+    hasAny = true;
+  }
+
+  if (raw.y !== undefined) {
+    const y = toFiniteNumber(raw.y);
+    if (y == null || y < 0 || y > 1) {
+      return null;
+    }
+    normalized.y = normalizeLayoutNumber(y);
+    hasAny = true;
+  }
+
+  if (raw.w !== undefined) {
+    const w = toFiniteNumber(raw.w);
+    if (w == null || w <= 0 || w > 1) {
+      return null;
+    }
+    normalized.w = normalizeLayoutNumber(w);
+    hasAny = true;
+  }
+
+  if (raw.h !== undefined) {
+    const h = toFiniteNumber(raw.h);
+    if (h == null || h <= 0 || h > 1) {
+      return null;
+    }
+    normalized.h = normalizeLayoutNumber(h);
+    hasAny = true;
+  }
+
+  if (raw.align !== undefined) {
+    const align =
+      typeof raw.align === 'string' ? raw.align.trim().toLowerCase() : '';
+    if (!align || !ALLOWED_LAYOUT_ALIGN.has(align)) {
+      return null;
+    }
+    normalized.align = align;
+    hasAny = true;
+  }
+
+  if (raw.font_scale !== undefined) {
+    const fontScale = toFiniteNumber(raw.font_scale);
+    if (
+      fontScale == null ||
+      fontScale < LAYOUT_FONT_SCALE_RANGE.min ||
+      fontScale > LAYOUT_FONT_SCALE_RANGE.max
+    ) {
+      return null;
+    }
+    normalized.font_scale = normalizeLayoutNumber(fontScale, 3);
+    hasAny = true;
+  }
+
+  if (raw.line_height !== undefined) {
+    const lineHeight = toFiniteNumber(raw.line_height);
+    if (
+      lineHeight == null ||
+      lineHeight < LAYOUT_LINE_HEIGHT_RANGE.min ||
+      lineHeight > LAYOUT_LINE_HEIGHT_RANGE.max
+    ) {
+      return null;
+    }
+    normalized.line_height = normalizeLayoutNumber(lineHeight, 3);
+    hasAny = true;
+  }
+
+  if (allowLetterSpacing && raw.letter_spacing !== undefined) {
+    const letterSpacing = toFiniteNumber(raw.letter_spacing);
+    if (
+      letterSpacing == null ||
+      letterSpacing < LAYOUT_LETTER_SPACING_RANGE.min ||
+      letterSpacing > LAYOUT_LETTER_SPACING_RANGE.max
+    ) {
+      return null;
+    }
+    normalized.letter_spacing = normalizeLayoutNumber(letterSpacing, 3);
+    hasAny = true;
+  }
+
+  return hasAny ? normalized : null;
+}
+
+function resolveLayoutBoxFromBase(baseBox, overrideBox, { allowLetterSpacing = false } = {}) {
+  if (!baseBox) return null;
+  const merged = overrideBox ? { ...baseBox, ...overrideBox } : { ...baseBox };
+  return normalizeLayoutBox(merged, {
+    required: true,
+    allowLetterSpacing,
+  });
+}
+
 function normalizeLayoutPayload(raw) {
   let payload = raw;
 
@@ -213,7 +342,7 @@ function normalizeLayoutPayload(raw) {
   }
 
   const layoutVersion = Number.parseInt(payload.layout_version, 10);
-  if (layoutVersion !== 1) {
+  if (layoutVersion !== 1 && layoutVersion !== 2) {
     return { ok: false };
   }
 
@@ -224,43 +353,170 @@ function normalizeLayoutPayload(raw) {
     return { ok: false };
   }
 
-  const textBox = normalizeLayoutBox(payload.text_box, {
-    required: true,
-    allowLetterSpacing: true,
-  });
-  if (!textBox) {
+  if (layoutVersion === 1) {
+    const textBox = normalizeLayoutBox(payload.text_box, {
+      required: true,
+      allowLetterSpacing: true,
+    });
+    if (!textBox) {
+      return { ok: false };
+    }
+
+    let titleBox = null;
+    if (hasOwn(payload, 'title_box')) {
+      titleBox = normalizeLayoutBox(payload.title_box, {
+        required: false,
+        allowLetterSpacing: true,
+      });
+      if (payload.title_box != null && !titleBox) {
+        return { ok: false };
+      }
+    }
+
+    let footerBox = null;
+    if (hasOwn(payload, 'footer_box')) {
+      footerBox = normalizeLayoutBox(payload.footer_box, { required: false });
+      if (payload.footer_box != null && !footerBox) {
+        return { ok: false };
+      }
+    }
+
+    const normalized = {
+      layout_version: 1,
+      unit: LAYOUT_UNIT_NORMALIZED,
+      text_box: textBox,
+      title_box: titleBox || { ...DEFAULT_LAYOUT_TITLE_BOX },
+    };
+    if (footerBox) {
+      normalized.footer_box = footerBox;
+    }
+
+    return {
+      ok: true,
+      value: JSON.stringify(normalized),
+    };
+  }
+
+  const baseRaw = payload.base;
+  if (!baseRaw || typeof baseRaw !== 'object' || Array.isArray(baseRaw)) {
     return { ok: false };
   }
 
-  let titleBox = null;
-  if (hasOwn(payload, 'title_box')) {
-    titleBox = normalizeLayoutBox(payload.title_box, {
+  const baseTextBox = normalizeLayoutBox(baseRaw.text_box, {
+    required: true,
+    allowLetterSpacing: true,
+  });
+  if (!baseTextBox) {
+    return { ok: false };
+  }
+
+  let baseTitleBox = null;
+  if (hasOwn(baseRaw, 'title_box')) {
+    baseTitleBox = normalizeLayoutBox(baseRaw.title_box, {
       required: false,
       allowLetterSpacing: true,
     });
-    if (payload.title_box != null && !titleBox) {
+    if (baseRaw.title_box != null && !baseTitleBox) {
+      return { ok: false };
+    }
+  }
+  if (!baseTitleBox) {
+    baseTitleBox = { ...DEFAULT_LAYOUT_TITLE_BOX };
+  }
+
+  let baseFooterBox = null;
+  if (hasOwn(baseRaw, 'footer_box')) {
+    baseFooterBox = normalizeLayoutBox(baseRaw.footer_box, {
+      required: false,
+      allowLetterSpacing: false,
+    });
+    if (baseRaw.footer_box != null && !baseFooterBox) {
       return { ok: false };
     }
   }
 
-  let footerBox = null;
-  if (hasOwn(payload, 'footer_box')) {
-    footerBox = normalizeLayoutBox(payload.footer_box, { required: false });
-    if (payload.footer_box != null && !footerBox) {
+  const rawPages = payload.pages === undefined || payload.pages === null ? [] : payload.pages;
+  if (!Array.isArray(rawPages)) {
+    return { ok: false };
+  }
+
+  const normalizedPages = [];
+  for (const pageRaw of rawPages) {
+    if (pageRaw == null) {
+      normalizedPages.push(null);
+      continue;
+    }
+    if (!pageRaw || typeof pageRaw !== 'object' || Array.isArray(pageRaw)) {
       return { ok: false };
     }
+
+    const normalizedPage = {};
+
+    if (hasOwn(pageRaw, 'text_box') && pageRaw.text_box != null) {
+      const textOverride = normalizeLayoutOverrideBox(pageRaw.text_box, {
+        allowLetterSpacing: true,
+      });
+      if (!textOverride) {
+        return { ok: false };
+      }
+      if (
+        !resolveLayoutBoxFromBase(baseTextBox, textOverride, {
+          allowLetterSpacing: true,
+        })
+      ) {
+        return { ok: false };
+      }
+      normalizedPage.text_box = textOverride;
+    }
+
+    if (hasOwn(pageRaw, 'title_box') && pageRaw.title_box != null) {
+      const titleOverride = normalizeLayoutOverrideBox(pageRaw.title_box, {
+        allowLetterSpacing: true,
+      });
+      if (!titleOverride) {
+        return { ok: false };
+      }
+      if (
+        !resolveLayoutBoxFromBase(baseTitleBox, titleOverride, {
+          allowLetterSpacing: true,
+        })
+      ) {
+        return { ok: false };
+      }
+      normalizedPage.title_box = titleOverride;
+    }
+
+    if (hasOwn(pageRaw, 'footer_box') && pageRaw.footer_box != null) {
+      const footerOverride = normalizeLayoutOverrideBox(pageRaw.footer_box, {
+        allowLetterSpacing: false,
+      });
+      if (!footerOverride) {
+        return { ok: false };
+      }
+      if (
+        !resolveLayoutBoxFromBase(baseFooterBox, footerOverride, {
+          allowLetterSpacing: false,
+        })
+      ) {
+        return { ok: false };
+      }
+      normalizedPage.footer_box = footerOverride;
+    }
+
+    normalizedPages.push(Object.keys(normalizedPage).length > 0 ? normalizedPage : null);
   }
 
   const normalized = {
-    layout_version: 1,
+    layout_version: 2,
     unit: LAYOUT_UNIT_NORMALIZED,
-    text_box: textBox,
+    base: {
+      text_box: baseTextBox,
+      title_box: baseTitleBox,
+    },
+    pages: normalizedPages,
   };
-  if (titleBox) {
-    normalized.title_box = titleBox;
-  }
-  if (footerBox) {
-    normalized.footer_box = footerBox;
+  if (baseFooterBox) {
+    normalized.base.footer_box = baseFooterBox;
   }
 
   return {
@@ -579,7 +835,7 @@ router.get('/posts/my', authRequired, (req, res) => {
     ORDER BY p.created_at DESC
     `,
     [userId, userId],
-    (err, rows) => {
+    async (err, rows) => {
       if (err) {
         console.error(err);
         return res
@@ -590,11 +846,20 @@ router.get('/posts/my', authRequired, (req, res) => {
           });
       }
 
-      return res.json({
-        ok: true,
-        message: '내 글 목록을 불러왔습니다.',
-        posts: normalizePublicPostRows(rows),
-      });
+      try {
+        const posts = await normalizePublicPostRows(rows);
+        return res.json({
+          ok: true,
+          message: '내 글 목록을 불러왔습니다.',
+          posts,
+        });
+      } catch (normalizeError) {
+        console.error(normalizeError);
+        return res.status(500).json({
+          ok: false,
+          message: '글 목록 가공 중 오류가 발생했습니다.',
+        });
+      }
     }
   );
 });
@@ -635,7 +900,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
     ORDER BY l.created_at DESC
     `,
     [userId, userId],
-    (err, rows) => {
+    async (err, rows) => {
       if (err) {
         console.error(err);
         return res
@@ -646,11 +911,20 @@ router.get('/posts/liked', authRequired, (req, res) => {
           });
       }
 
-      return res.json({
-        ok: true,
-        message: '공감한 글 목록을 불러왔습니다.',
-        posts: normalizePublicPostRows(rows),
-      });
+      try {
+        const posts = await normalizePublicPostRows(rows);
+        return res.json({
+          ok: true,
+          message: '공감한 글 목록을 불러왔습니다.',
+          posts,
+        });
+      } catch (normalizeError) {
+        console.error(normalizeError);
+        return res.status(500).json({
+          ok: false,
+          message: '글 목록 가공 중 오류가 발생했습니다.',
+        });
+      }
     }
   );
 });
@@ -773,7 +1047,7 @@ function handleFeedRequest(req, res) {
 
     params.push(limit, offset);
 
-    db.all(sql, params, (err, rows) => {
+    db.all(sql, params, async (err, rows) => {
       if (err) {
         console.error(err);
         return res.status(500).json({
@@ -782,19 +1056,28 @@ function handleFeedRequest(req, res) {
         });
       }
 
-      return res.json({
-        ok: true,
-        message: '피드를 불러왔습니다.',
-        posts: normalizePublicPostRows(rows),
-        has_more: rows.length === limit,
-        context: {
-          feed_type: feedType,
-          sort,
-          following_count: followingCount,
-          tags,
-          category: category || null,
-        },
-      });
+      try {
+        const posts = await normalizePublicPostRows(rows);
+        return res.json({
+          ok: true,
+          message: '피드를 불러왔습니다.',
+          posts,
+          has_more: rows.length === limit,
+          context: {
+            feed_type: feedType,
+            sort,
+            following_count: followingCount,
+            tags,
+            category: category || null,
+          },
+        });
+      } catch (normalizeError) {
+        console.error(normalizeError);
+        return res.status(500).json({
+          ok: false,
+          message: '피드 응답 가공 중 오류가 발생했습니다.',
+        });
+      }
     });
   };
 
@@ -960,7 +1243,7 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
         //              2) postId (p.id != ?)
         //              3) CANDIDATE_LIMIT (LIMIT ?)
         userId ? [userId, postId, userId, CANDIDATE_LIMIT] : [userId, postId, CANDIDATE_LIMIT],
-        (err2, rows) => {
+        async (err2, rows) => {
           if (err2) {
             console.error(err2);
             return res.status(500).json({
@@ -1019,11 +1302,20 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
             return copy;
           });
 
-          return res.json({
-              ok: true,
-              message: '관련 글을 불러왔습니다.',
-              posts: normalizePublicPostRows(finalPosts),
+          try {
+            const posts = await normalizePublicPostRows(finalPosts);
+            return res.json({
+                ok: true,
+                message: '관련 글을 불러왔습니다.',
+                posts,
+              });
+          } catch (normalizeError) {
+            console.error(normalizeError);
+            return res.status(500).json({
+              ok: false,
+              message: '관련 글 응답 가공 중 오류가 발생했습니다.',
             });
+          }
         }
       );
       }
@@ -1280,7 +1572,8 @@ router.post('/posts/:id/report', authRequired, async (req, res) => {
 
     return res.json({
       ok: true,
-      message: '게시글 신고가 운영 검토 큐에 접수되었어요.',
+      message:
+        '신고가 접수되었습니다. 운영팀이 검토 후 24시간 내 조치합니다. 위반 시 콘텐츠 삭제 및 계정 제재가 이루어질 수 있습니다.',
       report_id: report?.id || null,
       status: report?.status || 'queued',
     });
@@ -1366,7 +1659,7 @@ function handlePublicPostDetail(req, res) {
     params = detailParams;
   }
 
-  db.get(sql, params, (err, row) => {
+  db.get(sql, params, async (err, row) => {
     if (err) {
       console.error(err);
       return res.status(500).json({
@@ -1389,28 +1682,43 @@ function handlePublicPostDetail(req, res) {
           .filter(Boolean)
       : [];
 
-    const normalizedRow = normalizePublicPostAuthor(row);
+    try {
+      const normalizedRow = await normalizePublicPostRow(row, {
+        includeNestedPages: true,
+      });
 
-    return res.json({
-      ok: true,
-      message: '글 상세 정보를 불러왔습니다.',
-      post: {
-        id: normalizedRow.id,
-        title: normalizedRow.title,
-        content: normalizedRow.content,
-        layout_json: normalizedRow.layout_json || null,
-        category: normalizedRow.category,
-        created_at: normalizedRow.created_at,
-        author_id: normalizedRow.author_id,
-        author_display_name: normalizedRow.author_display_name,
-        author_name: normalizedRow.author_name,
-        author_nickname: normalizedRow.author_nickname,
-        author_email: normalizedRow.author_email,
-        like_count: normalizedRow.like_count,
-        user_liked: normalizedRow.user_liked ? 1 : 0,
-        hashtags,
-      },
-    });
+      return res.json({
+        ok: true,
+        message: '글 상세 정보를 불러왔습니다.',
+        post: {
+          id: normalizedRow.id,
+          title: normalizedRow.title,
+          content: normalizedRow.content,
+          layout_json: normalizedRow.layout_json || null,
+          category: normalizedRow.category,
+          created_at: normalizedRow.created_at,
+          author_id: normalizedRow.author_id,
+          author_display_name: normalizedRow.author_display_name,
+          author_name: normalizedRow.author_name,
+          author_nickname: normalizedRow.author_nickname,
+          author_email: normalizedRow.author_email,
+          like_count: normalizedRow.like_count,
+          user_liked: normalizedRow.user_liked ? 1 : 0,
+          hashtags,
+          image_url: normalizedRow.image_url,
+          primary_image: normalizedRow.primary_image,
+          images: normalizedRow.images,
+          has_multiple: normalizedRow.has_multiple,
+          render_images: normalizedRow.render_images,
+        },
+      });
+    } catch (normalizeError) {
+      console.error(normalizeError);
+      return res.status(500).json({
+        ok: false,
+        message: '글 상세 응답 가공 중 오류가 발생했습니다.',
+      });
+    }
   });
 }
 

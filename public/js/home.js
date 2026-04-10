@@ -306,6 +306,9 @@ const HomeCuration = (() => {
 
   function buildCurationImageUrl(post, template = 'paper01') {
     if (!post || !post.id) return '';
+    if (typeof post.primary_image === 'string' && post.primary_image.trim()) {
+      return post.primary_image.trim();
+    }
     if (typeof window.buildFeedRenderedImageUrl === 'function') {
       return window.buildFeedRenderedImageUrl(post, template);
     }

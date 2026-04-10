@@ -191,7 +191,7 @@
 
                 <!-- 에디터 박스 내부 오른쪽 아래에 표시될 글자 수 제한 안내 -->
                 <div id="charCounter" class="char-counter gls-text-muted">
-                  200/200
+                  0자
                 </div>
               </div>
 
@@ -245,10 +245,22 @@
                   id="layoutResetBtn"
                   type="button"
                   class="gls-btn gls-btn-sm"
+                  disabled
                 >
-                  레이아웃 초기화
+                  현재 페이지 초기화
+                </button>
+                <button
+                  id="layoutResetAllBtn"
+                  type="button"
+                  class="gls-btn gls-btn-sm"
+                  disabled
+                >
+                  전체 초기화
                 </button>
               </div>
+              <p id="layoutPageStatus" class="editor-layout-page-status gls-text-small gls-mb-0">
+                1 / 1 페이지
+              </p>
               <p id="layoutSafeAreaHint" class="editor-layout-hint gls-text-small gls-mb-0" hidden>
                 안전 영역 밖입니다. 저장은 가능하지만 일부 기기에서 잘려 보일 수 있어요.
               </p>
@@ -260,6 +272,37 @@
           <div class="card editor-preview-card gls-flex-1">
             <div class="card-body">
               <div id="previewFeedCardMount" class="editor-preview-feed-card-mount"></div>
+              <div
+                id="previewSessionError"
+                class="editor-preview-status editor-preview-status--error gls-hidden"
+                role="alert"
+              ></div>
+              <div id="previewCarouselControls" class="editor-preview-carousel-controls gls-hidden">
+                <button
+                  id="previewCarouselPrevBtn"
+                  type="button"
+                  class="editor-preview-carousel-btn"
+                  aria-label="이전 페이지"
+                >이전</button>
+                <div id="previewCarouselStatus" class="editor-preview-carousel-status" aria-live="polite">
+                  <span id="previewCarouselCurrentPage">1</span>
+                  <span>/</span>
+                  <span id="previewCarouselTotalPages">1</span>
+                </div>
+                <button
+                  id="previewCarouselNextBtn"
+                  type="button"
+                  class="editor-preview-carousel-btn"
+                  aria-label="다음 페이지"
+                >다음</button>
+              </div>
+              <div
+                id="previewTruncatedNotice"
+                class="editor-preview-truncated-notice gls-hidden"
+                role="note"
+              >
+                미리보기 이미지는 일부만 표시됩니다.
+              </div>
             </div>
           </div>
         </div>

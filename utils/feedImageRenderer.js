@@ -5,8 +5,9 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v10';
+const RENDER_VERSION = 'feed-image-poc-v11';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
+const FEED_IMAGE_PAGE_CAP = 8;
 
 const TEMPLATE_CONFIG = {
   paper01: {
@@ -441,6 +442,176 @@ function parseLayoutBox(raw, { required = false, allowLetterSpacing = false } = 
   return normalized;
 }
 
+function parseLayoutOverrideBox(raw, { allowLetterSpacing = false } = {}) {
+  if (raw == null) return null;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const normalized = {};
+  let hasAny = false;
+
+  if (raw.x !== undefined) {
+    const xRaw = toFiniteNumber(raw.x);
+    if (xRaw == null || xRaw < 0 || xRaw > 1) {
+      return null;
+    }
+    normalized.x = roundNumber(xRaw, 4);
+    hasAny = true;
+  }
+
+  if (raw.y !== undefined) {
+    const yRaw = toFiniteNumber(raw.y);
+    if (yRaw == null || yRaw < 0 || yRaw > 1) {
+      return null;
+    }
+    normalized.y = roundNumber(yRaw, 4);
+    hasAny = true;
+  }
+
+  if (raw.w !== undefined) {
+    const widthRaw = toFiniteNumber(raw.w);
+    if (widthRaw == null || widthRaw <= 0 || widthRaw > 1) {
+      return null;
+    }
+    normalized.w = roundNumber(widthRaw, 4);
+    hasAny = true;
+  }
+
+  if (raw.h !== undefined) {
+    const heightRaw = toFiniteNumber(raw.h);
+    if (heightRaw == null || heightRaw <= 0 || heightRaw > 1) {
+      return null;
+    }
+    normalized.h = roundNumber(heightRaw, 4);
+    hasAny = true;
+  }
+
+  if (raw.align !== undefined) {
+    const alignRaw =
+      typeof raw.align === 'string' ? raw.align.trim().toLowerCase() : '';
+    if (!alignRaw || !LAYOUT_ALIGN_VALUES.has(alignRaw)) {
+      return null;
+    }
+    normalized.align = alignRaw;
+    hasAny = true;
+  }
+
+  if (raw.font_scale !== undefined) {
+    const fontScaleRaw = toFiniteNumber(raw.font_scale);
+    if (fontScaleRaw == null) {
+      return null;
+    }
+    normalized.font_scale = roundNumber(
+      clampNumber(
+        fontScaleRaw,
+        CUSTOM_LAYOUT_FONT_SCALE_RANGE.min,
+        CUSTOM_LAYOUT_FONT_SCALE_RANGE.max
+      ),
+      3
+    );
+    hasAny = true;
+  }
+
+  if (raw.line_height !== undefined) {
+    const lineHeightRaw = toFiniteNumber(raw.line_height);
+    if (lineHeightRaw == null) {
+      return null;
+    }
+    normalized.line_height = roundNumber(
+      clampNumber(
+        lineHeightRaw,
+        CUSTOM_LAYOUT_LINE_HEIGHT_RANGE.min,
+        CUSTOM_LAYOUT_LINE_HEIGHT_RANGE.max
+      ),
+      3
+    );
+    hasAny = true;
+  }
+
+  if (allowLetterSpacing && raw.letter_spacing !== undefined) {
+    const letterSpacingRaw = toFiniteNumber(raw.letter_spacing);
+    if (letterSpacingRaw == null) {
+      return null;
+    }
+    normalized.letter_spacing = roundNumber(
+      clampNumber(
+        letterSpacingRaw,
+        CUSTOM_LAYOUT_LETTER_SPACING_RANGE.min,
+        CUSTOM_LAYOUT_LETTER_SPACING_RANGE.max
+      ),
+      3
+    );
+    hasAny = true;
+  }
+
+  return hasAny ? normalized : null;
+}
+
+function resolveLayoutBoxWithOverride(baseBox, overrideBox, { allowLetterSpacing = false } = {}) {
+  if (!baseBox) return null;
+  if (!overrideBox) {
+    return parseLayoutBox(baseBox, {
+      required: true,
+      allowLetterSpacing,
+    });
+  }
+  return parseLayoutBox(
+    {
+      ...baseBox,
+      ...overrideBox,
+    },
+    {
+      required: true,
+      allowLetterSpacing,
+    }
+  );
+}
+
+function resolvePostLayoutPage(parsedLayout, pageIndex = 0) {
+  if (!parsedLayout) return null;
+
+  if (Number.parseInt(parsedLayout.layout_version, 10) !== 2) {
+    return {
+      layout_version: 1,
+      unit: LAYOUT_UNIT_NORMALIZED,
+      text_box: parsedLayout.text_box,
+      ...(parsedLayout.title_box ? { title_box: parsedLayout.title_box } : {}),
+      ...(parsedLayout.footer_box ? { footer_box: parsedLayout.footer_box } : {}),
+    };
+  }
+
+  const safePageIndex = Math.max(0, Number.parseInt(pageIndex, 10) || 0);
+  const pageOverride =
+    Array.isArray(parsedLayout.pages) && safePageIndex < parsedLayout.pages.length
+      ? parsedLayout.pages[safePageIndex]
+      : null;
+
+  const resolved = {
+    layout_version: 1,
+    unit: LAYOUT_UNIT_NORMALIZED,
+    text_box: resolveLayoutBoxWithOverride(parsedLayout.base?.text_box, pageOverride?.text_box, {
+      allowLetterSpacing: true,
+    }),
+  };
+
+  const titleBox = resolveLayoutBoxWithOverride(parsedLayout.base?.title_box, pageOverride?.title_box, {
+    allowLetterSpacing: true,
+  });
+  if (titleBox) {
+    resolved.title_box = titleBox;
+  }
+
+  const footerBox = resolveLayoutBoxWithOverride(parsedLayout.base?.footer_box, pageOverride?.footer_box, {
+    allowLetterSpacing: false,
+  });
+  if (footerBox) {
+    resolved.footer_box = footerBox;
+  }
+
+  return resolved;
+}
+
 function parsePostLayout(rawLayoutJson) {
   // `null` 반환은 "커스텀 레이아웃 미적용" 의미이며, 호출부는 legacy preset을 그대로 사용한다.
   if (rawLayoutJson == null) return null;
@@ -461,7 +632,7 @@ function parsePostLayout(rawLayoutJson) {
   }
 
   const version = Number.parseInt(parsed.layout_version, 10);
-  if (version !== 1) {
+  if (version !== 1 && version !== 2) {
     return null;
   }
 
@@ -472,44 +643,173 @@ function parsePostLayout(rawLayoutJson) {
     return null;
   }
 
-  const textBox = parseLayoutBox(parsed.text_box, {
-    required: true,
-    allowLetterSpacing: true,
-  });
-  if (!textBox) {
+  if (version === 1) {
+    const textBox = parseLayoutBox(parsed.text_box, {
+      required: true,
+      allowLetterSpacing: true,
+    });
+    if (!textBox) {
+      return null;
+    }
+
+    let titleBox = null;
+    if (Object.prototype.hasOwnProperty.call(parsed, 'title_box')) {
+      titleBox = parseLayoutBox(parsed.title_box, {
+        required: false,
+        allowLetterSpacing: true,
+      });
+      if (parsed.title_box != null && !titleBox) {
+        return null;
+      }
+    }
+
+    let footerBox = null;
+    if (Object.prototype.hasOwnProperty.call(parsed, 'footer_box')) {
+      footerBox = parseLayoutBox(parsed.footer_box, { required: false });
+      if (parsed.footer_box != null && !footerBox) {
+        return null;
+      }
+    }
+
+    const normalized = {
+      layout_version: 1,
+      unit: LAYOUT_UNIT_NORMALIZED,
+      text_box: textBox,
+    };
+    if (titleBox) {
+      normalized.title_box = titleBox;
+    }
+    if (footerBox) {
+      normalized.footer_box = footerBox;
+    }
+    return normalized;
+  }
+
+  const base = parsed.base;
+  if (!base || typeof base !== 'object' || Array.isArray(base)) {
     return null;
   }
 
-  let titleBox = null;
-  if (Object.prototype.hasOwnProperty.call(parsed, 'title_box')) {
-    titleBox = parseLayoutBox(parsed.title_box, {
+  const baseTextBox = parseLayoutBox(base.text_box, {
+    required: true,
+    allowLetterSpacing: true,
+  });
+  if (!baseTextBox) {
+    return null;
+  }
+
+  let baseTitleBox = null;
+  if (Object.prototype.hasOwnProperty.call(base, 'title_box')) {
+    baseTitleBox = parseLayoutBox(base.title_box, {
       required: false,
       allowLetterSpacing: true,
     });
-    if (parsed.title_box != null && !titleBox) {
+    if (base.title_box != null && !baseTitleBox) {
       return null;
     }
   }
 
-  let footerBox = null;
-  if (Object.prototype.hasOwnProperty.call(parsed, 'footer_box')) {
-    footerBox = parseLayoutBox(parsed.footer_box, { required: false });
-    if (parsed.footer_box != null && !footerBox) {
+  let baseFooterBox = null;
+  if (Object.prototype.hasOwnProperty.call(base, 'footer_box')) {
+    baseFooterBox = parseLayoutBox(base.footer_box, {
+      required: false,
+      allowLetterSpacing: false,
+    });
+    if (base.footer_box != null && !baseFooterBox) {
       return null;
     }
+  }
+
+  const rawPages =
+    parsed.pages === undefined || parsed.pages === null ? [] : parsed.pages;
+  if (!Array.isArray(rawPages)) {
+    return null;
+  }
+
+  const pages = [];
+  for (const pageRaw of rawPages) {
+    if (pageRaw == null) {
+      pages.push(null);
+      continue;
+    }
+    if (!pageRaw || typeof pageRaw !== 'object' || Array.isArray(pageRaw)) {
+      return null;
+    }
+
+    const normalizedPage = {};
+
+    if (Object.prototype.hasOwnProperty.call(pageRaw, 'text_box')) {
+      if (pageRaw.text_box != null) {
+        const textOverride = parseLayoutOverrideBox(pageRaw.text_box, {
+          allowLetterSpacing: true,
+        });
+        if (!textOverride) {
+          return null;
+        }
+        const resolvedText = resolveLayoutBoxWithOverride(baseTextBox, textOverride, {
+          allowLetterSpacing: true,
+        });
+        if (!resolvedText) {
+          return null;
+        }
+        normalizedPage.text_box = textOverride;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(pageRaw, 'title_box')) {
+      if (pageRaw.title_box != null) {
+        const titleOverride = parseLayoutOverrideBox(pageRaw.title_box, {
+          allowLetterSpacing: true,
+        });
+        if (!titleOverride || !baseTitleBox) {
+          return null;
+        }
+        const resolvedTitle = resolveLayoutBoxWithOverride(baseTitleBox, titleOverride, {
+          allowLetterSpacing: true,
+        });
+        if (!resolvedTitle) {
+          return null;
+        }
+        normalizedPage.title_box = titleOverride;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(pageRaw, 'footer_box')) {
+      if (pageRaw.footer_box != null) {
+        const footerOverride = parseLayoutOverrideBox(pageRaw.footer_box, {
+          allowLetterSpacing: false,
+        });
+        if (!footerOverride || !baseFooterBox) {
+          return null;
+        }
+        const resolvedFooter = resolveLayoutBoxWithOverride(baseFooterBox, footerOverride, {
+          allowLetterSpacing: false,
+        });
+        if (!resolvedFooter) {
+          return null;
+        }
+        normalizedPage.footer_box = footerOverride;
+      }
+    }
+
+    pages.push(Object.keys(normalizedPage).length > 0 ? normalizedPage : null);
   }
 
   const normalized = {
-    layout_version: 1,
+    layout_version: 2,
     unit: LAYOUT_UNIT_NORMALIZED,
-    text_box: textBox,
+    base: {
+      text_box: baseTextBox,
+    },
+    pages,
   };
-  if (titleBox) {
-    normalized.title_box = titleBox;
+  if (baseTitleBox) {
+    normalized.base.title_box = baseTitleBox;
   }
-  if (footerBox) {
-    normalized.footer_box = footerBox;
+  if (baseFooterBox) {
+    normalized.base.footer_box = baseFooterBox;
   }
+
   return normalized;
 }
 
@@ -628,7 +928,7 @@ function clampLineWithEllipsis(line, maxWidthPx, fontSizePx, letterSpacingEm = 0
   return `${result}${ellipsis}`;
 }
 
-function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines, letterSpacingEm = 0) {
+function layoutAllTextLines(text, maxWidthPx, fontSizePx, letterSpacingEm = 0) {
   const paragraphs = String(text || '')
     .split('\n')
     .map((line) => line.trim());
@@ -647,6 +947,12 @@ function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines, letterSpacingEm
     lines.pop();
   }
 
+  return lines.length ? lines : [''];
+}
+
+function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines, letterSpacingEm = 0) {
+  const lines = layoutAllTextLines(text, maxWidthPx, fontSizePx, letterSpacingEm);
+
   if (lines.length <= maxLines) return lines;
 
   const truncated = lines.slice(0, maxLines);
@@ -657,6 +963,29 @@ function layoutTextLines(text, maxWidthPx, fontSizePx, maxLines, letterSpacingEm
     letterSpacingEm
   );
   return truncated;
+}
+
+function paginateTextLines(lines, maxLinesPerPage, pageCap = FEED_IMAGE_PAGE_CAP) {
+  const safeLines = Array.isArray(lines) && lines.length > 0 ? lines : [''];
+  const pageLines = Math.max(1, Number(maxLinesPerPage) || 1);
+  const pages = [];
+  let cursor = 0;
+
+  while (cursor < safeLines.length && pages.length < pageCap) {
+    pages.push(safeLines.slice(cursor, cursor + pageLines));
+    cursor += pageLines;
+  }
+
+  if (!pages.length) {
+    pages.push(['']);
+  }
+
+  return {
+    pages,
+    pageCount: pages.length,
+    isTruncated: cursor < safeLines.length,
+    pageCap,
+  };
 }
 
 function escapeXml(text) {
@@ -686,7 +1015,7 @@ async function getTemplateMetadata(filePath) {
   return value;
 }
 
-function buildCacheHash({ post, templateKey, scale, renderMode }) {
+function buildRenderVersion({ post, templateKey, scale, renderMode }) {
   const payload = JSON.stringify({
     render_version: RENDER_VERSION,
     template: templateKey,
@@ -697,6 +1026,16 @@ function buildCacheHash({ post, templateKey, scale, renderMode }) {
     content: post?.content || '',
     created_at: post?.created_at || '',
     layout_json: post?.layout_json || '',
+  });
+
+  return crypto.createHash('sha1').update(payload).digest('hex');
+}
+
+function buildCacheHash({ post, templateKey, scale, renderMode, page = 1 }) {
+  const renderVersion = buildRenderVersion({ post, templateKey, scale, renderMode });
+  const payload = JSON.stringify({
+    render_version: renderVersion,
+    page: Math.max(1, Number.parseInt(page, 10) || 1),
   });
 
   return crypto.createHash('sha1').update(payload).digest('hex');
@@ -829,6 +1168,14 @@ function resolveFittedMaxLines(boxHeightPx, lineHeightPx, presetMaxLines) {
   const fitted = Math.max(1, Math.floor(boxHeightPx / Math.max(1, lineHeightPx)));
   const normalizedPreset = Math.max(1, Number(presetMaxLines) || 1);
   return Math.max(1, Math.min(fitted, normalizedPreset));
+}
+
+function resolveBodyPageMaxLines(boxHeightPx, lineHeightPx, presetMaxLines = null) {
+  const fitted = Math.max(1, Math.floor(boxHeightPx / Math.max(1, lineHeightPx)));
+  if (presetMaxLines == null) {
+    return fitted;
+  }
+  return resolveFittedMaxLines(boxHeightPx, lineHeightPx, presetMaxLines);
 }
 
 function buildSvgTextGroup({
@@ -1012,9 +1359,8 @@ function buildSvgShareOverlay({
   `.trim();
 }
 
-async function renderFeedModeImageBuffer({
+function buildFeedModeRenderPlan({
   post,
-  template,
   outputWidth,
   outputHeight,
   scale,
@@ -1024,9 +1370,10 @@ async function renderFeedModeImageBuffer({
   const presetKey = selectLengthPreset(bodyText.length);
   const preset = LAYOUT_PRESETS[presetKey];
   const parsedLayout = parsePostLayout(post?.layout_json);
-  const customBodyBox = parsedLayout?.text_box || null;
-  const customTitleBox = parsedLayout?.title_box || null;
-  const customFooterBox = parsedLayout?.footer_box || null;
+  const firstPageLayout = resolvePostLayoutPage(parsedLayout, 0);
+  const customBodyBox = firstPageLayout?.text_box || null;
+  const customTitleBox = firstPageLayout?.title_box || null;
+  const customFooterBox = firstPageLayout?.footer_box || null;
   const hasCustomBodyLayout = !!customBodyBox;
   const hasCustomTitleLayout = !!customTitleBox;
   const hasCustomFooterLayout = !!customFooterBox;
@@ -1044,19 +1391,18 @@ async function renderFeedModeImageBuffer({
   let box = hasCustomBodyLayout
     ? resolveBoxFromNormalizedLayout(outputWidth, outputHeight, customBodyBox)
     : resolveFeedBoxFromPreset(outputWidth, outputHeight, effectivePreset);
-  let maxLines = hasCustomBodyLayout
-    ? resolveFittedMaxLines(box.height, lineHeightPx, Math.max(preset.maxLines, 24))
-    : preset.maxLines;
-  let lines = layoutTextLines(
+  let pageMaxLines = hasCustomBodyLayout
+    ? resolveBodyPageMaxLines(box.height, lineHeightPx)
+    : resolveBodyPageMaxLines(box.height, lineHeightPx, effectivePreset.maxLines);
+  let allLines = layoutAllTextLines(
     bodyText,
     Math.max(20, box.width),
     fontSizePx,
-    maxLines,
     bodyLetterSpacingEm
   );
 
   if (!hasCustomBodyLayout) {
-    const nonEmptyLineCount = lines.filter(
+    const nonEmptyLineCount = allLines.filter(
       (line) => String(line || '').trim().length > 0
     ).length;
     if (nonEmptyLineCount <= 1) {
@@ -1075,90 +1421,177 @@ async function renderFeedModeImageBuffer({
       );
       lineHeightPx = fontSizePx * bodyLineHeightRatio;
       box = resolveFeedBoxFromPreset(outputWidth, outputHeight, effectivePreset);
-      maxLines = effectivePreset.maxLines;
-      lines = layoutTextLines(
+      pageMaxLines = resolveBodyPageMaxLines(
+        box.height,
+        lineHeightPx,
+        effectivePreset.maxLines
+      );
+      allLines = layoutAllTextLines(
         bodyText,
         Math.max(20, box.width),
         fontSizePx,
-        maxLines,
         bodyLetterSpacingEm
       );
     }
   }
 
-  let titleConfig = null;
-  if (shouldRenderTitleInImage) {
-    const titlePreset =
-      FEED_TITLE_BOX_PRESETS[presetKey] || FEED_TITLE_BOX_PRESETS.medium;
-    const titleBox = resolveBoxFromNormalizedLayout(
-      outputWidth,
-      outputHeight,
-      customTitleBox
-    );
-    const titleFontScale = customTitleBox?.font_scale || 1;
-    const titleLineHeightRatio =
-      customTitleBox?.line_height || bodyLineHeightRatio;
-    const titleLetterSpacingEm = customTitleBox?.letter_spacing || 0;
-    const titleBaseFontSize = Math.max(
-      minFontSizePx,
-      outputWidth * preset.fontSizeRatio * 0.9
-    );
-    const titleFontSizePx = Math.max(
-      minFontSizePx,
-      titleBaseFontSize * titleFontScale
-    );
-    const titleLineHeightPx = titleFontSizePx * titleLineHeightRatio;
-    const titleMaxLines = resolveFittedMaxLines(
-      titleBox.height,
-      titleLineHeightPx,
-      titlePreset.maxLines || 2
-    );
-    const titleLines = layoutTextLines(
-      titleText,
-      Math.max(20, titleBox.width),
-      titleFontSizePx,
-      titleMaxLines,
-      titleLetterSpacingEm
-    );
+  const pagination = hasCustomBodyLayout
+    ? paginateTextLines(allLines, pageMaxLines, FEED_IMAGE_PAGE_CAP)
+    : {
+        pages: [
+          layoutTextLines(
+            bodyText,
+            Math.max(20, box.width),
+            fontSizePx,
+            pageMaxLines,
+            bodyLetterSpacingEm
+          ),
+        ],
+        pageCount: 1,
+        isTruncated: allLines.length > pageMaxLines,
+        pageCap: FEED_IMAGE_PAGE_CAP,
+      };
 
-    titleConfig = {
-      box: titleBox,
-      lines: titleLines,
-      textAlign: customTitleBox?.align || titlePreset.textAlign,
-      verticalAlign: titlePreset.verticalAlign,
-      fontSizePx: titleFontSizePx,
-      lineHeightPx: titleLineHeightPx,
-      letterSpacingEm: titleLetterSpacingEm,
-    };
+  return {
+    pageCount: pagination.pageCount,
+    pageCap: pagination.pageCap,
+    isTruncated: pagination.isTruncated,
+    pages: pagination.pages,
+    parsedLayout,
+    presetKey,
+    preset,
+    effectivePreset,
+    titleText,
+    shouldRenderTitleInImage,
+    hasCustomBodyLayout,
+    hasCustomFooterLayout,
+    box,
+    fontSizePx,
+    lineHeightPx,
+    minFontSizePx,
+    bodyLineHeightRatio,
+    bodyFontScale,
+    bodyLetterSpacingEm,
+    bodyFontSizeRatio: hasCustomBodyLayout
+      ? preset.fontSizeRatio
+      : effectivePreset.fontSizeRatio,
+    textAlign: customBodyBox?.align || effectivePreset.textAlign,
+    verticalAlign: effectivePreset.verticalAlign,
+    layoutTag: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}${
+      shouldRenderTitleInImage ? '-with-title' : ''
+    }${hasCustomFooterLayout ? '-with-footer' : ''}`,
+  };
+}
+
+async function renderFeedModePageBuffer({
+  post,
+  template,
+  outputWidth,
+  outputHeight,
+  scale,
+  page = 1,
+}) {
+  const plan = buildFeedModeRenderPlan({
+    post,
+    outputWidth,
+    outputHeight,
+    scale,
+  });
+  const normalizedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const pageIndex = Math.min(normalizedPage, plan.pageCount) - 1;
+  const pageLines = plan.pages[pageIndex] || plan.pages[0] || [''];
+  const resolvedPageLayout = resolvePostLayoutPage(plan.parsedLayout, pageIndex);
+  const resolvedBodyLayout = resolvedPageLayout?.text_box || null;
+  const bodyBox = resolvedBodyLayout
+    ? resolveBoxFromNormalizedLayout(outputWidth, outputHeight, resolvedBodyLayout)
+    : plan.box;
+  const pageBodyFontScale = resolvedBodyLayout?.font_scale || plan.bodyFontScale || 1;
+  const pageBodyLineHeightRatio =
+    resolvedBodyLayout?.line_height || plan.bodyLineHeightRatio || 1.15;
+  const pageBodyLetterSpacingEm =
+    resolvedBodyLayout?.letter_spacing || plan.bodyLetterSpacingEm || 0;
+  const pageFontSizePx = Math.max(
+    plan.minFontSizePx,
+    outputWidth * plan.bodyFontSizeRatio * pageBodyFontScale
+  );
+  const pageLineHeightPx = pageFontSizePx * pageBodyLineHeightRatio;
+
+  let titleConfig = null;
+  if (pageIndex === 0 && plan.shouldRenderTitleInImage) {
+    const resolvedTitleLayout = resolvedPageLayout?.title_box || null;
+    if (resolvedTitleLayout) {
+      const titlePreset =
+        FEED_TITLE_BOX_PRESETS[plan.presetKey] || FEED_TITLE_BOX_PRESETS.medium;
+      const titleBox = resolveBoxFromNormalizedLayout(
+        outputWidth,
+        outputHeight,
+        resolvedTitleLayout
+      );
+      const titleFontScale = resolvedTitleLayout?.font_scale || 1;
+      const titleLineHeightRatio =
+        resolvedTitleLayout?.line_height || pageBodyLineHeightRatio;
+      const titleLetterSpacingEm = resolvedTitleLayout?.letter_spacing || 0;
+      const titleBaseFontSize = Math.max(
+        plan.minFontSizePx,
+        outputWidth * plan.preset.fontSizeRatio * 0.9
+      );
+      const titleFontSizePx = Math.max(
+        plan.minFontSizePx,
+        titleBaseFontSize * titleFontScale
+      );
+      const titleLineHeightPx = titleFontSizePx * titleLineHeightRatio;
+      const titleMaxLines = resolveFittedMaxLines(
+        titleBox.height,
+        titleLineHeightPx,
+        titlePreset.maxLines || 2
+      );
+      const titleLines = layoutTextLines(
+        plan.titleText,
+        Math.max(20, titleBox.width),
+        titleFontSizePx,
+        titleMaxLines,
+        titleLetterSpacingEm
+      );
+
+      titleConfig = {
+        box: titleBox,
+        lines: titleLines,
+        textAlign: resolvedTitleLayout?.align || titlePreset.textAlign,
+        verticalAlign: titlePreset.verticalAlign,
+        fontSizePx: titleFontSizePx,
+        lineHeightPx: titleLineHeightPx,
+        letterSpacingEm: titleLetterSpacingEm,
+      };
+    }
   }
 
   let footerSignature = '';
-  if (hasCustomFooterLayout) {
+  if (plan.hasCustomFooterLayout && resolvedPageLayout?.footer_box) {
     const footerBox = resolveBoxFromNormalizedLayout(
       outputWidth,
       outputHeight,
-      customFooterBox
+      resolvedPageLayout.footer_box
     );
     footerSignature = buildSvgBrandSignature({
       width: outputWidth,
       height: outputHeight,
       footerBox,
-      textAlign: customFooterBox?.align || 'center',
-      fontScale: customFooterBox?.font_scale || 1,
-      lineHeightRatio: customFooterBox?.line_height || 1.1,
+      textAlign: resolvedPageLayout.footer_box?.align || 'center',
+      fontScale: resolvedPageLayout.footer_box?.font_scale || 1,
+      lineHeightRatio: resolvedPageLayout.footer_box?.line_height || 1.1,
     });
   }
 
   const svgOverlay = buildSvgTextOverlay({
     width: outputWidth,
     height: outputHeight,
-    lines,
-    box,
-    fontSizePx,
-    lineHeightPx,
-    letterSpacingEm: bodyLetterSpacingEm,
-    textAlign: customBodyBox?.align || effectivePreset.textAlign,
-    verticalAlign: effectivePreset.verticalAlign,
+    lines: pageLines,
+    box: bodyBox,
+    fontSizePx: pageFontSizePx,
+    lineHeightPx: pageLineHeightPx,
+    letterSpacingEm: pageBodyLetterSpacingEm,
+    textAlign: resolvedBodyLayout?.align || plan.textAlign,
+    verticalAlign: plan.verticalAlign,
     title: titleConfig,
     footerSignature,
   });
@@ -1183,10 +1616,33 @@ async function renderFeedModeImageBuffer({
 
   return {
     buffer: imageBuffer,
-    layout: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}${
-      shouldRenderTitleInImage ? '-with-title' : ''
-    }${hasCustomFooterLayout ? '-with-footer' : ''}`,
+    layout: `${plan.layoutTag}-page-${pageIndex + 1}of${plan.pageCount}${
+      plan.isTruncated ? '-truncated' : ''
+    }`,
+    manifest: {
+      pageCount: plan.pageCount,
+      pageCap: plan.pageCap,
+      isTruncated: plan.isTruncated,
+    },
   };
+}
+
+async function renderFeedModeImageBuffer({
+  post,
+  template,
+  outputWidth,
+  outputHeight,
+  scale,
+  page = 1,
+}) {
+  return renderFeedModePageBuffer({
+    post,
+    template,
+    outputWidth,
+    outputHeight,
+    scale,
+    page,
+  });
 }
 
 async function renderShareModeImageBuffer({
@@ -1319,6 +1775,7 @@ async function renderFeedImageBuffer({
   templateKey = 'paper01',
   scale = 1,
   renderMode = 'feed',
+  page = 1,
 }) {
   const template = TEMPLATE_CONFIG[templateKey] || TEMPLATE_CONFIG.paper01;
   const { width, height } = await getTemplateMetadata(template.filePath);
@@ -1333,6 +1790,7 @@ async function renderFeedImageBuffer({
       outputWidth,
       outputHeight,
       scale,
+      page: 1,
     });
   }
 
@@ -1342,6 +1800,7 @@ async function renderFeedImageBuffer({
     outputWidth,
     outputHeight,
     scale,
+    page,
   });
 }
 
@@ -1358,15 +1817,56 @@ async function loadCachedBuffer(cachePath) {
   }
 }
 
-async function renderFeedCardImage({ post, templateKey, scale, renderMode = 'feed' }) {
+async function getFeedCardImageManifest({
+  post,
+  templateKey = 'paper01',
+  scale = 1,
+}) {
+  const normalizedTemplate = normalizeTemplateKey(templateKey);
+  const normalizedScale = normalizeScale(scale);
+  const template = TEMPLATE_CONFIG[normalizedTemplate] || TEMPLATE_CONFIG.paper01;
+  const { width, height } = await getTemplateMetadata(template.filePath);
+  const outputWidth = normalizedScale === 2 ? width * 2 : width;
+  const outputHeight = normalizedScale === 2 ? height * 2 : height;
+  const plan = buildFeedModeRenderPlan({
+    post,
+    outputWidth,
+    outputHeight,
+    scale: normalizedScale,
+  });
+
+  return {
+    pageCount: plan.pageCount,
+    pageCap: plan.pageCap,
+    isTruncated: plan.isTruncated,
+    template: normalizedTemplate,
+    scale: normalizedScale,
+    version: buildRenderVersion({
+      post,
+      templateKey: normalizedTemplate,
+      scale: normalizedScale,
+      renderMode: 'feed',
+    }),
+  };
+}
+
+async function renderFeedCardImage({
+  post,
+  templateKey,
+  scale,
+  renderMode = 'feed',
+  page = 1,
+}) {
   const normalizedTemplate = normalizeTemplateKey(templateKey);
   const normalizedScale = normalizeScale(scale);
   const normalizedRenderMode = normalizeRenderMode(renderMode);
+  const normalizedPage = Math.max(1, Number.parseInt(page, 10) || 1);
   const cacheHash = buildCacheHash({
     post,
     templateKey: normalizedTemplate,
     scale: normalizedScale,
     renderMode: normalizedRenderMode,
+    page: normalizedPage,
   });
   const cachePath = path.join(CACHE_DIR, `${cacheHash}.webp`);
   const etag = `"feed-image-${cacheHash}"`;
@@ -1380,6 +1880,7 @@ async function renderFeedCardImage({ post, templateKey, scale, renderMode = 'fee
       cacheHit: true,
       template: normalizedTemplate,
       scale: normalizedScale,
+      page: normalizedPage,
     };
   }
 
@@ -1394,6 +1895,7 @@ async function renderFeedCardImage({ post, templateKey, scale, renderMode = 'fee
       templateKey: normalizedTemplate,
       scale: normalizedScale,
       renderMode: normalizedRenderMode,
+      page: normalizedPage,
     });
 
     try {
@@ -1411,6 +1913,8 @@ async function renderFeedCardImage({ post, templateKey, scale, renderMode = 'fee
       layout: rendered.layout,
       template: normalizedTemplate,
       scale: normalizedScale,
+      page: normalizedPage,
+      manifest: rendered.manifest || null,
     };
   })().finally(() => {
     inFlightRenders.delete(inflightKey);
@@ -1421,8 +1925,11 @@ async function renderFeedCardImage({ post, templateKey, scale, renderMode = 'fee
 }
 
 module.exports = {
+  buildRenderVersion,
+  getFeedCardImageManifest,
   renderFeedCardImage,
   normalizeScale,
   normalizeTemplateKey,
+  normalizePostText,
   parsePostLayout,
 };
