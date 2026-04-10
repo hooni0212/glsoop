@@ -229,7 +229,10 @@ function hasLayoutTitleBox(post) {
     return false;
   }
 
-  const box = parsed.title_box;
+  const box =
+    Number.parseInt(parsed.layout_version, 10) === 2
+      ? parsed?.base?.title_box
+      : parsed.title_box;
   if (!box || typeof box !== 'object' || Array.isArray(box)) {
     return false;
   }

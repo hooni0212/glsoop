@@ -27,12 +27,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   let layoutEditor = null;
   let layoutEditEnabled = false;
   let manualLayoutState = null;
-  let pendingLoadedLayout = null;
   let previewPageIndex = 0;
   let previewSessionImages = [];
   let previewSessionPageCount = 1;
   let previewSessionTruncated = false;
   let previewCreatedAt = new Date().toISOString();
+  let previewOverlayText = { title: '제목', body: '본문' };
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -171,6 +171,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const previewFeedCardMountEl = document.getElementById('previewFeedCardMount');
   const layoutEditToggleBtn = document.getElementById('layoutEditToggleBtn');
   const layoutResetBtn = document.getElementById('layoutResetBtn');
+  const layoutResetAllBtn = document.getElementById('layoutResetAllBtn');
+  const layoutPageStatusEl = document.getElementById('layoutPageStatus');
   const layoutSafeAreaHintEl = document.getElementById('layoutSafeAreaHint');
   const previewSessionErrorEl = document.getElementById('previewSessionError');
   const previewCarouselControlsEl = document.getElementById('previewCarouselControls');
@@ -204,6 +206,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     hand: '손글씨 느낌',
   };
 
+  const LAYOUT_UNIT_NORMALIZED = 'normalized';
+  const LAYOUT_BOX_KEYS = ['title_box', 'text_box', 'footer_box'];
+  const EDITABLE_LAYOUT_BOX_KEYS = ['title_box', 'text_box'];
+  const LAYOUT_FIELD_KEYS = [
+    'x',
+    'y',
+    'w',
+    'h',
+    'align',
+    'font_scale',
+    'line_height',
+    'letter_spacing',
+  ];
+  const LAYOUT_FONT_SCALE_RANGE = { min: 0.7, max: 2.0 };
+  const LAYOUT_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.2 };
+  const LAYOUT_LETTER_SPACING_RANGE = { min: -0.04, max: 0.08 };
+  const DEFAULT_LAYOUT_BOXES = {
+    title_box: {
+      x: 0.336,
+      y: 0.256,
+      w: 0.424,
+      h: 0.122,
+      align: 'center',
+      font_scale: 1,
+      line_height: 1.15,
+    },
+    text_box: {
+      x: 0.336,
+      y: 0.364,
+      w: 0.424,
+      h: 0.346,
+      align: 'center',
+      font_scale: 1,
+      line_height: 1.15,
+    },
+  };
+
   function cloneLayout(layout) {
     if (!layout || typeof layout !== 'object') return null;
     try {
@@ -213,28 +252,197 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function roundLayoutNumber(value, precision = 4) {
+    const factor = 10 ** precision;
+    return Math.round(value * factor) / factor;
+  }
+
   function buildDefaultLayout() {
     return {
       layout_version: 1,
-      title_box: {
-        x: 0.336,
-        y: 0.256,
-        w: 0.424,
-        h: 0.122,
-        align: 'center',
-        font_scale: 1,
-        line_height: 1.15,
-      },
-      text_box: {
-        x: 0.336,
-        y: 0.364,
-        w: 0.424,
-        h: 0.346,
-        align: 'center',
-        font_scale: 1,
-        line_height: 1.15,
-      },
+      unit: LAYOUT_UNIT_NORMALIZED,
+      title_box: cloneLayout(DEFAULT_LAYOUT_BOXES.title_box),
+      text_box: cloneLayout(DEFAULT_LAYOUT_BOXES.text_box),
     };
+  }
+
+  function buildDefaultLayoutState() {
+    return {
+      layout_version: 2,
+      unit: LAYOUT_UNIT_NORMALIZED,
+      base: {
+        title_box: cloneLayout(DEFAULT_LAYOUT_BOXES.title_box),
+        text_box: cloneLayout(DEFAULT_LAYOUT_BOXES.text_box),
+      },
+      pages: [],
+    };
+  }
+
+  function toLayoutNumber(value) {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number.parseFloat(value.trim());
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  function normalizeLayoutBox(boxRaw, { required = false, partial = false } = {}) {
+    if (boxRaw == null) {
+      return partial ? null : required ? null : null;
+    }
+    if (!boxRaw || typeof boxRaw !== 'object' || Array.isArray(boxRaw)) {
+      return null;
+    }
+
+    const normalized = {};
+    let hasAny = false;
+
+    const assignNumber = (key, { min = 0, max = 1, precision = 4, positive = false } = {}) => {
+      if (boxRaw[key] === undefined) {
+        return;
+      }
+      const value = toLayoutNumber(boxRaw[key]);
+      if (value == null) {
+        throw new Error('invalid_number');
+      }
+      if (positive ? value <= 0 || value > max : value < min || value > max) {
+        throw new Error('invalid_range');
+      }
+      normalized[key] = roundLayoutNumber(value, precision);
+      hasAny = true;
+    };
+
+    try {
+      if (partial) {
+        assignNumber('x');
+        assignNumber('y');
+        assignNumber('w', { max: 1, positive: true });
+        assignNumber('h', { max: 1, positive: true });
+      } else {
+        const x = toLayoutNumber(boxRaw.x);
+        const y = toLayoutNumber(boxRaw.y);
+        const w = toLayoutNumber(boxRaw.w);
+        const h = toLayoutNumber(boxRaw.h);
+        if (x == null || y == null || w == null || h == null) {
+          return null;
+        }
+        if (x < 0 || x > 1 || y < 0 || y > 1 || w <= 0 || w > 1 || h <= 0 || h > 1) {
+          return null;
+        }
+        normalized.x = roundLayoutNumber(x, 4);
+        normalized.y = roundLayoutNumber(y, 4);
+        normalized.w = roundLayoutNumber(w, 4);
+        normalized.h = roundLayoutNumber(h, 4);
+        hasAny = true;
+      }
+    } catch (_error) {
+      return null;
+    }
+
+    if (typeof boxRaw.align === 'string') {
+      const alignRaw = boxRaw.align.trim().toLowerCase();
+      if (alignRaw) {
+        if (alignRaw !== 'left' && alignRaw !== 'center' && alignRaw !== 'right') {
+          return null;
+        }
+        normalized.align = alignRaw;
+        hasAny = true;
+      }
+    } else if (!partial) {
+      normalized.align = 'center';
+    }
+
+    if (boxRaw.font_scale !== undefined) {
+      const fontScale = toLayoutNumber(boxRaw.font_scale);
+      if (
+        fontScale == null ||
+        fontScale < LAYOUT_FONT_SCALE_RANGE.min ||
+        fontScale > LAYOUT_FONT_SCALE_RANGE.max
+      ) {
+        return null;
+      }
+      normalized.font_scale = roundLayoutNumber(fontScale, 3);
+      hasAny = true;
+    } else if (!partial) {
+      normalized.font_scale = 1;
+    }
+
+    if (boxRaw.line_height !== undefined) {
+      const lineHeight = toLayoutNumber(boxRaw.line_height);
+      if (
+        lineHeight == null ||
+        lineHeight < LAYOUT_LINE_HEIGHT_RANGE.min ||
+        lineHeight > LAYOUT_LINE_HEIGHT_RANGE.max
+      ) {
+        return null;
+      }
+      normalized.line_height = roundLayoutNumber(lineHeight, 3);
+      hasAny = true;
+    } else if (!partial) {
+      normalized.line_height = 1.15;
+    }
+
+    if (boxRaw.letter_spacing !== undefined) {
+      const letterSpacing = toLayoutNumber(boxRaw.letter_spacing);
+      if (
+        letterSpacing == null ||
+        letterSpacing < LAYOUT_LETTER_SPACING_RANGE.min ||
+        letterSpacing > LAYOUT_LETTER_SPACING_RANGE.max
+      ) {
+        return null;
+      }
+      normalized.letter_spacing = roundLayoutNumber(letterSpacing, 3);
+      hasAny = true;
+    }
+
+    return partial ? (hasAny ? normalized : null) : normalized;
+  }
+
+  function mergeLayoutBoxes(baseBox, overrideBox) {
+    if (!baseBox) return null;
+    return normalizeLayoutBox(
+      {
+        ...baseBox,
+        ...(overrideBox || {}),
+      },
+      { required: true }
+    );
+  }
+
+  function normalizePageOverride(pageRaw, baseLayout) {
+    if (pageRaw == null) return null;
+    if (!pageRaw || typeof pageRaw !== 'object' || Array.isArray(pageRaw)) {
+      return null;
+    }
+
+    const normalized = {};
+    LAYOUT_BOX_KEYS.forEach((boxKey) => {
+      if (!Object.prototype.hasOwnProperty.call(pageRaw, boxKey) || pageRaw[boxKey] == null) {
+        return;
+      }
+      const override = normalizeLayoutBox(pageRaw[boxKey], { partial: true });
+      if (!override) {
+        throw new Error('invalid_page_override');
+      }
+      const baseBox = baseLayout?.[boxKey] || null;
+      if (!baseBox || !mergeLayoutBoxes(baseBox, override)) {
+        throw new Error('invalid_page_override');
+      }
+      normalized[boxKey] = override;
+    });
+
+    return Object.keys(normalized).length > 0 ? normalized : null;
+  }
+
+  function trimLayoutPages(pages) {
+    const nextPages = Array.isArray(pages) ? pages.map((page) => (page ? cloneLayout(page) : null)) : [];
+    while (nextPages.length > 0 && !nextPages[nextPages.length - 1]) {
+      nextPages.pop();
+    }
+    return nextPages;
   }
 
   function parseLayoutJson(raw) {
@@ -258,68 +466,172 @@ document.addEventListener('DOMContentLoaded', async () => {
       parsed.layout_version === undefined
         ? 1
         : Number.parseInt(parsed.layout_version, 10);
-    if (version !== 1) {
+
+    if (version === 1) {
+      const textBox = normalizeLayoutBox(parsed.text_box, { required: true });
+      if (!textBox) return null;
+      const titleBox =
+        normalizeLayoutBox(parsed.title_box, { required: false }) ||
+        cloneLayout(DEFAULT_LAYOUT_BOXES.title_box);
+      const footerBox = normalizeLayoutBox(parsed.footer_box, { required: false });
+
+      const state = buildDefaultLayoutState();
+      state.base.text_box = textBox;
+      state.base.title_box = titleBox;
+      if (footerBox) {
+        state.base.footer_box = footerBox;
+      }
+      return state;
+    }
+
+    if (version !== 2) {
       return null;
     }
 
-    const toNumber = (value) => {
-      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-      if (typeof value === 'string') {
-        const parsedNumber = Number.parseFloat(value.trim());
-        return Number.isFinite(parsedNumber) ? parsedNumber : null;
-      }
+    const baseRaw = parsed.base;
+    if (!baseRaw || typeof baseRaw !== 'object' || Array.isArray(baseRaw)) {
       return null;
-    };
+    }
 
-    const parseLayoutBox = (boxRaw, { required = false } = {}) => {
-      if (boxRaw == null) {
-        return required ? null : null;
-      }
-      if (!boxRaw || typeof boxRaw !== 'object' || Array.isArray(boxRaw)) {
-        return null;
-      }
-
-      const x = toNumber(boxRaw.x);
-      const y = toNumber(boxRaw.y);
-      const w = toNumber(boxRaw.w);
-      const h = toNumber(boxRaw.h);
-      if (x == null || y == null || w == null || h == null) return null;
-      if (x < 0 || x > 1 || y < 0 || y > 1 || w <= 0 || w > 1 || h <= 0 || h > 1) {
-        return null;
-      }
-
-      const alignRaw = typeof boxRaw.align === 'string' ? boxRaw.align.trim().toLowerCase() : '';
-      const align = alignRaw === 'left' || alignRaw === 'center' || alignRaw === 'right'
-        ? alignRaw
-        : 'center';
-
-      const fontScale = toNumber(boxRaw.font_scale);
-      const lineHeight = toNumber(boxRaw.line_height);
-
-      return {
-        x,
-        y,
-        w,
-        h,
-        align,
-        font_scale: fontScale != null && fontScale > 0 ? fontScale : 1,
-        line_height: lineHeight != null && lineHeight > 0 ? lineHeight : 1.15,
-      };
-    };
-
-    const textBox = parseLayoutBox(parsed.text_box, { required: true });
-    if (!textBox) return null;
-    const titleBox = parseLayoutBox(parsed.title_box, { required: false });
-    if (parsed.title_box != null && !titleBox) return null;
+    const baseTextBox = normalizeLayoutBox(baseRaw.text_box, { required: true });
+    if (!baseTextBox) return null;
+    const baseTitleBox =
+      normalizeLayoutBox(baseRaw.title_box, { required: false }) ||
+      cloneLayout(DEFAULT_LAYOUT_BOXES.title_box);
+    const baseFooterBox = normalizeLayoutBox(baseRaw.footer_box, { required: false });
 
     const normalized = {
-      layout_version: 1,
-      text_box: textBox,
+      layout_version: 2,
+      unit: LAYOUT_UNIT_NORMALIZED,
+      base: {
+        text_box: baseTextBox,
+        title_box: baseTitleBox,
+      },
+      pages: [],
     };
-    if (titleBox) {
-      normalized.title_box = titleBox;
+    if (baseFooterBox) {
+      normalized.base.footer_box = baseFooterBox;
     }
+
+    const rawPages = parsed.pages === undefined || parsed.pages === null ? [] : parsed.pages;
+    if (!Array.isArray(rawPages)) {
+      return null;
+    }
+
+    try {
+      normalized.pages = trimLayoutPages(
+        rawPages.map((pageRaw) => normalizePageOverride(pageRaw, normalized.base))
+      );
+    } catch (_error) {
+      return null;
+    }
+
     return normalized;
+  }
+
+  function buildLayoutPayloadForSave(layoutState) {
+    if (!layoutState) return null;
+    const parsed = parseLayoutJson(layoutState);
+    if (!parsed) return null;
+    return {
+      layout_version: 2,
+      unit: LAYOUT_UNIT_NORMALIZED,
+      base: cloneLayout(parsed.base),
+      pages: trimLayoutPages(parsed.pages),
+    };
+  }
+
+  function getResolvedLayoutForPage(layoutState, pageIndex = 0) {
+    const parsed = parseLayoutJson(layoutState);
+    if (!parsed) return buildDefaultLayout();
+
+    const safePageIndex = Math.max(0, Number.parseInt(pageIndex, 10) || 0);
+    const pageOverride =
+      Array.isArray(parsed.pages) && safePageIndex < parsed.pages.length
+        ? parsed.pages[safePageIndex]
+        : null;
+
+    const resolved = {
+      layout_version: 1,
+      unit: LAYOUT_UNIT_NORMALIZED,
+      title_box: mergeLayoutBoxes(parsed.base.title_box, pageOverride?.title_box),
+      text_box: mergeLayoutBoxes(parsed.base.text_box, pageOverride?.text_box),
+    };
+    if (parsed.base.footer_box) {
+      resolved.footer_box = mergeLayoutBoxes(parsed.base.footer_box, pageOverride?.footer_box);
+    }
+    return resolved;
+  }
+
+  function diffLayoutBox(baseBox, nextBox) {
+    if (!baseBox || !nextBox) return null;
+    const diff = {};
+    LAYOUT_FIELD_KEYS.forEach((key) => {
+      if (nextBox[key] === undefined) return;
+      if (baseBox[key] !== nextBox[key]) {
+        diff[key] = nextBox[key];
+      }
+    });
+    return Object.keys(diff).length > 0 ? diff : null;
+  }
+
+  function hasLayoutTitleBox(layoutState) {
+    if (!layoutState) return false;
+    const resolved = getResolvedLayoutForPage(layoutState, 0);
+    const titleBox = resolved?.title_box;
+    return !!(
+      titleBox &&
+      Number.isFinite(Number(titleBox.x)) &&
+      Number.isFinite(Number(titleBox.y)) &&
+      Number.isFinite(Number(titleBox.w)) &&
+      Number.isFinite(Number(titleBox.h))
+    );
+  }
+
+  function hasCurrentPageOverride(layoutState, pageIndex = 0) {
+    const parsed = parseLayoutJson(layoutState);
+    if (!parsed || !Array.isArray(parsed.pages)) return false;
+    const safePageIndex = Math.max(0, Number.parseInt(pageIndex, 10) || 0);
+    const pageOverride = parsed.pages[safePageIndex];
+    return !!(pageOverride && Object.keys(pageOverride).length > 0);
+  }
+
+  function applyResolvedLayoutToPage(layoutState, pageIndex, resolvedLayout) {
+    const parsed = parseLayoutJson(layoutState) || buildDefaultLayoutState();
+    const nextState = cloneLayout(parsed) || buildDefaultLayoutState();
+    const safePageIndex = Math.max(0, Number.parseInt(pageIndex, 10) || 0);
+    const nextPages = Array.isArray(nextState.pages) ? [...nextState.pages] : [];
+    const nextPageOverride = nextPages[safePageIndex] ? cloneLayout(nextPages[safePageIndex]) : {};
+
+    EDITABLE_LAYOUT_BOX_KEYS.forEach((boxKey) => {
+      const baseBox = nextState.base?.[boxKey] || null;
+      const resolvedBox = resolvedLayout?.[boxKey] || null;
+      const diff = diffLayoutBox(baseBox, resolvedBox);
+      if (diff) {
+        nextPageOverride[boxKey] = diff;
+      } else {
+        delete nextPageOverride[boxKey];
+      }
+    });
+
+    nextPages[safePageIndex] =
+      Object.keys(nextPageOverride).length > 0 ? nextPageOverride : null;
+    nextState.pages = trimLayoutPages(nextPages);
+    return parseLayoutJson(nextState) || buildDefaultLayoutState();
+  }
+
+  function resetCurrentLayoutPage(layoutState, pageIndex) {
+    const parsed = parseLayoutJson(layoutState) || buildDefaultLayoutState();
+    const nextState = cloneLayout(parsed) || buildDefaultLayoutState();
+    const safePageIndex = Math.max(0, Number.parseInt(pageIndex, 10) || 0);
+    const nextPages = Array.isArray(nextState.pages) ? [...nextState.pages] : [];
+    nextPages[safePageIndex] = null;
+    nextState.pages = trimLayoutPages(nextPages);
+    return parseLayoutJson(nextState) || buildDefaultLayoutState();
+  }
+
+  function resetAllLayoutPages() {
+    return buildDefaultLayoutState();
   }
 
   /**
@@ -369,14 +681,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (layoutResetBtn) {
     layoutResetBtn.addEventListener('click', () => {
-      manualLayoutState = null;
-      pendingLoadedLayout = null;
-      if (layoutEditor) {
-        layoutEditor.setLayout(buildDefaultLayout());
-      }
+      manualLayoutState = resetCurrentLayoutPage(manualLayoutState, previewPageIndex);
       updateLayoutSafeAreaHint(false);
       updatePreview();
-      onEditorUserMutation('layout_reset');
+      onEditorUserMutation('layout_page_reset');
+    });
+  }
+
+  if (layoutResetAllBtn) {
+    layoutResetAllBtn.addEventListener('click', () => {
+      manualLayoutState = resetAllLayoutPages();
+      updateLayoutSafeAreaHint(false);
+      updatePreview();
+      onEditorUserMutation('layout_reset_all');
     });
   }
 
@@ -387,6 +704,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const previewCard = previewFeedCardMountEl?.querySelector('.gls-post-card');
       if (previewCard) {
         applyEditorPreviewPage(previewCard, previewSessionImages[previewPageIndex] || '');
+        syncEditorLayoutEditor(previewCard);
       } else {
         syncPreviewCarouselUi();
       }
@@ -400,6 +718,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const previewCard = previewFeedCardMountEl?.querySelector('.gls-post-card');
       if (previewCard) {
         applyEditorPreviewPage(previewCard, previewSessionImages[previewPageIndex] || '');
+        syncEditorLayoutEditor(previewCard);
       } else {
         syncPreviewCarouselUi();
       }
@@ -647,6 +966,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const title = titleInput.value.trim();
     const contentHtml = quill.root.innerHTML.trim();
     const plainText = quill.getText().trim();
+    previewOverlayText = {
+      title: title || '제목',
+      body: plainText || '본문',
+    };
 
     if (previewFeedCardMountEl && typeof buildStandardPostCardHTML === 'function') {
       const previewPost = buildEditorPreviewPost({
@@ -684,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       created_at: previewCreatedAt,
       like_count: 0,
       user_liked: 0,
-      layout_json: manualLayoutState ? cloneLayout(manualLayoutState) : null,
+      layout_json: buildLayoutPayloadForSave(manualLayoutState),
     };
   }
 
@@ -738,6 +1061,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (previewTruncatedNoticeEl) {
       previewTruncatedNoticeEl.classList.toggle('gls-hidden', !previewSessionTruncated);
     }
+    if (layoutPageStatusEl) {
+      const overrideLabel = hasCurrentPageOverride(manualLayoutState, previewPageIndex)
+        ? ' · 이 페이지 조정됨'
+        : '';
+      layoutPageStatusEl.textContent = `${currentPage} / ${totalPages} 페이지${overrideLabel}`;
+    }
+    if (layoutResetBtn) {
+      layoutResetBtn.disabled = !manualLayoutState;
+    }
+    if (layoutResetAllBtn) {
+      layoutResetAllBtn.disabled = !manualLayoutState;
+    }
   }
 
   function ensureEditorPreviewCard(previewPost) {
@@ -789,6 +1124,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     return !!layoutEditor.isOutsideSafeArea();
   }
 
+  function syncEditorLayoutEditor(previewCard) {
+    if (!layoutEditor || !previewCard) return;
+    layoutEditor.mount(previewCard);
+    layoutEditor.setLayout(getResolvedLayoutForPage(manualLayoutState, previewPageIndex));
+    layoutEditor.setEnabled(layoutEditEnabled);
+    layoutEditor.setPreviewText(previewOverlayText);
+    updateLayoutSafeAreaHint(getLayoutWarningState());
+    syncPreviewCarouselUi();
+  }
+
   function ensureEditorLayoutEditor(previewCard, previewPost, plainText = '') {
     if (!previewCard || typeof window.GlsFeedLayoutEditor !== 'function') return;
 
@@ -804,7 +1149,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           if (!enabled) return;
           if (layout && reason === 'drag') {
-            manualLayoutState = cloneLayout(layout);
+            manualLayoutState = applyResolvedLayoutToPage(
+              manualLayoutState,
+              previewPageIndex,
+              layout
+            );
             updateLayoutSafeAreaHint(Boolean(outsideSafeArea));
             updatePreview();
             onEditorUserMutation('layout_drag');
@@ -815,43 +1164,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const mounted = layoutEditor.mount(previewCard);
     if (!mounted) return;
-
-    if (pendingLoadedLayout) {
-      layoutEditor.setLayout(pendingLoadedLayout);
-      pendingLoadedLayout = null;
-    } else if (manualLayoutState) {
-      layoutEditor.setLayout(manualLayoutState);
-    } else {
-      layoutEditor.setLayout(buildDefaultLayout());
-    }
-
-    layoutEditor.setEnabled(layoutEditEnabled);
-    layoutEditor.setPreviewText({
+    previewOverlayText = {
       title: previewPost?.title || '제목',
       body: plainText || '본문',
-    });
-    updateLayoutSafeAreaHint(getLayoutWarningState());
+    };
+    syncEditorLayoutEditor(previewCard);
   }
 
   function setLayoutEditMode(nextEnabled) {
     layoutEditEnabled = Boolean(nextEnabled);
     if (layoutEditEnabled) {
       if (!manualLayoutState) {
-        manualLayoutState = buildDefaultLayout();
-        pendingLoadedLayout = cloneLayout(manualLayoutState);
-      } else if (!manualLayoutState.title_box) {
-        const defaults = buildDefaultLayout();
-        manualLayoutState = {
-          ...manualLayoutState,
-          title_box: defaults.title_box,
-        };
-        pendingLoadedLayout = cloneLayout(manualLayoutState);
+        manualLayoutState = buildDefaultLayoutState();
       }
     }
     if (layoutEditor) {
-      layoutEditor.setEnabled(layoutEditEnabled);
-      if (layoutEditEnabled && manualLayoutState) {
-        layoutEditor.setLayout(manualLayoutState);
+      const previewCard = previewFeedCardMountEl?.querySelector('.gls-post-card');
+      if (previewCard) {
+        syncEditorLayoutEditor(previewCard);
+      } else {
+        layoutEditor.setEnabled(layoutEditEnabled);
       }
     }
     updateLayoutToggleUi();
@@ -868,7 +1200,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const titleEl = previewCard.querySelector('.card-title');
     if (titleEl) {
       titleEl.textContent = previewPost.title || '';
-      const shouldHideTitle = !!(manualLayoutState && manualLayoutState.title_box);
+      const shouldHideTitle = hasLayoutTitleBox(manualLayoutState);
       titleEl.classList.toggle('gls-hidden', shouldHideTitle);
     }
 
@@ -912,6 +1244,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const currentSrc = imageEl.getAttribute('src') || '';
     if (currentSrc === previewImageUrl) {
+      syncEditorLayoutEditor(previewCard);
       syncPreviewCarouselUi();
       return;
     }
@@ -936,9 +1269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         imageShellEl.classList.remove('is-preview-loading');
       }
       if (layoutEditor) {
-        layoutEditor.mount(previewCard);
-        layoutEditor.setEnabled(layoutEditEnabled);
-        updateLayoutSafeAreaHint(getLayoutWarningState());
+        syncEditorLayoutEditor(previewCard);
       }
       syncPreviewCarouselUi();
     };
@@ -969,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       clearTimeout(previewSessionTimer);
     }
 
-    const layoutForPreview = manualLayoutState ? cloneLayout(manualLayoutState) : null;
+    const layoutForPreview = buildLayoutPayloadForSave(manualLayoutState);
     const requestSeq = ++previewSessionRequestSeq;
 
     previewSessionTimer = window.setTimeout(async () => {
@@ -1039,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const category = categorySelectEl ? categorySelectEl.value || '' : '';
     const fontKey = fontSelectEl ? fontSelectEl.value || 'serif' : 'serif';
     const hashtags = Array.isArray(hashtagList) ? [...hashtagList] : [];
-    const layoutJson = manualLayoutState ? cloneLayout(manualLayoutState) : null;
+    const layoutJson = buildLayoutPayloadForSave(manualLayoutState);
     return {
       title,
       content_html: contentHtml,
@@ -1166,9 +1497,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const restoredLayout = parseLayoutJson(state.layout_json);
       manualLayoutState = restoredLayout ? cloneLayout(restoredLayout) : null;
-      pendingLoadedLayout = manualLayoutState ? cloneLayout(manualLayoutState) : null;
       if (layoutEditor) {
-        layoutEditor.setLayout(manualLayoutState || buildDefaultLayout());
+        const previewCard = previewFeedCardMountEl?.querySelector('.gls-post-card');
+        if (previewCard) {
+          syncEditorLayoutEditor(previewCard);
+        }
       }
 
       const plainText = quill.getText().trim();
@@ -1285,9 +1618,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const loadedLayout = parseLayoutJson(post.layout_json);
         manualLayoutState = loadedLayout ? cloneLayout(loadedLayout) : null;
-        pendingLoadedLayout = manualLayoutState ? cloneLayout(manualLayoutState) : null;
         if (layoutEditor) {
-          layoutEditor.setLayout(manualLayoutState || buildDefaultLayout());
+          const previewCard = previewFeedCardMountEl?.querySelector('.gls-post-card');
+          if (previewCard) {
+            syncEditorLayoutEditor(previewCard);
+          }
         }
 
         // 글자 수/미리보기 초기 상태 갱신
@@ -1445,7 +1780,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           content: contentWithFontMeta,
           hashtags: hashtagsRaw, // ✅ 서버로 해시태그 문자열 함께 전송
           category: selectedCategory,
-          layout_json: manualLayoutState ? cloneLayout(manualLayoutState) : null,
+          layout_json: buildLayoutPayloadForSave(manualLayoutState),
         }),
       });
 

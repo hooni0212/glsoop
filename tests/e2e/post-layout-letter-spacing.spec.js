@@ -130,6 +130,36 @@ const buildLayoutPayload = ({
   },
 });
 
+const buildLayoutPayloadV2 = ({
+  pageTwoTextOverride = null,
+  pageOneTitleOverride = null,
+} = {}) => {
+  const legacy = buildLayoutPayload();
+  const pages = [];
+  if (pageOneTitleOverride) {
+    pages[0] = {
+      title_box: pageOneTitleOverride,
+    };
+  }
+  if (pageTwoTextOverride) {
+    pages[1] = {
+      ...(pages[1] || {}),
+      text_box: pageTwoTextOverride,
+    };
+  }
+
+  return {
+    layout_version: 2,
+    unit: 'normalized',
+    base: {
+      title_box: legacy.title_box,
+      text_box: legacy.text_box,
+      footer_box: legacy.footer_box,
+    },
+    pages,
+  };
+};
+
 const parseLayoutJson = (value) => {
   if (!value) return null;
   return typeof value === 'string' ? JSON.parse(value) : value;
@@ -378,6 +408,68 @@ test.describe('Post layout letter spacing', () => {
     expect(secondPageResponse.status()).toBe(404);
   });
 
+  test('accepts layout version 2 and preserves multipage metadata after reset-like save', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '레이아웃 v2 저장 테스트',
+        content: buildLongMultilineContent(120, '레이아웃 v2 본문'),
+        category: 'essay',
+        layout_json: buildLayoutPayloadV2({
+          pageTwoTextOverride: {
+            x: 0.312,
+            y: 0.332,
+          },
+        }),
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    const editResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
+    expect(editResponse.status()).toBe(200);
+    const editBody = await editResponse.json();
+    const createdLayout = parseLayoutJson(editBody.post.layout_json);
+    expect(createdLayout.layout_version).toBe(2);
+    expect(createdLayout.base.title_box).toBeTruthy();
+    expect(createdLayout.base.text_box).toBeTruthy();
+    expect(createdLayout.pages[1].text_box.x).toBe(0.312);
+
+    const updateResponse = await request.put(`/api/posts/${postId}`, {
+      headers,
+      data: {
+        title: '레이아웃 v2 저장 테스트',
+        content: buildLongMultilineContent(120, '레이아웃 v2 본문'),
+        category: 'essay',
+        layout_json: buildLayoutPayloadV2(),
+      },
+    });
+
+    expect(updateResponse.status()).toBe(200);
+
+    const detailResponse = await request.get(`/api/posts/${postId}`, { headers });
+    expect(detailResponse.status()).toBe(200);
+    const detailBody = await detailResponse.json();
+    expect(detailBody.ok).toBe(true);
+    expect(detailBody.post.render_images.page_count).toBe(8);
+    expect(detailBody.post.has_multiple).toBe(true);
+    expect(detailBody.post.images.length).toBe(8);
+
+    const updatedEditResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
+    expect(updatedEditResponse.status()).toBe(200);
+    const updatedEditBody = await updatedEditResponse.json();
+    const updatedLayout = parseLayoutJson(updatedEditBody.post.layout_json);
+    expect(updatedLayout.layout_version).toBe(2);
+    expect(updatedLayout.base.title_box).toBeTruthy();
+    expect(updatedLayout.base.text_box).toBeTruthy();
+    expect(Array.isArray(updatedLayout.pages)).toBe(true);
+  });
+
   test('creates editor preview sessions with multipage manifest and page rendering', async ({ request }) => {
     const token = await loginAsLayoutWriter(request);
     const headers = { Authorization: `Bearer ${token}` };
@@ -391,7 +483,12 @@ test.describe('Post layout letter spacing', () => {
         category: 'essay',
         template: 'paper01',
         scale: 1,
-        layout_json: buildLayoutPayload(),
+        layout_json: buildLayoutPayloadV2({
+          pageTwoTextOverride: {
+            x: 0.312,
+            y: 0.332,
+          },
+        }),
       },
     });
 
@@ -427,7 +524,7 @@ test.describe('Post layout letter spacing', () => {
         category: 'essay',
         template: 'paper01',
         scale: 1,
-        layout_json: buildLayoutPayload(),
+        layout_json: buildLayoutPayloadV2(),
       },
     });
 

@@ -49,6 +49,15 @@ const LAYOUT_VALIDATION_ERROR_MESSAGE = '레이아웃 데이터가 올바르지 
 const LAYOUT_FONT_SCALE_RANGE = { min: 0.7, max: 2.0 };
 const LAYOUT_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.2 };
 const LAYOUT_LETTER_SPACING_RANGE = { min: -0.04, max: 0.08 };
+const DEFAULT_LAYOUT_TITLE_BOX = {
+  x: 0.336,
+  y: 0.256,
+  w: 0.424,
+  h: 0.122,
+  align: 'center',
+  font_scale: 1,
+  line_height: 1.15,
+};
 const CATEGORY_SQL =
   "CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END";
 
@@ -201,6 +210,114 @@ function normalizeLayoutBox(raw, { required = false, allowLetterSpacing = false 
   return normalized;
 }
 
+function normalizeLayoutOverrideBox(raw, { allowLetterSpacing = false } = {}) {
+  if (raw === undefined || raw === null || raw === '') {
+    return null;
+  }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const normalized = {};
+  let hasAny = false;
+
+  if (raw.x !== undefined) {
+    const x = toFiniteNumber(raw.x);
+    if (x == null || x < 0 || x > 1) {
+      return null;
+    }
+    normalized.x = normalizeLayoutNumber(x);
+    hasAny = true;
+  }
+
+  if (raw.y !== undefined) {
+    const y = toFiniteNumber(raw.y);
+    if (y == null || y < 0 || y > 1) {
+      return null;
+    }
+    normalized.y = normalizeLayoutNumber(y);
+    hasAny = true;
+  }
+
+  if (raw.w !== undefined) {
+    const w = toFiniteNumber(raw.w);
+    if (w == null || w <= 0 || w > 1) {
+      return null;
+    }
+    normalized.w = normalizeLayoutNumber(w);
+    hasAny = true;
+  }
+
+  if (raw.h !== undefined) {
+    const h = toFiniteNumber(raw.h);
+    if (h == null || h <= 0 || h > 1) {
+      return null;
+    }
+    normalized.h = normalizeLayoutNumber(h);
+    hasAny = true;
+  }
+
+  if (raw.align !== undefined) {
+    const align =
+      typeof raw.align === 'string' ? raw.align.trim().toLowerCase() : '';
+    if (!align || !ALLOWED_LAYOUT_ALIGN.has(align)) {
+      return null;
+    }
+    normalized.align = align;
+    hasAny = true;
+  }
+
+  if (raw.font_scale !== undefined) {
+    const fontScale = toFiniteNumber(raw.font_scale);
+    if (
+      fontScale == null ||
+      fontScale < LAYOUT_FONT_SCALE_RANGE.min ||
+      fontScale > LAYOUT_FONT_SCALE_RANGE.max
+    ) {
+      return null;
+    }
+    normalized.font_scale = normalizeLayoutNumber(fontScale, 3);
+    hasAny = true;
+  }
+
+  if (raw.line_height !== undefined) {
+    const lineHeight = toFiniteNumber(raw.line_height);
+    if (
+      lineHeight == null ||
+      lineHeight < LAYOUT_LINE_HEIGHT_RANGE.min ||
+      lineHeight > LAYOUT_LINE_HEIGHT_RANGE.max
+    ) {
+      return null;
+    }
+    normalized.line_height = normalizeLayoutNumber(lineHeight, 3);
+    hasAny = true;
+  }
+
+  if (allowLetterSpacing && raw.letter_spacing !== undefined) {
+    const letterSpacing = toFiniteNumber(raw.letter_spacing);
+    if (
+      letterSpacing == null ||
+      letterSpacing < LAYOUT_LETTER_SPACING_RANGE.min ||
+      letterSpacing > LAYOUT_LETTER_SPACING_RANGE.max
+    ) {
+      return null;
+    }
+    normalized.letter_spacing = normalizeLayoutNumber(letterSpacing, 3);
+    hasAny = true;
+  }
+
+  return hasAny ? normalized : null;
+}
+
+function resolveLayoutBoxFromBase(baseBox, overrideBox, { allowLetterSpacing = false } = {}) {
+  if (!baseBox) return null;
+  const merged = overrideBox ? { ...baseBox, ...overrideBox } : { ...baseBox };
+  return normalizeLayoutBox(merged, {
+    required: true,
+    allowLetterSpacing,
+  });
+}
+
 function normalizeLayoutPayload(raw) {
   let payload = raw;
 
@@ -225,7 +342,7 @@ function normalizeLayoutPayload(raw) {
   }
 
   const layoutVersion = Number.parseInt(payload.layout_version, 10);
-  if (layoutVersion !== 1) {
+  if (layoutVersion !== 1 && layoutVersion !== 2) {
     return { ok: false };
   }
 
@@ -236,43 +353,170 @@ function normalizeLayoutPayload(raw) {
     return { ok: false };
   }
 
-  const textBox = normalizeLayoutBox(payload.text_box, {
-    required: true,
-    allowLetterSpacing: true,
-  });
-  if (!textBox) {
+  if (layoutVersion === 1) {
+    const textBox = normalizeLayoutBox(payload.text_box, {
+      required: true,
+      allowLetterSpacing: true,
+    });
+    if (!textBox) {
+      return { ok: false };
+    }
+
+    let titleBox = null;
+    if (hasOwn(payload, 'title_box')) {
+      titleBox = normalizeLayoutBox(payload.title_box, {
+        required: false,
+        allowLetterSpacing: true,
+      });
+      if (payload.title_box != null && !titleBox) {
+        return { ok: false };
+      }
+    }
+
+    let footerBox = null;
+    if (hasOwn(payload, 'footer_box')) {
+      footerBox = normalizeLayoutBox(payload.footer_box, { required: false });
+      if (payload.footer_box != null && !footerBox) {
+        return { ok: false };
+      }
+    }
+
+    const normalized = {
+      layout_version: 1,
+      unit: LAYOUT_UNIT_NORMALIZED,
+      text_box: textBox,
+      title_box: titleBox || { ...DEFAULT_LAYOUT_TITLE_BOX },
+    };
+    if (footerBox) {
+      normalized.footer_box = footerBox;
+    }
+
+    return {
+      ok: true,
+      value: JSON.stringify(normalized),
+    };
+  }
+
+  const baseRaw = payload.base;
+  if (!baseRaw || typeof baseRaw !== 'object' || Array.isArray(baseRaw)) {
     return { ok: false };
   }
 
-  let titleBox = null;
-  if (hasOwn(payload, 'title_box')) {
-    titleBox = normalizeLayoutBox(payload.title_box, {
+  const baseTextBox = normalizeLayoutBox(baseRaw.text_box, {
+    required: true,
+    allowLetterSpacing: true,
+  });
+  if (!baseTextBox) {
+    return { ok: false };
+  }
+
+  let baseTitleBox = null;
+  if (hasOwn(baseRaw, 'title_box')) {
+    baseTitleBox = normalizeLayoutBox(baseRaw.title_box, {
       required: false,
       allowLetterSpacing: true,
     });
-    if (payload.title_box != null && !titleBox) {
+    if (baseRaw.title_box != null && !baseTitleBox) {
+      return { ok: false };
+    }
+  }
+  if (!baseTitleBox) {
+    baseTitleBox = { ...DEFAULT_LAYOUT_TITLE_BOX };
+  }
+
+  let baseFooterBox = null;
+  if (hasOwn(baseRaw, 'footer_box')) {
+    baseFooterBox = normalizeLayoutBox(baseRaw.footer_box, {
+      required: false,
+      allowLetterSpacing: false,
+    });
+    if (baseRaw.footer_box != null && !baseFooterBox) {
       return { ok: false };
     }
   }
 
-  let footerBox = null;
-  if (hasOwn(payload, 'footer_box')) {
-    footerBox = normalizeLayoutBox(payload.footer_box, { required: false });
-    if (payload.footer_box != null && !footerBox) {
+  const rawPages = payload.pages === undefined || payload.pages === null ? [] : payload.pages;
+  if (!Array.isArray(rawPages)) {
+    return { ok: false };
+  }
+
+  const normalizedPages = [];
+  for (const pageRaw of rawPages) {
+    if (pageRaw == null) {
+      normalizedPages.push(null);
+      continue;
+    }
+    if (!pageRaw || typeof pageRaw !== 'object' || Array.isArray(pageRaw)) {
       return { ok: false };
     }
+
+    const normalizedPage = {};
+
+    if (hasOwn(pageRaw, 'text_box') && pageRaw.text_box != null) {
+      const textOverride = normalizeLayoutOverrideBox(pageRaw.text_box, {
+        allowLetterSpacing: true,
+      });
+      if (!textOverride) {
+        return { ok: false };
+      }
+      if (
+        !resolveLayoutBoxFromBase(baseTextBox, textOverride, {
+          allowLetterSpacing: true,
+        })
+      ) {
+        return { ok: false };
+      }
+      normalizedPage.text_box = textOverride;
+    }
+
+    if (hasOwn(pageRaw, 'title_box') && pageRaw.title_box != null) {
+      const titleOverride = normalizeLayoutOverrideBox(pageRaw.title_box, {
+        allowLetterSpacing: true,
+      });
+      if (!titleOverride) {
+        return { ok: false };
+      }
+      if (
+        !resolveLayoutBoxFromBase(baseTitleBox, titleOverride, {
+          allowLetterSpacing: true,
+        })
+      ) {
+        return { ok: false };
+      }
+      normalizedPage.title_box = titleOverride;
+    }
+
+    if (hasOwn(pageRaw, 'footer_box') && pageRaw.footer_box != null) {
+      const footerOverride = normalizeLayoutOverrideBox(pageRaw.footer_box, {
+        allowLetterSpacing: false,
+      });
+      if (!footerOverride) {
+        return { ok: false };
+      }
+      if (
+        !resolveLayoutBoxFromBase(baseFooterBox, footerOverride, {
+          allowLetterSpacing: false,
+        })
+      ) {
+        return { ok: false };
+      }
+      normalizedPage.footer_box = footerOverride;
+    }
+
+    normalizedPages.push(Object.keys(normalizedPage).length > 0 ? normalizedPage : null);
   }
 
   const normalized = {
-    layout_version: 1,
+    layout_version: 2,
     unit: LAYOUT_UNIT_NORMALIZED,
-    text_box: textBox,
+    base: {
+      text_box: baseTextBox,
+      title_box: baseTitleBox,
+    },
+    pages: normalizedPages,
   };
-  if (titleBox) {
-    normalized.title_box = titleBox;
-  }
-  if (footerBox) {
-    normalized.footer_box = footerBox;
+  if (baseFooterBox) {
+    normalized.base.footer_box = baseFooterBox;
   }
 
   return {

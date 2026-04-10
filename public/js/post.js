@@ -935,7 +935,10 @@ function hasTitleBoxLayout(rawLayout) {
     return false;
   }
 
-  const titleBox = parsed.title_box;
+  const titleBox =
+    Number.parseInt(parsed.layout_version, 10) === 2
+      ? parsed?.base?.title_box
+      : parsed.title_box;
   if (!titleBox || typeof titleBox !== 'object' || Array.isArray(titleBox)) {
     return false;
   }

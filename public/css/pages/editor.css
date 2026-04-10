@@ -263,6 +263,12 @@
   flex-wrap: wrap;
 }
 
+.editor-layout-page-status {
+  margin-top: 8px;
+  color: #5f6778;
+  font-weight: 700;
+}
+
 .editor-layout-hint {
   margin-top: 8px;
   color: #b42318;
