@@ -108,6 +108,10 @@ body.page-signup {
   font-weight: 600;
 }
 
+.page-signup .auth-guideline-trigger:hover {
+  color: color-mix(in srgb, var(--gls-color-primary-strong) 82%, #0f172a 18%);
+}
+
 .page-signup .auth-guideline-trigger:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--gls-color-primary) 55%, transparent);
   outline-offset: 2px;

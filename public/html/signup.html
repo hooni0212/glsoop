@@ -185,15 +185,15 @@
           </small>
           <small class="gls-text-muted gls-block gls-mt-1">
             커뮤니티 운영 기준은
-            <button
-              type="button"
+            <a
               class="auth-guideline-trigger"
-              data-bs-toggle="modal"
-              data-bs-target="#signupGuidelineModal"
+              href="/html/community-guidelines.html"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              가이드라인
-            </button>
-            에서 확인할 수 있습니다.
+              가이드라인 보기
+            </a>
+            에서 새 창으로 확인할 수 있습니다.
           </small>
         </div>
 
@@ -233,42 +233,6 @@
     </div>
   </section>
 
-  <div
-    class="modal fade"
-    id="signupGuidelineModal"
-    tabindex="-1"
-    aria-labelledby="signupGuidelineModalLabel"
-    aria-hidden="true"
-  >
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="signupGuidelineModalLabel">글숲 커뮤니티 가이드라인 요약</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
-        </div>
-        <div class="modal-body">
-          <p>글숲은 글을 통해 마음을 나누고 서로를 존중하는 조용한 공간을 지향합니다.</p>
-          <ol class="gls-mb-0">
-            <li>권장 활동: 경험과 감정 기록, 공감과 존중, 건강한 의견 교환</li>
-            <li>금지 항목: 혐오·공격 표현, 불법 콘텐츠, 무단 복제, 반복 광고/홍보</li>
-            <li>운영 조치: 신고 접수 후 운영 정책에 따라 경고/이용 제한 조치 가능</li>
-          </ol>
-        </div>
-        <div class="modal-footer">
-          <a
-            class="gls-btn gls-btn-secondary gls-btn-sm"
-            href="/html/community-guidelines.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            전체 문서 보기
-          </a>
-          <button type="button" class="gls-btn gls-btn-primary gls-btn-sm" data-bs-dismiss="modal">확인</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- 글숲 푸터 (사이트 공통 하단 영역) -->
   <footer class="custom-footer">
     <div class="gls-container">
@@ -289,7 +253,6 @@
   <!-- 공통 유틸 (escapeHtml, maskEmail 등) -->
   <script src="/js/utils.js"></script>
   <script src="/js/auth-form-utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <!-- 헤더 로그인 상태 제어 스크립트 (/api/me 호출해서 before/after-login 토글) -->
   <script src="../js/theme.js" defer></script>
   <script src="../js/header.js"></script>
