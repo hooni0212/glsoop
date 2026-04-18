@@ -76,6 +76,11 @@ body.page-legal {
   font-size: 1.12rem;
 }
 
+.page-legal .legal-section h3 {
+  margin: 14px 0 8px;
+  font-size: 1rem;
+}
+
 .page-legal .legal-section p,
 .page-legal .legal-section li {
   color: var(--gls-color-text);

@@ -7,6 +7,8 @@ test.describe('Legal pages', () => {
 
   test('serves legal pages with core headings', async ({ request }) => {
     const pages = [
+      { path: '/child-safety', heading: '글숲 아동 안전 표준', includes: 'glsoop1752@gmail.com' },
+      { path: '/html/child-safety.html', heading: '글숲 아동 안전 표준', includes: 'glsoop1752@gmail.com' },
       { path: '/html/terms.html', heading: '글숲 이용약관' },
       { path: '/html/privacy.html', heading: '개인정보 처리방침' },
       { path: '/html/community-guidelines.html', heading: '글숲 커뮤니티 가이드라인' },
@@ -29,17 +31,11 @@ test.describe('Legal pages', () => {
     expect(response.status()).toBe(404);
   });
 
-  test('signup page links to terms/privacy and opens community guideline modal', async ({ page }) => {
+  test('signup page links to terms, privacy, and community guideline docs', async ({ page }) => {
     await page.goto('/html/signup.html');
 
     await expect(page.locator('a[href="/html/terms.html"]')).toBeVisible();
     await expect(page.locator('a[href="/html/privacy.html"]')).toBeVisible();
-    const guidelineTrigger = page.locator('button[data-bs-target="#signupGuidelineModal"]');
-    await expect(guidelineTrigger).toBeVisible();
-
-    await guidelineTrigger.click();
-    const guidelineModal = page.locator('#signupGuidelineModal');
-    await expect(guidelineModal).toBeVisible();
-    await expect(guidelineModal.locator('a[href="/html/community-guidelines.html"]')).toBeVisible();
+    await expect(page.locator('a.auth-guideline-trigger[href="/html/community-guidelines.html"]')).toBeVisible();
   });
 });
