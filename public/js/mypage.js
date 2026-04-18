@@ -10,6 +10,7 @@ let blockedUsersLoaded = false;
 let rememberLoginEnabledInitial = false;
 let marketingEmailOptInInitial = false;
 let mypageSafeAreaGuidesEnabled = false;
+let mypageLaunchIntentHandled = false;
 
 function trackUxEvent(eventName, properties = {}, options = {}) {
   if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -242,6 +243,48 @@ function buildLoginRedirectUrl(source = 'mypage') {
   query.set('next', getCurrentPathWithSearch());
   if (source) query.set('from', source);
   return `/html/login.html?${query.toString()}`;
+}
+
+function getMypageLaunchIntent() {
+  const params = new URLSearchParams(window.location.search || '');
+  const intent = (params.get('modal') || params.get('open') || '').trim().toLowerCase();
+  if (intent === 'account-closure' || intent === 'account-management') {
+    return 'account-closure';
+  }
+  return '';
+}
+
+function clearMypageLaunchIntent() {
+  if (typeof window.history?.replaceState !== 'function') return;
+
+  const params = new URLSearchParams(window.location.search || '');
+  params.delete('modal');
+  params.delete('open');
+
+  const nextQuery = params.toString();
+  const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash || ''}`;
+  window.history.replaceState({}, document.title, nextUrl);
+}
+
+function maybeHandleMypageLaunchIntent() {
+  if (mypageLaunchIntentHandled) return;
+
+  const intent = getMypageLaunchIntent();
+  if (intent !== 'account-closure') return;
+
+  mypageLaunchIntentHandled = true;
+  clearMypageLaunchIntent();
+
+  const openFlow = () => {
+    openAccountClosureFlow();
+  };
+
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(openFlow);
+    return;
+  }
+
+  window.setTimeout(openFlow, 0);
 }
 
 function renderMyPostsEmptyState(postsBox, reason = 'load') {
@@ -649,6 +692,8 @@ async function loadMyPage() {
       marketingEmailOptInInput.checked = marketingOptIn;
       marketingEmailOptInInitial = marketingOptIn;
     }
+
+    maybeHandleMypageLaunchIntent();
 
     await loadGrowthMiniWidget();
     await loadMySessionsPanel();
