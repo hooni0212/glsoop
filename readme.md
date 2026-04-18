@@ -53,42 +53,33 @@ MAIL_FAIL_SEND=0
 
 ## 4) 문서 구조 (기능별 리팩토링)
 
-문서 허브:
+로컬 서버 문서 허브:
 
 - `docs/문서-허브.md`
-
-API 인덱스:
-
 - `docs/참고/API-레퍼런스.md`
-
-기능별 API 문서:
-
 - `docs/서버/API/인증-계정.md`
-- `docs/서버/API/사용자-팔로우.md`
-- `docs/서버/API/게시글-피드-좋아요.md`
-- `docs/서버/API/북마크.md`
-- `docs/서버/API/검색.md`
-- `docs/서버/API/성장-퀘스트.md`
-- `docs/서버/API/코스메틱-프로필.md`
-- `docs/서버/API/수익화.md`
-- `docs/서버/API/공유-이벤트.md`
-- `docs/서버/API/관리자-운영.md`
+- `docs/서버/API/인증-쿠키-세션-정책.md`
 
-아키텍처/DB:
+로컬 서버 구조 문서:
 
-- `docs/서버/아키텍처/런타임-개요.md`
-- `docs/서버/아키텍처/데이터베이스-개요.md`
+- `docs/참고/시스템-개요.md`
 - `docs/참고/DB-스키마.md`
-- `docs/마이그레이션/3단계-레거시-업적-마이그레이션.md`
 
-유료화:
+공통 운영 / 출시 / 심사 / archive canonical:
 
-- `docs/수익화/API-계약서-v1.md`
-- `docs/수익화/3단계-운영-런북.md`
+- `../glsoop-ops/docs/index.md`
+- `../glsoop-ops/docs/operations/agent-start-here.md`
+- `../glsoop-ops/docs/operations/documentation-standard.md`
+- `../glsoop-ops/docs/operations/notion-sync-standard.md`
+- `../glsoop-ops/docs/qa/README.md`
+- `../glsoop-ops/docs/operations/glsoop/`
+- `../glsoop-ops/docs/api-contract/monetization-api-contract-v1.md`
+- `../glsoop-ops/docs/archive/glsoop/`
 
-아카이브:
+주의:
 
-- `docs/아카이브/프로젝트-히스토리.md`
+- 기존 `docs/운영/*`, `docs/수익화/API-계약서-v1.md` 원본은 링크 호환을 위해 임시 유지한다.
+- 서버 실행/배포/런타임과 직접 연결된 문서와 정적 HTML은 이 저장소를 우선 기준으로 유지한다.
 
 ---
 
