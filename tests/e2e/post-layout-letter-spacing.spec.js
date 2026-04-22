@@ -2,6 +2,7 @@ const { test, expect } = require('@playwright/test');
 const bcrypt = require('bcrypt');
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp');
 const sqlite3 = require('sqlite3').verbose();
 
 const REPO_ROOT = process.cwd();
@@ -568,6 +569,9 @@ test.describe('Post layout letter spacing', () => {
     expect(pageTwoResponse.headers()["x-feed-image-template"]).toBe("paper02");
     expect(pageTwoResponse.headers()["x-feed-image-page"]).toBe("2");
     expect(pageTwoResponse.headers()["x-feed-image-page-count"]).toBe(String(body.images.length));
+    const pageTwoMetadata = await sharp(Buffer.from(await pageTwoResponse.body())).metadata();
+    expect(pageTwoMetadata.width).toBe(500);
+    expect(pageTwoMetadata.height).toBe(666);
 
     const publicPageTwoResponse = await request.get(body.images[1]);
     expect(publicPageTwoResponse.status()).toBe(200);

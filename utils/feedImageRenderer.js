@@ -5,7 +5,7 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v13';
+const RENDER_VERSION = 'feed-image-poc-v14';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 const FEED_IMAGE_PAGE_CAP = 8;
 const IMAGE_FORMAT_CONFIG = {
@@ -41,6 +41,8 @@ const TEMPLATE_CONFIG = {
       'feed-templates-v2',
       'paper-source-02.jpg'
     ),
+    outputWidth: 500,
+    outputHeight: 666,
     resizeFit: 'contain',
     resizeBackground: { r: 244, g: 239, b: 228, alpha: 1 },
     resizePosition: 'top',
@@ -1039,6 +1041,16 @@ async function getTemplateMetadata(filePath) {
   return value;
 }
 
+async function getTemplateOutputSize(template, scale = 1) {
+  const metadata = await getTemplateMetadata(template.filePath);
+  const width = Number(template.outputWidth) || metadata.width;
+  const height = Number(template.outputHeight) || metadata.height;
+  return {
+    width: scale === 2 ? width * 2 : width,
+    height: scale === 2 ? height * 2 : height,
+  };
+}
+
 function buildRenderVersion({ post, templateKey, scale, renderMode }) {
   const payload = JSON.stringify({
     render_version: RENDER_VERSION,
@@ -1897,9 +1909,10 @@ async function renderFeedImageBuffer({
   imageFormat = 'webp',
 }) {
   const template = TEMPLATE_CONFIG[templateKey] || TEMPLATE_CONFIG.paper01;
-  const { width, height } = await getTemplateMetadata(template.filePath);
-  const outputWidth = scale === 2 ? width * 2 : width;
-  const outputHeight = scale === 2 ? height * 2 : height;
+  const { width: outputWidth, height: outputHeight } = await getTemplateOutputSize(
+    template,
+    scale
+  );
   const normalizedMode = normalizeRenderMode(renderMode);
 
   if (normalizedMode === 'share') {
