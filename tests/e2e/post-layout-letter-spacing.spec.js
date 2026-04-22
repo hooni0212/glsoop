@@ -537,9 +537,10 @@ test.describe('Post layout letter spacing', () => {
         content: `<!--FONT:serif-->${Array.from({ length: 80 }, (_item, index) => `<p>미리보기 본문 ${index + 1}</p>`).join('')}`,
         content_format: 'html',
         category: 'essay',
-        template: 'paper01',
+        template: 'paper02',
         scale: 1,
         layout_json: buildLayoutPayloadV2({
+          template: 'paper02',
           pageTwoTextOverride: {
             x: 0.312,
             y: 0.332,
@@ -557,12 +558,14 @@ test.describe('Post layout letter spacing', () => {
     expect(Array.isArray(body.images)).toBe(true);
     expect(body.images.length).toBeGreaterThan(1);
     expect(body.has_multiple).toBe(true);
+    expect(body.render_images.template).toBe('paper02');
     expect(body.render_images.page_count).toBe(body.images.length);
     expect(body.render_images.preview_session_id).toBe(body.preview_session_id);
 
     const pageTwoResponse = await request.get(body.images[1], { headers });
     expect(pageTwoResponse.status()).toBe(200);
     expect(pageTwoResponse.headers()["content-type"]).toContain("image/webp");
+    expect(pageTwoResponse.headers()["x-feed-image-template"]).toBe("paper02");
     expect(pageTwoResponse.headers()["x-feed-image-page"]).toBe("2");
     expect(pageTwoResponse.headers()["x-feed-image-page-count"]).toBe(String(body.images.length));
 

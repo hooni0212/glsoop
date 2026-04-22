@@ -5,7 +5,7 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v12';
+const RENDER_VERSION = 'feed-image-poc-v13';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 const FEED_IMAGE_PAGE_CAP = 8;
 const IMAGE_FORMAT_CONFIG = {
@@ -1080,6 +1080,44 @@ async function createCompositedTemplateImage({ template, outputWidth, outputHeig
         kernel: sharp.kernel.lanczos3,
       })
       .toBuffer();
+    const templateMetadata = await sharp(templateBuffer).metadata();
+    const imageHeight = Math.max(1, Math.round(Number(templateMetadata.height) || outputHeight));
+    const sourceLeft = Math.max(0, -imageLeft);
+    const sourceTop = Math.max(0, -imageTop);
+    const targetLeft = Math.max(0, imageLeft);
+    const targetTop = Math.max(0, imageTop);
+    const visibleWidth = Math.max(
+      0,
+      Math.min(imageWidth - sourceLeft, outputWidth - targetLeft)
+    );
+    const visibleHeight = Math.max(
+      0,
+      Math.min(imageHeight - sourceTop, outputHeight - targetTop)
+    );
+    const composites = [];
+
+    if (visibleWidth > 0 && visibleHeight > 0) {
+      const visibleTemplateBuffer = await sharp(templateBuffer)
+        .extract({
+          left: sourceLeft,
+          top: sourceTop,
+          width: visibleWidth,
+          height: visibleHeight,
+        })
+        .toBuffer();
+
+      composites.push({
+        input: visibleTemplateBuffer,
+        top: targetTop,
+        left: targetLeft,
+      });
+    }
+
+    composites.push({
+      input: Buffer.from(svgOverlay),
+      top: 0,
+      left: 0,
+    });
 
     return sharp({
       create: {
@@ -1088,18 +1126,7 @@ async function createCompositedTemplateImage({ template, outputWidth, outputHeig
         channels: 4,
         background,
       },
-    }).composite([
-      {
-        input: templateBuffer,
-        top: imageTop,
-        left: imageLeft,
-      },
-      {
-        input: Buffer.from(svgOverlay),
-        top: 0,
-        left: 0,
-      },
-    ]);
+    }).composite(composites);
   }
 
   const resizeOptions = {
