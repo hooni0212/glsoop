@@ -5,7 +5,7 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v15';
+const RENDER_VERSION = 'feed-image-poc-v16';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 const FEED_IMAGE_PAGE_CAP = 8;
 const IMAGE_FORMAT_CONFIG = {
@@ -47,8 +47,7 @@ const TEMPLATE_CONFIG = {
     resizeBackground: { r: 244, g: 239, b: 228, alpha: 1 },
     resizePosition: 'top',
     resizeWidthScale: 1.08,
-    resizeOffsetYRatio: -0.4,
-    contentOffsetYRatio: -0.08,
+    resizeOffsetYRatio: -0.08,
   },
 };
 
@@ -1307,18 +1306,6 @@ function resolveBoxFromNormalizedLayout(width, height, textBox = {}) {
   return box;
 }
 
-function shiftRenderBoxY(box, offsetY, canvasHeight) {
-  if (!box || !Number.isFinite(offsetY) || offsetY === 0) {
-    return box;
-  }
-
-  const maxY = Math.max(0, Number(canvasHeight) - Number(box.height || 0));
-  return {
-    ...box,
-    y: Math.max(0, Math.min(maxY, Math.round(Number(box.y || 0) + offsetY))),
-  };
-}
-
 function resolveFittedMaxLines(boxHeightPx, lineHeightPx, presetMaxLines) {
   const fitted = Math.max(1, Math.floor(boxHeightPx / Math.max(1, lineHeightPx)));
   const normalizedPreset = Math.max(1, Number(presetMaxLines) || 1);
@@ -1657,14 +1644,10 @@ async function renderFeedModePageBuffer({
   const pageIndex = Math.min(normalizedPage, plan.pageCount) - 1;
   const pageLines = plan.pages[pageIndex] || plan.pages[0] || [''];
   const resolvedPageLayout = resolvePostLayoutPage(plan.parsedLayout, pageIndex);
-  const contentOffsetY = Math.round(
-    outputHeight * (Number(template.contentOffsetYRatio) || 0)
-  );
   const resolvedBodyLayout = resolvedPageLayout?.text_box || null;
-  const rawBodyBox = resolvedBodyLayout
+  const bodyBox = resolvedBodyLayout
     ? resolveBoxFromNormalizedLayout(outputWidth, outputHeight, resolvedBodyLayout)
     : plan.box;
-  const bodyBox = shiftRenderBoxY(rawBodyBox, contentOffsetY, outputHeight);
   const pageBodyFontScale = resolvedBodyLayout?.font_scale || plan.bodyFontScale || 1;
   const pageBodyLineHeightRatio =
     resolvedBodyLayout?.line_height || plan.bodyLineHeightRatio || 1.15;
@@ -1682,12 +1665,11 @@ async function renderFeedModePageBuffer({
     if (resolvedTitleLayout) {
       const titlePreset =
         FEED_TITLE_BOX_PRESETS[plan.presetKey] || FEED_TITLE_BOX_PRESETS.medium;
-      const rawTitleBox = resolveBoxFromNormalizedLayout(
+      const titleBox = resolveBoxFromNormalizedLayout(
         outputWidth,
         outputHeight,
         resolvedTitleLayout
       );
-      const titleBox = shiftRenderBoxY(rawTitleBox, contentOffsetY, outputHeight);
       const titleFontScale = resolvedTitleLayout?.font_scale || 1;
       const titleLineHeightRatio =
         resolvedTitleLayout?.line_height || pageBodyLineHeightRatio;
