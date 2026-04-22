@@ -1,7 +1,7 @@
 const express = require('express');
 
 const db = require('../db');
-const { authRequired } = require('../middleware/auth');
+const { authOptional, authRequired } = require('../middleware/auth');
 const {
   getFeedCardImageManifest,
   normalizeImageFormat,
@@ -542,7 +542,7 @@ router.post('/feed-images/preview/sessions', authRequired, async (req, res) => {
   }
 });
 
-router.get('/feed-images/preview/sessions/:sessionId', authRequired, async (req, res) => {
+router.get('/feed-images/preview/sessions/:sessionId', authOptional, async (req, res) => {
   const page = parsePageNumber(req.query.page);
   if (!page) {
     return res.status(400).json({
@@ -568,7 +568,7 @@ router.get('/feed-images/preview/sessions/:sessionId', authRequired, async (req,
         message: '미리보기 세션이 만료되었습니다.',
       });
     }
-    if (String(session.user_id) !== String(req.user?.id || '')) {
+    if (req.user?.id && String(session.user_id) !== String(req.user.id)) {
       return res.status(404).json({
         ok: false,
         message: '해당 미리보기 세션을 찾을 수 없습니다.',

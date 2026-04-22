@@ -565,6 +565,10 @@ test.describe('Post layout letter spacing', () => {
     expect(pageTwoResponse.headers()["content-type"]).toContain("image/webp");
     expect(pageTwoResponse.headers()["x-feed-image-page"]).toBe("2");
     expect(pageTwoResponse.headers()["x-feed-image-page-count"]).toBe(String(body.images.length));
+
+    const publicPageTwoResponse = await request.get(body.images[1]);
+    expect(publicPageTwoResponse.status()).toBe(200);
+    expect(publicPageTwoResponse.headers()["content-type"]).toContain("image/webp");
   });
 
   test('caps preview sessions at eight pages and expires them with 410', async ({ request }) => {
