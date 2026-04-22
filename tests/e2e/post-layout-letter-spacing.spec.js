@@ -12,6 +12,7 @@ const DB_PATH = process.env.DB_PATH
 const USER_ID = 9801;
 const USER_EMAIL = 'layout-spacing-writer@glsoop.test';
 const USER_PASSWORD = 'Pass1234';
+let cachedLayoutWriterToken = '';
 
 const dbRun = (db, sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -74,6 +75,8 @@ const extractTokenFromSetCookie = (response) => {
 };
 
 const loginAsLayoutWriter = async (request) => {
+  if (cachedLayoutWriterToken) return cachedLayoutWriterToken;
+
   const response = await request.post('/api/login', {
     data: {
       email: USER_EMAIL,
@@ -85,7 +88,8 @@ const loginAsLayoutWriter = async (request) => {
   const payload = await response.json();
   expect(payload.ok).toBe(true);
   expect(typeof payload.token).toBe('string');
-  return extractTokenFromSetCookie(response);
+  cachedLayoutWriterToken = extractTokenFromSetCookie(response);
+  return cachedLayoutWriterToken;
 };
 
 const buildLayoutPayload = ({
@@ -93,9 +97,13 @@ const buildLayoutPayload = ({
   titleLetterSpacing = 0.04,
   bodyLineHeight = 1.45,
   bodyLetterSpacing = -0.02,
+  template = 'paper01',
 } = {}) => ({
   layout_version: 1,
   unit: 'normalized',
+  canvas: {
+    presetId: template,
+  },
   title_box: {
     x: 0.336,
     y: 0.256,
@@ -133,6 +141,7 @@ const buildLayoutPayload = ({
 const buildLayoutPayloadV2 = ({
   pageTwoTextOverride = null,
   pageOneTitleOverride = null,
+  template = 'paper01',
 } = {}) => {
   const legacy = buildLayoutPayload();
   const pages = [];
@@ -151,6 +160,9 @@ const buildLayoutPayloadV2 = ({
   return {
     layout_version: 2,
     unit: 'normalized',
+    canvas: {
+      presetId: template,
+    },
     base: {
       title_box: legacy.title_box,
       text_box: legacy.text_box,
@@ -211,6 +223,7 @@ test.describe('Post layout letter spacing', () => {
     expect(editResponse.status()).toBe(200);
     const editBody = await editResponse.json();
     const createdLayout = parseLayoutJson(editBody.post.layout_json);
+    expect(createdLayout.canvas.presetId).toBe('paper01');
     expect(createdLayout.title_box.letter_spacing).toBe(0.04);
     expect(createdLayout.text_box.letter_spacing).toBe(-0.02);
 
@@ -235,6 +248,7 @@ test.describe('Post layout letter spacing', () => {
     expect(updatedEditResponse.status()).toBe(200);
     const updatedEditBody = await updatedEditResponse.json();
     const updatedLayout = parseLayoutJson(updatedEditBody.post.layout_json);
+    expect(updatedLayout.canvas.presetId).toBe('paper01');
     expect(updatedLayout.title_box.line_height).toBe(1.15);
     expect(updatedLayout.title_box.letter_spacing).toBe(0);
     expect(updatedLayout.text_box.line_height).toBe(1.3);
@@ -262,6 +276,41 @@ test.describe('Post layout letter spacing', () => {
     const body = await response.json();
     expect(body.ok).toBe(false);
     expect(body.message).toContain('레이아웃');
+  });
+
+  test('preserves canvas presetId and uses it in render metadata', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '배경 저장 테스트',
+        content: 'paper02 배경으로 렌더링되는 본문입니다.',
+        category: 'short',
+        layout_json: buildLayoutPayload({
+          template: 'paper02',
+        }),
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    expect(createBody.ok).toBe(true);
+
+    const postId = createBody.post_id;
+    const editResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
+    expect(editResponse.status()).toBe(200);
+    const editBody = await editResponse.json();
+    const createdLayout = parseLayoutJson(editBody.post.layout_json);
+    expect(createdLayout.canvas.presetId).toBe('paper02');
+
+    const detailResponse = await request.get(`/api/posts/${postId}`, { headers });
+    expect(detailResponse.status()).toBe(200);
+    const detailBody = await detailResponse.json();
+    expect(detailBody.ok).toBe(true);
+    expect(detailBody.post.render_images.template).toBe('paper02');
+    expect(detailBody.post.primary_image).toContain('template=paper02');
   });
 
   test('renders preview and saved post images with letter_spacing params', async ({ request }) => {
@@ -316,6 +365,13 @@ test.describe('Post layout letter spacing', () => {
     });
     expect(renderedResponse.status()).toBe(200);
     expect(renderedResponse.headers()['content-type']).toContain('image/');
+
+    const pngShareResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
+      params: { template: 'paper01', scale: '2', format: 'png' },
+    });
+    expect(pngShareResponse.status()).toBe(200);
+    expect(pngShareResponse.headers()['content-type']).toContain('image/png');
+    expect(pngShareResponse.headers()['x-feed-image-format']).toBe('png');
   });
 
   test('returns multipage render metadata and paged images for custom layout posts', async ({ request }) => {

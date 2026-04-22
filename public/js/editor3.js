@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modeButtons = Array.from(document.querySelectorAll('[data-mode-value]'));
   const presetButtons = Array.from(document.querySelectorAll('[data-preset-key]'));
   const alignButtons = Array.from(document.querySelectorAll('[data-align-value]'));
+  const backgroundButtons = Array.from(document.querySelectorAll('[data-background-template]'));
   const openPostLinkEl = document.getElementById('editor3OpenPostLink');
   const previewCardShellEl = document.querySelector('.editor3-preview-card');
 
@@ -82,6 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let hasUnsavedChanges = false;
   let modeSelection = isEditMode ? 'manual' : 'auto';
   let alignmentSelection = 'auto';
+  let selectedTemplate = 'paper01';
   let currentAnalysis = null;
   let preservedLayoutJson = null;
 
@@ -333,6 +335,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function normalizeTemplateKey(value) {
+    return value === 'paper02' ? 'paper02' : 'paper01';
+  }
+
+  function extractTemplateFromLayout(layoutJson) {
+    const parsed = parseLayoutJson(layoutJson);
+    return normalizeTemplateKey(parsed?.canvas?.presetId);
+  }
+
+  function applyBackgroundTemplate(templateKey) {
+    selectedTemplate = normalizeTemplateKey(templateKey);
+    backgroundButtons.forEach((button) => {
+      const active = button.dataset.backgroundTemplate === selectedTemplate;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+
   function getSelectedAlignmentMode() {
     return window.GlsReadingMode.normalizeAlignment(alignmentSelection || 'auto');
   }
@@ -347,6 +367,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const next = {
       layout_version: 1,
       unit: 'normalized',
+      canvas: {
+        presetId: normalizeTemplateKey(selectedTemplate || layout.canvas?.presetId),
+      },
       title_box: {
         ...DEFAULT_LAYOUT_BOXES.title_box,
         ...(layout.title_box && typeof layout.title_box === 'object' ? layout.title_box : {}),
@@ -355,7 +378,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       text_box: {
         ...DEFAULT_LAYOUT_BOXES.text_box,
         ...(layout.text_box && typeof layout.text_box === 'object' ? layout.text_box : {}),
-        align,
+        align: alignment,
       },
       footer_box: {
         ...DEFAULT_LAYOUT_BOXES.footer_box,
@@ -418,6 +441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <article class="editor3-page${index === currentPreviewIndex ? ' is-active' : ''}" data-preview-page="${index}">
             ${window.GlsCardRenderer.renderPage(page, {
               fontKey: fontSelectEl.value || page?.fontKey || 'serif',
+              template: selectedTemplate,
               frameClass: 'editor3-page-frame',
               cardClass: 'editor3-render-card',
               showBadge: true,
@@ -458,15 +482,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function buildStateSnapshot() {
+    const title = postTitleEl.value.trim();
+    const plainText = getPlainText();
+    const category = getSelectedCategory();
     return {
-      title: postTitleEl.value.trim(),
+      title,
       content_html: quill.root.innerHTML.trim(),
-      category: categorySelectEl.value || '',
+      category,
       font_key: fontSelectEl.value || 'serif',
       hashtags: [...hashtagList],
       mode_selection: modeSelection,
       alignment_selection: getSelectedAlignmentMode(),
-      layout_json: preservedLayoutJson ? clone(preservedLayoutJson) : null,
+      background_template: selectedTemplate,
+      layout_json: buildLayoutPayload(resolveEffectiveAlignment(category, plainText), preservedLayoutJson),
     };
   }
 
@@ -480,6 +508,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       hashtags: Array.isArray(state.hashtags) ? state.hashtags : [],
       mode_selection: state.mode_selection || 'auto',
       alignment_selection: state.alignment_selection || 'auto',
+      background_template: normalizeTemplateKey(state.background_template || extractTemplateFromLayout(state.layout_json)),
       layout_json: state.layout_json || null,
     });
   }
@@ -492,6 +521,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (plain) return true;
     }
     if (Array.isArray(state.hashtags) && state.hashtags.length) return true;
+    if (normalizeTemplateKey(state.background_template || extractTemplateFromLayout(state.layout_json)) !== 'paper01') return true;
     return false;
   }
 
@@ -587,6 +617,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       categorySelectEl.value = window.GlsReadingMode.normalizeCategory(state.category || 'short');
       fontSelectEl.value = window.GlsReadingMode.normalizeFontKey(state.font_key || 'serif');
       preservedLayoutJson = state.layout_json ? clone(state.layout_json) : preservedLayoutJson;
+      applyBackgroundTemplate(state.background_template || extractTemplateFromLayout(preservedLayoutJson));
       applyEditorFont(fontSelectEl.value || 'serif');
       updateCharCounter(getPlainText().length);
       updatePreview();
@@ -902,6 +933,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         categorySelectEl.value = window.GlsReadingMode.normalizeCategory(post.category || 'short');
         modeSelection = 'manual';
         const parsedLayout = parseLayoutJson(post.layout_json);
+        applyBackgroundTemplate(extractTemplateFromLayout(parsedLayout));
         const currentAlign = String(parsedLayout?.text_box?.align || '').trim().toLowerCase();
         alignmentSelection = currentAlign === 'left' || currentAlign === 'center' ? currentAlign : 'auto';
         hashtagList = [];
@@ -992,6 +1024,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
+    backgroundButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        applyBackgroundTemplate(button.dataset.backgroundTemplate);
+        handleEditorMutation('background_change');
+      });
+    });
+
     prevPageBtn?.addEventListener('click', () => {
       if (!currentAnalysis?.pages?.length) return;
       currentPreviewIndex = Math.max(0, currentPreviewIndex - 1);
@@ -1071,6 +1110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   purgeDrafts();
   bindInputEvents();
   applyEditorFont(fontSelectEl.value || 'serif');
+  applyBackgroundTemplate(selectedTemplate);
   updateOpenPostLink();
 
   const editLoadOk = await loadEditPost();

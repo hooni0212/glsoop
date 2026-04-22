@@ -66,12 +66,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.glsoopAnalytics.trackEvent(eventName, properties, options);
   }
 
+  function normalizeTemplateKey(value) {
+    return value === 'paper02' ? 'paper02' : 'paper01';
+  }
+
+  function extractTemplateFromLayout(raw) {
+    const layout = parseLayoutJson(raw);
+    return normalizeTemplateKey(layout?.canvas?.presetId);
+  }
+
   function buildPreviewImageUrl(page) {
     const query = new URLSearchParams();
     query.set('title', page?.title || '');
     query.set('content', page?.contentHtml || '');
     query.set('category', page?.category || 'short');
-    query.set('template', 'paper01');
+    query.set('template', extractTemplateFromLayout(post?.layout_json));
     query.set('scale', '2');
     const layout = buildLayoutPayload(page?.align || 'center', parseLayoutJson(post?.layout_json));
     query.set('layout_x', String(layout.text_box.x));
@@ -114,6 +123,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     return {
       layout_version: 1,
       unit: 'normalized',
+      canvas: {
+        presetId: normalizeTemplateKey(layout.canvas?.presetId),
+      },
       title_box: {
         ...DEFAULT_LAYOUT_BOXES.title_box,
         ...(layout.title_box && typeof layout.title_box === 'object' ? layout.title_box : {}),
@@ -122,7 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       text_box: {
         ...DEFAULT_LAYOUT_BOXES.text_box,
         ...(layout.text_box && typeof layout.text_box === 'object' ? layout.text_box : {}),
-        align,
+        align: alignment,
       },
       footer_box: {
         ...DEFAULT_LAYOUT_BOXES.footer_box,

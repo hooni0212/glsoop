@@ -236,6 +236,7 @@ body.page-editor3::after {
 
 .page-editor3 .editor3-pill,
 .page-editor3 .editor3-preset,
+.page-editor3 .editor3-background-option,
 .page-editor3 .editor3-nav-btn,
 .page-editor3 .editor3-thumb {
   border: 1px solid var(--editor3-border);
@@ -254,6 +255,7 @@ body.page-editor3::after {
 
 .page-editor3 .editor3-pill.is-active,
 .page-editor3 .editor3-preset.is-active,
+.page-editor3 .editor3-background-option.is-active,
 .page-editor3 .editor3-thumb.is-active {
   border-color: rgba(21, 92, 64, 0.24);
   background: rgba(255, 255, 255, 0.96);
@@ -344,6 +346,60 @@ body.page-editor3::after {
   font-size: 14px;
   font-weight: 800;
   font-family: 'Hahmlet', 'Nanum Myeongjo', serif;
+}
+
+.page-editor3 .editor3-background-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.page-editor3 .editor3-background-option {
+  display: grid;
+  gap: 9px;
+  padding: 8px;
+  border-radius: 20px;
+  text-align: left;
+}
+
+.page-editor3 .editor3-background-swatch {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  border: 1px solid rgba(99, 77, 51, 0.1);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.page-editor3 [data-background-template="paper01"] .editor3-background-swatch {
+  background-image: url('/img/feed-templates-v2/paper-source-01.jpg');
+}
+
+.page-editor3 [data-background-template="paper02"] .editor3-background-swatch {
+  background-color: #f4efe4;
+  background-image: url('/img/feed-templates-v2/paper-source-02.jpg');
+  background-size: 108% auto;
+  background-position: center -40px;
+}
+
+.page-editor3 .editor3-background-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.page-editor3 .editor3-background-copy strong {
+  color: #2f3a31;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.page-editor3 .editor3-background-copy small {
+  color: rgba(54, 60, 55, 0.64);
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 .page-editor3 .editor3-secondary-link {
@@ -547,6 +603,7 @@ body.page-editor3::after {
 @media (hover: hover) and (pointer: fine) {
   .page-editor3 .editor3-pill:hover,
   .page-editor3 .editor3-preset:hover,
+  .page-editor3 .editor3-background-option:hover,
   .page-editor3 .editor3-nav-btn:hover,
   .page-editor3 .editor3-thumb:hover {
     transform: translateY(-1px);

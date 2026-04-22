@@ -4,6 +4,7 @@ const db = require('../db');
 const { authRequired } = require('../middleware/auth');
 const {
   getFeedCardImageManifest,
+  normalizeImageFormat,
   normalizeScale,
   normalizeTemplateKey,
   normalizePostText,
@@ -322,6 +323,7 @@ router.get('/feed-images/post/:postId', async (req, res) => {
 
   const template = normalizeTemplateKey(req.query.template);
   const scale = normalizeScale(req.query.scale);
+  const imageFormat = normalizeImageFormat(req.query.format);
   const page = parsePageNumber(req.query.page);
   if (!page) {
     return res.status(400).json({
@@ -372,6 +374,7 @@ router.get('/feed-images/post/:postId', async (req, res) => {
       scale,
       renderMode: 'feed',
       page,
+      imageFormat,
     });
 
     res.set(
@@ -389,6 +392,7 @@ router.get('/feed-images/post/:postId', async (req, res) => {
     res.set('X-Feed-Image-Cache', rendered.cacheHit ? 'HIT' : 'MISS');
     res.set('X-Feed-Image-Template', rendered.template || template);
     res.set('X-Feed-Image-Scale', String(rendered.scale || scale));
+    res.set('X-Feed-Image-Format', rendered.imageFormat || imageFormat);
     res.set('X-Feed-Image-Page', String(rendered.page || page));
     res.set('X-Feed-Image-Page-Count', String(manifest.pageCount));
     res.set('X-Feed-Image-Truncated', manifest.isTruncated ? '1' : '0');
@@ -417,6 +421,7 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
 
   const template = normalizeTemplateKey(req.query.template);
   const scale = normalizeScale(req.query.scale);
+  const imageFormat = normalizeImageFormat(req.query.format);
   const page = parsePageNumber(req.query.page);
   if (!page) {
     return res.status(400).json({
@@ -461,6 +466,7 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
       scale,
       renderMode: 'share',
       page: 1,
+      imageFormat,
     });
 
     res.set(
@@ -478,6 +484,7 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
     res.set('X-Feed-Image-Cache', rendered.cacheHit ? 'HIT' : 'MISS');
     res.set('X-Feed-Image-Template', rendered.template || template);
     res.set('X-Feed-Image-Scale', String(rendered.scale || scale));
+    res.set('X-Feed-Image-Format', rendered.imageFormat || imageFormat);
     res.set('X-Feed-Image-Page', '1');
     res.set('X-Feed-Image-Page-Count', '1');
     if (rendered.layout) {

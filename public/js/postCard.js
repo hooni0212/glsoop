@@ -165,7 +165,28 @@ function buildFeedImageVersion(post) {
   return Math.abs(hash).toString(36);
 }
 
-function buildFeedRenderedImageUrl(post, template = 'paper01') {
+function normalizePostTemplate(value) {
+  return value === 'paper02' ? 'paper02' : 'paper01';
+}
+
+function extractTemplateFromPost(post) {
+  if (post?.render_images?.template) return normalizePostTemplate(post.render_images.template);
+  const raw = post?.layout_json;
+  if (raw == null) return 'paper01';
+
+  let parsed = raw;
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch (_error) {
+      return 'paper01';
+    }
+  }
+
+  return normalizePostTemplate(parsed?.canvas?.presetId);
+}
+
+function buildFeedRenderedImageUrl(post, template = extractTemplateFromPost(post)) {
   const explicitPrimaryImage =
     typeof post?.primary_image === 'string' && post.primary_image.trim()
       ? post.primary_image.trim()
@@ -183,7 +204,7 @@ function buildFeedRenderedImageUrl(post, template = 'paper01') {
   )}&scale=2&v=${encodeURIComponent(version)}`;
 }
 
-function getPostRenderedImageUrls(post, template = 'paper01') {
+function getPostRenderedImageUrls(post, template = extractTemplateFromPost(post)) {
   if (Array.isArray(post?.images) && post.images.length > 0) {
     return post.images
       .map((value) => String(value || '').trim())
@@ -200,7 +221,7 @@ function getPostRenderedImageUrls(post, template = 'paper01') {
   return primary ? [primary] : [];
 }
 
-function getPostRenderedImagePageCount(post, template = 'paper01') {
+function getPostRenderedImagePageCount(post, template = extractTemplateFromPost(post)) {
   const explicitPageCount = Number(post?.render_images?.page_count);
   if (Number.isFinite(explicitPageCount) && explicitPageCount > 0) {
     return explicitPageCount;

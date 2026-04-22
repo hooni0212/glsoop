@@ -33,6 +33,7 @@ const {
   decoratePostRowsWithRenderImages,
   decoratePostWithRenderImages,
 } = require('../utils/postRenderImages');
+const { normalizeTemplateKey } = require('../utils/feedImageRenderer');
 const {
   appendViewerBlockedAuthorCondition,
   createSafetyReport,
@@ -318,6 +319,13 @@ function resolveLayoutBoxFromBase(baseBox, overrideBox, { allowLetterSpacing = f
   });
 }
 
+function normalizeLayoutCanvas(raw) {
+  const canvas = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw.canvas : null;
+  return {
+    presetId: normalizeTemplateKey(canvas?.presetId),
+  };
+}
+
 function normalizeLayoutPayload(raw) {
   let payload = raw;
 
@@ -384,6 +392,7 @@ function normalizeLayoutPayload(raw) {
     const normalized = {
       layout_version: 1,
       unit: LAYOUT_UNIT_NORMALIZED,
+      canvas: normalizeLayoutCanvas(payload),
       text_box: textBox,
       title_box: titleBox || { ...DEFAULT_LAYOUT_TITLE_BOX },
     };
@@ -509,6 +518,7 @@ function normalizeLayoutPayload(raw) {
   const normalized = {
     layout_version: 2,
     unit: LAYOUT_UNIT_NORMALIZED,
+    canvas: normalizeLayoutCanvas(payload),
     base: {
       text_box: baseTextBox,
       title_box: baseTitleBox,

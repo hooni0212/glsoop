@@ -304,17 +304,33 @@ const HomeCuration = (() => {
   }
 
 
-  function buildCurationImageUrl(post, template = 'paper01') {
+  function extractCurationTemplate(post) {
+    if (post?.render_images?.template === 'paper02') return 'paper02';
+    const raw = post?.layout_json;
+    if (!raw) return 'paper01';
+    let parsed = raw;
+    if (typeof parsed === 'string') {
+      try {
+        parsed = JSON.parse(parsed);
+      } catch (_error) {
+        return 'paper01';
+      }
+    }
+    return parsed?.canvas?.presetId === 'paper02' ? 'paper02' : 'paper01';
+  }
+
+  function buildCurationImageUrl(post, template) {
     if (!post || !post.id) return '';
     if (typeof post.primary_image === 'string' && post.primary_image.trim()) {
       return post.primary_image.trim();
     }
+    const resolvedTemplate = template || extractCurationTemplate(post);
     if (typeof window.buildFeedRenderedImageUrl === 'function') {
-      return window.buildFeedRenderedImageUrl(post, template);
+      return window.buildFeedRenderedImageUrl(post, resolvedTemplate);
     }
 
     // postCard.js가 선로드되지 않은 경우에도 홈 큐레이션 이미지는 표시되도록 최소 fallback URL을 유지한다.
-    return `/api/feed-images/post/${encodeURIComponent(post.id)}?template=${encodeURIComponent(template)}&scale=2`;
+    return `/api/feed-images/post/${encodeURIComponent(post.id)}?template=${encodeURIComponent(resolvedTemplate)}&scale=2`;
   }
 
   function bindCurationImageFallback(scope) {

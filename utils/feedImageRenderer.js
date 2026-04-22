@@ -5,9 +5,19 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v11';
+const RENDER_VERSION = 'feed-image-poc-v12';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 const FEED_IMAGE_PAGE_CAP = 8;
+const IMAGE_FORMAT_CONFIG = {
+  webp: {
+    extension: 'webp',
+    contentType: 'image/webp',
+  },
+  png: {
+    extension: 'png',
+    contentType: 'image/png',
+  },
+};
 
 const TEMPLATE_CONFIG = {
   paper01: {
@@ -31,6 +41,11 @@ const TEMPLATE_CONFIG = {
       'feed-templates-v2',
       'paper-source-02.jpg'
     ),
+    resizeFit: 'contain',
+    resizeBackground: { r: 244, g: 239, b: 228, alpha: 1 },
+    resizePosition: 'top',
+    resizeWidthScale: 1.08,
+    resizeOffsetYRatio: -0.4,
   },
 };
 
@@ -304,6 +319,15 @@ function normalizeScale(input) {
 
 function normalizeRenderMode(input) {
   return String(input || '').trim().toLowerCase() === 'share' ? 'share' : 'feed';
+}
+
+function normalizeImageFormat(input) {
+  const normalized = String(input || '').trim().toLowerCase();
+  return normalized === 'png' ? 'png' : 'webp';
+}
+
+function getImageFormatConfig(input) {
+  return IMAGE_FORMAT_CONFIG[normalizeImageFormat(input)] || IMAGE_FORMAT_CONFIG.webp;
 }
 
 function decodeBasicEntities(text) {
@@ -1031,14 +1055,93 @@ function buildRenderVersion({ post, templateKey, scale, renderMode }) {
   return crypto.createHash('sha1').update(payload).digest('hex');
 }
 
-function buildCacheHash({ post, templateKey, scale, renderMode, page = 1 }) {
+function buildCacheHash({ post, templateKey, scale, renderMode, page = 1, imageFormat = 'webp' }) {
   const renderVersion = buildRenderVersion({ post, templateKey, scale, renderMode });
   const payload = JSON.stringify({
     render_version: renderVersion,
     page: Math.max(1, Number.parseInt(page, 10) || 1),
+    image_format: normalizeImageFormat(imageFormat),
   });
 
   return crypto.createHash('sha1').update(payload).digest('hex');
+}
+
+async function createCompositedTemplateImage({ template, outputWidth, outputHeight, svgOverlay }) {
+  const resizeWidthScale = Number(template.resizeWidthScale) || 1;
+
+  if (resizeWidthScale !== 1) {
+    const imageWidth = Math.max(1, Math.round(outputWidth * resizeWidthScale));
+    const imageTop = Math.round(outputHeight * (Number(template.resizeOffsetYRatio) || 0));
+    const imageLeft = Math.round((outputWidth - imageWidth) / 2);
+    const background = template.resizeBackground || { r: 255, g: 255, b: 255, alpha: 1 };
+    const templateBuffer = await sharp(template.filePath)
+      .resize({
+        width: imageWidth,
+        kernel: sharp.kernel.lanczos3,
+      })
+      .toBuffer();
+
+    return sharp({
+      create: {
+        width: outputWidth,
+        height: outputHeight,
+        channels: 4,
+        background,
+      },
+    }).composite([
+      {
+        input: templateBuffer,
+        top: imageTop,
+        left: imageLeft,
+      },
+      {
+        input: Buffer.from(svgOverlay),
+        top: 0,
+        left: 0,
+      },
+    ]);
+  }
+
+  const resizeOptions = {
+    fit: template.resizeFit || 'fill',
+    kernel: sharp.kernel.lanczos3,
+  };
+
+  if (template.resizeBackground) {
+    resizeOptions.background = template.resizeBackground;
+  }
+  if (template.resizePosition) {
+    resizeOptions.position = template.resizePosition;
+  }
+
+  return sharp(template.filePath)
+    .resize(outputWidth, outputHeight, resizeOptions)
+    .composite([
+      {
+        input: Buffer.from(svgOverlay),
+        top: 0,
+        left: 0,
+      },
+    ]);
+}
+
+function encodeCompositedImage(image, imageFormat = 'webp') {
+  const format = normalizeImageFormat(imageFormat);
+  if (format === 'png') {
+    return image
+      .png({
+        compressionLevel: 9,
+        adaptiveFiltering: true,
+      })
+      .toBuffer();
+  }
+
+  return image
+    .webp({
+      quality: 92,
+      effort: 4,
+    })
+    .toBuffer();
 }
 
 function buildSvgTextOverlay({
@@ -1490,6 +1593,7 @@ async function renderFeedModePageBuffer({
   outputHeight,
   scale,
   page = 1,
+  imageFormat = 'webp',
 }) {
   const plan = buildFeedModeRenderPlan({
     post,
@@ -1596,23 +1700,15 @@ async function renderFeedModePageBuffer({
     footerSignature,
   });
 
-  const imageBuffer = await sharp(template.filePath)
-    .resize(outputWidth, outputHeight, {
-      fit: 'fill',
-      kernel: sharp.kernel.lanczos3,
-    })
-    .composite([
-      {
-        input: Buffer.from(svgOverlay),
-        top: 0,
-        left: 0,
-      },
-    ])
-    .webp({
-      quality: 92,
-      effort: 4,
-    })
-    .toBuffer();
+  const imageBuffer = await encodeCompositedImage(
+    await createCompositedTemplateImage({
+      template,
+      outputWidth,
+      outputHeight,
+      svgOverlay,
+    }),
+    imageFormat
+  );
 
   return {
     buffer: imageBuffer,
@@ -1634,6 +1730,7 @@ async function renderFeedModeImageBuffer({
   outputHeight,
   scale,
   page = 1,
+  imageFormat = 'webp',
 }) {
   return renderFeedModePageBuffer({
     post,
@@ -1642,6 +1739,7 @@ async function renderFeedModeImageBuffer({
     outputHeight,
     scale,
     page,
+    imageFormat,
   });
 }
 
@@ -1651,6 +1749,7 @@ async function renderShareModeImageBuffer({
   outputWidth,
   outputHeight,
   scale,
+  imageFormat = 'webp',
 }) {
   const titleText = normalizePostText(post?.title) || '제목 없음';
   const bodyText = normalizePostText(post?.content) || titleText || ' ';
@@ -1746,23 +1845,15 @@ async function renderShareModeImageBuffer({
     brandSignatureOverride,
   });
 
-  const imageBuffer = await sharp(template.filePath)
-    .resize(outputWidth, outputHeight, {
-      fit: 'fill',
-      kernel: sharp.kernel.lanczos3,
-    })
-    .composite([
-      {
-        input: Buffer.from(svgOverlay),
-        top: 0,
-        left: 0,
-      },
-    ])
-    .webp({
-      quality: 92,
-      effort: 4,
-    })
-    .toBuffer();
+  const imageBuffer = await encodeCompositedImage(
+    await createCompositedTemplateImage({
+      template,
+      outputWidth,
+      outputHeight,
+      svgOverlay,
+    }),
+    imageFormat
+  );
 
   return {
     buffer: imageBuffer,
@@ -1776,6 +1867,7 @@ async function renderFeedImageBuffer({
   scale = 1,
   renderMode = 'feed',
   page = 1,
+  imageFormat = 'webp',
 }) {
   const template = TEMPLATE_CONFIG[templateKey] || TEMPLATE_CONFIG.paper01;
   const { width, height } = await getTemplateMetadata(template.filePath);
@@ -1791,6 +1883,7 @@ async function renderFeedImageBuffer({
       outputHeight,
       scale,
       page: 1,
+      imageFormat,
     });
   }
 
@@ -1801,6 +1894,7 @@ async function renderFeedImageBuffer({
     outputHeight,
     scale,
     page,
+    imageFormat,
   });
 }
 
@@ -1856,19 +1950,23 @@ async function renderFeedCardImage({
   scale,
   renderMode = 'feed',
   page = 1,
+  imageFormat = 'webp',
 }) {
   const normalizedTemplate = normalizeTemplateKey(templateKey);
   const normalizedScale = normalizeScale(scale);
   const normalizedRenderMode = normalizeRenderMode(renderMode);
   const normalizedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const normalizedImageFormat = normalizeImageFormat(imageFormat);
+  const imageFormatConfig = getImageFormatConfig(normalizedImageFormat);
   const cacheHash = buildCacheHash({
     post,
     templateKey: normalizedTemplate,
     scale: normalizedScale,
     renderMode: normalizedRenderMode,
     page: normalizedPage,
+    imageFormat: normalizedImageFormat,
   });
-  const cachePath = path.join(CACHE_DIR, `${cacheHash}.webp`);
+  const cachePath = path.join(CACHE_DIR, `${cacheHash}.${imageFormatConfig.extension}`);
   const etag = `"feed-image-${cacheHash}"`;
 
   const cachedBuffer = await loadCachedBuffer(cachePath);
@@ -1876,11 +1974,12 @@ async function renderFeedCardImage({
     return {
       buffer: cachedBuffer,
       etag,
-      contentType: 'image/webp',
+      contentType: imageFormatConfig.contentType,
       cacheHit: true,
       template: normalizedTemplate,
       scale: normalizedScale,
       page: normalizedPage,
+      imageFormat: normalizedImageFormat,
     };
   }
 
@@ -1896,6 +1995,7 @@ async function renderFeedCardImage({
       scale: normalizedScale,
       renderMode: normalizedRenderMode,
       page: normalizedPage,
+      imageFormat: normalizedImageFormat,
     });
 
     try {
@@ -1908,12 +2008,13 @@ async function renderFeedCardImage({
     return {
       buffer: rendered.buffer,
       etag,
-      contentType: 'image/webp',
+      contentType: imageFormatConfig.contentType,
       cacheHit: false,
       layout: rendered.layout,
       template: normalizedTemplate,
       scale: normalizedScale,
       page: normalizedPage,
+      imageFormat: normalizedImageFormat,
       manifest: rendered.manifest || null,
     };
   })().finally(() => {
@@ -1928,6 +2029,7 @@ module.exports = {
   buildRenderVersion,
   getFeedCardImageManifest,
   renderFeedCardImage,
+  normalizeImageFormat,
   normalizeScale,
   normalizeTemplateKey,
   normalizePostText,
