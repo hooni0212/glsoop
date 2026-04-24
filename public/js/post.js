@@ -8,7 +8,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 const POST_MOBILE_DOCK_MEDIA = '(max-width: 768px)';
 const POST_MOBILE_DOCK_SCROLL_THRESHOLD = 0.68;
+const POST_COMMENT_MAX_LENGTH = 1000;
 let postSafeAreaGuidesEnabled = false;
+const postCommentsState = {
+  postId: null,
+  comments: [],
+  replyTarget: null,
+  loading: false,
+  submitting: false,
+};
 const DETAIL_TITLE_SAFE_ZONE_BY_LENGTH = {
   'one-line': {
     left: 29,
@@ -518,7 +526,370 @@ async function initPostDetailPage() {
   }
 
   renderPostDetail(container, postData);
+  initPostComments(postData);
   loadRelatedPosts(postData);
+}
+
+function showPostNotice(message, type = 'success', autoHideMs = 2200) {
+  if (window.glsoopUi?.showPageNotice) {
+    window.glsoopUi.showPageNotice(message, { type, autoHideMs });
+    return;
+  }
+  alert(message);
+}
+
+function getCommentAuthorName(comment) {
+  const author = comment?.author || {};
+  return String(author.display_name || author.displayName || author.nickname || '익명').trim() || '익명';
+}
+
+function normalizePostComment(row = {}) {
+  const id = Number.parseInt(row.id, 10);
+  const parentId = Number.parseInt(row.parent_comment_id, 10);
+  return {
+    id: Number.isFinite(id) ? id : 0,
+    post_id: row.post_id,
+    parent_comment_id: Number.isFinite(parentId) && parentId > 0 ? parentId : null,
+    status: row.status === 'deleted' ? 'deleted' : 'active',
+    content: typeof row.content === 'string' ? row.content : null,
+    author: row.author || null,
+    reply_count: Number(row.reply_count || 0),
+    created_at: row.created_at || null,
+    updated_at: row.updated_at || null,
+    deleted_at: row.deleted_at || null,
+  };
+}
+
+async function fetchJsonForPostComments(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    cache: options.method && options.method !== 'GET' ? 'no-store' : 'no-store',
+    headers: {
+      Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.ok && (data.ok !== false)) {
+    return data;
+  }
+  const error = new Error(data.message || `요청을 처리하지 못했습니다. (${response.status})`);
+  error.status = response.status;
+  error.code = data.code || null;
+  error.payload = data;
+  throw error;
+}
+
+function getPostCommentEls() {
+  return {
+    panel: document.getElementById('postCommentsPanel'),
+    count: document.getElementById('postCommentsCount'),
+    list: document.getElementById('postCommentsList'),
+    status: document.getElementById('postCommentsStatus'),
+    form: document.getElementById('postCommentForm'),
+    input: document.getElementById('postCommentInput'),
+    inputCount: document.getElementById('postCommentInputCount'),
+    submitBtn: document.getElementById('postCommentSubmitBtn'),
+    refreshBtn: document.getElementById('postCommentsRefreshBtn'),
+    replyTarget: document.getElementById('postCommentReplyTarget'),
+    replyTargetText: document.getElementById('postCommentReplyTargetText'),
+    replyCancelBtn: document.getElementById('postCommentReplyCancelBtn'),
+  };
+}
+
+function groupPostComments(comments = []) {
+  const topLevel = [];
+  const repliesByParent = new Map();
+  comments.forEach((comment) => {
+    if (comment.parent_comment_id) {
+      const current = repliesByParent.get(comment.parent_comment_id) || [];
+      current.push(comment);
+      repliesByParent.set(comment.parent_comment_id, current);
+      return;
+    }
+    topLevel.push(comment);
+  });
+  return { topLevel, repliesByParent };
+}
+
+function renderPostCommentItem(comment, { isReply = false } = {}) {
+  const authorName = getCommentAuthorName(comment);
+  const dateText = typeof formatKoreanDateTime === 'function'
+    ? formatKoreanDateTime(comment.created_at)
+    : '';
+  const isDeleted = comment.status === 'deleted';
+  const safeContent = isDeleted ? '삭제된 댓글입니다.' : escapeHtml(comment.content || '');
+  const replyBtn = !isReply && !isDeleted
+    ? `<button type="button" class="post-comment-action" data-comment-reply="${comment.id}">답글</button>`
+    : '';
+  const deleteBtn = !isDeleted
+    ? `<button type="button" class="post-comment-action post-comment-action--danger" data-comment-delete="${comment.id}">삭제</button>`
+    : '';
+
+  return `
+    <article class="${isReply ? 'post-comment-item post-comment-item--reply' : 'post-comment-item'}" data-comment-id="${comment.id}">
+      <div class="post-comment-meta">
+        <strong class="post-comment-author">${escapeHtml(isDeleted ? '삭제된 댓글' : authorName)}</strong>
+        ${dateText ? `<span class="post-comment-date">${escapeHtml(dateText)}</span>` : ''}
+      </div>
+      <p class="post-comment-body">${safeContent}</p>
+      ${replyBtn || deleteBtn ? `<div class="post-comment-actions">${replyBtn}${deleteBtn}</div>` : ''}
+    </article>
+  `;
+}
+
+function renderPostComments() {
+  const els = getPostCommentEls();
+  if (!els.panel || !els.list || !els.status) return;
+
+  const comments = postCommentsState.comments || [];
+  const activeCount = comments.filter((comment) => comment.status === 'active').length;
+  if (els.count) els.count.textContent = String(activeCount);
+
+  if (postCommentsState.loading && comments.length === 0) {
+    els.status.hidden = false;
+    els.status.textContent = '댓글을 불러오는 중입니다...';
+    els.list.innerHTML = '';
+    return;
+  }
+
+  if (comments.length === 0) {
+    els.status.hidden = false;
+    els.status.textContent = '아직 댓글이 없습니다. 첫 댓글을 남겨보세요.';
+    els.list.innerHTML = '';
+    return;
+  }
+
+  els.status.hidden = true;
+  const { topLevel, repliesByParent } = groupPostComments(comments);
+  els.list.innerHTML = topLevel
+    .map((comment) => {
+      const replies = repliesByParent.get(comment.id) || [];
+      return `
+        <div class="post-comment-thread">
+          ${renderPostCommentItem(comment)}
+          ${replies.length ? `<div class="post-comment-replies">${replies.map((reply) => renderPostCommentItem(reply, { isReply: true })).join('')}</div>` : ''}
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function syncPostCommentComposer() {
+  const els = getPostCommentEls();
+  if (!els.input || !els.submitBtn) return;
+
+  const loggedIn = isViewerLikelyLoggedIn();
+  const value = els.input.value || '';
+  els.input.placeholder = loggedIn ? '댓글을 남겨보세요' : '로그인 후 댓글을 남길 수 있습니다';
+  els.input.disabled = !loggedIn || postCommentsState.submitting;
+  els.submitBtn.disabled = !loggedIn || postCommentsState.submitting || !value.trim();
+  els.submitBtn.textContent = postCommentsState.submitting
+    ? '등록 중'
+    : postCommentsState.replyTarget
+      ? '답글 등록'
+      : '등록';
+  if (els.inputCount) {
+    els.inputCount.textContent = `${value.length}/${POST_COMMENT_MAX_LENGTH}`;
+  }
+
+  if (els.replyTarget && els.replyTargetText) {
+    if (postCommentsState.replyTarget) {
+      els.replyTarget.hidden = false;
+      els.replyTargetText.textContent = `${getCommentAuthorName(postCommentsState.replyTarget)}님에게 답글`;
+    } else {
+      els.replyTarget.hidden = true;
+      els.replyTargetText.textContent = '';
+    }
+  }
+}
+
+function setPostCommentReplyTarget(comment) {
+  postCommentsState.replyTarget = comment || null;
+  syncPostCommentComposer();
+  const els = getPostCommentEls();
+  if (comment && els.input) {
+    els.input.focus();
+  }
+}
+
+async function loadPostComments() {
+  if (!postCommentsState.postId) return;
+  const els = getPostCommentEls();
+  postCommentsState.loading = true;
+  if (els.refreshBtn) els.refreshBtn.disabled = true;
+  renderPostComments();
+
+  try {
+    const data = await fetchJsonForPostComments(
+      `/api/posts/${encodeURIComponent(postCommentsState.postId)}/comments?limit=50&offset=0`
+    );
+    postCommentsState.comments = Array.isArray(data.comments)
+      ? data.comments.map(normalizePostComment)
+      : [];
+  } catch (error) {
+    console.error(error);
+    if (els.status) {
+      els.status.hidden = false;
+      els.status.textContent = error.message || '댓글을 불러오지 못했습니다.';
+    }
+  } finally {
+    postCommentsState.loading = false;
+    if (els.refreshBtn) els.refreshBtn.disabled = false;
+    renderPostComments();
+  }
+}
+
+async function submitPostComment() {
+  const els = getPostCommentEls();
+  if (!els.input || !postCommentsState.postId) return;
+  if (!isViewerLikelyLoggedIn()) {
+    if (window.glsoopAuthGateModal && typeof window.glsoopAuthGateModal.open === 'function') {
+      window.glsoopAuthGateModal.open({
+        title: '로그인 후 댓글을 남길 수 있어요',
+        message: '댓글은 로그인한 회원만 이용할 수 있는 기능입니다.',
+        description: '로그인하면 글에 댓글과 답글을 남길 수 있습니다.',
+        source: 'post-comment',
+      });
+      return;
+    }
+    redirectToLoginWithNext({
+      source: 'post-comment',
+      alertMessage: '로그인 후 댓글을 남길 수 있습니다.',
+    });
+    return;
+  }
+
+  const content = String(els.input.value || '').trim();
+  if (!content) {
+    showPostNotice('댓글 내용을 입력해주세요.', 'error');
+    return;
+  }
+
+  postCommentsState.submitting = true;
+  syncPostCommentComposer();
+
+  try {
+    const payload = {
+      content,
+      parent_comment_id: postCommentsState.replyTarget?.id || undefined,
+    };
+    const data = await fetchJsonForPostComments(
+      `/api/posts/${encodeURIComponent(postCommentsState.postId)}/comments`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+    if (data.comment) {
+      postCommentsState.comments.push(normalizePostComment(data.comment));
+    }
+    els.input.value = '';
+    setPostCommentReplyTarget(null);
+    renderPostComments();
+    showPostNotice(payload.parent_comment_id ? '답글을 남겼습니다.' : '댓글을 남겼습니다.', 'success');
+  } catch (error) {
+    console.error(error);
+    if (Number(error.status) === 401) {
+      if (window.glsoopSafety?.openLoginGate) {
+        window.glsoopSafety.openLoginGate({ actionLabel: '댓글 작성', source: 'post-comment' });
+      } else {
+        redirectToLoginWithNext({ source: 'post-comment' });
+      }
+      return;
+    }
+    showPostNotice(error.message || '댓글 작성에 실패했습니다.', 'error');
+  } finally {
+    postCommentsState.submitting = false;
+    syncPostCommentComposer();
+  }
+}
+
+async function deletePostComment(commentId) {
+  if (!commentId) return;
+  if (!isViewerLikelyLoggedIn()) {
+    if (window.glsoopSafety?.openLoginGate) {
+      window.glsoopSafety.openLoginGate({ actionLabel: '댓글 삭제', source: 'post-comment' });
+    }
+    return;
+  }
+  if (!window.confirm('이 댓글을 삭제할까요?')) return;
+
+  try {
+    await fetchJsonForPostComments(`/api/comments/${encodeURIComponent(commentId)}`, {
+      method: 'DELETE',
+    });
+    postCommentsState.comments = postCommentsState.comments.map((comment) =>
+      Number(comment.id) === Number(commentId)
+        ? { ...comment, status: 'deleted', content: null, author: null, deleted_at: new Date().toISOString() }
+        : comment
+    );
+    renderPostComments();
+    showPostNotice('댓글을 삭제했습니다.', 'success');
+  } catch (error) {
+    console.error(error);
+    if (Number(error.status) === 401) {
+      if (window.glsoopSafety?.openLoginGate) {
+        window.glsoopSafety.openLoginGate({ actionLabel: '댓글 삭제', source: 'post-comment' });
+      }
+      return;
+    }
+    showPostNotice(error.message || '댓글 삭제에 실패했습니다.', 'error');
+  }
+}
+
+function bindPostCommentEvents() {
+  if (window.__glsoopPostCommentsBound) return;
+  window.__glsoopPostCommentsBound = true;
+
+  const els = getPostCommentEls();
+  els.form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    submitPostComment();
+  });
+  els.input?.addEventListener('input', syncPostCommentComposer);
+  els.refreshBtn?.addEventListener('click', () => loadPostComments());
+  els.replyCancelBtn?.addEventListener('click', () => setPostCommentReplyTarget(null));
+  els.list?.addEventListener('click', (event) => {
+    const replyBtn = event.target?.closest?.('[data-comment-reply]');
+    if (replyBtn) {
+      const commentId = Number.parseInt(replyBtn.getAttribute('data-comment-reply'), 10);
+      const comment = postCommentsState.comments.find((item) => Number(item.id) === commentId);
+      if (comment) setPostCommentReplyTarget(comment);
+      return;
+    }
+
+    const deleteBtn = event.target?.closest?.('[data-comment-delete]');
+    if (deleteBtn) {
+      const commentId = Number.parseInt(deleteBtn.getAttribute('data-comment-delete'), 10);
+      deletePostComment(commentId);
+    }
+  });
+
+  document.querySelectorAll('.after-login').forEach((node) => {
+    const observer = new MutationObserver(syncPostCommentComposer);
+    observer.observe(node, { attributes: true, attributeFilter: ['class'] });
+  });
+}
+
+function initPostComments(post) {
+  const els = getPostCommentEls();
+  if (!els.panel || !post?.id) return;
+
+  postCommentsState.postId = String(post.id);
+  postCommentsState.comments = [];
+  postCommentsState.replyTarget = null;
+  postCommentsState.loading = false;
+  postCommentsState.submitting = false;
+  els.panel.hidden = false;
+  if (els.input) els.input.value = '';
+
+  bindPostCommentEvents();
+  syncPostCommentComposer();
+  renderPostComments();
+  loadPostComments();
 }
 
 function resolveRenderedImageOptions(card) {

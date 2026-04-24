@@ -112,6 +112,11 @@ body.page-post .post-panel {
   padding: var(--gls-space-6, 24px);
 }
 
+body.page-post .post-comments-panel {
+  margin-top: var(--gls-space-5, 20px);
+  padding: var(--gls-space-5, 20px);
+}
+
 body.page-post .post-glass-panel {
   background: var(--post-glass-bg);
   border: 1px solid var(--post-glass-border);
@@ -936,6 +941,189 @@ body.page-post .post-related-item-meta {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+/* =========================
+   4) 댓글
+========================= */
+
+body.page-post .post-comments-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+body.page-post .post-comments-kicker {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: rgba(30, 42, 51, 0.55);
+}
+
+body.page-post .post-comments-title {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 900;
+  letter-spacing: -0.2px;
+}
+
+body.page-post .post-comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+body.page-post .post-comment-reply-target {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 12px;
+  background: rgba(46, 139, 87, 0.08);
+  color: rgba(30, 85, 54, 0.96);
+  padding: 8px 10px;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+body.page-post .post-comment-reply-target[hidden] {
+  display: none;
+}
+
+body.page-post .post-comment-reply-target button {
+  border: 0;
+  background: transparent;
+  color: rgba(30, 42, 51, 0.66);
+  font-weight: 900;
+}
+
+body.page-post .post-comment-input {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  border: 1px solid rgba(126, 118, 102, 0.24);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.55);
+  color: rgba(30, 42, 51, 0.94);
+  padding: 12px 14px;
+  line-height: 1.65;
+  outline: none;
+}
+
+body.page-post .post-comment-input:focus {
+  border-color: rgba(46, 139, 87, 0.38);
+  box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.10);
+}
+
+body.page-post .post-comment-form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+body.page-post .post-comment-count,
+body.page-post .post-comments-status {
+  color: rgba(30, 42, 51, 0.58);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+body.page-post .post-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+body.page-post .post-comment-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body.page-post .post-comment-item {
+  border: 1px solid rgba(126, 118, 102, 0.20);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.45);
+  padding: 13px 14px;
+}
+
+body.page-post .post-comment-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-left: 22px;
+}
+
+body.page-post .post-comment-item--reply {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+body.page-post .post-comment-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+body.page-post .post-comment-author {
+  font-size: 0.92rem;
+  color: rgba(30, 42, 51, 0.94);
+}
+
+body.page-post .post-comment-date {
+  color: rgba(30, 42, 51, 0.52);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+body.page-post .post-comment-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: rgba(30, 42, 51, 0.84);
+  line-height: 1.65;
+}
+
+body.page-post .post-comment-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+body.page-post .post-comment-action {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: rgba(46, 139, 87, 0.9);
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+body.page-post .post-comment-action--danger {
+  color: rgba(180, 46, 62, 0.9);
+}
+
+@media (max-width: 576px) {
+  body.page-post .post-comments-panel {
+    padding: var(--gls-space-4, 16px);
+  }
+
+  body.page-post .post-comments-head,
+  body.page-post .post-comment-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  body.page-post .post-comment-replies {
+    margin-left: 12px;
+  }
 }
 
 /* 구버전 relatedPosts는 숨김 */
