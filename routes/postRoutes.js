@@ -25,6 +25,7 @@ const db = require('../db');
 const { authRequired, authOptional } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 const { handlePostCreated, handleLikeAdded } = require('../utils/growth-service');
+const { ACTIVITY_TYPES, createActivityEvent } = require('../utils/activityEvents');
 const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
 const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
@@ -1531,6 +1532,18 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
                     await handleLikeAdded(userId, post.user_id, postId);
                   } catch (growthErr) {
                     console.error('like growth 처리 실패:', growthErr);
+                  }
+
+                  try {
+                    await createActivityEvent({
+                      recipientUserId: post.user_id,
+                      actorUserId: userId,
+                      eventType: ACTIVITY_TYPES.POST_LIKED,
+                      postId,
+                      uniqueKey: `post_liked:${postId}:${userId}`,
+                    });
+                  } catch (activityErr) {
+                    console.error('like activity 처리 실패:', activityErr);
                   }
 
                   return res.json({

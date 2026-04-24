@@ -4,7 +4,7 @@
 - 적용 범위: `glsoop/docs/참고/DB-스키마.md`
 - 대상 독자: 서버 개발자, QA
 - 상태: `Draft`
-- 최종 업데이트: `2026-03-04`
+- 최종 업데이트: `2026-04-25`
 - Owner: `taehun`
 - 관련 문서:
   - `docs/참고/시스템-개요.md`
@@ -47,6 +47,24 @@
 - `migrations/0013_create_auth_sessions_security.sql`
 - `migrations/0014_auth_preferences_reset_token_hash.sql`
 - `migrations/0015_signup_legal_consents.sql`
+
+## 댓글/활동함/푸시 마이그레이션
+
+- `migrations/0020_create_comments_activity_push.sql`
+- `comments`
+  - 목적: 글 댓글과 1단계 답글 저장
+  - 핵심 컬럼: `post_id`, `user_id`, `parent_comment_id`, `content`, `status`, `deleted_at`, `created_at`, `updated_at`
+  - 삭제 정책: 사용자 삭제/글 삭제는 FK cascade, 댓글 삭제 API는 `status='deleted'` soft delete
+- `activity_events`
+  - 목적: 활동함 목록과 미읽음 상태 관리
+  - 핵심 컬럼: `recipient_user_id`, `actor_user_id`, `event_type`, `post_id`, `comment_id`, `read_at`, `unique_key`
+  - 이벤트 타입: `post_liked`, `post_bookmarked`, `comment_created`, `comment_replied`, `system`
+- `push_tokens`
+  - 목적: 사용자별 Expo/웹 푸시 토큰 등록 상태 관리
+  - 핵심 컬럼: `user_id`, `token`, `platform`, `device_id`, `app_version`, `enabled`, `last_seen_at`
+- `push_delivery_queue`
+  - 목적: 활동 이벤트 기반 푸시 발송 대기열
+  - 핵심 컬럼: `activity_event_id`, `recipient_user_id`, `push_token_id`, `status`, `title`, `body`, `payload_json`, `attempt_count`
 
 ## 동의 이력 관련 테이블
 
