@@ -103,8 +103,8 @@ function normalizePreviewDraftPost(body = {}) {
   }
 
   const rawContent = typeof body.content === 'string' ? body.content : '';
-  const content = contentFormat === 'html' ? normalizePostText(rawContent) : rawContent.trim();
-  if (!content) {
+  const content = rawContent.trim();
+  if (!normalizePostText(content)) {
     return {
       error: '미리보기 본문이 비어 있습니다.',
     };
