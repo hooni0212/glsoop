@@ -7,6 +7,7 @@ const REPORT_SOURCE_BLOCK = 'block';
 const REPORT_STATUS_QUEUED = 'queued';
 const REPORT_DETAIL_MAX_LENGTH = 200;
 const SAFETY_VALIDATION_ERROR = 'SAFETY_VALIDATION_ERROR';
+const REPORT_RESOLUTION_STATUSES = new Set(['reviewing', 'actioned', 'dismissed']);
 
 const REPORT_REASON_DEFINITIONS = Object.freeze([
   { code: 'harassment', label: '괴롭힘/비방', targetTypes: ['post', 'user'] },
@@ -495,7 +496,7 @@ async function listReportedPosts({
   const normalizedLimit = Math.max(1, Math.min(Number(limit) || 50, 100));
   const normalizedOffset = Math.max(0, Number(offset) || 0);
   const params = [REPORT_SOURCE_REPORT];
-  const dismissedClause = excludeDismissed ? "AND sr.status != 'dismissed'" : '';
+  const dismissedClause = excludeDismissed ? "AND sr.status NOT IN ('dismissed', 'actioned')" : '';
 
   const rows = await allAsync(
     `
@@ -507,6 +508,8 @@ async function listReportedPosts({
       COALESCE(target_user.account_status, 'active') AS target_user_account_status,
       COUNT(*) AS report_count,
       COUNT(DISTINCT sr.reporter_id) AS unique_reporter_count,
+      SUM(CASE WHEN sr.status = 'queued' THEN 1 ELSE 0 END) AS queued_count,
+      SUM(CASE WHEN sr.status = 'reviewing' THEN 1 ELSE 0 END) AS reviewing_count,
       MAX(sr.created_at) AS latest_reported_at
     FROM safety_reports sr
     LEFT JOIN posts p ON p.id = sr.target_post_id
@@ -545,9 +548,29 @@ async function listReportedPosts({
         : null,
     report_count: Number(row.report_count || 0),
     unique_reporter_count: Number(row.unique_reporter_count || 0),
+    queued_count: Number(row.queued_count || 0),
+    reviewing_count: Number(row.reviewing_count || 0),
     latest_reported_at:
       toIsoStringOrNull(row.latest_reported_at) || row.latest_reported_at || null,
   }));
+}
+
+function normalizeSafetyResolutionPayload({ status, action = null, actionDetail = null } = {}) {
+  const normalizedStatus =
+    typeof status === 'string' && REPORT_RESOLUTION_STATUSES.has(status.trim().toLowerCase())
+      ? status.trim().toLowerCase()
+      : null;
+  const normalizedAction =
+    typeof action === 'string' && action.trim()
+      ? action.trim().toLowerCase().slice(0, 80)
+      : null;
+  const normalizedActionDetail = normalizeOptionalDetail(actionDetail, 500);
+
+  return {
+    status: normalizedStatus,
+    action: normalizedAction,
+    actionDetail: normalizedActionDetail,
+  };
 }
 
 async function resolveSafetyReport({
@@ -559,17 +582,9 @@ async function resolveSafetyReport({
 }) {
   const normalizedReportId = toPositiveInt(reportId);
   const normalizedHandledByUserId = toPositiveInt(handledByUserId);
-  const normalizedStatus =
-    typeof status === 'string' && ['reviewing', 'actioned', 'dismissed'].includes(status.trim().toLowerCase())
-      ? status.trim().toLowerCase()
-      : null;
-  const normalizedAction =
-    typeof action === 'string' && action.trim()
-      ? action.trim().toLowerCase().slice(0, 80)
-      : null;
-  const normalizedActionDetail = normalizeOptionalDetail(actionDetail, 500);
+  const resolution = normalizeSafetyResolutionPayload({ status, action, actionDetail });
 
-  if (!normalizedReportId || !normalizedHandledByUserId || !normalizedStatus) {
+  if (!normalizedReportId || !normalizedHandledByUserId || !resolution.status) {
     throw new Error('invalid_report_resolution');
   }
 
@@ -584,15 +599,63 @@ async function resolveSafetyReport({
     WHERE id = ?
     `,
     [
-      normalizedStatus,
-      normalizedAction,
-      normalizedActionDetail,
+      resolution.status,
+      resolution.action,
+      resolution.actionDetail,
       normalizedHandledByUserId,
       normalizedReportId,
     ]
   );
 
   return getAsync('SELECT * FROM safety_reports WHERE id = ? LIMIT 1', [normalizedReportId]);
+}
+
+async function resolveSafetyReportsForPost({
+  postId,
+  status,
+  action = null,
+  actionDetail = null,
+  handledByUserId,
+  includeResolved = false,
+} = {}) {
+  const normalizedPostId = toPositiveInt(postId);
+  const normalizedHandledByUserId = toPositiveInt(handledByUserId);
+  const resolution = normalizeSafetyResolutionPayload({ status, action, actionDetail });
+
+  if (!normalizedPostId || !normalizedHandledByUserId || !resolution.status) {
+    throw new Error('invalid_report_resolution');
+  }
+
+  const statusClause = includeResolved ? '' : "AND status NOT IN ('actioned', 'dismissed')";
+  const result = await runAsync(
+    `
+    UPDATE safety_reports
+    SET status = ?,
+        action = ?,
+        action_detail = ?,
+        handled_by_user_id = ?,
+        handled_at = CURRENT_TIMESTAMP
+    WHERE source = ?
+      AND target_type = 'post'
+      AND target_post_id = ?
+      ${statusClause}
+    `,
+    [
+      resolution.status,
+      resolution.action,
+      resolution.actionDetail,
+      normalizedHandledByUserId,
+      REPORT_SOURCE_REPORT,
+      normalizedPostId,
+    ]
+  );
+
+  return {
+    target_post_id: normalizedPostId,
+    status: resolution.status,
+    action: resolution.action,
+    updated_count: Number(result?.changes || 0),
+  };
 }
 
 module.exports = {
@@ -617,4 +680,5 @@ module.exports = {
   listSafetyReports,
   listReportedPosts,
   resolveSafetyReport,
+  resolveSafetyReportsForPost,
 };

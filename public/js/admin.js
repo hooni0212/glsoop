@@ -39,6 +39,48 @@ Glsoop.AdminPage = (function () {
     initialized: false,
   };
 
+  const SAFETY_REPORT_ACTION_CONFIG = {
+    reviewing: {
+      status: 'reviewing',
+      action: 'under_review',
+      actionDetail: '관리자 신고 목록에서 검토 중으로 변경',
+      successMessage: '신고를 검토 중으로 표시했습니다.',
+    },
+    actioned: {
+      status: 'actioned',
+      action: 'moderation_action',
+      actionDetail: '관리자 신고 목록에서 조치 완료 처리',
+      successMessage: '신고를 조치 완료로 처리했습니다.',
+    },
+    dismissed: {
+      status: 'dismissed',
+      action: 'no_violation',
+      actionDetail: '관리자 신고 목록에서 기각 처리',
+      successMessage: '신고를 기각했습니다.',
+    },
+  };
+
+  const REPORTED_POST_ACTION_CONFIG = {
+    reviewing: {
+      status: 'reviewing',
+      action: 'under_review',
+      actionDetail: '관리자 누적 신고 글 목록에서 검토 중으로 변경',
+      successMessage: '신고 글을 검토 중으로 표시했습니다.',
+    },
+    actioned: {
+      status: 'actioned',
+      action: 'moderation_action',
+      actionDetail: '관리자 누적 신고 글 목록에서 조치 완료 처리',
+      successMessage: '신고 글의 미처리 신고를 조치 완료로 처리했습니다.',
+    },
+    dismissed: {
+      status: 'dismissed',
+      action: 'no_violation',
+      actionDetail: '관리자 누적 신고 글 목록에서 기각 처리',
+      successMessage: '신고 글의 미처리 신고를 기각했습니다.',
+    },
+  };
+
   const THEME_LABELS = {
     default: '기본',
     spring: '봄',
@@ -548,6 +590,20 @@ Glsoop.AdminPage = (function () {
       applySafetyFilters(filterBox);
       loadSafetyDashboard(safetyReportsBox, reportedPostsBox);
     });
+
+    safetyReportsBox.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-safety-report-action]');
+      if (!button || button.disabled) return;
+      event.preventDefault();
+      handleSafetyReportAction(button, safetyReportsBox, reportedPostsBox);
+    });
+
+    reportedPostsBox.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-reported-post-action]');
+      if (!button || button.disabled) return;
+      event.preventDefault();
+      handleReportedPostAction(button, safetyReportsBox, reportedPostsBox);
+    });
   }
 
   function renderSafetyFilters(filterBox) {
@@ -697,6 +753,142 @@ Glsoop.AdminPage = (function () {
     }
   }
 
+  async function handleSafetyReportAction(button, safetyReportsBox, reportedPostsBox) {
+    const actionKey = button.getAttribute('data-safety-report-action');
+    const postId = button.getAttribute('data-post-id');
+
+    if (actionKey === 'open-post') {
+      openPostDetail(postId);
+      return;
+    }
+
+    const reportId = button.getAttribute('data-report-id');
+    const config = SAFETY_REPORT_ACTION_CONFIG[actionKey];
+    if (!reportId || !config) return;
+
+    const release = lockDangerTrigger(button, '처리 중...');
+    try {
+      await postAdminJson(`/api/admin/safety/reports/${encodeURIComponent(reportId)}/resolve`, {
+        status: config.status,
+        action: config.action,
+        action_detail: config.actionDetail,
+      });
+      showAdminNotice(config.successMessage, 'success');
+      await loadSafetyDashboard(safetyReportsBox, reportedPostsBox);
+    } catch (error) {
+      console.error(error);
+      showAdminNotice(error?.message || '신고 처리 중 오류가 발생했습니다.', 'error');
+    } finally {
+      release();
+    }
+  }
+
+  async function handleReportedPostAction(button, safetyReportsBox, reportedPostsBox) {
+    const actionKey = button.getAttribute('data-reported-post-action');
+    const postId = button.getAttribute('data-post-id');
+    if (!postId) return;
+
+    if (actionKey === 'open-post') {
+      openPostDetail(postId);
+      return;
+    }
+
+    if (actionKey === 'delete-post') {
+      await deleteReportedPostFromSafety(postId, button, safetyReportsBox, reportedPostsBox);
+      return;
+    }
+
+    const config = REPORTED_POST_ACTION_CONFIG[actionKey];
+    if (!config) return;
+
+    const release = lockDangerTrigger(button, '처리 중...');
+    try {
+      await postAdminJson(
+        `/api/admin/safety/reported-posts/${encodeURIComponent(postId)}/resolve`,
+        {
+          status: config.status,
+          action: config.action,
+          action_detail: config.actionDetail,
+        }
+      );
+      showAdminNotice(config.successMessage, 'success');
+      await loadSafetyDashboard(safetyReportsBox, reportedPostsBox);
+    } catch (error) {
+      console.error(error);
+      showAdminNotice(error?.message || '신고 글 처리 중 오류가 발생했습니다.', 'error');
+    } finally {
+      release();
+    }
+  }
+
+  async function deleteReportedPostFromSafety(postId, triggerEl, safetyReportsBox, reportedPostsBox) {
+    await runDangerAction({
+      actionKey: `delete-reported-post-${postId}`,
+      title: '신고 글 삭제 확인',
+      message: `글 ID ${postId}를 삭제하고 연결된 미처리 신고를 조치 완료로 처리합니다. 이 작업은 되돌릴 수 없습니다.`,
+      triggerEl,
+      pendingLabel: '삭제 중...',
+      request: async () => {
+        await postAdminJson(
+          `/api/admin/safety/reported-posts/${encodeURIComponent(postId)}/delete`,
+          {
+            action_detail: '관리자 신고 글 처리 UI에서 삭제',
+          }
+        );
+        removePostCardFromAdminGrid(postId);
+        await loadSafetyDashboard(safetyReportsBox, reportedPostsBox);
+      },
+      successMessage: '신고 글을 삭제하고 신고를 조치 완료했습니다.',
+      failMessage: '신고 글 삭제 중 오류가 발생했습니다.',
+    });
+  }
+
+  async function postAdminJson(url, body = {}) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const payload = await parseJsonSafe(response);
+
+    if (response.status === 401) {
+      alert('로그인이 필요한 페이지입니다.');
+      window.location.href = '/html/login.html?next=/admin';
+      throw new Error('로그인이 필요합니다.');
+    }
+
+    if (response.status === 403) {
+      alert('관리자 권한이 필요합니다.');
+      window.location.href = '/index.html';
+      throw new Error('관리자 권한이 필요합니다.');
+    }
+
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload?.message || '관리자 요청 처리 중 오류가 발생했습니다.');
+    }
+
+    return payload;
+  }
+
+  function openPostDetail(postId) {
+    if (!postId) return;
+    const targetUrl = `/html/post.html?postId=${encodeURIComponent(postId)}`;
+    window.open(targetUrl, '_blank');
+  }
+
+  function removePostCardFromAdminGrid(postId) {
+    const card = document.querySelector(`.admin-post-card[data-post-id="${postId}"]`);
+    if (!card) return;
+
+    card.remove();
+    decreaseTabCount('postsTab', 1);
+
+    const grid = document.getElementById('adminPostsGrid');
+    if (grid && !grid.querySelector('.admin-post-card')) {
+      grid.innerHTML = '<p class="gls-text-muted">등록된 글이 없습니다.</p>';
+    }
+  }
+
   function renderSafetyReportsHtml(reports) {
     if (!reports.length) {
       return '<p class="gls-text-muted gls-mb-0">조건에 맞는 신고가 없습니다.</p>';
@@ -731,7 +923,7 @@ Glsoop.AdminPage = (function () {
           : '<span class="gls-text-muted">-</span>';
 
         return [
-          '<tr>',
+          '<tr data-report-id="' + escapeHtml(report.id || '') + '">',
           '<td>' + escapeHtml(reporter) + '</td>',
           '<td>' + escapeHtml(targetUser) + '</td>',
           '<td>' + escapeHtml(targetPost) + '</td>',
@@ -740,6 +932,7 @@ Glsoop.AdminPage = (function () {
           '<td>' + detail + '</td>',
           '<td>' + escapeHtml(formatAdminDateTime(report.created_at)) + '</td>',
           '<td>' + buildSafetyStatusBadge(report.status) + '</td>',
+          '<td>' + buildSafetyReportActions(report) + '</td>',
           '</tr>',
         ].join('');
       })
@@ -758,6 +951,7 @@ Glsoop.AdminPage = (function () {
       '        <th>상세</th>',
       '        <th>접수 시각</th>',
       '        <th>상태</th>',
+      '        <th>처리</th>',
       '      </tr>',
       '    </thead>',
       '    <tbody>',
@@ -782,12 +976,14 @@ Glsoop.AdminPage = (function () {
         );
 
         return [
-          '<tr>',
+          '<tr data-reported-post-id="' + escapeHtml(post.target_post_id || '') + '">',
           '<td>' + escapeHtml(post.target_post_title || `글 #${post.target_post_id || '-'}`) + '</td>',
           '<td>' + escapeHtml(author) + '</td>',
           '<td class="gls-text-end">' + formatCount(post.report_count) + '</td>',
           '<td class="gls-text-end">' + formatCount(post.unique_reporter_count) + '</td>',
+          '<td>' + buildReportedPostStatusSummary(post) + '</td>',
           '<td>' + escapeHtml(formatAdminDateTime(post.latest_reported_at)) + '</td>',
+          '<td>' + buildReportedPostActions(post) + '</td>',
           '</tr>',
         ].join('');
       })
@@ -800,9 +996,11 @@ Glsoop.AdminPage = (function () {
       '      <tr>',
       '        <th>글 제목</th>',
       '        <th>작성자</th>',
-      '        <th class="gls-text-end">report_count</th>',
-      '        <th class="gls-text-end">unique_reporter_count</th>',
-      '        <th>latest_reported_at</th>',
+      '        <th class="gls-text-end">신고</th>',
+      '        <th class="gls-text-end">신고자</th>',
+      '        <th>상태</th>',
+      '        <th>최신 신고</th>',
+      '        <th>처리</th>',
       '      </tr>',
       '    </thead>',
       '    <tbody>',
@@ -813,17 +1011,118 @@ Glsoop.AdminPage = (function () {
     ].join('');
   }
 
+  function buildSafetyReportActions(report) {
+    const reportId = report?.id ? String(report.id) : '';
+    const postId = report?.target_post_id ? String(report.target_post_id) : '';
+    const status = normalizeSafetyStatus(report?.status);
+    const isResolved = status === 'actioned' || status === 'dismissed';
+    const viewButton = postId
+      ? '<button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" data-safety-report-action="open-post" data-post-id="' +
+        escapeHtml(postId) +
+        '">보기</button>'
+      : '';
+
+    return [
+      '<div class="admin-safety-actions">',
+      viewButton,
+      '<button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" data-safety-report-action="reviewing" data-report-id="' +
+        escapeHtml(reportId) +
+        '"' +
+        (status === 'reviewing' || isResolved ? ' disabled' : '') +
+        '>검토</button>',
+      '<button class="gls-btn gls-btn-primary gls-btn-xs" type="button" data-safety-report-action="actioned" data-report-id="' +
+        escapeHtml(reportId) +
+        '"' +
+        (status === 'actioned' ? ' disabled' : '') +
+        '>조치</button>',
+      '<button class="gls-btn gls-btn-ghost gls-btn-xs" type="button" data-safety-report-action="dismissed" data-report-id="' +
+        escapeHtml(reportId) +
+        '"' +
+        (status === 'dismissed' ? ' disabled' : '') +
+        '>기각</button>',
+      '</div>',
+    ].join('');
+  }
+
+  function buildReportedPostStatusSummary(post) {
+    const queuedCount = toCount(post?.queued_count);
+    const reviewingCount = toCount(post?.reviewing_count);
+    const pills = [];
+
+    if (queuedCount > 0) {
+      pills.push(
+        '<span class="admin-safety-status admin-safety-status--queued">접수 ' +
+          escapeHtml(formatCount(queuedCount)) +
+          '</span>'
+      );
+    }
+    if (reviewingCount > 0) {
+      pills.push(
+        '<span class="admin-safety-status admin-safety-status--reviewing">검토 ' +
+          escapeHtml(formatCount(reviewingCount)) +
+          '</span>'
+      );
+    }
+
+    if (!pills.length) {
+      pills.push('<span class="admin-safety-status admin-safety-status--queued">접수</span>');
+    }
+
+    return '<div class="admin-safety-status-list">' + pills.join('') + '</div>';
+  }
+
+  function buildReportedPostActions(post) {
+    const postId = post?.target_post_id ? String(post.target_post_id) : '';
+    const disabled = postId ? '' : ' disabled';
+
+    return [
+      '<div class="admin-safety-actions admin-safety-actions--reported-post">',
+      '<button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" data-reported-post-action="open-post" data-post-id="' +
+        escapeHtml(postId) +
+        '"' +
+        disabled +
+        '>보기</button>',
+      '<button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" data-reported-post-action="reviewing" data-post-id="' +
+        escapeHtml(postId) +
+        '"' +
+        disabled +
+        '>검토</button>',
+      '<button class="gls-btn gls-btn-primary gls-btn-xs" type="button" data-reported-post-action="actioned" data-post-id="' +
+        escapeHtml(postId) +
+        '"' +
+        disabled +
+        '>조치</button>',
+      '<button class="gls-btn gls-btn-ghost gls-btn-xs" type="button" data-reported-post-action="dismissed" data-post-id="' +
+        escapeHtml(postId) +
+        '"' +
+        disabled +
+        '>기각</button>',
+      '<button class="gls-btn gls-btn-danger gls-btn-xs" type="button" data-reported-post-action="delete-post" data-post-id="' +
+        escapeHtml(postId) +
+        '"' +
+        disabled +
+        '>삭제</button>',
+      '</div>',
+    ].join('');
+  }
+
+  function normalizeSafetyStatus(status) {
+    const normalized = String(status || '').trim().toLowerCase();
+    return ['queued', 'reviewing', 'actioned', 'dismissed'].includes(normalized)
+      ? normalized
+      : 'queued';
+  }
+
   function buildSafetyStatusBadge(status) {
-    const normalized = String(status || '').trim().toLowerCase() || 'queued';
+    const normalized = normalizeSafetyStatus(status);
     const labelMap = {
       queued: '접수',
       reviewing: '검토 중',
       actioned: '조치 완료',
       dismissed: '기각',
     };
-    const safeStatus = labelMap[normalized] ? normalized : 'queued';
-    return '<span class="admin-safety-status admin-safety-status--' + safeStatus + '">' +
-      escapeHtml(labelMap[safeStatus]) +
+    return '<span class="admin-safety-status admin-safety-status--' + normalized + '">' +
+      escapeHtml(labelMap[normalized]) +
       '</span>';
   }
 
@@ -1478,8 +1777,7 @@ Glsoop.AdminPage = (function () {
       return;
     }
     if (previewBtn) {
-      const targetUrl = `/html/post.html?id=${encodeURIComponent(postId)}`;
-      window.open(targetUrl, '_blank');
+      openPostDetail(postId);
     }
   }
 

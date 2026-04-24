@@ -4,6 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 const sqlite3 = require('sqlite3').verbose();
+const {
+  extractPostFontKey,
+  normalizePostText,
+  resolvePostFont,
+} = require('../../utils/feedImageRenderer');
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -375,6 +380,42 @@ test.describe('Post layout letter spacing', () => {
     expect(pngShareResponse.headers()['x-feed-image-format']).toBe('png');
   });
 
+  test('uses FONT meta for feed and share rendered image font selection', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+    const content = '<!--FONT:hand--><p>손글씨 렌더 확인 본문입니다.</p>';
+
+    expect(extractPostFontKey(content)).toBe('hand');
+    expect(resolvePostFont(content).family).toContain('Nanum Pen Script');
+    expect(normalizePostText(content)).toBe('손글씨 렌더 확인 본문입니다.');
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '손글씨 렌더 확인',
+        content,
+        category: 'short',
+        layout_json: buildLayoutPayload(),
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    const feedResponse = await request.get(`/api/feed-images/post/${postId}`, {
+      params: { template: 'paper01', scale: '2' },
+    });
+    expect(feedResponse.status()).toBe(200);
+    expect(feedResponse.headers()['x-feed-image-layout']).toContain('font-hand');
+
+    const shareResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
+      params: { template: 'paper01', scale: '2', format: 'png' },
+    });
+    expect(shareResponse.status()).toBe(200);
+    expect(shareResponse.headers()['x-feed-image-layout']).toContain('font-hand');
+  });
+
   test('returns multipage render metadata and paged images for custom layout posts', async ({ request }) => {
     const token = await loginAsLayoutWriter(request);
     const headers = { Authorization: `Bearer ${token}` };
@@ -535,7 +576,7 @@ test.describe('Post layout letter spacing', () => {
       headers,
       data: {
         title: '에디터 미리보기 세션',
-        content: `<!--FONT:serif-->${Array.from({ length: 80 }, (_item, index) => `<p>미리보기 본문 ${index + 1}</p>`).join('')}`,
+        content: `<!--FONT:hand-->${Array.from({ length: 80 }, (_item, index) => `<p>미리보기 본문 ${index + 1}</p>`).join('')}`,
         content_format: 'html',
         category: 'essay',
         template: 'paper02',
@@ -567,6 +608,7 @@ test.describe('Post layout letter spacing', () => {
     expect(pageTwoResponse.status()).toBe(200);
     expect(pageTwoResponse.headers()["content-type"]).toContain("image/webp");
     expect(pageTwoResponse.headers()["x-feed-image-template"]).toBe("paper02");
+    expect(pageTwoResponse.headers()["x-feed-image-layout"]).toContain("font-hand");
     expect(pageTwoResponse.headers()["x-feed-image-page"]).toBe("2");
     expect(pageTwoResponse.headers()["x-feed-image-page-count"]).toBe(String(body.images.length));
     const pageTwoMetadata = await sharp(Buffer.from(await pageTwoResponse.body())).metadata();

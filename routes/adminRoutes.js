@@ -12,6 +12,7 @@ const {
   listReportedPosts,
   listSafetyReports,
   resolveSafetyReport,
+  resolveSafetyReportsForPost,
 } = require('../utils/safety');
 
 const router = express.Router();
@@ -125,6 +126,103 @@ function parsePositiveInt(raw) {
   return parsed;
 }
 
+const DEFAULT_SAFETY_ACTION_BY_STATUS = {
+  reviewing: 'under_review',
+  actioned: 'moderation_action',
+  dismissed: 'no_violation',
+};
+
+function parseSafetyResolutionBody(body = {}) {
+  const status =
+    typeof body?.status === 'string' ? body.status.trim().toLowerCase() : '';
+  const action =
+    typeof body?.action === 'string' && body.action.trim()
+      ? body.action.trim().toLowerCase()
+      : DEFAULT_SAFETY_ACTION_BY_STATUS[status] || null;
+  const actionDetail =
+    typeof body?.action_detail === 'string' ? body.action_detail.trim() : null;
+
+  if (!['reviewing', 'actioned', 'dismissed'].includes(status)) {
+    return {
+      error: "status는 'reviewing', 'actioned', 'dismissed' 중 하나여야 합니다.",
+    };
+  }
+
+  return {
+    status,
+    action,
+    actionDetail,
+  };
+}
+
+async function deleteReportedPostWithResolution({ postId, handledByUserId, actionDetail = null }) {
+  await runAsync('BEGIN IMMEDIATE');
+
+  try {
+    const post = await getAsync(
+      `
+      SELECT
+        p.id,
+        p.title,
+        p.user_id,
+        u.nickname AS author_nickname
+      FROM posts p
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE p.id = ?
+      LIMIT 1
+      `,
+      [postId]
+    );
+
+    if (!post) {
+      await runAsync('ROLLBACK');
+      return null;
+    }
+
+    const resolution = await runAsync(
+      `
+      UPDATE safety_reports
+      SET status = 'actioned',
+          action = 'post_deleted',
+          action_detail = ?,
+          handled_by_user_id = ?,
+          handled_at = CURRENT_TIMESTAMP
+      WHERE source = 'report'
+        AND target_type = 'post'
+        AND target_post_id = ?
+        AND status NOT IN ('actioned', 'dismissed')
+      `,
+      [actionDetail, handledByUserId, postId]
+    );
+
+    await runAsync('DELETE FROM likes WHERE post_id = ?', [postId]);
+    await runAsync('DELETE FROM bookmark_items WHERE post_id = ?', [postId]);
+    await runAsync('DELETE FROM post_hashtags WHERE post_id = ?', [postId]);
+    await runAsync('UPDATE share_events SET post_id = NULL WHERE post_id = ?', [postId]);
+
+    const deleted = await runAsync('DELETE FROM posts WHERE id = ?', [postId]);
+    if (Number(deleted?.changes || 0) === 0) {
+      await runAsync('ROLLBACK');
+      return null;
+    }
+
+    await runAsync('COMMIT');
+
+    return {
+      post,
+      deleted: true,
+      resolved_count: Number(resolution?.changes || 0),
+    };
+  } catch (error) {
+    try {
+      await runAsync('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('[admin/safety/reported-posts/delete] rollback failed:', rollbackError);
+    }
+    throw error;
+  }
+}
+
 router.get('/safety/reports', async (req, res) => {
   const limit = parseBoundedInt(req.query.limit, 50, 1, 100);
   const offset = parseBoundedInt(req.query.offset, 0, 0, 5000);
@@ -211,35 +309,87 @@ router.get('/safety/reported-posts', async (req, res) => {
   }
 });
 
+router.post('/safety/reported-posts/:postId/resolve', async (req, res) => {
+  const postId = parsePositiveInt(req.params.postId);
+  const parsed = parseSafetyResolutionBody(req.body || {});
+
+  if (!postId) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', '잘못된 글 ID입니다.');
+  }
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  try {
+    const result = await resolveSafetyReportsForPost({
+      postId,
+      status: parsed.status,
+      action: parsed.action,
+      actionDetail: parsed.actionDetail,
+      handledByUserId: req.user.id,
+    });
+
+    return res.json({
+      ok: true,
+      message: '신고 글의 미처리 신고를 업데이트했습니다.',
+      result,
+    });
+  } catch (error) {
+    console.error('[admin/safety/reported-posts/resolve] failed:', error);
+    return sendAdminError(res, 500, 'INTERNAL_ERROR', '신고 글 처리 중 오류가 발생했습니다.');
+  }
+});
+
+router.post('/safety/reported-posts/:postId/delete', async (req, res) => {
+  const postId = parsePositiveInt(req.params.postId);
+  const actionDetail =
+    typeof req.body?.action_detail === 'string'
+      ? req.body.action_detail.trim().slice(0, 500)
+      : '관리자 신고 글 처리 UI에서 삭제';
+
+  if (!postId) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', '잘못된 글 ID입니다.');
+  }
+
+  try {
+    const result = await deleteReportedPostWithResolution({
+      postId,
+      handledByUserId: req.user.id,
+      actionDetail,
+    });
+
+    if (!result) {
+      return sendAdminError(res, 404, 'RESOURCE_NOT_FOUND', '신고 대상 글을 찾을 수 없습니다.');
+    }
+
+    return res.json({
+      ok: true,
+      message: '신고 대상 글을 삭제하고 관련 신고를 조치 완료로 처리했습니다.',
+      result,
+    });
+  } catch (error) {
+    console.error('[admin/safety/reported-posts/delete] failed:', error);
+    return sendAdminError(res, 500, 'INTERNAL_ERROR', '신고 대상 글 삭제 중 오류가 발생했습니다.');
+  }
+});
+
 router.post('/safety/reports/:id/resolve', async (req, res) => {
   const reportId = parsePositiveInt(req.params.id);
-  const status =
-    typeof req.body?.status === 'string' ? req.body.status.trim().toLowerCase() : '';
-  const action =
-    typeof req.body?.action === 'string' && req.body.action.trim()
-      ? req.body.action.trim().toLowerCase()
-      : null;
-  const actionDetail =
-    typeof req.body?.action_detail === 'string' ? req.body.action_detail.trim() : null;
+  const parsed = parseSafetyResolutionBody(req.body || {});
 
   if (!reportId) {
     return sendAdminError(res, 400, 'INVALID_REQUEST', '잘못된 신고 ID입니다.');
   }
-  if (!['reviewing', 'actioned', 'dismissed'].includes(status)) {
-    return sendAdminError(
-      res,
-      400,
-      'INVALID_REQUEST',
-      "status는 'reviewing', 'actioned', 'dismissed' 중 하나여야 합니다."
-    );
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
   }
 
   try {
     const report = await resolveSafetyReport({
       reportId,
-      status,
-      action,
-      actionDetail,
+      status: parsed.status,
+      action: parsed.action,
+      actionDetail: parsed.actionDetail,
       handledByUserId: req.user.id,
     });
 
