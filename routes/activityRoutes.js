@@ -36,6 +36,10 @@ function normalizeToken(value) {
   return value.trim().slice(0, 500);
 }
 
+function isLikelyExpoPushToken(token) {
+  return /^ExponentPushToken\[[^\]]+\]$/.test(token) || /^ExpoPushToken\[[^\]]+\]$/.test(token);
+}
+
 router.get('/activity', authRequired, async (req, res) => {
   const userId = toPositiveInt(req.user.id);
   const { limit, offset } = parsePagination(req.query || {});
@@ -213,6 +217,12 @@ router.post('/push-tokens', authRequired, async (req, res) => {
 
   if (!token) {
     return sendActivityError(res, 400, 'INVALID_REQUEST', '푸시 토큰이 필요합니다.');
+  }
+  if (!isLikelyExpoPushToken(token)) {
+    return sendActivityError(res, 400, 'INVALID_PUSH_TOKEN', 'Expo 푸시 토큰 형식이 아닙니다.');
+  }
+  if (!['ios', 'android'].includes(platform)) {
+    return sendActivityError(res, 400, 'INVALID_PLATFORM', '지원하지 않는 푸시 플랫폼입니다.');
   }
 
   try {

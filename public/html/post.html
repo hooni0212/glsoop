@@ -116,13 +116,6 @@
                 <p class="post-comments-kicker gls-mb-1">COMMENTS</p>
                 <h2 class="post-comments-title">댓글 <span id="postCommentsCount">0</span></h2>
               </div>
-              <button
-                type="button"
-                class="gls-btn gls-btn-secondary gls-btn-xs post-comments-refresh"
-                id="postCommentsRefreshBtn"
-              >
-                새로고침
-              </button>
             </div>
 
             <form class="post-comment-form" id="postCommentForm">
@@ -140,8 +133,15 @@
               ></textarea>
               <div class="post-comment-form-footer">
                 <span class="post-comment-count" id="postCommentInputCount">0/1000</span>
-                <button type="submit" class="gls-btn gls-btn-primary gls-btn-sm" id="postCommentSubmitBtn">
-                  등록
+                <button
+                  type="submit"
+                  class="gls-btn gls-btn-primary gls-btn-sm post-comment-submit"
+                  id="postCommentSubmitBtn"
+                  aria-label="댓글 등록"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                    <path d="M4 11.5 19.5 4 16 20l-4.2-6.2L4 11.5Z"></path>
+                  </svg>
                 </button>
               </div>
             </form>

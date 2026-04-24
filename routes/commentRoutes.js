@@ -53,6 +53,8 @@ function mapCommentRow(row) {
           display_name: buildPublicDisplayName(row.author_nickname, row.author_account_status),
         },
     reply_count: Number(row.reply_count || 0),
+    like_count: Number(row.like_count || 0),
+    liked_by_me: row.liked_by_me === 1 || row.liked_by_me === true,
     created_at: row.created_at,
     updated_at: row.updated_at,
     deleted_at: row.deleted_at || null,
@@ -140,14 +142,29 @@ router.get('/posts/:postId/comments', authOptional, async (req, res) => {
           FROM comments child
           WHERE child.parent_comment_id = c.id
             AND child.status = 'active'
-        ) AS reply_count
+        ) AS reply_count,
+        (
+          SELECT COUNT(*)
+          FROM comment_likes cl
+          WHERE cl.comment_id = c.id
+        ) AS like_count,
+        ${
+          viewerId
+            ? `CASE WHEN EXISTS (
+                SELECT 1
+                FROM comment_likes my_cl
+                WHERE my_cl.comment_id = c.id
+                  AND my_cl.user_id = ?
+              ) THEN 1 ELSE 0 END`
+            : '0'
+        } AS liked_by_me
       FROM comments c
       JOIN users u ON u.id = c.user_id
       WHERE ${conditions.join(' AND ')}
       ORDER BY c.created_at ASC, c.id ASC
       LIMIT ? OFFSET ?
       `,
-      [...params, limit, offset]
+      [...(viewerId ? [viewerId] : []), ...params, limit, offset]
     );
 
     const totalRow = await getAsync(
@@ -261,7 +278,9 @@ router.post('/posts/:postId/comments', authRequired, async (req, res) => {
         c.*,
         u.nickname AS author_nickname,
         COALESCE(u.account_status, 'active') AS author_account_status,
-        0 AS reply_count
+        0 AS reply_count,
+        0 AS like_count,
+        0 AS liked_by_me
       FROM comments c
       JOIN users u ON u.id = c.user_id
       WHERE c.id = ?
@@ -304,6 +323,66 @@ router.post('/posts/:postId/comments', authRequired, async (req, res) => {
     }
     console.error('[comments/create] failed:', error);
     return sendCommentError(res, 500, 'INTERNAL_ERROR', '댓글 작성 중 오류가 발생했습니다.');
+  }
+});
+
+router.post('/comments/:commentId/toggle-like', authRequired, async (req, res) => {
+  const commentId = toPositiveInt(req.params.commentId);
+  const userId = toPositiveInt(req.user.id);
+
+  if (!commentId) {
+    return sendCommentError(res, 400, 'INVALID_REQUEST', '잘못된 댓글 ID입니다.');
+  }
+
+  try {
+    const comment = await getAsync(
+      `
+      SELECT id, status
+      FROM comments
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [commentId]
+    );
+
+    if (!comment) {
+      return sendCommentError(res, 404, 'RESOURCE_NOT_FOUND', '댓글을 찾을 수 없습니다.');
+    }
+    if (comment.status !== 'active') {
+      return sendCommentError(res, 400, 'INVALID_REQUEST', '삭제된 댓글에는 공감할 수 없습니다.');
+    }
+
+    const existing = await getAsync(
+      'SELECT 1 FROM comment_likes WHERE user_id = ? AND comment_id = ? LIMIT 1',
+      [userId, commentId]
+    );
+
+    if (existing) {
+      await runAsync('DELETE FROM comment_likes WHERE user_id = ? AND comment_id = ?', [
+        userId,
+        commentId,
+      ]);
+    } else {
+      await runAsync('INSERT INTO comment_likes (user_id, comment_id) VALUES (?, ?)', [
+        userId,
+        commentId,
+      ]);
+    }
+
+    const countRow = await getAsync(
+      'SELECT COUNT(*) AS cnt FROM comment_likes WHERE comment_id = ?',
+      [commentId]
+    );
+
+    return res.json({
+      ok: true,
+      message: '댓글 공감 상태가 업데이트되었습니다.',
+      liked: !existing,
+      like_count: Number(countRow?.cnt || 0),
+    });
+  } catch (error) {
+    console.error('[comments/toggle-like] failed:', error);
+    return sendCommentError(res, 500, 'INTERNAL_ERROR', '댓글 공감 처리 중 오류가 발생했습니다.');
   }
 });
 
@@ -359,13 +438,24 @@ router.patch('/comments/:commentId', authRequired, async (req, res) => {
           FROM comments child
           WHERE child.parent_comment_id = c.id
             AND child.status = 'active'
-        ) AS reply_count
+        ) AS reply_count,
+        (
+          SELECT COUNT(*)
+          FROM comment_likes cl
+          WHERE cl.comment_id = c.id
+        ) AS like_count,
+        CASE WHEN EXISTS (
+          SELECT 1
+          FROM comment_likes my_cl
+          WHERE my_cl.comment_id = c.id
+            AND my_cl.user_id = ?
+        ) THEN 1 ELSE 0 END AS liked_by_me
       FROM comments c
       JOIN users u ON u.id = c.user_id
       WHERE c.id = ?
       LIMIT 1
       `,
-      [commentId]
+      [userId, commentId]
     );
 
     return res.json({

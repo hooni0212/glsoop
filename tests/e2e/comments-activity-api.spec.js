@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
+const { dispatchPushBatch } = require('../../services/pushDispatcher');
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -108,6 +109,12 @@ async function seedFixtures() {
       USERS.replier,
       USERS.blocked,
     ]);
+    await dbRun(
+      db,
+      `DELETE FROM comment_likes
+       WHERE user_id IN (?, ?, ?, ?)`,
+      [USERS.author, USERS.commenter, USERS.replier, USERS.blocked]
+    );
     await dbRun(db, 'DELETE FROM comments WHERE post_id = ?', [POST_ID]);
     await dbRun(
       db,
@@ -246,6 +253,63 @@ test.describe('Comments and activity API', () => {
     expect(countPayload.unread_count).toBeGreaterThanOrEqual(0);
   });
 
+  test('lists and toggles comment likes', async ({ request }) => {
+    const commentResponse = await request.post(`/api/posts/${POST_ID}/comments`, {
+      headers: buildAuthHeaders(USERS.commenter),
+      data: {
+        content: '공감 받을 댓글',
+      },
+    });
+    expect(commentResponse.status()).toBe(201);
+    const comment = (await commentResponse.json()).comment;
+    expect(comment.like_count).toBe(0);
+    expect(comment.liked_by_me).toBe(false);
+
+    const likeResponse = await request.post(`/api/comments/${comment.id}/toggle-like`, {
+      headers: buildAuthHeaders(USERS.replier),
+    });
+    expect(likeResponse.status()).toBe(200);
+    const likePayload = await likeResponse.json();
+    expect(likePayload).toMatchObject({
+      ok: true,
+      liked: true,
+      like_count: 1,
+    });
+
+    const listResponse = await request.get(`/api/posts/${POST_ID}/comments`, {
+      headers: buildAuthHeaders(USERS.replier),
+    });
+    expect(listResponse.status()).toBe(200);
+    const listPayload = await listResponse.json();
+    const listed = listPayload.comments.find((item) => item.id === comment.id);
+    expect(listed).toMatchObject({
+      like_count: 1,
+      liked_by_me: true,
+    });
+
+    const unlikeResponse = await request.post(`/api/comments/${comment.id}/toggle-like`, {
+      headers: buildAuthHeaders(USERS.replier),
+    });
+    expect(unlikeResponse.status()).toBe(200);
+    const unlikePayload = await unlikeResponse.json();
+    expect(unlikePayload).toMatchObject({
+      liked: false,
+      like_count: 0,
+    });
+
+    await withDb((db) =>
+      dbRun(db, "UPDATE comments SET status = 'deleted' WHERE id = ?", [comment.id])
+    );
+
+    const deletedLikeResponse = await request.post(`/api/comments/${comment.id}/toggle-like`, {
+      headers: buildAuthHeaders(USERS.replier),
+    });
+    expect(deletedLikeResponse.status()).toBe(400);
+
+    const anonymousResponse = await request.post(`/api/comments/${comment.id}/toggle-like`);
+    expect(anonymousResponse.status()).toBe(401);
+  });
+
   test('emits activity for likes and bookmarks received', async ({ request }) => {
     const likeResponse = await request.post(`/api/posts/${POST_ID}/toggle-like`, {
       headers: buildAuthHeaders(USERS.replier),
@@ -371,5 +435,83 @@ test.describe('Comments and activity API', () => {
       )
     );
     expect(dbRow.cnt).toBeGreaterThanOrEqual(1);
+  });
+
+  test('validates Expo push token registration input', async ({ request }) => {
+    const invalidTokenResponse = await request.post('/api/push-tokens', {
+      headers: buildAuthHeaders(USERS.author),
+      data: {
+        token: 'not-a-push-token',
+        platform: 'ios',
+      },
+    });
+    expect(invalidTokenResponse.status()).toBe(400);
+    expect((await invalidTokenResponse.json()).code).toBe('INVALID_PUSH_TOKEN');
+
+    const invalidPlatformResponse = await request.post('/api/push-tokens', {
+      headers: buildAuthHeaders(USERS.author),
+      data: {
+        token: 'ExponentPushToken[comments-activity-e2e]',
+        platform: 'web',
+      },
+    });
+    expect(invalidPlatformResponse.status()).toBe(400);
+    expect((await invalidPlatformResponse.json()).code).toBe('INVALID_PLATFORM');
+  });
+
+  test('dispatches queued push deliveries through Expo tickets', async ({ request }) => {
+    const token = 'ExponentPushToken[comments-activity-dispatch-e2e]';
+    const tokenResponse = await request.post('/api/push-tokens', {
+      headers: buildAuthHeaders(USERS.author),
+      data: {
+        token,
+        platform: 'ios',
+        device_id: 'dispatch-device',
+        app_version: '1.0.0',
+      },
+    });
+    expect(tokenResponse.status()).toBe(201);
+
+    const commentResponse = await request.post(`/api/posts/${POST_ID}/comments`, {
+      headers: buildAuthHeaders(USERS.commenter),
+      data: {
+        content: '푸시 발송 테스트 댓글',
+      },
+    });
+    expect(commentResponse.status()).toBe(201);
+
+    const summary = await dispatchPushBatch({
+      fetchImpl: async (_url, init) => {
+        const body = JSON.parse(init.body);
+        expect(body.some((message) => message.to === token)).toBe(true);
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: body.map(() => ({ status: 'ok', id: 'expo-ticket-e2e' })),
+          }),
+        };
+      },
+    });
+    expect(summary.sent).toBeGreaterThanOrEqual(1);
+
+    const dbRow = await withDb((db) =>
+      dbGet(
+        db,
+        `
+        SELECT status, provider_message_id
+        FROM push_delivery_queue
+        WHERE recipient_user_id = ?
+          AND status = 'sent'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [USERS.author]
+      )
+    );
+    expect(dbRow).toMatchObject({
+      status: 'sent',
+      provider_message_id: 'expo-ticket-e2e',
+    });
   });
 });

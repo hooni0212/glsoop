@@ -22,6 +22,8 @@ test.describe('Post web comments', () => {
 
   test('shows comments and allows writing comments and replies', async ({ page }) => {
     let createdCommentId = 11;
+    let commentLiked = false;
+    let commentLikeCount = 1;
 
     await page.route('**/api/me', (route) =>
       route.fulfill({
@@ -75,6 +77,8 @@ test.describe('Post web comments', () => {
               content: payload.content,
               author: { id: 2, nickname: '일반사용자', display_name: '일반사용자' },
               reply_count: 0,
+              like_count: 0,
+              liked_by_me: false,
               created_at: '2026-02-23T15:10:00.000Z',
             },
           }),
@@ -95,10 +99,26 @@ test.describe('Post web comments', () => {
               content: '웹 댓글입니다.',
               author: { id: 3, nickname: '독자', display_name: '독자' },
               reply_count: 0,
+              like_count: commentLikeCount,
+              liked_by_me: commentLiked,
               created_at: '2026-02-23T15:08:00.000Z',
             },
           ],
           pagination: { limit: 50, offset: 0, total: 1, has_more: false },
+        }),
+      });
+    });
+
+    await page.route('**/api/comments/10/toggle-like', (route) => {
+      commentLiked = !commentLiked;
+      commentLikeCount += commentLiked ? 1 : -1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          liked: commentLiked,
+          like_count: commentLikeCount,
         }),
       });
     });
@@ -109,6 +129,11 @@ test.describe('Post web comments', () => {
     await expect(page.locator('#postCommentsPanel')).toBeVisible();
     await expect(page.locator('#postCommentsCount')).toHaveText('1');
     await expect(page.locator('.post-comment-body', { hasText: '웹 댓글입니다.' })).toBeVisible();
+    await expect(page.locator('[data-comment-like="10"]')).toHaveText('1');
+
+    await page.locator('[data-comment-like="10"]').click();
+    await expect(page.locator('[data-comment-like="10"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-comment-like="10"]')).toHaveText('2');
 
     await page.locator('#postCommentInput').fill('새 웹 댓글입니다.');
     await page.locator('#postCommentSubmitBtn').click();
@@ -122,5 +147,51 @@ test.describe('Post web comments', () => {
 
     await expect(page.locator('.post-comment-item--reply .post-comment-body', { hasText: '웹 답글입니다.' })).toBeVisible();
     await expect(page.locator('#postCommentsCount')).toHaveText('3');
+  });
+
+  test('supports clean post URLs and hides removed more menu items', async ({ page }) => {
+    await page.route('**/api/me', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          id: 2,
+          name: 'User',
+          nickname: '일반사용자',
+          email: 'user@glsoop.test',
+          is_admin: 0,
+          is_verified: 1,
+        }),
+      })
+    );
+    await page.route('**/api/posts/1', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, post: postFixture }),
+      })
+    );
+    await page.route('**/api/posts/1/related**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, posts: [] }),
+      })
+    );
+    await page.route('**/api/posts/1/comments**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, comments: [], pagination: { limit: 50, offset: 0, total: 0, has_more: false } }),
+      })
+    );
+
+    await page.goto('/posts/1');
+    await expect(page.locator('#postDetail .gls-post-card')).toBeVisible();
+    await page.locator('#sideSafetyBtn').click();
+    await expect(page.locator('#postSafetyMenuModal')).toBeVisible();
+    await expect(page.getByText('커뮤니티 가이드라인')).toHaveCount(0);
+    await expect(page.getByText('도움말 및 지원')).toHaveCount(0);
   });
 });
