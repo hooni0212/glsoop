@@ -5,7 +5,7 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v16';
+const RENDER_VERSION = 'feed-image-poc-v22';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 const FEED_IMAGE_PAGE_CAP = 8;
 const IMAGE_FORMAT_CONFIG = {
@@ -47,7 +47,7 @@ const TEMPLATE_CONFIG = {
     resizeBackground: { r: 244, g: 239, b: 228, alpha: 1 },
     resizePosition: 'top',
     resizeWidthScale: 1.08,
-    resizeOffsetYRatio: -0.08,
+    resizeOffsetYRatio: -0.041,
   },
 };
 
@@ -161,6 +161,27 @@ const TEXT_COLOR = '#473f36';
 const TEXT_FONT_WEIGHT = 600;
 const SVG_FONT_FAMILY =
   "'Noto Serif KR','Nanum Myeongjo','Apple SD Gothic Neo','Malgun Gothic','Times New Roman',serif";
+const FONT_META_REGEX = /<!--\s*FONT:(serif|sans|hand)\s*-->/i;
+const SVG_FONT_CONFIG = {
+  serif: {
+    key: 'serif',
+    family:
+      "'Noto Serif KR','Nanum Myeongjo','Hahmlet','Apple SD Gothic Neo','Malgun Gothic','Times New Roman',serif",
+    weight: 600,
+  },
+  sans: {
+    key: 'sans',
+    family:
+      "'Noto Sans KR','IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic','Arial',sans-serif",
+    weight: 500,
+  },
+  hand: {
+    key: 'hand',
+    family:
+      "'Nanum Pen Script','Gaegu','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',cursive",
+    weight: 400,
+  },
+};
 const SHARE_LOGO_TEXT = '글숲';
 const SHARE_SIGNATURE_OPACITY = 0.74;
 const SHARE_LAYOUT_PRESETS = {
@@ -342,8 +363,27 @@ function decodeBasicEntities(text) {
     .replace(/&#39;/gi, "'");
 }
 
+function normalizeFontKey(value) {
+  const key = String(value || '').trim().toLowerCase();
+  return SVG_FONT_CONFIG[key] ? key : 'serif';
+}
+
+function extractPostFontKey(raw) {
+  const match = String(raw || '').match(FONT_META_REGEX);
+  return normalizeFontKey(match?.[1]);
+}
+
+function resolvePostFont(raw) {
+  const key = extractPostFontKey(raw);
+  return SVG_FONT_CONFIG[key] || SVG_FONT_CONFIG.serif;
+}
+
+function removeFontMeta(raw) {
+  return String(raw || '').replace(FONT_META_REGEX, '');
+}
+
 function normalizePostText(raw) {
-  const withLineBreaks = String(raw || '')
+  const withLineBreaks = removeFontMeta(raw)
     .replace(/<\s*br\s*\/?>/gi, '\n')
     .replace(/<\/\s*(p|div|h[1-6]|li)\s*>/gi, '\n')
     .replace(/<\s*li[^>]*>/gi, '• ');
@@ -1193,6 +1233,8 @@ function buildSvgTextOverlay({
   letterSpacingEm = 0,
   textAlign = 'left',
   verticalAlign = 'top',
+  fontFamily = SVG_FONT_FAMILY,
+  fontWeight = TEXT_FONT_WEIGHT,
   title = null,
   footerSignature = '',
 }) {
@@ -1206,6 +1248,8 @@ function buildSvgTextOverlay({
     fontSizePx,
     lineHeightPx,
     letterSpacingEm,
+    fontFamily,
+    fontWeight,
     clipPadTopPx: Math.round(safeBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
     clipPadBottomPx: Math.round(safeBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
@@ -1223,6 +1267,8 @@ function buildSvgTextOverlay({
       fontSizePx: title.fontSizePx || fontSizePx,
       lineHeightPx: title.lineHeightPx || lineHeightPx,
       letterSpacingEm: title.letterSpacingEm || 0,
+      fontFamily,
+      fontWeight,
       clipPadTopPx: Math.round((title.box.height || safeBox.height) * TEXT_CLIP_TOP_PADDING_RATIO),
       clipPadBottomPx: Math.round((title.box.height || safeBox.height) * TEXT_CLIP_BOTTOM_PADDING_RATIO),
     });
@@ -1447,6 +1493,8 @@ function buildSvgShareOverlay({
   layoutPreset,
   fontSizePx,
   lineHeightPx,
+  fontFamily = SVG_FONT_FAMILY,
+  fontWeight = TEXT_FONT_WEIGHT,
   bodyLetterSpacingEm = 0,
   titleBoxOverride = null,
   titleTextAlignOverride = '',
@@ -1469,6 +1517,8 @@ function buildSvgShareOverlay({
     fontSizePx: titleFontSizeOverridePx || fontSizePx,
     lineHeightPx: titleLineHeightOverridePx || lineHeightPx,
     letterSpacingEm: titleLetterSpacingEm,
+    fontFamily,
+    fontWeight,
     clipPadTopPx: Math.round(titleBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
     clipPadBottomPx: Math.round(titleBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
@@ -1482,6 +1532,8 @@ function buildSvgShareOverlay({
     fontSizePx,
     lineHeightPx,
     letterSpacingEm: bodyLetterSpacingEm,
+    fontFamily,
+    fontWeight,
     clipPadTopPx: Math.round(bodyBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
     clipPadBottomPx: Math.round(bodyBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
@@ -1509,6 +1561,7 @@ function buildFeedModeRenderPlan({
 }) {
   const titleText = normalizePostText(post?.title) || '';
   const bodyText = normalizePostText(post?.content) || titleText || ' ';
+  const font = resolvePostFont(post?.content);
   const presetKey = selectLengthPreset(bodyText.length);
   const preset = LAYOUT_PRESETS[presetKey];
   const parsedLayout = parsePostLayout(post?.layout_json);
@@ -1614,12 +1667,15 @@ function buildFeedModeRenderPlan({
     bodyLineHeightRatio,
     bodyFontScale,
     bodyLetterSpacingEm,
+    fontKey: font.key,
+    fontFamily: font.family,
+    fontWeight: font.weight,
     bodyFontSizeRatio: hasCustomBodyLayout
       ? preset.fontSizeRatio
       : effectivePreset.fontSizeRatio,
     textAlign: customBodyBox?.align || effectivePreset.textAlign,
     verticalAlign: effectivePreset.verticalAlign,
-    layoutTag: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}${
+    layoutTag: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}-font-${font.key}${
       shouldRenderTitleInImage ? '-with-title' : ''
     }${hasCustomFooterLayout ? '-with-footer' : ''}`,
   };
@@ -1735,6 +1791,8 @@ async function renderFeedModePageBuffer({
     letterSpacingEm: pageBodyLetterSpacingEm,
     textAlign: resolvedBodyLayout?.align || plan.textAlign,
     verticalAlign: plan.verticalAlign,
+    fontFamily: plan.fontFamily,
+    fontWeight: plan.fontWeight,
     title: titleConfig,
     footerSignature,
   });
@@ -1792,6 +1850,7 @@ async function renderShareModeImageBuffer({
 }) {
   const titleText = normalizePostText(post?.title) || '제목 없음';
   const bodyText = normalizePostText(post?.content) || titleText || ' ';
+  const font = resolvePostFont(post?.content);
   const layoutKey = selectShareLayoutPreset(bodyText);
   const layoutPreset = SHARE_LAYOUT_PRESETS[layoutKey] || SHARE_LAYOUT_PRESETS.medium;
   const parsedLayout = parsePostLayout(post?.layout_json);
@@ -1873,6 +1932,8 @@ async function renderShareModeImageBuffer({
     layoutPreset,
     fontSizePx: bodyFontSizePx,
     lineHeightPx: bodyLineHeightPx,
+    fontFamily: font.family,
+    fontWeight: font.weight,
     bodyLetterSpacingEm,
     titleBoxOverride: hasCustomTitleLayout ? titleBox : null,
     titleTextAlignOverride: customTitleBox?.align || '',
@@ -1896,7 +1957,7 @@ async function renderShareModeImageBuffer({
 
   return {
     buffer: imageBuffer,
-    layout: `share-${layoutKey}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}`,
+    layout: `share-${layoutKey}-font-${font.key}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}`,
   };
 }
 
@@ -2073,5 +2134,7 @@ module.exports = {
   normalizeScale,
   normalizeTemplateKey,
   normalizePostText,
+  extractPostFontKey,
+  resolvePostFont,
   parsePostLayout,
 };

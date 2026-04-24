@@ -73,7 +73,23 @@ async function applyAdminCookie(page, baseURL) {
   ]);
 }
 
-async function mockAdminBootApis(page) {
+async function mockAdminBootApis(page, options = {}) {
+  let reportStatus = options.initialReportStatus || 'queued';
+  let reportedPostRows = [
+    {
+      target_post_id: 11,
+      target_post_title: 'Poem Post',
+      target_user_id: 2,
+      target_user_display_name: 'User',
+      target_user_nickname: '일반사용자',
+      report_count: 8,
+      unique_reporter_count: 5,
+      queued_count: 7,
+      reviewing_count: 1,
+      latest_reported_at: '2026-04-03T05:00:00.000Z',
+    },
+  ];
+
   await page.route('**/api/me', (route) =>
     route.fulfill({
       status: 200,
@@ -144,6 +160,36 @@ async function mockAdminBootApis(page) {
     })
   );
 
+  await page.route('**/api/posts/11**', (route) => {
+    const url = route.request().url();
+    if (url.includes('/related')) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, posts: [] }),
+      });
+    }
+
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        post: {
+          id: 11,
+          title: 'Poem Post',
+          content: 'Poem content',
+          category: 'poem',
+          author_name: 'Admin',
+          author_nickname: '관리자',
+          created_at: '2026-02-23 15:06:00',
+          like_count: 1,
+          liked: false,
+        },
+      }),
+    });
+  });
+
   await page.route('**/api/admin/quest-templates', (route) =>
     route.fulfill({
       status: 200,
@@ -188,8 +234,32 @@ async function mockAdminBootApis(page) {
     })
   );
 
-  await page.route('**/api/admin/safety/reports**', (route) =>
-    route.fulfill({
+  await page.route('**/api/admin/safety/reports**', async (route) => {
+    const request = route.request();
+    const url = request.url();
+
+    if (request.method() === 'POST' && url.includes('/resolve')) {
+      const body = JSON.parse(request.postData() || '{}');
+      reportStatus = body.status || reportStatus;
+      if (typeof options.onResolveReport === 'function') {
+        options.onResolveReport({ url, body });
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          report: {
+            id: 101,
+            status: reportStatus,
+            action: body.action || null,
+          },
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
@@ -208,7 +278,7 @@ async function mockAdminBootApis(page) {
             source: 'report',
             reason_code: 'other',
             detail: '운영 검토가 필요한 내용입니다.',
-            status: 'queued',
+            status: reportStatus,
             created_at: '2026-04-03T01:30:00.000Z',
           },
         ],
@@ -218,30 +288,67 @@ async function mockAdminBootApis(page) {
           sources: ['report', 'block'],
         },
       }),
-    })
-  );
+    });
+  });
 
-  await page.route('**/api/admin/safety/reported-posts**', (route) =>
-    route.fulfill({
+  await page.route('**/api/admin/safety/reported-posts**', async (route) => {
+    const request = route.request();
+    const url = request.url();
+
+    if (request.method() === 'POST' && url.includes('/resolve')) {
+      const body = JSON.parse(request.postData() || '{}');
+      reportedPostRows = [];
+      reportStatus = body.status || reportStatus;
+      if (typeof options.onResolveReportedPost === 'function') {
+        options.onResolveReportedPost({ url, body });
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          result: {
+            target_post_id: 11,
+            status: body.status,
+            action: body.action,
+            updated_count: 8,
+          },
+        }),
+      });
+      return;
+    }
+
+    if (request.method() === 'POST' && url.includes('/delete')) {
+      const body = JSON.parse(request.postData() || '{}');
+      reportedPostRows = [];
+      reportStatus = 'actioned';
+      if (typeof options.onDeleteReportedPost === 'function') {
+        options.onDeleteReportedPost({ url, body });
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          result: {
+            deleted: true,
+            resolved_count: 8,
+            post: { id: 11, title: 'Poem Post' },
+          },
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         ok: true,
-        posts: [
-          {
-            target_post_id: 11,
-            target_post_title: 'Poem Post',
-            target_user_id: 2,
-            target_user_display_name: 'User',
-            target_user_nickname: '일반사용자',
-            report_count: 8,
-            unique_reporter_count: 5,
-            latest_reported_at: '2026-04-03T05:00:00.000Z',
-          },
-        ],
+        posts: reportedPostRows,
       }),
-    })
-  );
+    });
+  });
 
   await page.route('**/api/ux-events', (route) =>
     route.fulfill({
@@ -323,9 +430,88 @@ test.describe('Admin dangerous action safety', () => {
     await expect(page.locator('#adminSafetyReports')).toContainText('대상 사용자');
     await expect(page.locator('#adminSafetyReports')).toContainText('운영 검토가 필요한 내용입니다.');
     await expect(page.locator('#adminSafetyReports')).toContainText('접수');
+    await expect(page.locator('#adminSafetyReports')).toContainText('조치');
 
     await expect(page.locator('#adminReportedPosts')).toContainText('Poem Post');
-    await expect(page.locator('#adminReportedPosts')).toContainText('unique_reporter_count');
+    await expect(page.locator('#adminReportedPosts')).toContainText('신고자');
     await expect(page.locator('#adminReportedPosts')).toContainText('5');
+    await expect(page.locator('#adminReportedPosts')).toContainText('삭제');
+  });
+
+  test('opens admin post detail links with postId query parameter', async ({ page }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+
+    await mockAdminBootApis(page);
+    await applyAdminCookie(page, baseURL);
+
+    await page.goto('/admin');
+    await page.locator('.admin-tabs .nav-link[data-target="postsTab"]').click();
+
+    const [postPreviewPage] = await Promise.all([
+      page.waitForEvent('popup'),
+      page.locator('#adminPosts .admin-post-card__preview').click(),
+    ]);
+    await expect(postPreviewPage).toHaveURL(/\/html\/post\.html\?postId=11$/);
+    await postPreviewPage.close();
+
+    await page.locator('.admin-tabs .nav-link[data-target="safetyTab"]').click();
+    const [reportedPostPage] = await Promise.all([
+      page.waitForEvent('popup'),
+      page.locator('#adminReportedPosts [data-reported-post-action="open-post"]').click(),
+    ]);
+    await expect(reportedPostPage).toHaveURL(/\/html\/post\.html\?postId=11$/);
+    await reportedPostPage.close();
+  });
+
+  test('resolves reported posts from the safety tab UI', async ({ page }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+    let resolveCalls = 0;
+    let resolvePayload = null;
+
+    await mockAdminBootApis(page, {
+      onResolveReportedPost({ body }) {
+        resolveCalls += 1;
+        resolvePayload = body;
+      },
+    });
+    await applyAdminCookie(page, baseURL);
+
+    await page.goto('/admin');
+    await page.getByRole('button', { name: /신고/ }).click();
+
+    await page.locator('#adminReportedPosts [data-reported-post-action="dismissed"]').click();
+
+    await expect.poll(() => resolveCalls).toBe(1);
+    expect(resolvePayload).toMatchObject({
+      status: 'dismissed',
+      action: 'no_violation',
+    });
+    await expect(page.locator('#adminReportedPosts')).toContainText('누적 신고 5건 이상인 글이 없습니다.');
+  });
+
+  test('deletes reported posts through the safety tab danger confirmation', async ({ page }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+    let deleteCalls = 0;
+
+    await mockAdminBootApis(page, {
+      onDeleteReportedPost() {
+        deleteCalls += 1;
+      },
+    });
+    await applyAdminCookie(page, baseURL);
+
+    await page.goto('/admin');
+    await page.getByRole('button', { name: /신고/ }).click();
+
+    await page.locator('#adminReportedPosts [data-reported-post-action="delete-post"]').click();
+    await expect(page.locator('#adminDangerConfirmModal')).toBeVisible();
+    await expect(page.locator('#adminDangerConfirmBtn')).toBeDisabled();
+
+    await page.fill('#adminDangerInput', 'DELETE');
+    await expect(page.locator('#adminDangerConfirmBtn')).toBeEnabled();
+    await page.click('#adminDangerConfirmBtn');
+
+    await expect.poll(() => deleteCalls).toBe(1);
+    await expect(page.locator('#adminReportedPosts')).toContainText('누적 신고 5건 이상인 글이 없습니다.');
   });
 });
