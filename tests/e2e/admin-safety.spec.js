@@ -106,8 +106,12 @@ async function mockAdminBootApis(page, options = {}) {
     })
   );
 
-  await page.route('**/api/admin/users', (route) =>
-    route.fulfill({
+  await page.route('**/api/admin/users**', (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (requestUrl.pathname !== '/api/admin/users') {
+      return route.fallback();
+    }
+    return route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
@@ -131,8 +135,8 @@ async function mockAdminBootApis(page, options = {}) {
           },
         ],
       }),
-    })
-  );
+    });
+  });
 
   await page.route('**/api/admin/posts**', (route) =>
     route.fulfill({

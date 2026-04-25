@@ -6,6 +6,14 @@ window.Glsoop = window.Glsoop || {};
 Glsoop.AdminPage = (function () {
   const ADMIN_ACTIVE_TAB_KEY = 'gls-admin-active-tab';
 
+  const usersState = {
+    page: 1,
+    limit: 50,
+    search: '',
+    filter: 'all',
+    sort: 'newest',
+  };
+
   const postsState = {
     page: 1,
     limit: 48,
@@ -161,6 +169,7 @@ Glsoop.AdminPage = (function () {
     `;
     contentBox.classList.remove('is-hidden');
 
+    setupUsersUi(usersBox);
     await loadUsers(usersBox);
     setupPostsUi(postsBox);
     await loadPosts(postsBox);
@@ -1458,36 +1467,148 @@ Glsoop.AdminPage = (function () {
     }
   }
 
+  function setupUsersUi(usersBox) {
+    if (!usersBox) return;
+    const filterBox = document.getElementById('adminUsersFilters');
+    if (filterBox) {
+      filterBox.innerHTML = `
+        <form id="adminUsersForm" class="admin-toolbar">
+          <input
+            type="search"
+            class="gls-input gls-input-sm"
+            id="adminUsersSearch"
+            placeholder="이름/닉네임/이메일 검색"
+            value="${escapeHtml(usersState.search)}"
+          />
+          <select class="gls-select gls-select-sm" id="adminUsersFilter" aria-label="인증 상태">
+            <option value="all" ${usersState.filter === 'all' ? 'selected' : ''}>전체</option>
+            <option value="verified" ${usersState.filter === 'verified' ? 'selected' : ''}>인증완료</option>
+            <option value="unverified" ${usersState.filter === 'unverified' ? 'selected' : ''}>미인증</option>
+          </select>
+          <select class="gls-select gls-select-sm" id="adminUsersSort" aria-label="정렬">
+            <option value="newest" ${usersState.sort === 'newest' ? 'selected' : ''}>최신 가입순</option>
+            <option value="oldest" ${usersState.sort === 'oldest' ? 'selected' : ''}>오래된 가입순</option>
+            <option value="name" ${usersState.sort === 'name' ? 'selected' : ''}>이름순</option>
+            <option value="email" ${usersState.sort === 'email' ? 'selected' : ''}>이메일순</option>
+            <option value="verified" ${usersState.sort === 'verified' ? 'selected' : ''}>인증 상태순</option>
+          </select>
+          <select class="gls-select gls-select-sm" id="adminUsersLimit" aria-label="페이지 크기">
+            <option value="20" ${usersState.limit === 20 ? 'selected' : ''}>20명씩</option>
+            <option value="50" ${usersState.limit === 50 ? 'selected' : ''}>50명씩</option>
+            <option value="100" ${usersState.limit === 100 ? 'selected' : ''}>100명씩</option>
+            <option value="200" ${usersState.limit === 200 ? 'selected' : ''}>200명씩</option>
+          </select>
+          <button class="gls-btn gls-btn-primary gls-btn-sm" type="submit">적용</button>
+          <button class="gls-btn gls-btn-secondary gls-btn-sm" type="button" id="adminUsersReset">초기화</button>
+        </form>
+      `;
+
+      if (filterBox.dataset.adminUsersBound !== 'true') {
+        filterBox.dataset.adminUsersBound = 'true';
+        filterBox.addEventListener('submit', (e) => {
+          if (e.target.id !== 'adminUsersForm') return;
+          e.preventDefault();
+          const searchInput = document.getElementById('adminUsersSearch');
+          const filterInput = document.getElementById('adminUsersFilter');
+          const sortInput = document.getElementById('adminUsersSort');
+          const limitInput = document.getElementById('adminUsersLimit');
+          usersState.search = searchInput?.value?.trim() || '';
+          usersState.filter = filterInput?.value || 'all';
+          usersState.sort = sortInput?.value || 'newest';
+          usersState.limit = Number(limitInput?.value) || 50;
+          usersState.page = 1;
+          loadUsers(usersBox);
+        });
+        filterBox.addEventListener('click', (e) => {
+          if (e.target.id !== 'adminUsersReset') return;
+          usersState.search = '';
+          usersState.filter = 'all';
+          usersState.sort = 'newest';
+          usersState.limit = 50;
+          usersState.page = 1;
+          setupUsersUi(usersBox);
+          loadUsers(usersBox);
+        });
+      }
+    }
+
+    usersBox.innerHTML = `
+      <div id="adminUsersTable">
+        <p class="gls-text-muted">회원 목록을 불러오는 중입니다...</p>
+      </div>
+      <div id="adminUsersPagination" class="admin-pagination"></div>
+    `;
+  }
+
   async function loadUsers(usersBox) {
+    const tableBox = usersBox?.querySelector('#adminUsersTable') || usersBox;
+    const pagination = usersBox?.querySelector('#adminUsersPagination');
+    if (!tableBox) return;
+
+    tableBox.innerHTML = '<p class="gls-text-muted">회원 목록을 불러오는 중입니다...</p>';
+    if (pagination) pagination.innerHTML = '';
+
+    const params = new URLSearchParams({
+      search: usersState.search,
+      filter: usersState.filter,
+      sort: usersState.sort,
+      page: String(usersState.page),
+      limit: String(usersState.limit),
+    });
+
     try {
-      const res = await fetch('/api/admin/users');
-      if (!res.ok) {
-        setTabCount('usersTab', '-');
-        usersBox.innerHTML =
-          '<p class="text-danger">회원 목록을 불러오는 중 오류가 발생했습니다.</p>';
+      const res = await fetch(`/api/admin/users?${params.toString()}`);
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = '/html/login.html?next=/admin';
         return;
       }
+      if (!res.ok) {
+        throw new Error('회원 목록을 불러오는 중 오류가 발생했습니다.');
+      }
+
       const data = await res.json();
       if (!data.ok) {
-        setTabCount('usersTab', '-');
-        usersBox.innerHTML = `<p class="text-danger">${
+        tableBox.innerHTML = `<p class="text-danger">${
           data.message || '회원 목록을 불러오지 못했습니다.'
         }</p>`;
+        setTabCount('usersTab', '-');
         return;
       }
+
       const users = data.users || [];
-      setTabCount('usersTab', users.length);
-      if (!users.length) {
-        usersBox.innerHTML = '<p class="gls-text-muted">현재 가입된 회원이 없습니다.</p>';
+      const total = Number.isFinite(Number(data.total)) ? Number(data.total) : users.length;
+      const page = Number.isFinite(Number(data.page)) ? Number(data.page) : usersState.page;
+      const pageSize = Number.isFinite(Number(data.page_size))
+        ? Number(data.page_size)
+        : usersState.limit;
+      const totalPages = Math.max(Math.ceil(total / pageSize), 1);
+
+      if (!users.length && total > 0 && page > totalPages) {
+        usersState.page = totalPages;
+        await loadUsers(usersBox);
         return;
       }
-      usersBox.innerHTML = buildUsersTableHtml(users);
-      const tbody = usersBox.querySelector('tbody');
-      tbody?.addEventListener('click', (e) => handleUserTableClick(e, tbody, usersBox));
+
+      usersState.page = page;
+      usersState.limit = pageSize;
+      setTabCount('usersTab', total);
+
+      if (!users.length) {
+        tableBox.innerHTML = '<p class="gls-text-muted">조건에 맞는 회원이 없습니다.</p>';
+      } else {
+        tableBox.innerHTML = buildUsersTableHtml(users);
+        const tbody = tableBox.querySelector('tbody');
+        tbody?.addEventListener('click', (e) => handleUserTableClick(e, usersBox));
+      }
+
+      if (pagination) {
+        pagination.innerHTML = buildPagination(page, pageSize, total);
+        pagination.onclick = handleUsersPaginationClick;
+      }
     } catch (e) {
       console.error(e);
       setTabCount('usersTab', '-');
-      usersBox.innerHTML =
+      tableBox.innerHTML =
         '<p class="text-danger">회원 목록을 불러오는 중 오류가 발생했습니다.</p>';
     }
   }
@@ -1548,11 +1669,12 @@ Glsoop.AdminPage = (function () {
     `;
   }
 
-  async function handleUserTableClick(e, tbody, usersBox) {
+  async function handleUserTableClick(e, usersBox) {
     const target = e.target;
     if (!target.classList.contains('admin-delete-user-btn')) return;
     const tr = target.closest('tr');
     if (!tr) return;
+    const tbody = tr.closest('tbody');
     const userId = tr.getAttribute('data-user-id');
     if (!userId) return;
     await runDangerAction({
@@ -1568,8 +1690,16 @@ Glsoop.AdminPage = (function () {
         }
         tr.remove();
         decreaseTabCount('usersTab', 1);
-        if (!tbody.children.length) {
-          usersBox.innerHTML = '<p class="gls-text-muted">현재 가입된 회원이 없습니다.</p>';
+        if (!tbody?.children.length) {
+          if (usersState.page > 1) {
+            usersState.page -= 1;
+            await loadUsers(usersBox);
+            return;
+          }
+          const tableBox = usersBox?.querySelector('#adminUsersTable') || usersBox;
+          if (tableBox) {
+            tableBox.innerHTML = '<p class="gls-text-muted">조건에 맞는 회원이 없습니다.</p>';
+          }
         }
       },
       successMessage: '회원을 삭제했습니다.',
@@ -1763,6 +1893,15 @@ Glsoop.AdminPage = (function () {
     if (!Number.isFinite(nextPage) || nextPage < 1) return;
     postsState.page = nextPage;
     loadPosts(document.getElementById('adminPosts'));
+  }
+
+  function handleUsersPaginationClick(e) {
+    const btn = e.target.closest('button[data-page]');
+    if (!btn || btn.disabled) return;
+    const nextPage = Number(btn.getAttribute('data-page'));
+    if (!Number.isFinite(nextPage) || nextPage < 1) return;
+    usersState.page = nextPage;
+    loadUsers(document.getElementById('adminUsers'));
   }
 
   function handlePostGridClick(e) {

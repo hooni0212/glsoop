@@ -1599,44 +1599,63 @@ router.get('/ux-events/summary', async (req, res) => {
 });
 
 router.get('/users', async (req, res) => {
-  const { search = '', filter = 'all', sort = 'id', page = 1, adminOnly } = req.query;
-  const pageSize = 20;
-  const offset = (Number(page) - 1) * pageSize;
+  const {
+    search = '',
+    filter = 'all',
+    sort = 'id_desc',
+    page = 1,
+    limit = 50,
+    adminOnly,
+  } = req.query;
+  const pageNumber = parseBoundedInt(page, 1, 1, 100000) || 1;
+  const pageSize = parseBoundedInt(limit, 50, 1, 200) || 50;
+  const offset = (pageNumber - 1) * pageSize;
   const params = [];
   const where = [];
 
   if (search) {
-    where.push('(name LIKE ? OR email LIKE ? OR nickname LIKE ?)');
+    where.push('(u.name LIKE ? OR u.email LIKE ? OR u.nickname LIKE ?)');
     const term = `%${search}%`;
     params.push(term, term, term);
   }
   if (filter === 'verified') {
-    where.push('COALESCE(is_verified,0) = 1');
+    where.push('COALESCE(u.is_verified,0) = 1');
   } else if (filter === 'unverified') {
-    where.push('COALESCE(is_verified,0) = 0');
+    where.push('COALESCE(u.is_verified,0) = 0');
   }
   if (adminOnly === 'true') {
-    where.push('is_admin = 1');
+    where.push('u.is_admin = 1');
   }
 
   const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const sortColumn = ['id', 'name', 'email', 'is_verified'].includes(sort) ? sort : 'id';
+  const sortSqlByKey = {
+    id: 'u.id ASC',
+    id_asc: 'u.id ASC',
+    id_desc: 'u.id DESC',
+    newest: 'u.id DESC',
+    oldest: 'u.id ASC',
+    name: 'u.name COLLATE NOCASE ASC, u.id ASC',
+    email: 'u.email COLLATE NOCASE ASC, u.id ASC',
+    is_verified: 'COALESCE(u.is_verified,0) DESC, u.id DESC',
+    verified: 'COALESCE(u.is_verified,0) DESC, u.id DESC',
+  };
+  const sortSql = sortSqlByKey[sort] || sortSqlByKey.id_desc;
 
   try {
-    const totalRow = await getAsync(`SELECT COUNT(*) AS cnt FROM users ${whereClause}`, params);
+    const totalRow = await getAsync(`SELECT COUNT(*) AS cnt FROM users u ${whereClause}`, params);
     const rows = await allAsync(
-      `SELECT id, name, email, nickname, is_admin, COALESCE(is_verified,0) AS is_verified
-       FROM users ${whereClause}
-       ORDER BY ${sortColumn} ASC
-       LIMIT ${pageSize} OFFSET ${offset}`,
-      params
+      `SELECT u.id, u.name, u.email, u.nickname, u.is_admin, COALESCE(u.is_verified,0) AS is_verified
+       FROM users u ${whereClause}
+       ORDER BY ${sortSql}
+       LIMIT ? OFFSET ?`,
+      [...params, pageSize, offset]
     );
     return res.json({
       ok: true,
       message: '회원 목록을 불러왔습니다.',
       users: rows,
       total: totalRow?.cnt || 0,
-      page: Number(page),
+      page: pageNumber,
       page_size: pageSize,
     });
   } catch (err) {
