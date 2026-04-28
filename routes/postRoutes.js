@@ -45,6 +45,8 @@ const {
 } = require('../utils/safety');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
+const ALLOWED_VISIBILITIES = ['public', 'followers', 'unlisted', 'private'];
+const ALLOWED_COMMENT_POLICIES = ['everyone', 'logged_in', 'followers', 'author_only', 'closed'];
 const ALLOWED_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
 const LAYOUT_UNIT_NORMALIZED = 'normalized';
 const LAYOUT_VALIDATION_ERROR_MESSAGE = '레이아웃 데이터가 올바르지 않습니다.';
@@ -62,6 +64,17 @@ const DEFAULT_LAYOUT_TITLE_BOX = {
 };
 const CATEGORY_SQL =
   "CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END";
+const VISIBILITY_SQL = "COALESCE(p.visibility, 'public')";
+const COMMENT_POLICY_SQL = "COALESCE(p.comment_policy, 'logged_in')";
+
+const DEFAULT_GENRES = [
+  { slug: 'poem', name: '시', group_name: 'genre', description: '짧고 밀도 있는 시를 모아 읽어요.', sort_order: 10 },
+  { slug: 'essay', name: '에세이', group_name: 'genre', description: '생각과 이야기가 담긴 산문을 읽어요.', sort_order: 20 },
+  { slug: 'short', name: '짧은글', group_name: 'genre', description: '한 화면 안에서 읽기 좋은 글이에요.', sort_order: 30 },
+  { slug: 'comfort', name: '위로', group_name: 'mood', description: '마음을 다독이는 글이에요.', sort_order: 40 },
+  { slug: 'dawn', name: '새벽', group_name: 'mood', description: '조용한 시간대의 감성을 담은 글이에요.', sort_order: 50 },
+  { slug: 'relay', name: '릴레이', group_name: 'participation', description: '이어쓰기와 협업 글을 모아요.', sort_order: 60 },
+];
 
 function parseCategory(input) {
   const value = typeof input === 'string' ? input.trim() : '';
@@ -84,6 +97,73 @@ function requireValidCategory(input, res) {
     return null;
   }
   return parsed;
+}
+
+function normalizeVisibility(input) {
+  const value = typeof input === 'string' ? input.trim().toLowerCase() : '';
+  return ALLOWED_VISIBILITIES.includes(value) ? value : 'public';
+}
+
+function normalizeCommentPolicy(input) {
+  const value = typeof input === 'string' ? input.trim().toLowerCase() : '';
+  return ALLOWED_COMMENT_POLICIES.includes(value) ? value : 'logged_in';
+}
+
+function parseGenreSlug(input) {
+  const value = typeof input === 'string' ? input.trim().toLowerCase() : '';
+  return value.replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+}
+
+function appendFeedVisibilityCondition(conditions, params, userId, feedType) {
+  if (feedType === 'following' && userId) {
+    conditions.push(`${VISIBILITY_SQL} IN ('public', 'followers')`);
+    return;
+  }
+
+  conditions.push(`${VISIBILITY_SQL} = 'public'`);
+}
+
+async function canViewerReadPost({ viewerId, post }) {
+  if (!post) return false;
+  const visibility = normalizeVisibility(post.visibility);
+  const authorId = Number(post.author_id || post.user_id);
+  const userId = Number(viewerId || 0);
+
+  if (visibility === 'public' || visibility === 'unlisted') return true;
+  if (userId && userId === authorId) return true;
+  if (visibility === 'private') return false;
+  if (visibility === 'followers' && userId) {
+    const follow = await dbGetAsync(
+      'SELECT 1 AS present FROM follows WHERE follower_id = ? AND followee_id = ? LIMIT 1',
+      [userId, authorId]
+    );
+    return Boolean(follow?.present);
+  }
+
+  return false;
+}
+
+async function canViewerCommentOnPost({ viewerId, post }) {
+  if (!viewerId || !post) return false;
+  const readable = await canViewerReadPost({ viewerId, post });
+  if (!readable) return false;
+
+  const policy = normalizeCommentPolicy(post.comment_policy);
+  const authorId = Number(post.author_id || post.user_id);
+  const userId = Number(viewerId);
+
+  if (policy === 'closed') return false;
+  if (policy === 'author_only') return userId === authorId;
+  if (policy === 'followers') {
+    if (userId === authorId) return true;
+    const follow = await dbGetAsync(
+      'SELECT 1 AS present FROM follows WHERE follower_id = ? AND followee_id = ? LIMIT 1',
+      [userId, authorId]
+    );
+    return Boolean(follow?.present);
+  }
+
+  return true;
 }
 
 function parsePagination(query = {}) {
@@ -590,6 +670,28 @@ const dbGetAsync = (sql, params = []) =>
     });
   });
 
+const dbAllAsync = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(rows);
+    });
+  });
+
+const dbRunAsync = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.run(sql, params, function onRun(err) {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(this);
+    });
+  });
+
 async function logPostActivationEvents(userId, postId) {
   await logUxEvent({
     user_id: userId,
@@ -655,6 +757,8 @@ router.post('/posts', authRequired, (req, res) => {
   const { title, content, hashtags, category } = req.body;
   const userId = req.user.id;
   const normalizedCategory = requireValidCategory(category, res);
+  const visibility = normalizeVisibility(req.body?.visibility);
+  const commentPolicy = normalizeCommentPolicy(req.body?.comment_policy);
   const layoutInput = parseLayoutInputFromBody(req.body);
 
   if (!normalizedCategory) return;
@@ -676,8 +780,8 @@ router.post('/posts', authRequired, (req, res) => {
   // 본문 저장 후 해시태그를 별도 테이블에 기록
   db.run(
     `
-      INSERT INTO posts (user_id, title, content, category, layout_json)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO posts (user_id, title, content, category, layout_json, visibility, comment_policy)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
     [
       userId,
@@ -685,6 +789,8 @@ router.post('/posts', authRequired, (req, res) => {
       safeContent,
       normalizedCategory,
       layoutInput.provided ? layoutInput.value : null,
+      visibility,
+      commentPolicy,
     ],
     function (err) {
       if (err) {
@@ -734,6 +840,8 @@ router.put('/posts/:id', authRequired, (req, res) => {
   const userId = req.user.id;
   const isAdmin = !!req.user.isAdmin;
   const normalizedCategory = requireValidCategory(category, res);
+  const visibility = normalizeVisibility(req.body?.visibility);
+  const commentPolicy = normalizeCommentPolicy(req.body?.comment_policy);
   const layoutInput = parseLayoutInputFromBody(req.body);
 
   if (!normalizedCategory) return;
@@ -774,8 +882,16 @@ router.put('/posts/:id', authRequired, (req, res) => {
     }
 
     // 본문 갱신 후 해시태그 매핑을 재작성
-    const updateFields = ['title = ?', 'content = ?', 'category = ?'];
-    const updateParams = [title, safeContent, normalizedCategory];
+    const updateFields = [
+      'title = ?',
+      'content = ?',
+      'category = ?',
+      'visibility = ?',
+      'comment_policy = ?',
+      'visibility_updated_at = CURRENT_TIMESTAMP',
+      'comment_policy_updated_at = CURRENT_TIMESTAMP',
+    ];
+    const updateParams = [title, safeContent, normalizedCategory, visibility, commentPolicy];
     if (layoutInput.provided) {
       updateFields.push('layout_json = ?');
       updateParams.push(layoutInput.value);
@@ -813,6 +929,63 @@ router.put('/posts/:id', authRequired, (req, res) => {
   });
 });
 
+router.patch('/posts/:id/settings', authRequired, (req, res) => {
+  const postId = req.params.id;
+  const userId = req.user.id;
+  const isAdmin = !!req.user.isAdmin;
+  const visibility = normalizeVisibility(req.body?.visibility);
+  const commentPolicy = normalizeCommentPolicy(req.body?.comment_policy);
+
+  db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (err, row) => {
+    if (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ ok: false, message: '글 조회 중 DB 오류가 발생했습니다.' });
+    }
+
+    if (!row) {
+      return res
+        .status(404)
+        .json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+    }
+
+    if (!isAdmin && row.user_id !== userId) {
+      return res
+        .status(403)
+        .json({ ok: false, message: '이 글의 설정을 수정할 권한이 없습니다.' });
+    }
+
+    db.run(
+      `
+      UPDATE posts
+      SET visibility = ?,
+          comment_policy = ?,
+          visibility_updated_at = CURRENT_TIMESTAMP,
+          comment_policy_updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+      `,
+      [visibility, commentPolicy, postId],
+      (updateErr) => {
+        if (updateErr) {
+          console.error(updateErr);
+          return res.status(500).json({
+            ok: false,
+            message: '글 설정 변경 중 DB 오류가 발생했습니다.',
+          });
+        }
+
+        return res.json({
+          ok: true,
+          message: '글 설정이 변경되었습니다.',
+          visibility,
+          comment_policy: commentPolicy,
+        });
+      }
+    );
+  });
+});
+
 // 9-3) 내가 쓴 글 목록
 router.get('/posts/my', authRequired, (req, res) => {
   const userId = req.user.id;
@@ -825,6 +998,8 @@ router.get('/posts/my', authRequired, (req, res) => {
       p.content,
       p.layout_json,
       ${CATEGORY_SQL} AS category,
+      ${VISIBILITY_SQL} AS visibility,
+      ${COMMENT_POLICY_SQL} AS comment_policy,
       p.created_at,
       p.user_id                AS author_id,
       u.name                   AS author_name,
@@ -888,6 +1063,8 @@ router.get('/posts/liked', authRequired, (req, res) => {
       p.content,
       p.layout_json,
       ${CATEGORY_SQL} AS category,
+      ${VISIBILITY_SQL} AS visibility,
+      ${COMMENT_POLICY_SQL} AS comment_policy,
       p.created_at,
       p.user_id                AS author_id,
       u.name                   AS author_name,
@@ -902,6 +1079,19 @@ router.get('/posts/liked', authRequired, (req, res) => {
     INNER JOIN likes l ON l.post_id = p.id
     JOIN users u ON p.user_id = u.id
     WHERE l.user_id = ?
+      AND (
+        ${VISIBILITY_SQL} IN ('public', 'unlisted')
+        OR p.user_id = ?
+        OR (
+          ${VISIBILITY_SQL} = 'followers'
+          AND EXISTS (
+            SELECT 1
+            FROM follows f
+            WHERE f.follower_id = ?
+              AND f.followee_id = p.user_id
+          )
+        )
+      )
       AND NOT EXISTS (
         SELECT 1
         FROM user_blocks ub
@@ -910,7 +1100,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
       )
     ORDER BY l.created_at DESC
     `,
-    [userId, userId],
+    [userId, userId, userId, userId],
     async (err, rows) => {
       if (err) {
         console.error(err);
@@ -950,10 +1140,16 @@ function handleFeedRequest(req, res) {
   const typeParam = String(req.query.type || 'all');
   const feedType = typeParam === 'following' ? 'following' : 'all';
 
+  const genre = parseGenreSlug(req.query.genre);
   const categoryParam = String(req.query.category || '').trim();
-  const category = parseCategory(categoryParam);
+  const category = parseCategory(categoryParam) || parseCategory(genre);
 
-  const { tags, tagCount } = extractTagsFromQuery(req.query);
+  const extracted = extractTagsFromQuery(req.query);
+  const genreAsTag = genre && !parseCategory(genre) ? genre : '';
+  const tags = genreAsTag
+    ? Array.from(new Set([...extracted.tags, genreAsTag]))
+    : extracted.tags;
+  const tagCount = tags.length;
 
   if (feedType === 'following' && !userId) {
     return res.status(401).json({
@@ -967,6 +1163,7 @@ function handleFeedRequest(req, res) {
         following_count: 0,
         tags,
         category: category || null,
+        genre: genre || null,
       },
     });
   }
@@ -982,6 +1179,8 @@ function handleFeedRequest(req, res) {
         p.layout_json,
         p.created_at,
         ${CATEGORY_SQL} AS category,
+        ${VISIBILITY_SQL} AS visibility,
+        ${COMMENT_POLICY_SQL} AS comment_policy,
         u.id       AS author_id,
         u.name     AS author_name,
         u.nickname AS author_nickname,
@@ -1012,6 +1211,7 @@ function handleFeedRequest(req, res) {
     const conditions = [];
 
     appendViewerBlockedAuthorCondition(conditions, params, userId, 'p.user_id');
+    appendFeedVisibilityCondition(conditions, params, userId, feedType);
 
     if (tagCount > 0) {
       const placeholders = tags.map(() => '?').join(', ');
@@ -1080,6 +1280,7 @@ function handleFeedRequest(req, res) {
             following_count: followingCount,
             tags,
             category: category || null,
+            genre: genre || null,
           },
         });
       } catch (normalizeError) {
@@ -1116,6 +1317,53 @@ function handleFeedRequest(req, res) {
 // 9-5) 피드 조회 (전체 + 해시태그 필터 + 좋아요 여부)
 router.get('/posts/feed', authOptional, handleFeedRequest);
 router.get('/posts', authOptional, handleFeedRequest);
+router.get('/feed/immersive', authOptional, handleFeedRequest);
+
+router.get('/genres', authOptional, async (req, res) => {
+  try {
+    const rows = await dbAllAsync(
+      `
+      SELECT slug, name, group_name, description, sort_order
+      FROM genres
+      WHERE is_active = 1
+      ORDER BY sort_order ASC, id ASC
+      `
+    );
+    const genres = rows.length > 0 ? rows : DEFAULT_GENRES;
+    return res.json({ ok: true, genres });
+  } catch (error) {
+    console.error('[genres/list] failed:', error);
+    return res.json({ ok: true, genres: DEFAULT_GENRES });
+  }
+});
+
+router.post('/feed-events', authOptional, async (req, res) => {
+  const userId = getOptionalUserId(req);
+  const postId = parseId(req.body?.post_id || req.body?.postId);
+  const eventType = String(req.body?.event_type || req.body?.eventType || '').trim().slice(0, 40);
+  const surface = String(req.body?.surface || '').trim().slice(0, 40) || 'unknown';
+  const genre = parseGenreSlug(req.body?.genre || req.body?.genre_slug);
+  const dwellMsRaw = Number.parseInt(req.body?.dwell_ms || req.body?.dwellMs, 10);
+  const dwellMs = Number.isFinite(dwellMsRaw) && dwellMsRaw >= 0 ? dwellMsRaw : null;
+
+  if (!eventType) {
+    return res.status(400).json({ ok: false, message: 'event_type이 필요합니다.' });
+  }
+
+  try {
+    await dbRunAsync(
+      `
+      INSERT INTO feed_events (user_id, post_id, event_type, surface, genre_slug, dwell_ms)
+      VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      [userId, postId, eventType, surface, genre || null, dwellMs]
+    );
+    return res.json({ ok: true, message: '피드 이벤트를 기록했습니다.' });
+  } catch (error) {
+    console.error('[feed-events/create] failed:', error);
+    return res.status(500).json({ ok: false, message: '피드 이벤트 기록에 실패했습니다.' });
+  }
+});
 
 // 9-6) 관련 글 추천
 router.get('/posts/:id/related', authOptional, (req, res) => {
@@ -1208,6 +1456,8 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
           p.content,
           p.layout_json,
           ${CATEGORY_SQL} AS category,
+          ${VISIBILITY_SQL} AS visibility,
+          ${COMMENT_POLICY_SQL} AS comment_policy,
           p.created_at,
           u.id       AS author_id,
           u.name     AS author_name,
@@ -1236,6 +1486,7 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
         LEFT JOIN post_hashtags ph ON ph.post_id = p.id
         LEFT JOIN hashtags h ON h.id = ph.hashtag_id
         WHERE p.id != ?
+          AND ${VISIBILITY_SQL} = 'public'
           ${
             userId
               ? `AND NOT EXISTS (
@@ -1348,6 +1599,8 @@ router.get('/posts/:id/edit', authRequired, (req, res) => {
       p.content,
       p.layout_json,
       ${CATEGORY_SQL} AS category,
+      ${VISIBILITY_SQL} AS visibility,
+      ${COMMENT_POLICY_SQL} AS comment_policy,
       p.created_at,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
     FROM posts p
@@ -1384,6 +1637,8 @@ router.get('/posts/:id/edit', authRequired, (req, res) => {
           content: row.content,
           layout_json: row.layout_json || null,
           category: row.category,
+          visibility: normalizeVisibility(row.visibility),
+          comment_policy: normalizeCommentPolicy(row.comment_policy),
           created_at: normalizeUtcDateTime(row.created_at),
           hashtags: tags,
         },
@@ -1638,6 +1893,8 @@ function handlePublicPostDetail(req, res) {
       p.content,
       p.layout_json,
       ${CATEGORY_SQL} AS category,
+      ${VISIBILITY_SQL} AS visibility,
+      ${COMMENT_POLICY_SQL} AS comment_policy,
       p.created_at,
       u.id       AS author_id,
       u.name     AS author_name,
@@ -1698,6 +1955,16 @@ function handlePublicPostDetail(req, res) {
       });
     }
 
+    const canRead = await canViewerReadPost({ viewerId: userId, post: row });
+    if (!canRead) {
+      return res.status(403).json({
+        ok: false,
+        code: 'POST_VISIBILITY_RESTRICTED',
+        message: '이 글을 볼 수 있는 권한이 없습니다.',
+      });
+    }
+    const canComment = await canViewerCommentOnPost({ viewerId: userId, post: row });
+
     const hashtags = row.hashtags
       ? row.hashtags
           .split(',')
@@ -1719,6 +1986,8 @@ function handlePublicPostDetail(req, res) {
           content: normalizedRow.content,
           layout_json: normalizedRow.layout_json || null,
           category: normalizedRow.category,
+          visibility: normalizeVisibility(normalizedRow.visibility),
+          comment_policy: normalizeCommentPolicy(normalizedRow.comment_policy),
           created_at: normalizedRow.created_at,
           author_id: normalizedRow.author_id,
           author_display_name: normalizedRow.author_display_name,
@@ -1733,6 +2002,12 @@ function handlePublicPostDetail(req, res) {
           images: normalizedRow.images,
           has_multiple: normalizedRow.has_multiple,
           render_images: normalizedRow.render_images,
+          viewer: {
+            can_read: true,
+            can_comment: canComment,
+            is_author: Boolean(userId && Number(userId) === Number(normalizedRow.author_id)),
+            visibility_reason: normalizeVisibility(normalizedRow.visibility),
+          },
         },
       });
     } catch (normalizeError) {

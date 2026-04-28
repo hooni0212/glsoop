@@ -11,6 +11,8 @@ const { ACTIVITY_TYPES, createActivityEvent, toPositiveInt } = require('../utils
 const router = express.Router();
 
 const COMMENT_MAX_LENGTH = 1000;
+const ALLOWED_VISIBILITIES = ['public', 'followers', 'unlisted', 'private'];
+const ALLOWED_COMMENT_POLICIES = ['everyone', 'logged_in', 'followers', 'author_only', 'closed'];
 
 function sendCommentError(res, status, code, message) {
   return res.status(status).json({ ok: false, code, message });
@@ -34,6 +36,16 @@ function normalizeCommentContent(raw) {
     .replace(/\r/g, '\n')
     .trim()
     .slice(0, COMMENT_MAX_LENGTH);
+}
+
+function normalizeVisibility(input) {
+  const value = typeof input === 'string' ? input.trim().toLowerCase() : '';
+  return ALLOWED_VISIBILITIES.includes(value) ? value : 'public';
+}
+
+function normalizeCommentPolicy(input) {
+  const value = typeof input === 'string' ? input.trim().toLowerCase() : '';
+  return ALLOWED_COMMENT_POLICIES.includes(value) ? value : 'logged_in';
 }
 
 function mapCommentRow(row) {
@@ -68,6 +80,8 @@ async function fetchPostForComment(postId) {
       p.id,
       p.user_id AS author_id,
       p.title,
+      COALESCE(p.visibility, 'public') AS visibility,
+      COALESCE(p.comment_policy, 'logged_in') AS comment_policy,
       COALESCE(u.account_status, 'active') AS author_account_status
     FROM posts p
     JOIN users u ON u.id = p.user_id
@@ -76,6 +90,42 @@ async function fetchPostForComment(postId) {
     `,
     [postId]
   );
+}
+
+async function canViewerReadPost({ viewerId, post }) {
+  if (!post) return false;
+  const visibility = normalizeVisibility(post.visibility);
+  const authorId = Number(post.author_id);
+  const userId = Number(viewerId || 0);
+
+  if (visibility === 'public' || visibility === 'unlisted') return true;
+  if (userId && userId === authorId) return true;
+  if (visibility === 'private') return false;
+  if (visibility === 'followers' && userId) {
+    const follow = await getAsync(
+      'SELECT 1 AS present FROM follows WHERE follower_id = ? AND followee_id = ? LIMIT 1',
+      [userId, authorId]
+    );
+    return Boolean(follow?.present);
+  }
+
+  return false;
+}
+
+async function assertPostReadAllowed({ viewerId, post }) {
+  if (!post) {
+    const error = new Error('해당 글을 찾을 수 없습니다.');
+    error.status = 404;
+    error.code = 'RESOURCE_NOT_FOUND';
+    throw error;
+  }
+  const allowed = await canViewerReadPost({ viewerId, post });
+  if (!allowed) {
+    const error = new Error('이 글의 댓글을 볼 수 있는 권한이 없습니다.');
+    error.status = 403;
+    error.code = 'POST_VISIBILITY_RESTRICTED';
+    throw error;
+  }
 }
 
 async function assertCommentWriteAllowed({ viewerId, post }) {
@@ -104,6 +154,37 @@ async function assertCommentWriteAllowed({ viewerId, post }) {
     error.code = 'COMMENT_BLOCKED';
     throw error;
   }
+
+  const policy = normalizeCommentPolicy(post.comment_policy);
+  const authorId = Number(post.author_id);
+  const userId = Number(viewerId);
+
+  if (policy === 'closed') {
+    const error = new Error('댓글이 닫힌 글입니다.');
+    error.status = 403;
+    error.code = 'COMMENT_CLOSED';
+    throw error;
+  }
+
+  if (policy === 'author_only' && userId !== authorId) {
+    const error = new Error('글쓴이만 댓글을 작성할 수 있습니다.');
+    error.status = 403;
+    error.code = 'COMMENT_AUTHOR_ONLY';
+    throw error;
+  }
+
+  if (policy === 'followers' && userId !== authorId) {
+    const follow = await getAsync(
+      'SELECT 1 AS present FROM follows WHERE follower_id = ? AND followee_id = ? LIMIT 1',
+      [userId, authorId]
+    );
+    if (!follow?.present) {
+      const error = new Error('글쓴이를 팔로우한 사용자만 댓글을 작성할 수 있습니다.');
+      error.status = 403;
+      error.code = 'COMMENT_FOLLOWERS_ONLY';
+      throw error;
+    }
+  }
 }
 
 router.get('/posts/:postId/comments', authOptional, async (req, res) => {
@@ -116,6 +197,12 @@ router.get('/posts/:postId/comments', authOptional, async (req, res) => {
   }
 
   try {
+    const post = await fetchPostForComment(postId);
+    if (!post) {
+      return sendCommentError(res, 404, 'RESOURCE_NOT_FOUND', '해당 글을 찾을 수 없습니다.');
+    }
+    await assertPostReadAllowed({ viewerId, post });
+
     const conditions = ['c.post_id = ?'];
     const params = [postId];
     appendViewerBlockedAuthorCondition(conditions, params, viewerId, 'c.user_id');
@@ -188,6 +275,9 @@ router.get('/posts/:postId/comments', authOptional, async (req, res) => {
       },
     });
   } catch (error) {
+    if (error?.status && error?.code) {
+      return sendCommentError(res, error.status, error.code, error.message);
+    }
     console.error('[comments/list] failed:', error);
     return sendCommentError(
       res,
@@ -221,6 +311,7 @@ router.post('/posts/:postId/comments', authRequired, async (req, res) => {
 
   try {
     const post = await fetchPostForComment(postId);
+    await assertPostReadAllowed({ viewerId: userId, post });
     await assertCommentWriteAllowed({ viewerId: userId, post });
 
     let parentComment = null;
