@@ -187,14 +187,63 @@ function parseId(value) {
 
 async function normalizePublicPostRows(rows, options = {}) {
   const normalizedRows = Array.isArray(rows)
-    ? rows.map((row) => normalizePublicPostAuthor(row))
+    ? rows.map((row) => {
+        const normalizedRow = normalizePublicPostAuthor(row);
+        if (!normalizedRow) return normalizedRow;
+        return {
+          ...normalizedRow,
+          author_profile_cosmetics: buildAuthorProfileCosmetics(normalizedRow),
+        };
+      })
     : [];
   return decoratePostRowsWithRenderImages(normalizedRows, options);
 }
 
 async function normalizePublicPostRow(row, options = {}) {
   if (!row) return row;
-  return decoratePostWithRenderImages(normalizePublicPostAuthor(row), options);
+  const normalizedRow = normalizePublicPostAuthor(row);
+  return decoratePostWithRenderImages(
+    {
+      ...normalizedRow,
+      author_profile_cosmetics: buildAuthorProfileCosmetics(normalizedRow),
+    },
+    options
+  );
+}
+
+function buildAuthorProfileCosmetics(row = {}) {
+  if (!row) row = {};
+
+  if (hasOwn(row, 'author_id') && row.author_id == null) {
+    return {
+      primary_badge: null,
+      showcase_badges: [],
+      header_stickers: [],
+    };
+  }
+
+  const key = typeof row.author_primary_badge_key === 'string'
+    ? row.author_primary_badge_key.trim()
+    : '';
+  if (!key) {
+    return {
+      primary_badge: null,
+      showcase_badges: [],
+      header_stickers: [],
+    };
+  }
+
+  return {
+    primary_badge: {
+      key,
+      name: row.author_primary_badge_name || key,
+      icon_emoji: row.author_primary_badge_icon_emoji || null,
+      rarity: row.author_primary_badge_rarity || 'common',
+      season: row.author_primary_badge_season || null,
+    },
+    showcase_badges: [],
+    header_stickers: [],
+  };
 }
 
 function hasOwn(obj, key) {
@@ -1186,6 +1235,11 @@ function handleFeedRequest(req, res) {
         u.nickname AS author_nickname,
         u.email    AS author_email,
         COALESCE(u.account_status, 'active') AS author_account_status,
+        ci.key AS author_primary_badge_key,
+        ci.name AS author_primary_badge_name,
+        ci.icon_emoji AS author_primary_badge_icon_emoji,
+        COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
+        ci.season AS author_primary_badge_season,
         IFNULL(lc.like_count, 0) AS like_count,
         ${
           userId
@@ -1198,6 +1252,8 @@ function handleFeedRequest(req, res) {
     const joins = [
       'FROM posts p',
       'JOIN users u ON p.user_id = u.id',
+      'LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id',
+      "LEFT JOIN cosmetic_items ci ON ci.key = upc.primary_badge_key AND ci.type = 'badge' AND ci.is_active = 1",
       'LEFT JOIN post_hashtags ph ON ph.post_id = p.id',
       'LEFT JOIN hashtags h ON h.id = ph.hashtag_id',
       'LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM likes GROUP BY post_id) lc ON lc.post_id = p.id',
@@ -1464,6 +1520,11 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
           u.nickname AS author_nickname,
           u.email    AS author_email,
           COALESCE(u.account_status, 'active') AS author_account_status,
+          ci.key AS author_primary_badge_key,
+          ci.name AS author_primary_badge_name,
+          ci.icon_emoji AS author_primary_badge_icon_emoji,
+          COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
+          ci.season AS author_primary_badge_season,
           IFNULL(l.like_count, 0) AS like_count,
           -- ✅ 이 유저가 누른 좋아요 여부
           CASE
@@ -1473,6 +1534,11 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
           GROUP_CONCAT(DISTINCT h.name) AS hashtags
         FROM posts p
         JOIN users u ON p.user_id = u.id
+        LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id
+        LEFT JOIN cosmetic_items ci
+          ON ci.key = upc.primary_badge_key
+         AND ci.type = 'badge'
+         AND ci.is_active = 1
         -- 전체 좋아요 개수 집계
         LEFT JOIN (
           SELECT post_id, COUNT(*) AS like_count
@@ -1901,10 +1967,20 @@ function handlePublicPostDetail(req, res) {
       u.nickname AS author_nickname,
       u.email    AS author_email,
       COALESCE(u.account_status, 'active') AS author_account_status,
+      ci.key AS author_primary_badge_key,
+      ci.name AS author_primary_badge_name,
+      ci.icon_emoji AS author_primary_badge_icon_emoji,
+      COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
+      ci.season AS author_primary_badge_season,
       IFNULL(l.like_count, 0) AS like_count,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
     FROM posts p
     JOIN users u ON p.user_id = u.id
+    LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id
+    LEFT JOIN cosmetic_items ci
+      ON ci.key = upc.primary_badge_key
+     AND ci.type = 'badge'
+     AND ci.is_active = 1
     LEFT JOIN (
       SELECT post_id, COUNT(*) AS like_count
       FROM likes
@@ -1994,6 +2070,12 @@ function handlePublicPostDetail(req, res) {
           author_name: normalizedRow.author_name,
           author_nickname: normalizedRow.author_nickname,
           author_email: normalizedRow.author_email,
+          author_profile_cosmetics: normalizedRow.author_profile_cosmetics,
+          author_primary_badge_key: normalizedRow.author_primary_badge_key || null,
+          author_primary_badge_name: normalizedRow.author_primary_badge_name || null,
+          author_primary_badge_icon_emoji: normalizedRow.author_primary_badge_icon_emoji || null,
+          author_primary_badge_rarity: normalizedRow.author_primary_badge_rarity || null,
+          author_primary_badge_season: normalizedRow.author_primary_badge_season || null,
           like_count: normalizedRow.like_count,
           user_liked: normalizedRow.user_liked ? 1 : 0,
           hashtags,
