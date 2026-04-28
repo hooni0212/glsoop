@@ -6,6 +6,7 @@ const {
 
 const DEFAULT_TEMPLATE = 'paper01';
 const DEFAULT_SCALE = 2;
+const DEFAULT_PAGE_CAP = 24;
 
 function parseLayoutJson(raw) {
   if (!raw) return null;
@@ -86,7 +87,7 @@ async function buildPostRenderImagesMeta(
         images: [],
         has_multiple: false,
         page_count: 0,
-        page_cap: 8,
+        page_cap: DEFAULT_PAGE_CAP,
         is_truncated: false,
         template: resolvedTemplateKey,
         scale: normalizeScale(scale),
@@ -123,7 +124,7 @@ async function buildPostRenderImagesMeta(
     images,
     has_multiple: hasMultiple,
     page_count: pageCount,
-    page_cap: manifest?.pageCap || 8,
+    page_cap: manifest?.pageCap || DEFAULT_PAGE_CAP,
     is_truncated: Boolean(manifest?.isTruncated),
     template: manifest?.template || resolvedTemplateKey,
     scale: manifest?.scale || normalizeScale(scale),
