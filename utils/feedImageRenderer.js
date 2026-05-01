@@ -5,9 +5,9 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v22';
+const RENDER_VERSION = 'feed-image-poc-v23';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
-const FEED_IMAGE_PAGE_CAP = 8;
+const FEED_IMAGE_PAGE_CAP = 24;
 const IMAGE_FORMAT_CONFIG = {
   webp: {
     extension: 'webp',
@@ -1630,22 +1630,7 @@ function buildFeedModeRenderPlan({
     }
   }
 
-  const pagination = hasCustomBodyLayout
-    ? paginateTextLines(allLines, pageMaxLines, FEED_IMAGE_PAGE_CAP)
-    : {
-        pages: [
-          layoutTextLines(
-            bodyText,
-            Math.max(20, box.width),
-            fontSizePx,
-            pageMaxLines,
-            bodyLetterSpacingEm
-          ),
-        ],
-        pageCount: 1,
-        isTruncated: allLines.length > pageMaxLines,
-        pageCap: FEED_IMAGE_PAGE_CAP,
-      };
+  const pagination = paginateTextLines(allLines, pageMaxLines, FEED_IMAGE_PAGE_CAP);
 
   return {
     pageCount: pagination.pageCount,

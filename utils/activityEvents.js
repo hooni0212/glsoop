@@ -10,8 +10,6 @@ const ACTIVITY_TYPES = Object.freeze({
 });
 
 const PUSH_ENABLED_ACTIVITY_TYPES = new Set([
-  ACTIVITY_TYPES.POST_LIKED,
-  ACTIVITY_TYPES.POST_BOOKMARKED,
   ACTIVITY_TYPES.COMMENT_CREATED,
   ACTIVITY_TYPES.COMMENT_REPLIED,
 ]);
@@ -51,6 +49,25 @@ function parseMeta(raw) {
   }
 }
 
+async function hasBlockingRelation(userA, userB) {
+  const left = toPositiveInt(userA);
+  const right = toPositiveInt(userB);
+  if (!left || !right) return false;
+
+  const row = await getAsync(
+    `
+    SELECT 1 AS present
+    FROM user_blocks
+    WHERE (blocker_id = ? AND blocked_user_id = ?)
+       OR (blocker_id = ? AND blocked_user_id = ?)
+    LIMIT 1
+    `,
+    [left, right, right, left]
+  );
+
+  return Boolean(row?.present);
+}
+
 function buildActivityCopy({ eventType, actorDisplayName, postTitle }) {
   const actor = actorDisplayName || '누군가';
   if (eventType === ACTIVITY_TYPES.POST_LIKED) {
@@ -83,6 +100,36 @@ function buildActivityCopy({ eventType, actorDisplayName, postTitle }) {
   };
 }
 
+function resolveNotificationType(activity) {
+  if (!activity) return null;
+  if (activity.event_type === ACTIVITY_TYPES.POST_LIKED) return 'post_reaction';
+  if (activity.event_type === ACTIVITY_TYPES.COMMENT_CREATED) return 'post_comment';
+  if (activity.event_type === ACTIVITY_TYPES.COMMENT_REPLIED) return 'comment_reply';
+
+  const meta = parseMeta(activity.meta_json);
+  if (activity.event_type === ACTIVITY_TYPES.SYSTEM && meta?.notification_type === 'new_follower') {
+    return 'new_follower';
+  }
+
+  return null;
+}
+
+function resolveNotificationTargetPath(activity, notificationType) {
+  if (notificationType === 'new_follower' && activity.actor_user_id) {
+    return `/users/${activity.actor_user_id}`;
+  }
+  if (activity.post_id) return `/posts/${activity.post_id}`;
+  return '/notifications';
+}
+
+function isPushEligibleActivity(activity) {
+  if (!activity?.id) return false;
+  if (PUSH_ENABLED_ACTIVITY_TYPES.has(activity.event_type)) return true;
+
+  const meta = parseMeta(activity.meta_json);
+  return activity.event_type === ACTIVITY_TYPES.SYSTEM && meta?.notification_type === 'new_follower';
+}
+
 async function fetchActorSummary(actorUserId) {
   const userId = toPositiveInt(actorUserId);
   if (!userId) return null;
@@ -98,7 +145,7 @@ async function fetchActorSummary(actorUserId) {
 }
 
 async function enqueuePushDeliveries(activity) {
-  if (!activity?.id || !PUSH_ENABLED_ACTIVITY_TYPES.has(activity.event_type)) {
+  if (!isPushEligibleActivity(activity)) {
     return { queued: 0 };
   }
 
@@ -136,10 +183,14 @@ async function enqueuePushDeliveries(activity) {
         activity.title || '글숲 알림',
         activity.body || '새로운 활동이 있습니다.',
         serializeMeta({
+          notification_id: String(activity.id),
           activity_event_id: activity.id,
+          type: resolveNotificationType(activity),
           event_type: activity.event_type,
+          target_path: resolveNotificationTargetPath(activity, resolveNotificationType(activity)),
           post_id: activity.post_id || null,
           comment_id: activity.comment_id || null,
+          user_id: activity.actor_user_id || null,
         }),
       ]
     );
@@ -155,7 +206,10 @@ async function createActivityEvent(input = {}) {
   const eventType = normalizeActivityType(input.eventType);
 
   if (!recipientUserId || !eventType) return null;
-  if (actorUserId && actorUserId === recipientUserId && eventType !== ACTIVITY_TYPES.SYSTEM) {
+  if (actorUserId && actorUserId === recipientUserId) {
+    return null;
+  }
+  if (actorUserId && recipientUserId && (await hasBlockingRelation(actorUserId, recipientUserId))) {
     return null;
   }
 
