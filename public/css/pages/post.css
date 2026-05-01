@@ -112,6 +112,11 @@ body.page-post .post-panel {
   padding: var(--gls-space-6, 24px);
 }
 
+body.page-post .post-comments-panel {
+  margin-top: var(--gls-space-5, 20px);
+  padding: var(--gls-space-5, 20px);
+}
+
 body.page-post .post-glass-panel {
   background: var(--post-glass-bg);
   border: 1px solid var(--post-glass-border);
@@ -936,6 +941,313 @@ body.page-post .post-related-item-meta {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+/* =========================
+   4) 댓글
+========================= */
+
+body.page-post .post-comments-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+body.page-post .post-comments-panel.is-pulling-comments {
+  transform: translateY(calc(var(--post-comment-pull, 0px) * 0.18));
+  transition: transform 0.12s ease-out;
+}
+
+body.page-post .post-comments-kicker {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: rgba(30, 42, 51, 0.55);
+}
+
+body.page-post .post-comments-title {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 900;
+  letter-spacing: -0.2px;
+}
+
+body.page-post .post-comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+body.page-post .post-comment-reply-target {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 12px;
+  background: rgba(46, 139, 87, 0.08);
+  color: rgba(30, 85, 54, 0.96);
+  padding: 8px 10px;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+body.page-post .post-comment-reply-target[hidden] {
+  display: none;
+}
+
+body.page-post .post-comment-reply-target button {
+  border: 0;
+  background: transparent;
+  color: rgba(30, 42, 51, 0.66);
+  font-weight: 900;
+}
+
+body.page-post .post-comment-input {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  border: 1px solid rgba(126, 118, 102, 0.24);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.55);
+  color: rgba(30, 42, 51, 0.94);
+  padding: 12px 14px;
+  line-height: 1.65;
+  outline: none;
+}
+
+body.page-post .post-comment-input:focus {
+  border-color: rgba(46, 139, 87, 0.38);
+  box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.10);
+}
+
+body.page-post .post-comment-form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+body.page-post .post-comment-submit {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.page-post .post-comment-submit svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.page-post .post-comment-count,
+body.page-post .post-comments-status {
+  color: rgba(30, 42, 51, 0.58);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+body.page-post .post-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+body.page-post .post-comment-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+body.page-post .post-comment-thread::before {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 38px;
+  bottom: 8px;
+  width: 2px;
+  background: rgba(46, 139, 87, 0.16);
+  border-radius: 999px;
+}
+
+body.page-post .post-comment-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  background: transparent;
+  border: 0;
+  padding: 10px 0 14px;
+}
+
+body.page-post .post-comment-marker {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 251, 243, 0.96);
+  border: 1px solid rgba(46, 139, 87, 0.22);
+  color: rgba(30, 85, 54, 0.96);
+  font-size: 0.82rem;
+  font-weight: 900;
+  box-shadow: 0 6px 14px rgba(36, 29, 18, 0.08);
+  z-index: 1;
+}
+
+body.page-post .post-comment-content {
+  min-width: 0;
+  border: 1px solid rgba(126, 118, 102, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.34);
+  padding: 12px 13px;
+}
+
+body.page-post .post-comment-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-left: 34px;
+}
+
+body.page-post .post-comment-item--reply {
+  grid-template-columns: 32px minmax(0, 1fr);
+  padding-top: 4px;
+}
+
+body.page-post .post-comment-item--reply .post-comment-marker {
+  width: 30px;
+  height: 30px;
+  font-size: 0.76rem;
+}
+
+body.page-post .post-comment-item--reply .post-comment-content {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+body.page-post .post-comment-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+body.page-post .post-comment-author {
+  font-size: 0.92rem;
+  color: rgba(30, 42, 51, 0.94);
+}
+
+body.page-post .post-comment-date {
+  color: rgba(30, 42, 51, 0.52);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+body.page-post .post-comment-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: rgba(30, 42, 51, 0.84);
+  line-height: 1.65;
+}
+
+body.page-post .post-comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+body.page-post .post-comment-action {
+  border: 0;
+  background: transparent;
+  padding: 0 2px;
+  color: rgba(30, 42, 51, 0.56);
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+body.page-post .post-comment-action--icon {
+  min-width: 32px;
+  height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+body.page-post .post-comment-action--icon:hover {
+  background: rgba(46, 139, 87, 0.08);
+  color: rgba(30, 85, 54, 0.96);
+}
+
+body.page-post .post-comment-action--icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body.page-post .post-comment-like.is-liked {
+  color: rgba(46, 139, 87, 0.96);
+}
+
+body.page-post .post-comment-like.is-liked svg {
+  fill: currentColor;
+}
+
+body.page-post .post-comment-like-count {
+  min-width: 1ch;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+body.page-post .post-comment-action--danger {
+  color: rgba(180, 46, 62, 0.9);
+}
+
+@media (max-width: 576px) {
+  body.page-post .post-comments-panel {
+    padding: var(--gls-space-4, 16px);
+  }
+
+  body.page-post .post-comments-head,
+  body.page-post .post-comment-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  body.page-post .post-comment-replies {
+    margin-left: 18px;
+  }
+
+  body.page-post .post-comment-thread::before {
+    left: 16px;
+  }
+
+  body.page-post .post-comment-item {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 10px;
+  }
 }
 
 /* 구버전 relatedPosts는 숨김 */

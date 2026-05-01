@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { authRequired } = require('../middleware/auth');
 const { handleBookmarkAdded } = require('../utils/growth-service');
+const { ACTIVITY_TYPES, createActivityEvent } = require('../utils/activityEvents');
 const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
 const { decoratePostRowsWithRenderImages } = require('../utils/postRenderImages');
 const { appendViewerBlockedAuthorCondition } = require('../utils/safety');
@@ -335,6 +336,15 @@ router.post('/bookmarks/lists/:listId/items', authRequired, (req, res) => {
             if (inserted) {
               handleBookmarkAdded(userId, post.user_id, postId, inserted).catch((growthErr) =>
                 console.error('bookmark growth 처리 실패:', growthErr)
+              );
+              createActivityEvent({
+                recipientUserId: post.user_id,
+                actorUserId: userId,
+                eventType: ACTIVITY_TYPES.POST_BOOKMARKED,
+                postId,
+                uniqueKey: `post_bookmarked:${postId}:${userId}`,
+              }).catch((activityErr) =>
+                console.error('bookmark activity 처리 실패:', activityErr)
               );
             }
 

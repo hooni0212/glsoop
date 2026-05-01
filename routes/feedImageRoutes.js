@@ -1,9 +1,10 @@
 const express = require('express');
 
 const db = require('../db');
-const { authRequired } = require('../middleware/auth');
+const { authOptional, authRequired } = require('../middleware/auth');
 const {
   getFeedCardImageManifest,
+  normalizeImageFormat,
   normalizeScale,
   normalizeTemplateKey,
   normalizePostText,
@@ -102,8 +103,8 @@ function normalizePreviewDraftPost(body = {}) {
   }
 
   const rawContent = typeof body.content === 'string' ? body.content : '';
-  const content = contentFormat === 'html' ? normalizePostText(rawContent) : rawContent.trim();
-  if (!content) {
+  const content = rawContent.trim();
+  if (!normalizePostText(content)) {
     return {
       error: '미리보기 본문이 비어 있습니다.',
     };
@@ -322,6 +323,7 @@ router.get('/feed-images/post/:postId', async (req, res) => {
 
   const template = normalizeTemplateKey(req.query.template);
   const scale = normalizeScale(req.query.scale);
+  const imageFormat = normalizeImageFormat(req.query.format);
   const page = parsePageNumber(req.query.page);
   if (!page) {
     return res.status(400).json({
@@ -372,6 +374,7 @@ router.get('/feed-images/post/:postId', async (req, res) => {
       scale,
       renderMode: 'feed',
       page,
+      imageFormat,
     });
 
     res.set(
@@ -389,6 +392,7 @@ router.get('/feed-images/post/:postId', async (req, res) => {
     res.set('X-Feed-Image-Cache', rendered.cacheHit ? 'HIT' : 'MISS');
     res.set('X-Feed-Image-Template', rendered.template || template);
     res.set('X-Feed-Image-Scale', String(rendered.scale || scale));
+    res.set('X-Feed-Image-Format', rendered.imageFormat || imageFormat);
     res.set('X-Feed-Image-Page', String(rendered.page || page));
     res.set('X-Feed-Image-Page-Count', String(manifest.pageCount));
     res.set('X-Feed-Image-Truncated', manifest.isTruncated ? '1' : '0');
@@ -417,6 +421,7 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
 
   const template = normalizeTemplateKey(req.query.template);
   const scale = normalizeScale(req.query.scale);
+  const imageFormat = normalizeImageFormat(req.query.format);
   const page = parsePageNumber(req.query.page);
   if (!page) {
     return res.status(400).json({
@@ -461,6 +466,7 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
       scale,
       renderMode: 'share',
       page: 1,
+      imageFormat,
     });
 
     res.set(
@@ -478,6 +484,7 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
     res.set('X-Feed-Image-Cache', rendered.cacheHit ? 'HIT' : 'MISS');
     res.set('X-Feed-Image-Template', rendered.template || template);
     res.set('X-Feed-Image-Scale', String(rendered.scale || scale));
+    res.set('X-Feed-Image-Format', rendered.imageFormat || imageFormat);
     res.set('X-Feed-Image-Page', '1');
     res.set('X-Feed-Image-Page-Count', '1');
     if (rendered.layout) {
@@ -535,7 +542,7 @@ router.post('/feed-images/preview/sessions', authRequired, async (req, res) => {
   }
 });
 
-router.get('/feed-images/preview/sessions/:sessionId', authRequired, async (req, res) => {
+router.get('/feed-images/preview/sessions/:sessionId', authOptional, async (req, res) => {
   const page = parsePageNumber(req.query.page);
   if (!page) {
     return res.status(400).json({
@@ -561,7 +568,7 @@ router.get('/feed-images/preview/sessions/:sessionId', authRequired, async (req,
         message: '미리보기 세션이 만료되었습니다.',
       });
     }
-    if (String(session.user_id) !== String(req.user?.id || '')) {
+    if (req.user?.id && String(session.user_id) !== String(req.user.id)) {
       return res.status(404).json({
         ok: false,
         message: '해당 미리보기 세션을 찾을 수 없습니다.',

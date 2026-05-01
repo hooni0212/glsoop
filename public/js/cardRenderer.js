@@ -18,6 +18,10 @@
     return value === 'left' ? 'left' : 'center';
   }
 
+  function normalizeTemplateKey(value) {
+    return value === 'paper02' ? 'paper02' : 'paper01';
+  }
+
   function buildDocument(options = {}) {
     if (!global.GlsReadingMode) {
       return {
@@ -58,6 +62,7 @@
     const fontKey = options.fontKey || page?.fontKey || 'serif';
     const pageType = normalizeType(page?.category || options.category || 'short');
     const align = normalizeAlignmentClass(page?.align || options.alignment || 'center');
+    const template = normalizeTemplateKey(options.template || page?.template);
     const frameClass = options.frameClass ? ` ${options.frameClass}` : '';
     const cardClass = options.cardClass ? ` ${options.cardClass}` : '';
     const bodyHtml = page?.contentHtml || '<p></p>';
@@ -70,7 +75,7 @@
 
     return `
       <article class="gls-reading-card-frame${frameClass}">
-        <section class="gls-reading-card${cardClass} is-font-${escapeHtml(fontKey)} is-type-${escapeHtml(pageType)} is-align-${escapeHtml(align)}">
+        <section class="gls-reading-card${cardClass} is-font-${escapeHtml(fontKey)} is-type-${escapeHtml(pageType)} is-align-${escapeHtml(align)} is-template-${escapeHtml(template)}">
           <div class="gls-reading-card__paper">
             <div class="gls-reading-card__wash"></div>
             <div class="gls-reading-card__inner">

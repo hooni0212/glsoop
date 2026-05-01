@@ -4,7 +4,7 @@
 - 적용 범위: `glsoop/docs/참고/API-레퍼런스.md`
 - 대상 독자: 서버/웹/모바일 개발자, QA
 - 상태: `Draft`
-- 최종 업데이트: `2026-03-04`
+- 최종 업데이트: `2026-04-25`
 - Owner: `taehun`
 - 관련 문서:
   - `docs/서버/API/인증-계정.md`
@@ -96,3 +96,38 @@
 - `GET /api/search`, `POST /api/share-events`는 응답 계약을 바꾸지 않고 서버 로그 관측만 추가한다.
 - 로그 필드 표준: `path`, `status`, `method`, `authenticated`, `ts`.
 - 목적은 삭제가 아니라 사용량 판단이며, 14일 연속 무사용 + 내부 호출 없음일 때만 deprecate 후보로 분류한다.
+
+## 댓글/활동함/푸시 API 계약 (2026-04-25)
+
+- 댓글
+  - `GET /api/posts/:postId/comments`
+    - 선택 인증. `limit`, `offset` 지원.
+    - 로그인 사용자와 차단 관계가 있는 사용자의 댓글은 목록에서 제외한다.
+  - `POST /api/posts/:postId/comments`
+    - 인증 필수. body: `{ content, parent_comment_id? }`
+    - 댓글은 1~1000자, 답글은 한 단계까지만 허용한다.
+    - 글 작성자/부모 댓글 작성자와 댓글 작성자 사이에 차단 관계가 있으면 `403 COMMENT_BLOCKED`.
+  - `PATCH /api/comments/:commentId`
+    - 인증 필수. 작성자만 수정 가능.
+  - `DELETE /api/comments/:commentId`
+    - 인증 필수. 댓글 작성자, 글 작성자, 관리자 삭제 가능.
+    - 물리 삭제가 아니라 `status='deleted'`로 soft delete 한다.
+- 활동함
+  - `GET /api/activity`
+    - 인증 필수. `limit`, `offset`, `unread_only` 지원.
+    - 이벤트 타입: `post_liked`, `post_bookmarked`, `comment_created`, `comment_replied`, `system`.
+  - `GET /api/activity/unread-count`
+  - `PATCH /api/activity/:activityId/read`
+  - `POST /api/activity/read-all`
+- 푸시 토큰
+  - `POST /api/push-tokens`
+    - 인증 필수. body: `{ token, platform, device_id?, app_version? }`
+    - 같은 token은 upsert로 최신 사용자/기기 정보에 귀속한다.
+  - `DELETE /api/push-tokens`
+    - 인증 필수. body 또는 query의 `token`을 비활성화한다.
+- 이벤트 생성 정책
+  - 내 글에 좋아요/북마크가 추가되면 글 작성자에게 활동 이벤트를 만든다.
+  - 내 글에 댓글이 달리면 글 작성자에게 `comment_created` 이벤트를 만든다.
+  - 내 댓글에 답글이 달리면 원 댓글 작성자에게 `comment_replied` 이벤트를 만든다.
+  - 자기 자신에게 발생한 활동은 알림으로 만들지 않는다.
+  - 푸시 발송은 `push_delivery_queue`에 queued row를 쌓는 단계까지 서버 API에서 처리한다.

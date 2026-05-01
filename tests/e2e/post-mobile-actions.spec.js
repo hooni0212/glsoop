@@ -95,6 +95,54 @@ test.describe('Post mobile action priority', () => {
       })
     );
 
+    await page.route('**/api/posts/1/comments**', (route) => {
+      if (route.request().method() === 'POST') {
+        const payload = route.request().postDataJSON();
+        return route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ok: true,
+            comment: {
+              id: 11,
+              post_id: 1,
+              parent_comment_id: payload.parent_comment_id || null,
+              status: 'active',
+              content: payload.content,
+              author: { id: 2, nickname: '일반사용자', display_name: '일반사용자' },
+              reply_count: 0,
+              like_count: 0,
+              liked_by_me: false,
+              created_at: '2026-02-23T15:10:00.000Z',
+            },
+          }),
+        });
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          comments: [
+            {
+              id: 10,
+              post_id: 1,
+              parent_comment_id: null,
+              status: 'active',
+              content: '웹 댓글입니다.',
+              author: { id: 3, nickname: '독자', display_name: '독자' },
+              reply_count: 0,
+              like_count: 0,
+              liked_by_me: false,
+              created_at: '2026-02-23T15:08:00.000Z',
+            },
+          ],
+          pagination: { limit: 50, offset: 0, total: 1, has_more: false },
+        }),
+      });
+    });
+
     await page.route('**/api/posts/1/toggle-like', (route) => {
       liked = !liked;
       likeCount += liked ? 1 : -1;
@@ -137,6 +185,11 @@ test.describe('Post mobile action priority', () => {
     await page.goto('/html/post.html?postId=1');
     await expect(page.locator('#postDetail .gls-post-card')).toBeVisible();
     await expect(page.locator('#sideLikeBtn')).toBeVisible();
+    await expect(page.locator('#postCommentsPanel')).toBeVisible();
+    await expect(page.getByText('웹 댓글입니다.')).toBeVisible();
+    await page.locator('#postCommentInput').fill('새 웹 댓글입니다.');
+    await page.locator('#postCommentSubmitBtn').click();
+    await expect(page.getByText('새 웹 댓글입니다.')).toBeVisible();
 
     let modeAfterScroll = 'inline';
     for (const ratio of [0.72, 0.82, 0.92]) {

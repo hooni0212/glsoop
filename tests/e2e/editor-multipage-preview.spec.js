@@ -14,6 +14,7 @@ const USER_ID = 9841000 + SID_SUFFIX;
 const USER_EMAIL = `editor-multipage-writer-${SID_SUFFIX}@glsoop.test`;
 const USER_NICKNAME = `editor_preview_writer_${SID_SUFFIX}`;
 const USER_PASSWORD = 'Pass1234';
+let cachedLayoutWriterToken = '';
 
 const dbRun = (db, sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -76,6 +77,8 @@ const extractTokenFromSetCookie = (response) => {
 };
 
 const loginAsLayoutWriter = async (request) => {
+  if (cachedLayoutWriterToken) return cachedLayoutWriterToken;
+
   const response = await request.post('/api/login', {
     data: {
       email: USER_EMAIL,
@@ -86,7 +89,8 @@ const loginAsLayoutWriter = async (request) => {
   expect(response.status()).toBe(200);
   const payload = await response.json();
   expect(payload.ok).toBe(true);
-  return extractTokenFromSetCookie(response);
+  cachedLayoutWriterToken = extractTokenFromSetCookie(response);
+  return cachedLayoutWriterToken;
 };
 
 const applyAuthCookie = async (page, baseURL, token) => {
@@ -201,6 +205,39 @@ test.describe('Editor multipage preview', () => {
 
   test.beforeEach(async () => {
     await resetLayoutWriterState();
+  });
+
+  test('editor3 saves and restores the selected background template', async ({ page, request }, testInfo) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+
+    await applyAuthCookie(page, baseURL, token);
+    await page.goto('/html/editor3.html');
+
+    await page.locator('#postTitle').fill('에디터 배경 저장');
+    await setEditorBodyText(page, 'paper02 배경 선택을 저장하는 본문입니다.');
+    await page.locator('[data-background-template="paper02"]').click();
+    await expect(page.locator('[data-background-template="paper02"]')).toHaveClass(/is-active/);
+
+    const createPostResponsePromise = page.waitForResponse((response) => {
+      return response.url().includes('/api/posts') && response.request().method() === 'POST';
+    });
+    await page.locator('#saveBtn').click();
+    const createPostResponse = await createPostResponsePromise;
+    expect(createPostResponse.status()).toBe(200);
+    await page.waitForURL(/\/html\/editor3\.html\?postId=\d+/);
+    const createdPostId = Number.parseInt(new URL(page.url()).searchParams.get('postId') || '', 10);
+    expect(typeof createdPostId).toBe('number');
+    expect(Number.isInteger(createdPostId)).toBe(true);
+
+    const editResponse = await request.get(`/api/posts/${createdPostId}/edit`, { headers });
+    expect(editResponse.status()).toBe(200);
+    const editBody = await editResponse.json();
+    const savedLayout = parseLayoutJson(editBody.post.layout_json);
+    expect(savedLayout.canvas.presetId).toBe('paper02');
+
+    await expect(page.locator('[data-background-template="paper02"]')).toHaveClass(/is-active/);
   });
 
   test('saves page-specific layout override from the current preview page', async ({ page, request }, testInfo) => {

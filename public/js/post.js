@@ -8,7 +8,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 const POST_MOBILE_DOCK_MEDIA = '(max-width: 768px)';
 const POST_MOBILE_DOCK_SCROLL_THRESHOLD = 0.68;
+const POST_COMMENT_MAX_LENGTH = 1000;
 let postSafeAreaGuidesEnabled = false;
+const postCommentsState = {
+  postId: null,
+  comments: [],
+  replyTarget: null,
+  loading: false,
+  submitting: false,
+  refreshingByPull: false,
+};
 const DETAIL_TITLE_SAFE_ZONE_BY_LENGTH = {
   'one-line': {
     left: 29,
@@ -463,8 +472,7 @@ async function initPostDetailPage() {
   bindPostMobileDockClass();
   initPostLoginPrompt();
 
-  const params = new URLSearchParams(window.location.search);
-  const postId = params.get('postId');
+  const postId = resolvePostDetailId();
   const container = document.getElementById('postDetail');
 
   if (!container) return;
@@ -518,7 +526,518 @@ async function initPostDetailPage() {
   }
 
   renderPostDetail(container, postData);
+  initPostComments(postData);
   loadRelatedPosts(postData);
+}
+
+function resolvePostDetailId() {
+  const params = new URLSearchParams(window.location.search);
+  const queryId = params.get('postId');
+  if (queryId) return queryId;
+
+  const match = window.location.pathname.match(/^\/posts\/([^/?#]+)\/?$/);
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+function showPostNotice(message, type = 'success', autoHideMs = 2200) {
+  if (window.glsoopUi?.showPageNotice) {
+    window.glsoopUi.showPageNotice(message, { type, autoHideMs });
+    return;
+  }
+  alert(message);
+}
+
+function getCommentAuthorName(comment) {
+  const author = comment?.author || {};
+  return String(author.display_name || author.displayName || author.nickname || '익명').trim() || '익명';
+}
+
+function normalizePostComment(row = {}) {
+  const id = Number.parseInt(row.id, 10);
+  const parentId = Number.parseInt(row.parent_comment_id, 10);
+  return {
+    id: Number.isFinite(id) ? id : 0,
+    post_id: row.post_id,
+    parent_comment_id: Number.isFinite(parentId) && parentId > 0 ? parentId : null,
+    status: row.status === 'deleted' ? 'deleted' : 'active',
+    content: typeof row.content === 'string' ? row.content : null,
+    author: row.author || null,
+    reply_count: Number(row.reply_count || 0),
+    like_count: Number(row.like_count || 0),
+    liked_by_me: row.liked_by_me === 1 || row.liked_by_me === true,
+    created_at: row.created_at || null,
+    updated_at: row.updated_at || null,
+    deleted_at: row.deleted_at || null,
+  };
+}
+
+async function fetchJsonForPostComments(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    cache: options.method && options.method !== 'GET' ? 'no-store' : 'no-store',
+    headers: {
+      Accept: 'application/json',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.ok && (data.ok !== false)) {
+    return data;
+  }
+  const error = new Error(data.message || `요청을 처리하지 못했습니다. (${response.status})`);
+  error.status = response.status;
+  error.code = data.code || null;
+  error.payload = data;
+  throw error;
+}
+
+function getPostCommentEls() {
+  return {
+    panel: document.getElementById('postCommentsPanel'),
+    count: document.getElementById('postCommentsCount'),
+    list: document.getElementById('postCommentsList'),
+    status: document.getElementById('postCommentsStatus'),
+    form: document.getElementById('postCommentForm'),
+    input: document.getElementById('postCommentInput'),
+    inputCount: document.getElementById('postCommentInputCount'),
+    submitBtn: document.getElementById('postCommentSubmitBtn'),
+    replyTarget: document.getElementById('postCommentReplyTarget'),
+    replyTargetText: document.getElementById('postCommentReplyTargetText'),
+    replyCancelBtn: document.getElementById('postCommentReplyCancelBtn'),
+  };
+}
+
+function groupPostComments(comments = []) {
+  const topLevel = [];
+  const repliesByParent = new Map();
+  comments.forEach((comment) => {
+    if (comment.parent_comment_id) {
+      const current = repliesByParent.get(comment.parent_comment_id) || [];
+      current.push(comment);
+      repliesByParent.set(comment.parent_comment_id, current);
+      return;
+    }
+    topLevel.push(comment);
+  });
+  return { topLevel, repliesByParent };
+}
+
+function renderPostCommentItem(comment, { isReply = false } = {}) {
+  const authorName = getCommentAuthorName(comment);
+  const dateText = typeof formatKoreanDateTime === 'function'
+    ? formatKoreanDateTime(comment.created_at)
+    : '';
+  const isDeleted = comment.status === 'deleted';
+  const safeContent = isDeleted ? '삭제된 댓글입니다.' : escapeHtml(comment.content || '');
+  const liked = comment.liked_by_me === true;
+  const likeCount = Number(comment.like_count || 0);
+  const replyBtn = !isReply && !isDeleted
+    ? `
+      <button type="button" class="post-comment-action post-comment-action--icon" data-comment-reply="${comment.id}" aria-label="답글 달기">
+        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+          <path d="M8.8 19.4 5 21v-4.1A7.5 7.5 0 0 1 3 11.7C3 7 7 3.5 12 3.5s9 3.5 9 8.2-4 8.2-9 8.2c-1.1 0-2.2-.2-3.2-.5Z"></path>
+        </svg>
+      </button>`
+    : '';
+  const likeBtn = !isDeleted
+    ? `
+      <button
+        type="button"
+        class="post-comment-action post-comment-action--icon post-comment-like${liked ? ' is-liked' : ''}"
+        data-comment-like="${comment.id}"
+        aria-label="${liked ? '댓글 공감 취소' : '댓글 공감'}"
+        aria-pressed="${liked ? 'true' : 'false'}"
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+          <path d="M12 20.2 5.3 13.9C1.7 10.5 3.8 4.5 8.8 4.5c1.5 0 2.8.7 3.2 1.7.4-1 1.7-1.7 3.2-1.7 5 0 7.1 6 3.5 9.4L12 20.2Z"></path>
+        </svg>
+        <span class="post-comment-like-count">${likeCount}</span>
+      </button>`
+    : '';
+  const deleteBtn = !isDeleted
+    ? `<button type="button" class="post-comment-action post-comment-action--danger" data-comment-delete="${comment.id}">삭제</button>`
+    : '';
+
+  return `
+    <article class="${isReply ? 'post-comment-item post-comment-item--reply' : 'post-comment-item'}" data-comment-id="${comment.id}">
+      <div class="post-comment-marker" aria-hidden="true">${escapeHtml(isDeleted ? '' : authorName.charAt(0) || '')}</div>
+      <div class="post-comment-content">
+        <div class="post-comment-meta">
+          <strong class="post-comment-author">${escapeHtml(isDeleted ? '삭제된 댓글' : authorName)}</strong>
+          ${dateText ? `<span class="post-comment-date">${escapeHtml(dateText)}</span>` : ''}
+        </div>
+        <p class="post-comment-body">${safeContent}</p>
+        ${replyBtn || likeBtn || deleteBtn ? `<div class="post-comment-actions">${replyBtn}${likeBtn}${deleteBtn}</div>` : ''}
+      </div>
+    </article>
+  `;
+}
+
+function renderPostComments() {
+  const els = getPostCommentEls();
+  if (!els.panel || !els.list || !els.status) return;
+
+  const comments = postCommentsState.comments || [];
+  const activeCount = comments.filter((comment) => comment.status === 'active').length;
+  if (els.count) els.count.textContent = String(activeCount);
+
+  if (postCommentsState.loading && comments.length === 0) {
+    els.status.hidden = false;
+    els.status.textContent = '댓글을 불러오는 중입니다...';
+    els.list.innerHTML = '';
+    return;
+  }
+
+  if (comments.length === 0) {
+    els.status.hidden = false;
+    els.status.textContent = '아직 댓글이 없습니다. 첫 댓글을 남겨보세요.';
+    els.list.innerHTML = '';
+    return;
+  }
+
+  els.status.hidden = true;
+  const { topLevel, repliesByParent } = groupPostComments(comments);
+  els.list.innerHTML = topLevel
+    .map((comment) => {
+      const replies = repliesByParent.get(comment.id) || [];
+      return `
+        <div class="post-comment-thread">
+          ${renderPostCommentItem(comment)}
+          ${replies.length ? `<div class="post-comment-replies">${replies.map((reply) => renderPostCommentItem(reply, { isReply: true })).join('')}</div>` : ''}
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function syncPostCommentComposer() {
+  const els = getPostCommentEls();
+  if (!els.input || !els.submitBtn) return;
+
+  const loggedIn = isViewerLikelyLoggedIn();
+  const value = els.input.value || '';
+  els.input.placeholder = loggedIn ? '댓글을 남겨보세요' : '로그인 후 댓글을 남길 수 있습니다';
+  els.input.disabled = !loggedIn || postCommentsState.submitting;
+  els.submitBtn.disabled = !loggedIn || postCommentsState.submitting || !value.trim();
+  els.submitBtn.classList.toggle('is-loading', postCommentsState.submitting);
+  els.submitBtn.setAttribute(
+    'aria-label',
+    postCommentsState.submitting
+      ? '댓글 등록 중'
+      : postCommentsState.replyTarget
+        ? '답글 등록'
+        : '댓글 등록'
+  );
+  if (els.inputCount) {
+    els.inputCount.textContent = `${value.length}/${POST_COMMENT_MAX_LENGTH}`;
+  }
+
+  if (els.replyTarget && els.replyTargetText) {
+    if (postCommentsState.replyTarget) {
+      els.replyTarget.hidden = false;
+      els.replyTargetText.textContent = `${getCommentAuthorName(postCommentsState.replyTarget)}님에게 답글`;
+    } else {
+      els.replyTarget.hidden = true;
+      els.replyTargetText.textContent = '';
+    }
+  }
+}
+
+function setPostCommentReplyTarget(comment) {
+  postCommentsState.replyTarget = comment || null;
+  syncPostCommentComposer();
+  const els = getPostCommentEls();
+  if (comment && els.input) {
+    els.input.focus();
+  }
+}
+
+async function loadPostComments() {
+  if (!postCommentsState.postId) return;
+  const els = getPostCommentEls();
+  postCommentsState.loading = true;
+  renderPostComments();
+
+  try {
+    const data = await fetchJsonForPostComments(
+      `/api/posts/${encodeURIComponent(postCommentsState.postId)}/comments?limit=50&offset=0`
+    );
+    postCommentsState.comments = Array.isArray(data.comments)
+      ? data.comments.map(normalizePostComment)
+      : [];
+  } catch (error) {
+    console.error(error);
+    if (els.status) {
+      els.status.hidden = false;
+      els.status.textContent = error.message || '댓글을 불러오지 못했습니다.';
+    }
+  } finally {
+    postCommentsState.loading = false;
+    renderPostComments();
+  }
+}
+
+async function togglePostCommentLike(commentId) {
+  if (!commentId) return;
+  if (!isViewerLikelyLoggedIn()) {
+    if (window.glsoopSafety?.openLoginGate) {
+      window.glsoopSafety.openLoginGate({ actionLabel: '댓글 공감', source: 'post-comment-like' });
+      return;
+    }
+    redirectToLoginWithNext({
+      source: 'post-comment-like',
+      alertMessage: '로그인 후 댓글에 공감할 수 있습니다.',
+    });
+    return;
+  }
+
+  const current = postCommentsState.comments.find((item) => Number(item.id) === Number(commentId));
+  if (!current || current.status === 'deleted') return;
+
+  try {
+    const data = await fetchJsonForPostComments(
+      `/api/comments/${encodeURIComponent(commentId)}/toggle-like`,
+      { method: 'POST' }
+    );
+    postCommentsState.comments = postCommentsState.comments.map((comment) =>
+      Number(comment.id) === Number(commentId)
+        ? {
+            ...comment,
+            liked_by_me: data.liked === true,
+            like_count: Number(data.like_count || 0),
+          }
+        : comment
+    );
+    renderPostComments();
+  } catch (error) {
+    console.error(error);
+    if (Number(error.status) === 401) {
+      if (window.glsoopSafety?.openLoginGate) {
+        window.glsoopSafety.openLoginGate({ actionLabel: '댓글 공감', source: 'post-comment-like' });
+      } else {
+        redirectToLoginWithNext({ source: 'post-comment-like' });
+      }
+      return;
+    }
+    showPostNotice(error.message || '댓글 공감 처리에 실패했습니다.', 'error');
+  }
+}
+
+async function submitPostComment() {
+  const els = getPostCommentEls();
+  if (!els.input || !postCommentsState.postId) return;
+  if (!isViewerLikelyLoggedIn()) {
+    if (window.glsoopAuthGateModal && typeof window.glsoopAuthGateModal.open === 'function') {
+      window.glsoopAuthGateModal.open({
+        title: '로그인 후 댓글을 남길 수 있어요',
+        message: '댓글은 로그인한 회원만 이용할 수 있는 기능입니다.',
+        description: '로그인하면 글에 댓글과 답글을 남길 수 있습니다.',
+        source: 'post-comment',
+      });
+      return;
+    }
+    redirectToLoginWithNext({
+      source: 'post-comment',
+      alertMessage: '로그인 후 댓글을 남길 수 있습니다.',
+    });
+    return;
+  }
+
+  const content = String(els.input.value || '').trim();
+  if (!content) {
+    showPostNotice('댓글 내용을 입력해주세요.', 'error');
+    return;
+  }
+
+  postCommentsState.submitting = true;
+  syncPostCommentComposer();
+
+  try {
+    const payload = {
+      content,
+      parent_comment_id: postCommentsState.replyTarget?.id || undefined,
+    };
+    const data = await fetchJsonForPostComments(
+      `/api/posts/${encodeURIComponent(postCommentsState.postId)}/comments`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+    if (data.comment) {
+      postCommentsState.comments.push(normalizePostComment(data.comment));
+    }
+    els.input.value = '';
+    setPostCommentReplyTarget(null);
+    renderPostComments();
+    showPostNotice(payload.parent_comment_id ? '답글을 남겼습니다.' : '댓글을 남겼습니다.', 'success');
+  } catch (error) {
+    console.error(error);
+    if (Number(error.status) === 401) {
+      if (window.glsoopSafety?.openLoginGate) {
+        window.glsoopSafety.openLoginGate({ actionLabel: '댓글 작성', source: 'post-comment' });
+      } else {
+        redirectToLoginWithNext({ source: 'post-comment' });
+      }
+      return;
+    }
+    showPostNotice(error.message || '댓글 작성에 실패했습니다.', 'error');
+  } finally {
+    postCommentsState.submitting = false;
+    syncPostCommentComposer();
+  }
+}
+
+async function deletePostComment(commentId) {
+  if (!commentId) return;
+  if (!isViewerLikelyLoggedIn()) {
+    if (window.glsoopSafety?.openLoginGate) {
+      window.glsoopSafety.openLoginGate({ actionLabel: '댓글 삭제', source: 'post-comment' });
+    }
+    return;
+  }
+  if (!window.confirm('이 댓글을 삭제할까요?')) return;
+
+  try {
+    await fetchJsonForPostComments(`/api/comments/${encodeURIComponent(commentId)}`, {
+      method: 'DELETE',
+    });
+    postCommentsState.comments = postCommentsState.comments.map((comment) =>
+      Number(comment.id) === Number(commentId)
+        ? { ...comment, status: 'deleted', content: null, author: null, deleted_at: new Date().toISOString() }
+        : comment
+    );
+    renderPostComments();
+    showPostNotice('댓글을 삭제했습니다.', 'success');
+  } catch (error) {
+    console.error(error);
+    if (Number(error.status) === 401) {
+      if (window.glsoopSafety?.openLoginGate) {
+        window.glsoopSafety.openLoginGate({ actionLabel: '댓글 삭제', source: 'post-comment' });
+      }
+      return;
+    }
+    showPostNotice(error.message || '댓글 삭제에 실패했습니다.', 'error');
+  }
+}
+
+function bindPostCommentEvents() {
+  if (window.__glsoopPostCommentsBound) return;
+  window.__glsoopPostCommentsBound = true;
+
+  const els = getPostCommentEls();
+  els.form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    submitPostComment();
+  });
+  els.input?.addEventListener('input', syncPostCommentComposer);
+  els.replyCancelBtn?.addEventListener('click', () => setPostCommentReplyTarget(null));
+  els.list?.addEventListener('click', (event) => {
+    const replyBtn = event.target?.closest?.('[data-comment-reply]');
+    if (replyBtn) {
+      const commentId = Number.parseInt(replyBtn.getAttribute('data-comment-reply'), 10);
+      const comment = postCommentsState.comments.find((item) => Number(item.id) === commentId);
+      if (comment) setPostCommentReplyTarget(comment);
+      return;
+    }
+
+    const likeBtn = event.target?.closest?.('[data-comment-like]');
+    if (likeBtn) {
+      const commentId = Number.parseInt(likeBtn.getAttribute('data-comment-like'), 10);
+      togglePostCommentLike(commentId);
+      return;
+    }
+
+    const deleteBtn = event.target?.closest?.('[data-comment-delete]');
+    if (deleteBtn) {
+      const commentId = Number.parseInt(deleteBtn.getAttribute('data-comment-delete'), 10);
+      deletePostComment(commentId);
+    }
+  });
+
+  document.querySelectorAll('.after-login').forEach((node) => {
+    const observer = new MutationObserver(syncPostCommentComposer);
+    observer.observe(node, { attributes: true, attributeFilter: ['class'] });
+  });
+
+  bindPostCommentsPullToRefresh();
+}
+
+function bindPostCommentsPullToRefresh() {
+  const els = getPostCommentEls();
+  if (!els.panel || !('ontouchstart' in window)) return;
+
+  let startY = 0;
+  let pullDistance = 0;
+  let tracking = false;
+  const threshold = 72;
+
+  const reset = () => {
+    tracking = false;
+    pullDistance = 0;
+    els.panel.style.removeProperty('--post-comment-pull');
+    els.panel.classList.remove('is-pulling-comments');
+  };
+
+  els.panel.addEventListener('touchstart', (event) => {
+    if (window.scrollY > 2 || postCommentsState.loading) return;
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    startY = touch.clientY;
+    tracking = true;
+    pullDistance = 0;
+  }, { passive: true });
+
+  els.panel.addEventListener('touchmove', (event) => {
+    if (!tracking) return;
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    const delta = touch.clientY - startY;
+    if (delta <= 0) {
+      reset();
+      return;
+    }
+    pullDistance = Math.min(delta, 120);
+    els.panel.classList.add('is-pulling-comments');
+    els.panel.style.setProperty('--post-comment-pull', `${Math.round(pullDistance)}px`);
+    if (pullDistance > 12 && event.cancelable) {
+      event.preventDefault();
+    }
+  }, { passive: false });
+
+  els.panel.addEventListener('touchend', () => {
+    if (!tracking) return;
+    const shouldRefresh = pullDistance >= threshold;
+    reset();
+    if (shouldRefresh && !postCommentsState.loading) {
+      postCommentsState.refreshingByPull = true;
+      loadPostComments().finally(() => {
+        postCommentsState.refreshingByPull = false;
+      });
+    }
+  }, { passive: true });
+
+  els.panel.addEventListener('touchcancel', reset, { passive: true });
+}
+
+function initPostComments(post) {
+  const els = getPostCommentEls();
+  if (!els.panel || !post?.id) return;
+
+  postCommentsState.postId = String(post.id);
+  postCommentsState.comments = [];
+  postCommentsState.replyTarget = null;
+  postCommentsState.loading = false;
+  postCommentsState.submitting = false;
+  els.panel.hidden = false;
+  if (els.input) els.input.value = '';
+
+  bindPostCommentEvents();
+  syncPostCommentComposer();
+  renderPostComments();
+  loadPostComments();
 }
 
 function resolveRenderedImageOptions(card) {
@@ -712,13 +1231,13 @@ function ensurePostSafetyMenuModal() {
           </div>
           <div class="modal-body post-login-prompt-modal__body">
             <p class="gls-mb-3" id="postSafetyMenuDescription">
-              공유, 게시글 신고, 작성자 차단, 커뮤니티 가이드라인 확인을 할 수 있습니다.
+              공유, 게시글 신고, 작성자 차단을 할 수 있습니다.
             </p>
             <div class="gls-flex gls-flex-col gls-gap-2">
               <button type="button" class="gls-btn gls-btn-secondary" id="postSafetyShareBtn">공유하기</button>
               <button type="button" class="gls-btn gls-btn-secondary" id="postSafetyReportBtn">게시글 신고</button>
               <button type="button" class="gls-btn gls-btn-secondary" id="postSafetyBlockBtn">작성자 차단</button>
-              <button type="button" class="gls-btn gls-btn-ghost" id="postSafetyGuidelinesBtn">가이드라인 보기</button>
+              <button type="button" class="gls-btn gls-btn-ghost" data-gls-dismiss="modal">닫기</button>
             </div>
           </div>
         </div>
@@ -731,7 +1250,6 @@ function ensurePostSafetyMenuModal() {
   const shareBtn = document.getElementById('postSafetyShareBtn');
   const reportBtn = document.getElementById('postSafetyReportBtn');
   const blockBtn = document.getElementById('postSafetyBlockBtn');
-  const guidelinesBtn = document.getElementById('postSafetyGuidelinesBtn');
 
   shareBtn?.addEventListener('click', () => {
     if (window.glsModal && modalEl) {
@@ -757,12 +1275,6 @@ function ensurePostSafetyMenuModal() {
     await handlePostBlockAuthor(window.__glsoopPostSafetyState?.post);
   });
 
-  guidelinesBtn?.addEventListener('click', async () => {
-    if (window.glsModal && modalEl) {
-      window.glsModal.close(modalEl);
-    }
-    await handleOpenPostGuidelines();
-  });
 }
 
 function openPostSafetyMenu(post, card) {
@@ -801,23 +1313,6 @@ function ensurePostSafetyAccess(actionLabel) {
   }
 
   return false;
-}
-
-async function handleOpenPostGuidelines() {
-  try {
-    if (window.glsoopSafety && typeof window.glsoopSafety.openGuidelines === 'function') {
-      await window.glsoopSafety.openGuidelines();
-      return;
-    }
-    window.open('/html/community-guidelines.html', '_blank', 'noopener,noreferrer');
-  } catch (error) {
-    console.error(error);
-    if (window.glsoopUi?.showPageNotice) {
-      window.glsoopUi.showPageNotice('가이드라인을 열지 못했습니다.', { type: 'error', autoHideMs: 2200 });
-      return;
-    }
-    alert('가이드라인을 열지 못했습니다.');
-  }
 }
 
 async function handlePostReport(post) {
@@ -1108,17 +1603,15 @@ function bindSideActions(card, post) {
   // 최초 동기화
   syncLikeState();
 
-  // 좋아요: 사이드 → 카드 클릭
+  // 좋아요: 상세 액션 → 공감 API
   if (sideLikeBtn.dataset.boundSideLike !== '1') {
     sideLikeBtn.dataset.boundSideLike = '1';
-    sideLikeBtn.addEventListener('click', (e) => {
+    sideLikeBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       trackUxEvent('post_action_click', { action: 'like' });
       if (!likeBtn) return;
-      likeBtn.click();
-      // toggle는 비동기일 수 있어 두 번 동기화
-      setTimeout(syncLikeState, 0);
-      setTimeout(syncLikeState, 350);
+      await toggleLike(post.id, likeBtn);
+      syncLikeState();
     });
   }
 
@@ -1131,14 +1624,23 @@ function bindSideActions(card, post) {
     });
   }
 
-  // 북마크: 사이드 → 카드 북마크(모달) 클릭
+  document.addEventListener('glsoop:like-state-changed', (event) => {
+    if (String(event.detail?.postId || '') === String(post.id || '')) {
+      syncLikeState();
+    }
+  });
+
+  // 북마크: 상세 액션 → 북마크 모달
   if (sideBookmarkBtn.dataset.boundSideBookmark !== '1') {
     sideBookmarkBtn.dataset.boundSideBookmark = '1';
     sideBookmarkBtn.addEventListener('click', (e) => {
       e.preventDefault();
       trackUxEvent('post_action_click', { action: 'bookmark' });
-      if (!bookmarkBtn) return;
-      bookmarkBtn.click();
+      if (window.Glsoop?.BookmarkModal?.open && post?.id) {
+        window.Glsoop.BookmarkModal.open(post.id);
+        return;
+      }
+      bookmarkBtn?.click();
     });
   }
 

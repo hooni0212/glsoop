@@ -490,4 +490,108 @@ test.describe.serial('Safety API', () => {
     });
     expect(typeof postSummary.latest_reported_at).toBe('string');
   });
+
+  test('admin can resolve active reports for a reported post in bulk', async ({ request }) => {
+    const adminHeaders = buildAuthHeaders(9599);
+    const activeReporters = [9501, 9503, 9504, 9505, 9506];
+
+    for (const reporterId of activeReporters) {
+      const response = await request.post('/api/posts/9601/report', {
+        headers: buildAuthHeaders(reporterId),
+        data: {
+          reason_code: 'spam',
+        },
+      });
+      expect(response.status()).toBe(200);
+    }
+
+    const resolveResponse = await request.post('/api/admin/safety/reported-posts/9601/resolve', {
+      headers: adminHeaders,
+      data: {
+        status: 'dismissed',
+        action: 'no_violation',
+        action_detail: 'bulk dismiss fixture',
+      },
+    });
+    expect(resolveResponse.status()).toBe(200);
+    const resolveBody = await resolveResponse.json();
+    expect(resolveBody.result).toMatchObject({
+      target_post_id: 9601,
+      status: 'dismissed',
+      action: 'no_violation',
+      updated_count: 5,
+    });
+
+    const statusCounts = await withDb((db) =>
+      dbGet(
+        db,
+        `SELECT
+           COUNT(*) AS count,
+           SUM(CASE WHEN status = 'dismissed' THEN 1 ELSE 0 END) AS dismissed_count
+         FROM safety_reports
+         WHERE target_post_id = ? AND source = 'report'`,
+        [9601]
+      )
+    );
+    expect(statusCounts.count).toBe(5);
+    expect(statusCounts.dismissed_count).toBe(5);
+
+    const reportedPostsResponse = await request.get('/api/admin/safety/reported-posts?limit=10', {
+      headers: adminHeaders,
+    });
+    expect(reportedPostsResponse.status()).toBe(200);
+    const reportedPostsBody = await reportedPostsResponse.json();
+    expect(reportedPostsBody.posts.find((item) => item.target_post_id === 9601)).toBeFalsy();
+  });
+
+  test('admin can delete a reported post and mark active reports actioned', async ({ request }) => {
+    const adminHeaders = buildAuthHeaders(9599);
+    const activeReporters = [9501, 9503, 9504, 9505, 9506];
+
+    for (const reporterId of activeReporters) {
+      const response = await request.post('/api/posts/9601/report', {
+        headers: buildAuthHeaders(reporterId),
+        data: {
+          reason_code: 'hate',
+        },
+      });
+      expect(response.status()).toBe(200);
+    }
+
+    const deleteResponse = await request.post('/api/admin/safety/reported-posts/9601/delete', {
+      headers: adminHeaders,
+      data: {
+        action_detail: 'delete reported fixture',
+      },
+    });
+    expect(deleteResponse.status()).toBe(200);
+    const deleteBody = await deleteResponse.json();
+    expect(deleteBody.result).toMatchObject({
+      deleted: true,
+      resolved_count: 5,
+    });
+    expect(deleteBody.result.post).toMatchObject({
+      id: 9601,
+      title: 'Fixture Safety Post',
+    });
+
+    const deletedPost = await withDb((db) =>
+      dbGet(db, 'SELECT id FROM posts WHERE id = ?', [9601])
+    );
+    expect(deletedPost).toBeNull();
+
+    const actionedCounts = await withDb((db) =>
+      dbGet(
+        db,
+        `SELECT
+           COUNT(*) AS count,
+         SUM(CASE WHEN status = 'actioned' AND action = 'post_deleted' THEN 1 ELSE 0 END) AS actioned_count
+         FROM safety_reports
+         WHERE target_user_id = ? AND source = 'report'`,
+        [9502]
+      )
+    );
+    expect(actionedCounts.count).toBe(5);
+    expect(actionedCounts.actioned_count).toBe(5);
+  });
 });

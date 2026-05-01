@@ -105,6 +105,51 @@
             </div>
           </div>
 
+          <section
+            class="post-comments-panel CardSoft gls-surface-panel post-glass-panel"
+            id="postCommentsPanel"
+            aria-label="댓글"
+            hidden
+          >
+            <div class="post-comments-head">
+              <div>
+                <p class="post-comments-kicker gls-mb-1">COMMENTS</p>
+                <h2 class="post-comments-title">댓글 <span id="postCommentsCount">0</span></h2>
+              </div>
+            </div>
+
+            <form class="post-comment-form" id="postCommentForm">
+              <div class="post-comment-reply-target" id="postCommentReplyTarget" hidden>
+                <span id="postCommentReplyTargetText"></span>
+                <button type="button" id="postCommentReplyCancelBtn">취소</button>
+              </div>
+              <label class="visually-hidden" for="postCommentInput">댓글 내용</label>
+              <textarea
+                id="postCommentInput"
+                class="post-comment-input"
+                rows="3"
+                maxlength="1000"
+                placeholder="댓글을 남겨보세요"
+              ></textarea>
+              <div class="post-comment-form-footer">
+                <span class="post-comment-count" id="postCommentInputCount">0/1000</span>
+                <button
+                  type="submit"
+                  class="gls-btn gls-btn-primary gls-btn-sm post-comment-submit"
+                  id="postCommentSubmitBtn"
+                  aria-label="댓글 등록"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                    <path d="M4 11.5 19.5 4 16 20l-4.2-6.2L4 11.5Z"></path>
+                  </svg>
+                </button>
+              </div>
+            </form>
+
+            <div class="post-comments-status" id="postCommentsStatus">댓글을 불러오는 중입니다...</div>
+            <div class="post-comments-list" id="postCommentsList"></div>
+          </section>
+
           <div class="post-meta-bar" id="postMetaBar" aria-label="글 정보 영역" hidden>
             <div class="post-meta-left">
               <div class="post-meta-category" id="postMetaCategory"></div>

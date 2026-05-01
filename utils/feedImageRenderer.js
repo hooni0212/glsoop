@@ -5,9 +5,19 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v11';
+const RENDER_VERSION = 'feed-image-poc-v23';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
-const FEED_IMAGE_PAGE_CAP = 8;
+const FEED_IMAGE_PAGE_CAP = 24;
+const IMAGE_FORMAT_CONFIG = {
+  webp: {
+    extension: 'webp',
+    contentType: 'image/webp',
+  },
+  png: {
+    extension: 'png',
+    contentType: 'image/png',
+  },
+};
 
 const TEMPLATE_CONFIG = {
   paper01: {
@@ -31,6 +41,13 @@ const TEMPLATE_CONFIG = {
       'feed-templates-v2',
       'paper-source-02.jpg'
     ),
+    outputWidth: 500,
+    outputHeight: 666,
+    resizeFit: 'contain',
+    resizeBackground: { r: 244, g: 239, b: 228, alpha: 1 },
+    resizePosition: 'top',
+    resizeWidthScale: 1.08,
+    resizeOffsetYRatio: -0.041,
   },
 };
 
@@ -144,6 +161,27 @@ const TEXT_COLOR = '#473f36';
 const TEXT_FONT_WEIGHT = 600;
 const SVG_FONT_FAMILY =
   "'Noto Serif KR','Nanum Myeongjo','Apple SD Gothic Neo','Malgun Gothic','Times New Roman',serif";
+const FONT_META_REGEX = /<!--\s*FONT:(serif|sans|hand)\s*-->/i;
+const SVG_FONT_CONFIG = {
+  serif: {
+    key: 'serif',
+    family:
+      "'Noto Serif KR','Nanum Myeongjo','Hahmlet','Apple SD Gothic Neo','Malgun Gothic','Times New Roman',serif",
+    weight: 600,
+  },
+  sans: {
+    key: 'sans',
+    family:
+      "'Noto Sans KR','IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic','Arial',sans-serif",
+    weight: 500,
+  },
+  hand: {
+    key: 'hand',
+    family:
+      "'Nanum Pen Script','Gaegu','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',cursive",
+    weight: 400,
+  },
+};
 const SHARE_LOGO_TEXT = '글숲';
 const SHARE_SIGNATURE_OPACITY = 0.74;
 const SHARE_LAYOUT_PRESETS = {
@@ -306,6 +344,15 @@ function normalizeRenderMode(input) {
   return String(input || '').trim().toLowerCase() === 'share' ? 'share' : 'feed';
 }
 
+function normalizeImageFormat(input) {
+  const normalized = String(input || '').trim().toLowerCase();
+  return normalized === 'png' ? 'png' : 'webp';
+}
+
+function getImageFormatConfig(input) {
+  return IMAGE_FORMAT_CONFIG[normalizeImageFormat(input)] || IMAGE_FORMAT_CONFIG.webp;
+}
+
 function decodeBasicEntities(text) {
   return String(text || '')
     .replace(/&nbsp;/gi, ' ')
@@ -316,8 +363,27 @@ function decodeBasicEntities(text) {
     .replace(/&#39;/gi, "'");
 }
 
+function normalizeFontKey(value) {
+  const key = String(value || '').trim().toLowerCase();
+  return SVG_FONT_CONFIG[key] ? key : 'serif';
+}
+
+function extractPostFontKey(raw) {
+  const match = String(raw || '').match(FONT_META_REGEX);
+  return normalizeFontKey(match?.[1]);
+}
+
+function resolvePostFont(raw) {
+  const key = extractPostFontKey(raw);
+  return SVG_FONT_CONFIG[key] || SVG_FONT_CONFIG.serif;
+}
+
+function removeFontMeta(raw) {
+  return String(raw || '').replace(FONT_META_REGEX, '');
+}
+
 function normalizePostText(raw) {
-  const withLineBreaks = String(raw || '')
+  const withLineBreaks = removeFontMeta(raw)
     .replace(/<\s*br\s*\/?>/gi, '\n')
     .replace(/<\/\s*(p|div|h[1-6]|li)\s*>/gi, '\n')
     .replace(/<\s*li[^>]*>/gi, '• ');
@@ -1015,6 +1081,16 @@ async function getTemplateMetadata(filePath) {
   return value;
 }
 
+async function getTemplateOutputSize(template, scale = 1) {
+  const metadata = await getTemplateMetadata(template.filePath);
+  const width = Number(template.outputWidth) || metadata.width;
+  const height = Number(template.outputHeight) || metadata.height;
+  return {
+    width: scale === 2 ? width * 2 : width,
+    height: scale === 2 ? height * 2 : height,
+  };
+}
+
 function buildRenderVersion({ post, templateKey, scale, renderMode }) {
   const payload = JSON.stringify({
     render_version: RENDER_VERSION,
@@ -1031,14 +1107,120 @@ function buildRenderVersion({ post, templateKey, scale, renderMode }) {
   return crypto.createHash('sha1').update(payload).digest('hex');
 }
 
-function buildCacheHash({ post, templateKey, scale, renderMode, page = 1 }) {
+function buildCacheHash({ post, templateKey, scale, renderMode, page = 1, imageFormat = 'webp' }) {
   const renderVersion = buildRenderVersion({ post, templateKey, scale, renderMode });
   const payload = JSON.stringify({
     render_version: renderVersion,
     page: Math.max(1, Number.parseInt(page, 10) || 1),
+    image_format: normalizeImageFormat(imageFormat),
   });
 
   return crypto.createHash('sha1').update(payload).digest('hex');
+}
+
+async function createCompositedTemplateImage({ template, outputWidth, outputHeight, svgOverlay }) {
+  const resizeWidthScale = Number(template.resizeWidthScale) || 1;
+
+  if (resizeWidthScale !== 1) {
+    const imageWidth = Math.max(1, Math.round(outputWidth * resizeWidthScale));
+    const imageTop = Math.round(outputHeight * (Number(template.resizeOffsetYRatio) || 0));
+    const imageLeft = Math.round((outputWidth - imageWidth) / 2);
+    const background = template.resizeBackground || { r: 255, g: 255, b: 255, alpha: 1 };
+    const templateBuffer = await sharp(template.filePath)
+      .resize({
+        width: imageWidth,
+        kernel: sharp.kernel.lanczos3,
+      })
+      .toBuffer();
+    const templateMetadata = await sharp(templateBuffer).metadata();
+    const imageHeight = Math.max(1, Math.round(Number(templateMetadata.height) || outputHeight));
+    const sourceLeft = Math.max(0, -imageLeft);
+    const sourceTop = Math.max(0, -imageTop);
+    const targetLeft = Math.max(0, imageLeft);
+    const targetTop = Math.max(0, imageTop);
+    const visibleWidth = Math.max(
+      0,
+      Math.min(imageWidth - sourceLeft, outputWidth - targetLeft)
+    );
+    const visibleHeight = Math.max(
+      0,
+      Math.min(imageHeight - sourceTop, outputHeight - targetTop)
+    );
+    const composites = [];
+
+    if (visibleWidth > 0 && visibleHeight > 0) {
+      const visibleTemplateBuffer = await sharp(templateBuffer)
+        .extract({
+          left: sourceLeft,
+          top: sourceTop,
+          width: visibleWidth,
+          height: visibleHeight,
+        })
+        .toBuffer();
+
+      composites.push({
+        input: visibleTemplateBuffer,
+        top: targetTop,
+        left: targetLeft,
+      });
+    }
+
+    composites.push({
+      input: Buffer.from(svgOverlay),
+      top: 0,
+      left: 0,
+    });
+
+    return sharp({
+      create: {
+        width: outputWidth,
+        height: outputHeight,
+        channels: 4,
+        background,
+      },
+    }).composite(composites);
+  }
+
+  const resizeOptions = {
+    fit: template.resizeFit || 'fill',
+    kernel: sharp.kernel.lanczos3,
+  };
+
+  if (template.resizeBackground) {
+    resizeOptions.background = template.resizeBackground;
+  }
+  if (template.resizePosition) {
+    resizeOptions.position = template.resizePosition;
+  }
+
+  return sharp(template.filePath)
+    .resize(outputWidth, outputHeight, resizeOptions)
+    .composite([
+      {
+        input: Buffer.from(svgOverlay),
+        top: 0,
+        left: 0,
+      },
+    ]);
+}
+
+function encodeCompositedImage(image, imageFormat = 'webp') {
+  const format = normalizeImageFormat(imageFormat);
+  if (format === 'png') {
+    return image
+      .png({
+        compressionLevel: 9,
+        adaptiveFiltering: true,
+      })
+      .toBuffer();
+  }
+
+  return image
+    .webp({
+      quality: 92,
+      effort: 4,
+    })
+    .toBuffer();
 }
 
 function buildSvgTextOverlay({
@@ -1051,6 +1233,8 @@ function buildSvgTextOverlay({
   letterSpacingEm = 0,
   textAlign = 'left',
   verticalAlign = 'top',
+  fontFamily = SVG_FONT_FAMILY,
+  fontWeight = TEXT_FONT_WEIGHT,
   title = null,
   footerSignature = '',
 }) {
@@ -1064,6 +1248,8 @@ function buildSvgTextOverlay({
     fontSizePx,
     lineHeightPx,
     letterSpacingEm,
+    fontFamily,
+    fontWeight,
     clipPadTopPx: Math.round(safeBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
     clipPadBottomPx: Math.round(safeBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
@@ -1081,6 +1267,8 @@ function buildSvgTextOverlay({
       fontSizePx: title.fontSizePx || fontSizePx,
       lineHeightPx: title.lineHeightPx || lineHeightPx,
       letterSpacingEm: title.letterSpacingEm || 0,
+      fontFamily,
+      fontWeight,
       clipPadTopPx: Math.round((title.box.height || safeBox.height) * TEXT_CLIP_TOP_PADDING_RATIO),
       clipPadBottomPx: Math.round((title.box.height || safeBox.height) * TEXT_CLIP_BOTTOM_PADDING_RATIO),
     });
@@ -1305,6 +1493,8 @@ function buildSvgShareOverlay({
   layoutPreset,
   fontSizePx,
   lineHeightPx,
+  fontFamily = SVG_FONT_FAMILY,
+  fontWeight = TEXT_FONT_WEIGHT,
   bodyLetterSpacingEm = 0,
   titleBoxOverride = null,
   titleTextAlignOverride = '',
@@ -1327,6 +1517,8 @@ function buildSvgShareOverlay({
     fontSizePx: titleFontSizeOverridePx || fontSizePx,
     lineHeightPx: titleLineHeightOverridePx || lineHeightPx,
     letterSpacingEm: titleLetterSpacingEm,
+    fontFamily,
+    fontWeight,
     clipPadTopPx: Math.round(titleBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
     clipPadBottomPx: Math.round(titleBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
@@ -1340,6 +1532,8 @@ function buildSvgShareOverlay({
     fontSizePx,
     lineHeightPx,
     letterSpacingEm: bodyLetterSpacingEm,
+    fontFamily,
+    fontWeight,
     clipPadTopPx: Math.round(bodyBox.height * TEXT_CLIP_TOP_PADDING_RATIO),
     clipPadBottomPx: Math.round(bodyBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
@@ -1367,6 +1561,7 @@ function buildFeedModeRenderPlan({
 }) {
   const titleText = normalizePostText(post?.title) || '';
   const bodyText = normalizePostText(post?.content) || titleText || ' ';
+  const font = resolvePostFont(post?.content);
   const presetKey = selectLengthPreset(bodyText.length);
   const preset = LAYOUT_PRESETS[presetKey];
   const parsedLayout = parsePostLayout(post?.layout_json);
@@ -1435,22 +1630,7 @@ function buildFeedModeRenderPlan({
     }
   }
 
-  const pagination = hasCustomBodyLayout
-    ? paginateTextLines(allLines, pageMaxLines, FEED_IMAGE_PAGE_CAP)
-    : {
-        pages: [
-          layoutTextLines(
-            bodyText,
-            Math.max(20, box.width),
-            fontSizePx,
-            pageMaxLines,
-            bodyLetterSpacingEm
-          ),
-        ],
-        pageCount: 1,
-        isTruncated: allLines.length > pageMaxLines,
-        pageCap: FEED_IMAGE_PAGE_CAP,
-      };
+  const pagination = paginateTextLines(allLines, pageMaxLines, FEED_IMAGE_PAGE_CAP);
 
   return {
     pageCount: pagination.pageCount,
@@ -1472,12 +1652,15 @@ function buildFeedModeRenderPlan({
     bodyLineHeightRatio,
     bodyFontScale,
     bodyLetterSpacingEm,
+    fontKey: font.key,
+    fontFamily: font.family,
+    fontWeight: font.weight,
     bodyFontSizeRatio: hasCustomBodyLayout
       ? preset.fontSizeRatio
       : effectivePreset.fontSizeRatio,
     textAlign: customBodyBox?.align || effectivePreset.textAlign,
     verticalAlign: effectivePreset.verticalAlign,
-    layoutTag: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}${
+    layoutTag: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}-font-${font.key}${
       shouldRenderTitleInImage ? '-with-title' : ''
     }${hasCustomFooterLayout ? '-with-footer' : ''}`,
   };
@@ -1490,6 +1673,7 @@ async function renderFeedModePageBuffer({
   outputHeight,
   scale,
   page = 1,
+  imageFormat = 'webp',
 }) {
   const plan = buildFeedModeRenderPlan({
     post,
@@ -1592,27 +1776,21 @@ async function renderFeedModePageBuffer({
     letterSpacingEm: pageBodyLetterSpacingEm,
     textAlign: resolvedBodyLayout?.align || plan.textAlign,
     verticalAlign: plan.verticalAlign,
+    fontFamily: plan.fontFamily,
+    fontWeight: plan.fontWeight,
     title: titleConfig,
     footerSignature,
   });
 
-  const imageBuffer = await sharp(template.filePath)
-    .resize(outputWidth, outputHeight, {
-      fit: 'fill',
-      kernel: sharp.kernel.lanczos3,
-    })
-    .composite([
-      {
-        input: Buffer.from(svgOverlay),
-        top: 0,
-        left: 0,
-      },
-    ])
-    .webp({
-      quality: 92,
-      effort: 4,
-    })
-    .toBuffer();
+  const imageBuffer = await encodeCompositedImage(
+    await createCompositedTemplateImage({
+      template,
+      outputWidth,
+      outputHeight,
+      svgOverlay,
+    }),
+    imageFormat
+  );
 
   return {
     buffer: imageBuffer,
@@ -1634,6 +1812,7 @@ async function renderFeedModeImageBuffer({
   outputHeight,
   scale,
   page = 1,
+  imageFormat = 'webp',
 }) {
   return renderFeedModePageBuffer({
     post,
@@ -1642,6 +1821,7 @@ async function renderFeedModeImageBuffer({
     outputHeight,
     scale,
     page,
+    imageFormat,
   });
 }
 
@@ -1651,9 +1831,11 @@ async function renderShareModeImageBuffer({
   outputWidth,
   outputHeight,
   scale,
+  imageFormat = 'webp',
 }) {
   const titleText = normalizePostText(post?.title) || '제목 없음';
   const bodyText = normalizePostText(post?.content) || titleText || ' ';
+  const font = resolvePostFont(post?.content);
   const layoutKey = selectShareLayoutPreset(bodyText);
   const layoutPreset = SHARE_LAYOUT_PRESETS[layoutKey] || SHARE_LAYOUT_PRESETS.medium;
   const parsedLayout = parsePostLayout(post?.layout_json);
@@ -1735,6 +1917,8 @@ async function renderShareModeImageBuffer({
     layoutPreset,
     fontSizePx: bodyFontSizePx,
     lineHeightPx: bodyLineHeightPx,
+    fontFamily: font.family,
+    fontWeight: font.weight,
     bodyLetterSpacingEm,
     titleBoxOverride: hasCustomTitleLayout ? titleBox : null,
     titleTextAlignOverride: customTitleBox?.align || '',
@@ -1746,27 +1930,19 @@ async function renderShareModeImageBuffer({
     brandSignatureOverride,
   });
 
-  const imageBuffer = await sharp(template.filePath)
-    .resize(outputWidth, outputHeight, {
-      fit: 'fill',
-      kernel: sharp.kernel.lanczos3,
-    })
-    .composite([
-      {
-        input: Buffer.from(svgOverlay),
-        top: 0,
-        left: 0,
-      },
-    ])
-    .webp({
-      quality: 92,
-      effort: 4,
-    })
-    .toBuffer();
+  const imageBuffer = await encodeCompositedImage(
+    await createCompositedTemplateImage({
+      template,
+      outputWidth,
+      outputHeight,
+      svgOverlay,
+    }),
+    imageFormat
+  );
 
   return {
     buffer: imageBuffer,
-    layout: `share-${layoutKey}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}`,
+    layout: `share-${layoutKey}-font-${font.key}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}`,
   };
 }
 
@@ -1776,11 +1952,13 @@ async function renderFeedImageBuffer({
   scale = 1,
   renderMode = 'feed',
   page = 1,
+  imageFormat = 'webp',
 }) {
   const template = TEMPLATE_CONFIG[templateKey] || TEMPLATE_CONFIG.paper01;
-  const { width, height } = await getTemplateMetadata(template.filePath);
-  const outputWidth = scale === 2 ? width * 2 : width;
-  const outputHeight = scale === 2 ? height * 2 : height;
+  const { width: outputWidth, height: outputHeight } = await getTemplateOutputSize(
+    template,
+    scale
+  );
   const normalizedMode = normalizeRenderMode(renderMode);
 
   if (normalizedMode === 'share') {
@@ -1791,6 +1969,7 @@ async function renderFeedImageBuffer({
       outputHeight,
       scale,
       page: 1,
+      imageFormat,
     });
   }
 
@@ -1801,6 +1980,7 @@ async function renderFeedImageBuffer({
     outputHeight,
     scale,
     page,
+    imageFormat,
   });
 }
 
@@ -1856,19 +2036,23 @@ async function renderFeedCardImage({
   scale,
   renderMode = 'feed',
   page = 1,
+  imageFormat = 'webp',
 }) {
   const normalizedTemplate = normalizeTemplateKey(templateKey);
   const normalizedScale = normalizeScale(scale);
   const normalizedRenderMode = normalizeRenderMode(renderMode);
   const normalizedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const normalizedImageFormat = normalizeImageFormat(imageFormat);
+  const imageFormatConfig = getImageFormatConfig(normalizedImageFormat);
   const cacheHash = buildCacheHash({
     post,
     templateKey: normalizedTemplate,
     scale: normalizedScale,
     renderMode: normalizedRenderMode,
     page: normalizedPage,
+    imageFormat: normalizedImageFormat,
   });
-  const cachePath = path.join(CACHE_DIR, `${cacheHash}.webp`);
+  const cachePath = path.join(CACHE_DIR, `${cacheHash}.${imageFormatConfig.extension}`);
   const etag = `"feed-image-${cacheHash}"`;
 
   const cachedBuffer = await loadCachedBuffer(cachePath);
@@ -1876,11 +2060,12 @@ async function renderFeedCardImage({
     return {
       buffer: cachedBuffer,
       etag,
-      contentType: 'image/webp',
+      contentType: imageFormatConfig.contentType,
       cacheHit: true,
       template: normalizedTemplate,
       scale: normalizedScale,
       page: normalizedPage,
+      imageFormat: normalizedImageFormat,
     };
   }
 
@@ -1896,6 +2081,7 @@ async function renderFeedCardImage({
       scale: normalizedScale,
       renderMode: normalizedRenderMode,
       page: normalizedPage,
+      imageFormat: normalizedImageFormat,
     });
 
     try {
@@ -1908,12 +2094,13 @@ async function renderFeedCardImage({
     return {
       buffer: rendered.buffer,
       etag,
-      contentType: 'image/webp',
+      contentType: imageFormatConfig.contentType,
       cacheHit: false,
       layout: rendered.layout,
       template: normalizedTemplate,
       scale: normalizedScale,
       page: normalizedPage,
+      imageFormat: normalizedImageFormat,
       manifest: rendered.manifest || null,
     };
   })().finally(() => {
@@ -1928,8 +2115,11 @@ module.exports = {
   buildRenderVersion,
   getFeedCardImageManifest,
   renderFeedCardImage,
+  normalizeImageFormat,
   normalizeScale,
   normalizeTemplateKey,
   normalizePostText,
+  extractPostFontKey,
+  resolvePostFont,
   parsePostLayout,
 };
