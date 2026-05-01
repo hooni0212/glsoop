@@ -4,6 +4,10 @@ const { allAsync, getAsync, runAsync } = require('../utils/questService');
 const { mapActivityRow, toPositiveInt } = require('../utils/activityEvents');
 
 const router = express.Router();
+const HIDDEN_MARKETING_CAMPAIGN_CONDITION =
+  "NOT (ae.event_type = 'system' AND COALESCE(ae.meta_json, '') LIKE '%marketing_campaign%')";
+const HIDDEN_MARKETING_CAMPAIGN_CONDITION_UNALIASED =
+  "NOT (event_type = 'system' AND COALESCE(meta_json, '') LIKE '%marketing_campaign%')";
 
 function sendActivityError(res, status, code, message) {
   return res.status(status).json({ ok: false, code, message });
@@ -51,6 +55,7 @@ router.get('/activity', authRequired, async (req, res) => {
     if (unreadOnly) {
       where.push('ae.read_at IS NULL');
     }
+    where.push(HIDDEN_MARKETING_CAMPAIGN_CONDITION);
 
     const rows = await allAsync(
       `
@@ -83,6 +88,7 @@ router.get('/activity', authRequired, async (req, res) => {
       FROM activity_events
       WHERE recipient_user_id = ?
         AND read_at IS NULL
+        AND ${HIDDEN_MARKETING_CAMPAIGN_CONDITION_UNALIASED}
       `,
       [userId]
     );
@@ -120,6 +126,7 @@ router.get('/activity/unread-count', authRequired, async (req, res) => {
       FROM activity_events
       WHERE recipient_user_id = ?
         AND read_at IS NULL
+        AND ${HIDDEN_MARKETING_CAMPAIGN_CONDITION_UNALIASED}
       `,
       [userId]
     );
@@ -187,6 +194,7 @@ router.post('/activity/read-all', authRequired, async (req, res) => {
       SET read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
       WHERE recipient_user_id = ?
         AND read_at IS NULL
+        AND ${HIDDEN_MARKETING_CAMPAIGN_CONDITION_UNALIASED}
       `,
       [userId]
     );

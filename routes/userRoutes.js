@@ -16,6 +16,7 @@ const {
   normalizePublicPostAuthor,
 } = require('../utils/accountLifecycle');
 const { decoratePostRowsWithRenderImages } = require('../utils/postRenderImages');
+const { ACTIVITY_TYPES, createActivityEvent } = require('../utils/activityEvents');
 const {
   appendViewerBlockedAuthorCondition,
   blockUser,
@@ -324,6 +325,31 @@ router.post('/users/:id/follow', authRequired, async (req, res) => {
       [viewerId, targetUserId]
     );
     const result = await applyFollowState(targetUserId, viewerId, !exists);
+    if (!exists && result.following) {
+      try {
+        const actor = await dbGet(
+          `
+          SELECT nickname, COALESCE(account_status, 'active') AS account_status
+          FROM users
+          WHERE id = ?
+          LIMIT 1
+          `,
+          [viewerId]
+        );
+        const actorName = buildPublicDisplayName(actor?.nickname, actor?.account_status);
+        await createActivityEvent({
+          recipientUserId: targetUserId,
+          actorUserId: viewerId,
+          eventType: ACTIVITY_TYPES.SYSTEM,
+          title: '새 팔로워',
+          body: `${actorName}님이 나를 팔로우했어요.`,
+          meta: { notification_type: 'new_follower' },
+          uniqueKey: `new_follower:${targetUserId}:${viewerId}`,
+        });
+      } catch (activityError) {
+        console.error('follow activity 처리 실패:', activityError);
+      }
+    }
     return res.json({
       ok: true,
       message: '팔로우 상태가 업데이트되었습니다.',
