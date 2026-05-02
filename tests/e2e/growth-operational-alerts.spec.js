@@ -27,6 +27,20 @@ const dbRun = (db, sql, params = []) =>
     });
   });
 
+const bumpSqliteSequence = async (db, tableName, minSeq) => {
+  await dbRun(db, 'INSERT OR IGNORE INTO sqlite_sequence (name, seq) VALUES (?, ?)', [
+    tableName,
+    minSeq,
+  ]);
+  await dbRun(
+    db,
+    `UPDATE sqlite_sequence
+     SET seq = CASE WHEN seq < ? THEN ? ELSE seq END
+     WHERE name = ?`,
+    [minSeq, minSeq, tableName]
+  );
+};
+
 const waitForFile = async (filePath, timeoutMs = 10000) => {
   const startedAt = Date.now();
   while (!fs.existsSync(filePath)) {
@@ -72,6 +86,8 @@ async function seedAdmin() {
      VALUES (?, ?, ?, ?, ?, 1, 1)`,
     [ADMIN_ID, 'Growth Ops Admin', 'growth_ops_admin', 'growth-ops-admin@glsoop.test', 'password']
   );
+  await bumpSqliteSequence(db, 'quest_templates', 200000);
+  await bumpSqliteSequence(db, 'quest_campaigns', 200000);
   await dbRun(db, 'PRAGMA foreign_keys = ON');
   await new Promise((resolve) => db.close(resolve));
 }
