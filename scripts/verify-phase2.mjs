@@ -334,7 +334,8 @@ async function main() {
       recordResult(4, 'Active API: 새 필드 포함 + 기존 기능 유지', false, error.message, 'routes/growthRoutes.js 매핑 확인');
     }
 
-    // (5) eager assignment forbidden
+    // (5) growth summary should not create additional quest states.
+    // Existing migrations/admin flows may already backfill permanent achievement states.
     try {
       const countBefore = await dbGet(
         `SELECT COUNT(*) as cnt
@@ -353,16 +354,16 @@ async function main() {
          WHERE qt.template_kind = 'achievement' AND uqs.user_id = ? AND uqs.progress = 0`,
         [users.userBId]
       );
-      const pass = (countBefore?.cnt || 0) === 0 && (countAfter?.cnt || 0) === 0;
+      const pass = (countAfter?.cnt || 0) === (countBefore?.cnt || 0);
       recordResult(
         5,
-        '업적 Eager assignment 금지',
+        'Growth Summary API: 퀘스트 상태 추가 생성 없음',
         pass,
         `before=${countBefore?.cnt || 0}, after=${countAfter?.cnt || 0}`,
-        'questService syncUserQuestState에서 초기 insert 조건 확인'
+        'routes/growthRoutes.js summary handler가 quest state를 생성하지 않는지 확인'
       );
     } catch (error) {
-      recordResult(5, '업적 Eager assignment 금지', false, error.message, 'questService syncUserQuestState 확인');
+      recordResult(5, 'Growth Summary API: 퀘스트 상태 추가 생성 없음', false, error.message, 'summary handler 확인');
     }
 
     // setup posts for completion

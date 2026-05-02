@@ -8,6 +8,7 @@ const E2E_JWT_SECRET = 'devsecret';
 const E2E_JWT_ALGORITHM = 'HS256';
 const E2E_JWT_ISSUER = 'glsoop';
 const E2E_JWT_AUDIENCE = 'glsoop-client';
+const AUTH_HEADER_NOW = '2026-03-01T00:00:00+09:00';
 
 const ADMIN_ID = 9921;
 const PLAYER_ID = 9922;
@@ -76,6 +77,11 @@ const signAuthToken = ({ id, name, nickname, email, isAdmin = false, isVerified 
       expiresIn: '1h',
     }
   );
+
+const buildAuthHeaders = (token) => ({
+  Authorization: `Bearer ${token}`,
+  'x-auth-legacy-now': AUTH_HEADER_NOW,
+});
 
 const seedGrowthMonetizationFixtures = async () => {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -223,7 +229,7 @@ test.describe('Monetization + Growth entitlement lock', () => {
     });
 
     const response = await request.get('/api/growth/dashboard', {
-      headers: { Authorization: `Bearer ${playerToken}` },
+      headers: buildAuthHeaders(playerToken),
     });
     expect(response.status()).toBe(200);
 
@@ -249,7 +255,7 @@ test.describe('Monetization + Growth entitlement lock', () => {
     });
 
     const response = await request.post(`/api/quests/${STATE_LOCKED_ID}/claim`, {
-      headers: { Authorization: `Bearer ${playerToken}` },
+      headers: buildAuthHeaders(playerToken),
     });
     expect(response.status()).toBe(403);
     const payload = await response.json();
@@ -279,7 +285,7 @@ test.describe('Monetization + Growth entitlement lock', () => {
     });
 
     const response = await request.post('/api/admin/entitlements/grant', {
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: buildAuthHeaders(adminToken),
       data: {
         user_id: PLAYER_ID,
         entitlement_key: REQUIRED_ENTITLEMENT,
@@ -306,7 +312,7 @@ test.describe('Monetization + Growth entitlement lock', () => {
     });
 
     const response = await request.post(`/api/quests/${STATE_REWARD_ID}/claim`, {
-      headers: { Authorization: `Bearer ${playerToken}` },
+      headers: buildAuthHeaders(playerToken),
     });
     expect(response.status()).toBe(200);
     const payload = await response.json();
