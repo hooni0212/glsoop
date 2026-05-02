@@ -19,6 +19,8 @@ Glsoop.AdminPage = (function () {
     templates: [],
     campaigns: [],
     campaignItems: [],
+    operationalAlerts: [],
+    operationalHealth: null,
   };
 
   const shareSummaryState = {
@@ -166,6 +168,8 @@ Glsoop.AdminPage = (function () {
     await loadPosts(postsBox);
     setupSafetyUi(safetyReportsBox, reportedPostsBox);
     await loadSafetyDashboard(safetyReportsBox, reportedPostsBox);
+    setupGrowthOperationalControls();
+    await loadGrowthOperationalStatus();
     await loadQuestTemplates();
     await loadQuestCampaigns();
     setupAchievementBackfillButton();
@@ -1859,6 +1863,158 @@ Glsoop.AdminPage = (function () {
     });
   }
 
+  function setupGrowthOperationalControls() {
+    const syncBtn = document.getElementById('growthOpsSyncBtn');
+    syncBtn?.addEventListener('click', async () => {
+      syncBtn.disabled = true;
+      const originalText = syncBtn.textContent;
+      syncBtn.textContent = '점검 중...';
+      try {
+        const res = await fetch('/api/admin/growth/operations/alerts/sync', { method: 'POST' });
+        const data = await parseJsonSafe(res);
+        if (!res.ok || !data.ok) {
+          throw new Error(data.message || '운영 점검에 실패했습니다.');
+        }
+        await loadGrowthOperationalStatus();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || '성장 운영 점검 중 오류가 발생했습니다.');
+      } finally {
+        syncBtn.disabled = false;
+        syncBtn.textContent = originalText || '운영 점검';
+      }
+    });
+  }
+
+  async function loadGrowthOperationalStatus() {
+    const box = document.getElementById('growthOperationalStatus');
+    if (!box) return;
+    box.innerHTML = '<p class="gls-text-muted">운영 상태를 불러오는 중입니다...</p>';
+
+    try {
+      const [healthRes, alertsRes] = await Promise.all([
+        fetch('/api/admin/growth/operations/health'),
+        fetch('/api/admin/operational-alerts?status=open&limit=20'),
+      ]);
+      const healthData = await parseJsonSafe(healthRes);
+      const alertsData = await parseJsonSafe(alertsRes);
+
+      if (!healthRes.ok || !healthData.ok) {
+        throw new Error(healthData.message || '성장 운영 상태를 불러오지 못했습니다.');
+      }
+      if (!alertsRes.ok || !alertsData.ok) {
+        throw new Error(alertsData.message || '운영 알림을 불러오지 못했습니다.');
+      }
+
+      questState.operationalHealth = healthData.health || null;
+      questState.operationalAlerts = (alertsData.alerts || []).filter((alert) =>
+        ['growth', 'campaign'].includes(alert.domain)
+      );
+      box.innerHTML = buildGrowthOperationalStatus();
+      bindGrowthOperationalStatusEvents();
+    } catch (err) {
+      console.error(err);
+      box.innerHTML = '<p class="text-danger">성장 운영 상태를 불러오지 못했습니다.</p>';
+    }
+  }
+
+  function buildGrowthOperationalStatus() {
+    const health = questState.operationalHealth || {};
+    const checks = Array.isArray(health.checks) ? health.checks : [];
+    const alerts = Array.isArray(questState.operationalAlerts)
+      ? questState.operationalAlerts
+      : [];
+    const problemCount = checks.filter((check) => check.status !== 'pass').length;
+
+    const checksHtml = checks
+      .map((check) => {
+        const tone =
+          check.status === 'error' ? 'danger' : check.status === 'warn' ? 'warning' : 'success';
+        return `
+          <tr>
+            <td><span class="badge text-bg-${tone}">${escapeHtml(check.status || 'pass')}</span></td>
+            <td>
+              <strong>${escapeHtml(check.title || check.code || '')}</strong>
+              <div class="gls-text-muted gls-text-small">${escapeHtml(check.message || '')}</div>
+            </td>
+            <td class="gls-text-end">${Number(check.count || 0)}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const alertsHtml = alerts.length
+      ? alerts
+          .map((alert) => {
+            const tone =
+              alert.level === 'error' ? 'danger' : alert.level === 'warn' ? 'warning' : 'secondary';
+            return `
+              <div class="gls-flex gls-flex-col gls-md-flex-row gls-md-items-center gls-justify-between gls-gap-2 gls-py-2 border-top">
+                <div>
+                  <div class="gls-flex gls-gap-2 gls-items-center">
+                    <span class="badge text-bg-${tone}">${escapeHtml(alert.level)}</span>
+                    <strong>${escapeHtml(alert.title || '')}</strong>
+                  </div>
+                  <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(alert.message || '')}</p>
+                </div>
+                <button class="gls-btn gls-btn-secondary gls-btn-xs growth-alert-resolve" type="button" data-alert-id="${alert.id}">해결</button>
+              </div>
+            `;
+          })
+          .join('')
+      : '<p class="gls-text-muted gls-text-small gls-mb-0">열린 성장 운영 알림이 없습니다.</p>';
+
+    return `
+      <div class="gls-grid gls-grid-12 gls-gap-3">
+        <div class="gls-col-span-12 gls-lg-col-span-4">
+          <div class="gls-p-3 rounded border bg-light">
+            <p class="gls-text-muted gls-text-small gls-mb-1">운영 점검 결과</p>
+            <h4 class="gls-mb-1">${problemCount === 0 ? '정상' : `${problemCount}건 확인 필요`}</h4>
+            <p class="gls-text-muted gls-text-small gls-mb-0">열린 알림 ${Number(health.open_alert_count || 0)}건</p>
+          </div>
+        </div>
+        <div class="gls-col-span-12 gls-lg-col-span-8">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle gls-mb-0">
+              <thead><tr><th>상태</th><th>점검</th><th class="gls-text-end">건수</th></tr></thead>
+              <tbody>${checksHtml || '<tr><td colspan="3" class="gls-text-muted">점검 항목이 없습니다.</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="gls-mt-3">
+        <h5 class="gls-mb-2">열린 운영 알림</h5>
+        ${alertsHtml}
+      </div>
+    `;
+  }
+
+  function bindGrowthOperationalStatusEvents() {
+    const box = document.getElementById('growthOperationalStatus');
+    if (!box) return;
+    box.querySelectorAll('.growth-alert-resolve').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const alertId = btn.getAttribute('data-alert-id');
+        if (!alertId) return;
+        btn.disabled = true;
+        try {
+          const res = await fetch(`/api/admin/operational-alerts/${alertId}/resolve`, {
+            method: 'POST',
+          });
+          const data = await parseJsonSafe(res);
+          if (!res.ok || !data.ok) {
+            throw new Error(data.message || '운영 알림 해결 처리에 실패했습니다.');
+          }
+          await loadGrowthOperationalStatus();
+        } catch (err) {
+          console.error(err);
+          alert(err.message || '운영 알림 해결 처리 중 오류가 발생했습니다.');
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
   async function loadQuestTemplates() {
       const box = document.getElementById('questTemplates');
       if (!box) return;
@@ -1911,6 +2067,7 @@ Glsoop.AdminPage = (function () {
           return;
         }
         alert(`업적 backfill 완료: ${data.inserted || 0}건`);
+        await loadGrowthOperationalStatus();
       } catch (err) {
         console.error(err);
         alert('업적 backfill 중 오류가 발생했습니다.');
@@ -2060,6 +2217,7 @@ Glsoop.AdminPage = (function () {
         }
         await loadQuestTemplates();
         await loadQuestCampaigns();
+        await loadGrowthOperationalStatus();
       } catch (err) {
         console.error(err);
         alert('템플릿 저장 중 오류가 발생했습니다.');
@@ -2095,6 +2253,7 @@ Glsoop.AdminPage = (function () {
             }
             await loadQuestTemplates();
             await loadQuestCampaigns();
+            await loadGrowthOperationalStatus();
           },
           successMessage: '템플릿을 삭제했습니다.',
           failMessage: '템플릿 삭제 중 오류가 발생했습니다.',
@@ -2307,14 +2466,16 @@ Glsoop.AdminPage = (function () {
           alert(data.message || '캠페인 저장에 실패했습니다.');
           return;
         }
-        if (isEdit) {
-          await saveCampaignItems(payload.id, form);
+        const campaignId = isEdit ? payload.id : data.campaign_id;
+        if (campaignId) {
+          await saveCampaignItems(campaignId, form);
         }
         await loadQuestCampaigns();
         await loadQuestTemplates();
+        await loadGrowthOperationalStatus();
       } catch (err) {
         console.error(err);
-        alert('캠페인 저장 중 오류가 발생했습니다.');
+        alert(err.message || '캠페인 저장 중 오류가 발생했습니다.');
       }
     });
 
@@ -2346,6 +2507,7 @@ Glsoop.AdminPage = (function () {
               throw new Error(data.message || '삭제에 실패했습니다.');
             }
             await loadQuestCampaigns();
+            await loadGrowthOperationalStatus();
           },
           successMessage: '캠페인을 삭제했습니다.',
           failMessage: '캠페인 삭제 중 오류가 발생했습니다.',
@@ -2370,13 +2532,18 @@ Glsoop.AdminPage = (function () {
         };
       });
     try {
-      await fetch(`/api/admin/quest-campaigns/${campaignId}/items`, {
+      const res = await fetch(`/api/admin/quest-campaigns/${campaignId}/items`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: selectedTemplates }),
       });
+      const data = await parseJsonSafe(res);
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || '캠페인 템플릿 저장에 실패했습니다.');
+      }
     } catch (err) {
       console.error(err);
+      throw err;
     }
   }
 
