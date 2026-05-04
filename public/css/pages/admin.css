@@ -363,11 +363,145 @@ body.page-admin .quest-template-select {
   background: rgba(255, 255, 255, 0.66);
 }
 
+body.page-admin .quest-ops-overview {
+  display: grid;
+  gap: 14px;
+}
+
+body.page-admin .quest-ops-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+body.page-admin .quest-ops-step,
+body.page-admin .quest-ops-campaign-card,
+body.page-admin .quest-reward-panel {
+  border-radius: 14px;
+  border: 1px solid rgba(61, 52, 36, 0.13);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 8px 18px rgba(39, 28, 14, 0.06);
+}
+
+body.page-admin .quest-ops-step {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+}
+
+body.page-admin .quest-ops-step--ok {
+  border-color: rgba(31, 107, 75, 0.24);
+  background: rgba(245, 252, 247, 0.88);
+}
+
+body.page-admin .quest-ops-step--warn {
+  border-color: rgba(180, 83, 9, 0.3);
+  background: rgba(255, 250, 235, 0.88);
+}
+
+body.page-admin .quest-ops-step__index {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(31, 107, 75, 0.12);
+  color: var(--gls-admin-accent);
+  font-weight: 800;
+}
+
+body.page-admin .quest-ops-step__title {
+  margin: 0 0 2px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--gls-admin-muted);
+}
+
+body.page-admin .quest-ops-section {
+  display: grid;
+  gap: 8px;
+}
+
+body.page-admin .quest-ops-campaigns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+body.page-admin .quest-ops-campaign-card {
+  padding: 12px;
+}
+
+body.page-admin .quest-ops-rewards,
+body.page-admin .quest-reward-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+body.page-admin .quest-ops-pill,
+body.page-admin .quest-reward-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 107, 75, 0.16);
+  background: rgba(245, 252, 247, 0.9);
+  color: color-mix(in srgb, var(--gls-admin-accent) 78%, #173826 22%);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+body.page-admin .quest-ops-pill--muted {
+  border-color: rgba(61, 52, 36, 0.12);
+  background: rgba(247, 244, 237, 0.9);
+  color: var(--gls-admin-muted);
+}
+
+body.page-admin .quest-reward-chip--lock {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: rgba(255, 250, 235, 0.92);
+  color: #92400e;
+}
+
+body.page-admin .quest-reward-chip--badge {
+  border-color: rgba(31, 107, 75, 0.24);
+  background: rgba(238, 248, 242, 0.96);
+}
+
+body.page-admin .quest-reward-chip--sticker {
+  border-color: rgba(83, 92, 145, 0.22);
+  background: rgba(241, 245, 255, 0.92);
+  color: #35407d;
+}
+
+body.page-admin .quest-reward-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
 body.page-admin .quest-template-select .gls-check {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+body.page-admin .quest-template-select__label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: min(100%, 220px);
+}
+
+body.page-admin .quest-template-select__label small {
+  color: var(--gls-admin-muted);
+  font-size: 0.72rem;
 }
 
 body.page-admin .admin-template-order-input {

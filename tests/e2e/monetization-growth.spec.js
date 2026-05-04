@@ -21,6 +21,7 @@ const STATE_REWARD_ID = 99214;
 
 const REQUIRED_ENTITLEMENT = 'pass:2026_spring';
 const REWARD_COSMETIC_KEY = 'sticker_star';
+const REWARD_BADGE_KEY = 'badge_spring_2026';
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -109,9 +110,9 @@ const seedGrowthMonetizationFixtures = async () => {
     `DELETE FROM user_cosmetics
      WHERE user_id = ?
        AND cosmetic_id IN (
-         SELECT id FROM cosmetic_items WHERE key = ?
+         SELECT id FROM cosmetic_items WHERE key IN (?, ?)
        )`,
-    [PLAYER_ID, REWARD_COSMETIC_KEY]
+    [PLAYER_ID, REWARD_COSMETIC_KEY, REWARD_BADGE_KEY]
   );
 
   await dbRun(
@@ -136,7 +137,7 @@ const seedGrowthMonetizationFixtures = async () => {
 
   const uiJson = JSON.stringify({
     required_entitlement: REQUIRED_ENTITLEMENT,
-    rewards: { cosmetics: [REWARD_COSMETIC_KEY] },
+    rewards: { cosmetics: [REWARD_COSMETIC_KEY, REWARD_BADGE_KEY] },
   });
 
   await dbRun(
@@ -318,17 +319,20 @@ test.describe('Monetization + Growth entitlement lock', () => {
     const payload = await response.json();
     expect(payload.ok).toBe(true);
     expect(payload.gained_cosmetics).toEqual(
-      expect.arrayContaining([expect.objectContaining({ key: REWARD_COSMETIC_KEY })])
+      expect.arrayContaining([
+        expect.objectContaining({ key: REWARD_COSMETIC_KEY }),
+        expect.objectContaining({ key: REWARD_BADGE_KEY, season: '2026_spring' }),
+      ])
     );
 
     const db = new sqlite3.Database(DB_PATH);
-    const ownedReward = await dbGet(
+    const ownedRewards = await dbGet(
       db,
       `SELECT COUNT(*) AS cnt
        FROM user_cosmetics uc
        JOIN cosmetic_items ci ON ci.id = uc.cosmetic_id
-       WHERE uc.user_id = ? AND ci.key = ?`,
-      [PLAYER_ID, REWARD_COSMETIC_KEY]
+       WHERE uc.user_id = ? AND ci.key IN (?, ?)`,
+      [PLAYER_ID, REWARD_COSMETIC_KEY, REWARD_BADGE_KEY]
     );
     const state = await dbGet(
       db,
@@ -337,7 +341,7 @@ test.describe('Monetization + Growth entitlement lock', () => {
     );
     await new Promise((resolve) => db.close(resolve));
 
-    expect(ownedReward.cnt).toBe(1);
+    expect(ownedRewards.cnt).toBe(2);
     expect(state.reward_claimed_at).toBeTruthy();
   });
 });

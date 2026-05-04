@@ -802,7 +802,12 @@ function renderQuestGroups(campaigns = []) {
   if (campaignStack) campaignStack.innerHTML = '';
   if (achievementList) achievementList.innerHTML = '';
 
-  const addCampaignCard = (campaign) => {
+  let hasCampaignCards = false;
+  let hasTodayQuests = false;
+  let hasWeekQuests = false;
+  let hasAchievementQuests = false;
+
+  const addCampaignCard = (campaign, visibleQuestCount) => {
     if (!campaignStack) return;
 
     const card = document.createElement('div');
@@ -810,13 +815,14 @@ function renderQuestGroups(campaigns = []) {
     card.innerHTML = `
       <h5>${campaign.name || '이름 없는 캠페인'} <span class="campaign-type">${campaign.campaignTypeLabel || ''}</span></h5>
       <div class="campaign-meta">
-        <span>${campaign.dateLabel || ''}</span>
-        <span>${(campaign.quests || []).length}개 퀘스트</span>
+        ${campaign.dateLabel ? `<span>${campaign.dateLabel}</span>` : ''}
+        <span>${visibleQuestCount}개 퀘스트</span>
       </div>
       ${campaign.description ? `<p class="campaign-desc gls-text-muted gls-mb-0">${campaign.description}</p>` : ''}
     `;
 
     campaignStack.appendChild(card);
+    hasCampaignCards = true;
   };
 
   const addQuestItem = (parent, quest, campaignName, campaignTypeLabel) => {
@@ -844,8 +850,8 @@ function renderQuestGroups(campaigns = []) {
       <div class="quest-card-meta quest-card-meta-secondary">
         <span>${conditionLabel}</span>
         ${quest.reward_xp ? `<span>보상 ${quest.reward_xp} XP</span>` : ''}
-        ${quest.description ? `<span class="gls-text-muted">${quest.description}</span>` : ''}
       </div>
+      ${quest.description ? `<p class="quest-card-desc gls-text-muted gls-mb-0">${quest.description}</p>` : ''}
       <div class="quest-card-progress"><div class="quest-card-progress-bar" data-progress="${progressPercent}"></div></div>
     `;
 
@@ -868,6 +874,7 @@ function renderQuestGroups(campaigns = []) {
 
     const card = document.createElement('div');
     card.className = `achievement-quest-card ${statusClass(quest.status)}`;
+    hasAchievementQuests = true;
     card.innerHTML = `
       <div class="achievement-quest-header">
         <div class="achievement-quest-icon">${icon}</div>
@@ -906,27 +913,23 @@ function renderQuestGroups(campaigns = []) {
     achievementList.appendChild(card);
   };
 
+  const renderEmptyQuestBucket = (bucket, message, actionHtml = '') => {
+    if (!bucket) return;
+    bucket.innerHTML = `
+      <div class="quest-card growth-empty-state">
+        <p class="gls-text-muted gls-mb-0">${message}</p>
+        ${actionHtml ? `<div class="growth-empty-actions">${actionHtml}</div>` : ''}
+      </div>
+    `;
+  };
+
   if (!campaigns.length) {
-    if (questToday) {
-      questToday.innerHTML = `
-        <div class="quest-card growth-empty-state">
-          <p class="gls-text-muted gls-mb-2">오늘 진행 중인 퀘스트가 없습니다.</p>
-          <div class="growth-empty-actions">
-            <a class="gls-btn gls-btn-secondary gls-btn-xs" href="/html/editor.html">오늘 글 쓰러 가기</a>
-          </div>
-        </div>
-      `;
-    }
-    if (questWeek) {
-      questWeek.innerHTML = `
-        <div class="quest-card growth-empty-state">
-          <p class="gls-text-muted gls-mb-2">주간/시즌 퀘스트가 없습니다.</p>
-          <div class="growth-empty-actions">
-            <a class="gls-btn gls-btn-secondary gls-btn-xs" href="/explore">추천 글 둘러보기</a>
-          </div>
-        </div>
-      `;
-    }
+    renderEmptyQuestBucket(
+      questToday,
+      '오늘 진행 중인 퀘스트가 없습니다.',
+      '<a class="gls-btn gls-btn-secondary gls-btn-xs" href="/html/editor.html">오늘 글 쓰러 가기</a>'
+    );
+    renderEmptyQuestBucket(questWeek, '주간/시즌/이벤트 퀘스트가 없습니다.');
     if (campaignStack) {
       campaignStack.innerHTML = `
         <div class="campaign-card growth-empty-state">
@@ -966,17 +969,48 @@ function renderQuestGroups(campaigns = []) {
         ? questWeek
         : questToday;
 
-    addCampaignCard({
-      ...campaign,
-      campaignTypeLabel: campaign.campaignTypeLabel || campaign.campaignType || '',
-      dateLabel: campaign.dateLabel || '',
-    });
+    if (normalQuests.length > 0) {
+      addCampaignCard(
+        {
+          ...campaign,
+          campaignTypeLabel: campaign.campaignTypeLabel || campaign.campaignType || '',
+          dateLabel: campaign.dateLabel || '',
+        },
+        normalQuests.length
+      );
+    }
 
     if (!bucket) return;
     normalQuests.forEach((quest) => {
+      if (bucket === questWeek) {
+        hasWeekQuests = true;
+      } else {
+        hasTodayQuests = true;
+      }
       addQuestItem(bucket, quest, campaign.name, campaign.campaignTypeLabel);
     });
   });
+
+  if (!hasCampaignCards && campaignStack) {
+    campaignStack.innerHTML = `
+      <div class="campaign-card growth-empty-state">
+        <p class="gls-text-muted gls-text-small gls-mb-0">표시할 일반 퀘스트 캠페인이 없습니다.</p>
+      </div>
+    `;
+  }
+  if (!hasTodayQuests) {
+    renderEmptyQuestBucket(questToday, '오늘 진행 중인 퀘스트가 없습니다.');
+  }
+  if (!hasWeekQuests) {
+    renderEmptyQuestBucket(questWeek, '주간/시즌/이벤트 퀘스트가 없습니다.');
+  }
+  if (!hasAchievementQuests && achievementList) {
+    achievementList.innerHTML = `
+      <div class="achievement-quest-card growth-empty-state">
+        <p class="gls-text-muted gls-mb-0">표시할 업적 퀘스트가 없습니다.</p>
+      </div>
+    `;
+  }
 }
 
 function renderQuestGroupsError() {
