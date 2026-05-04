@@ -11,13 +11,13 @@
 
 - 원격 서버에서도 기본 코스메틱 인벤토리와 프로필 저장이 안정적으로 동작하게 한다.
 - 업적별 보상 배지를 seed하고, 업적/퀘스트 보상 수령 시 사용자 인벤토리에 지급한다.
-- `background` 코스메틱 타입을 추가하고 프로필 배경으로 장착할 수 있게 한다.
+- API contract에는 `background` 코스메틱 타입을 추가하고 프로필 배경으로 장착할 수 있게 한다.
 - 공개 작가 프로필과 글 author payload에서도 선택한 프로필 코스메틱을 일관되게 반환한다.
 
 ## 서버 작업 범위
 
 1. DB 마이그레이션
-   - `cosmetic_items.type` 허용값을 `badge`, `sticker`, `background`로 확장한다.
+   - 기존 `cosmetic_items` CHECK 제약은 유지하고, 1차 구현에서는 별도 `profile_background_items`/`user_profile_backgrounds` 테이블로 배경을 관리한다.
    - `user_profile_cosmetics.profile_background_key` 컬럼을 추가한다.
    - 기본 배경과 업적 전용 배경 seed를 추가한다.
    - 기존 업적 코드별 보상 배지를 seed한다.

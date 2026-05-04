@@ -319,11 +319,13 @@ async function fetchUserAchievements(userId) {
       qt.code,
       qt.name,
       qt.description,
-      qt.category,
-      qt.target_value,
-      qt.ui_json,
-      COALESCE(uqs.progress, 0) AS progress_value,
-      uqs.completed_at
+	      qt.category,
+	      qt.target_value,
+	      qt.ui_json,
+	      uqs.id AS state_id,
+	      COALESCE(uqs.progress, 0) AS progress_value,
+	      uqs.completed_at,
+	      uqs.reward_claimed_at
     FROM quest_templates qt
     LEFT JOIN user_quest_state uqs
       ON uqs.template_id = qt.id
@@ -352,11 +354,14 @@ async function fetchUserAchievements(userId) {
       category: row.category,
       status,
       progress: row.progress_value || 0,
-      target: row.target_value,
-      unlockedAt: row.completed_at || null,
-      positionIndex: extras.position_index || 0,
-      icon: extras.icon || '🌿',
-    };
+	      target: row.target_value,
+	      stateId: row.state_id || null,
+	      unlockedAt: row.completed_at || null,
+	      rewardClaimedAt: row.reward_claimed_at || null,
+	      positionIndex: extras.position_index || 0,
+	      icon: extras.icon || '🌿',
+	      uiJson: row.ui_json || null,
+	    };
   });
 
   return mapped.sort((a, b) => (a.positionIndex || 0) - (b.positionIndex || 0));

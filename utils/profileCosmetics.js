@@ -1,4 +1,5 @@
 const DEFAULT_BADGE_KEY = 'badge_default_seedling';
+const DEFAULT_BACKGROUND_KEY = 'background_default_paper';
 const ALLOWED_PROFILE_STICKER_SLOTS = new Set(['tl', 'tr', 'br']);
 const MAX_SHOWCASE_BADGES = 6;
 const MAX_HEADER_STICKERS = 3;
@@ -23,6 +24,18 @@ function parseJsonArray(raw) {
     return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
     return [];
+  }
+}
+
+function parseJsonObject(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch (error) {
+    return null;
   }
 }
 
@@ -63,6 +76,7 @@ function parseHeaderStickers(rawValue) {
 function parseStoredProfileCosmetics(row) {
   return {
     primary_badge_key: normalizeCosmeticKey(row?.primary_badge_key) || null,
+    profile_background_key: normalizeCosmeticKey(row?.profile_background_key) || null,
     showcase_badge_keys: parseShowcaseBadgeKeys(row?.showcase_badge_keys_json),
     header_stickers: parseHeaderStickers(row?.header_stickers_json),
   };
@@ -74,10 +88,15 @@ function sanitizeEquippedProfileCosmetics(
   options = {}
 ) {
   const fallbackDefaultBadge = !!options.fallbackDefaultBadge;
+  const fallbackDefaultBackground = !!options.fallbackDefaultBackground;
   let primaryBadgeKey = normalizeCosmeticKey(profile?.primary_badge_key);
+  let profileBackgroundKey = normalizeCosmeticKey(profile?.profile_background_key);
 
   if (primaryBadgeKey && ownedTypeByKey.get(primaryBadgeKey) !== 'badge') {
     primaryBadgeKey = null;
+  }
+  if (profileBackgroundKey && ownedTypeByKey.get(profileBackgroundKey) !== 'background') {
+    profileBackgroundKey = null;
   }
 
   if (
@@ -86,6 +105,13 @@ function sanitizeEquippedProfileCosmetics(
     ownedTypeByKey.get(DEFAULT_BADGE_KEY) === 'badge'
   ) {
     primaryBadgeKey = DEFAULT_BADGE_KEY;
+  }
+  if (
+    !profileBackgroundKey &&
+    fallbackDefaultBackground &&
+    ownedTypeByKey.get(DEFAULT_BACKGROUND_KEY) === 'background'
+  ) {
+    profileBackgroundKey = DEFAULT_BACKGROUND_KEY;
   }
 
   const showcaseBadges = [];
@@ -120,6 +146,7 @@ function sanitizeEquippedProfileCosmetics(
 
   return {
     primary_badge_key: primaryBadgeKey,
+    profile_background_key: profileBackgroundKey,
     showcase_badge_keys: showcaseBadges,
     header_stickers: headerStickers,
   };
@@ -136,6 +163,7 @@ function serializeProfileCosmetics(profile) {
   return {
     showcase_badge_keys_json: JSON.stringify(showcase),
     header_stickers_json: JSON.stringify(stickers),
+    profile_background_key: normalizeCosmeticKey(profile?.profile_background_key) || null,
   };
 }
 
@@ -143,6 +171,8 @@ function extractProfileCosmeticKeys(profile) {
   const unique = new Set();
   const primary = normalizeCosmeticKey(profile?.primary_badge_key);
   if (primary) unique.add(primary);
+  const background = normalizeCosmeticKey(profile?.profile_background_key);
+  if (background) unique.add(background);
 
   const showcase = Array.isArray(profile?.showcase_badge_keys)
     ? profile.showcase_badge_keys
@@ -166,10 +196,12 @@ function extractProfileCosmeticKeys(profile) {
 function mapCosmeticItem(row) {
   return {
     key: row.key,
+    type: row.type || null,
     name: row.name,
     icon_emoji: row.icon_emoji || null,
     rarity: row.rarity || 'common',
     season: row.season || null,
+    meta: parseJsonObject(row.meta_json),
   };
 }
 
@@ -187,6 +219,9 @@ function makeKeyedCosmeticMap(rows = []) {
 function buildExpandedProfileCosmetics(profile, itemByKey = new Map()) {
   const primaryRow = profile?.primary_badge_key
     ? itemByKey.get(profile.primary_badge_key)
+    : null;
+  const backgroundRow = profile?.profile_background_key
+    ? itemByKey.get(profile.profile_background_key)
     : null;
 
   const showcaseRows = [];
@@ -218,6 +253,8 @@ function buildExpandedProfileCosmetics(profile, itemByKey = new Map()) {
   return {
     primary_badge:
       primaryRow && primaryRow.type === 'badge' ? mapCosmeticItem(primaryRow) : null,
+    profile_background:
+      backgroundRow && backgroundRow.type === 'background' ? mapCosmeticItem(backgroundRow) : null,
     showcase_badges: showcaseRows,
     header_stickers: stickerRows,
   };
@@ -225,6 +262,7 @@ function buildExpandedProfileCosmetics(profile, itemByKey = new Map()) {
 
 module.exports = {
   DEFAULT_BADGE_KEY,
+  DEFAULT_BACKGROUND_KEY,
   ALLOWED_PROFILE_STICKER_SLOTS,
   MAX_SHOWCASE_BADGES,
   MAX_HEADER_STICKERS,

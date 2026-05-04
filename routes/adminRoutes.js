@@ -1623,7 +1623,7 @@ router.post('/cosmetics/grant', async (req, res) => {
   }
 
   try {
-    const [user, cosmeticItem] = await Promise.all([
+    const [user, cosmeticItem, backgroundItem] = await Promise.all([
       getAsync('SELECT id FROM users WHERE id = ? LIMIT 1', [parsed.userId]),
       getAsync(
         `
@@ -1641,7 +1641,25 @@ router.post('/cosmetics/grant', async (req, res) => {
         `,
         [parsed.cosmeticKey]
       ),
+      getAsync(
+        `
+        SELECT
+          id,
+          key,
+          'background' AS type,
+          name,
+          icon_emoji,
+          COALESCE(rarity, 'common') AS rarity,
+          season
+        FROM profile_background_items
+        WHERE key = ?
+          AND is_active = 1
+        LIMIT 1
+        `,
+        [parsed.cosmeticKey]
+      ),
     ]);
+    const grantItem = cosmeticItem || backgroundItem;
 
     if (!user) {
       return sendAdminError(
@@ -1651,7 +1669,7 @@ router.post('/cosmetics/grant', async (req, res) => {
         '지급 대상 사용자를 찾을 수 없습니다.'
       );
     }
-    if (!cosmeticItem) {
+    if (!grantItem) {
       return sendAdminError(
         res,
         404,
@@ -1660,13 +1678,22 @@ router.post('/cosmetics/grant', async (req, res) => {
       );
     }
 
-    const result = await runAsync(
-      `
-      INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
-      VALUES (?, ?, 'admin')
-      `,
-      [parsed.userId, cosmeticItem.id]
-    );
+    const result =
+      grantItem.type === 'background'
+        ? await runAsync(
+            `
+            INSERT OR IGNORE INTO user_profile_backgrounds (user_id, background_id, source)
+            VALUES (?, ?, 'admin')
+            `,
+            [parsed.userId, grantItem.id]
+          )
+        : await runAsync(
+            `
+            INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
+            VALUES (?, ?, 'admin')
+            `,
+            [parsed.userId, grantItem.id]
+          );
 
     return res.json({
       ok: true,
@@ -1675,12 +1702,12 @@ router.post('/cosmetics/grant', async (req, res) => {
         user_id: parsed.userId,
         source: 'admin',
         cosmetic: {
-          key: cosmeticItem.key,
-          type: cosmeticItem.type,
-          name: cosmeticItem.name,
-          icon_emoji: cosmeticItem.icon_emoji || null,
-          rarity: cosmeticItem.rarity || 'common',
-          season: cosmeticItem.season || null,
+	          key: grantItem.key,
+	          type: grantItem.type,
+	          name: grantItem.name,
+	          icon_emoji: grantItem.icon_emoji || null,
+	          rarity: grantItem.rarity || 'common',
+	          season: grantItem.season || null,
         },
       },
       inserted: Number(result?.changes || 0) > 0,

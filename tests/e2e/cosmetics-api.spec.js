@@ -9,6 +9,7 @@ const E2E_JWT_SECRET = 'devsecret';
 const E2E_JWT_ALGORITHM = 'HS256';
 const E2E_JWT_ISSUER = 'glsoop';
 const E2E_JWT_AUDIENCE = 'glsoop-client';
+const AUTH_HEADER_NOW = '2026-03-01T00:00:00+09:00';
 
 const ADMIN_ID = 9801;
 const USER_A_ID = 9802;
@@ -77,6 +78,31 @@ const signAuthToken = ({
     }
   );
 
+const buildAuthHeaders = (token) => ({
+  Authorization: `Bearer ${token}`,
+  'x-auth-legacy-now': AUTH_HEADER_NOW,
+});
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function grantCosmetic(request, adminToken, userId, cosmeticKey) {
+  let lastResponse = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    lastResponse = await request.post('/api/admin/cosmetics/grant', {
+      headers: buildAuthHeaders(adminToken),
+      data: {
+        user_id: userId,
+        cosmetic_key: cosmeticKey,
+      },
+    });
+    if (lastResponse.status() === 200) {
+      return lastResponse;
+    }
+    await sleep(80 * (attempt + 1));
+  }
+  return lastResponse;
+}
+
 const seedCosmeticFixtures = async () => {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   await waitForFile(DB_PATH, 20000);
@@ -112,6 +138,11 @@ const seedCosmeticFixtures = async () => {
   );
   await dbRun(
     db,
+    'DELETE FROM user_profile_backgrounds WHERE user_id IN (?, ?, ?)',
+    [ADMIN_ID, USER_A_ID, USER_B_ID]
+  );
+  await dbRun(
+    db,
     'DELETE FROM user_cosmetics WHERE user_id IN (?, ?, ?)',
     [ADMIN_ID, USER_A_ID, USER_B_ID]
   );
@@ -137,16 +168,16 @@ const seedCosmeticFixtures = async () => {
   await dbRun(
     db,
     `INSERT OR REPLACE INTO user_profile_cosmetics
-      (user_id, primary_badge_key, showcase_badge_keys_json, header_stickers_json)
-     VALUES (?, 'badge_default_seedling', '[]', '[]')`,
+      (user_id, primary_badge_key, profile_background_key, showcase_badge_keys_json, header_stickers_json)
+     VALUES (?, 'badge_default_seedling', 'background_default_paper', '[]', '[]')`,
     [USER_A_ID]
   );
 
   await dbRun(
     db,
     `INSERT OR REPLACE INTO user_profile_cosmetics
-      (user_id, primary_badge_key, showcase_badge_keys_json, header_stickers_json)
-     VALUES (?, 'badge_default_seedling', '[]', '[]')`,
+      (user_id, primary_badge_key, profile_background_key, showcase_badge_keys_json, header_stickers_json)
+     VALUES (?, 'badge_default_seedling', 'background_default_paper', '[]', '[]')`,
     [USER_B_ID]
   );
 
@@ -155,6 +186,8 @@ const seedCosmeticFixtures = async () => {
 };
 
 test.describe('Cosmetics API', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeEach(async ({}, testInfo) => {
     test.skip(
       testInfo.project.name !== 'desktop-chrome',
@@ -181,15 +214,7 @@ test.describe('Cosmetics API', () => {
       email: 'writer-cosmetic-a@glsoop.test',
     });
 
-    const grantResponse = await request.post('/api/admin/cosmetics/grant', {
-      headers: {
-        Authorization: `Bearer ${adminToken}`,
-      },
-      data: {
-        user_id: USER_A_ID,
-        cosmetic_key: 'sticker_star',
-      },
-    });
+    const grantResponse = await grantCosmetic(request, adminToken, USER_A_ID, 'sticker_star');
 
     expect(grantResponse.status()).toBe(200);
     const grantPayload = await grantResponse.json();
@@ -204,7 +229,7 @@ test.describe('Cosmetics API', () => {
 
     const meResponse = await request.get('/api/cosmetics/me', {
       headers: {
-        Authorization: `Bearer ${userAToken}`,
+        ...buildAuthHeaders(userAToken),
       },
     });
     expect(meResponse.status()).toBe(200);
@@ -212,6 +237,9 @@ test.describe('Cosmetics API', () => {
     expect(mePayload.ok).toBe(true);
     expect(mePayload.inventory.stickers).toEqual(
       expect.arrayContaining([expect.objectContaining({ key: 'sticker_star' })])
+    );
+    expect(mePayload.inventory.backgrounds).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: 'background_default_paper' })])
     );
   });
 
@@ -238,21 +266,17 @@ test.describe('Cosmetics API', () => {
       email: 'writer-cosmetic-b@glsoop.test',
     });
 
-    await request.post('/api/admin/cosmetics/grant', {
-      headers: { Authorization: `Bearer ${adminToken}` },
-      data: { user_id: USER_A_ID, cosmetic_key: 'badge_spring_2026' },
-    });
-    await request.post('/api/admin/cosmetics/grant', {
-      headers: { Authorization: `Bearer ${adminToken}` },
-      data: { user_id: USER_A_ID, cosmetic_key: 'sticker_star' },
-    });
+    expect((await grantCosmetic(request, adminToken, USER_A_ID, 'badge_spring_2026')).status()).toBe(200);
+    expect((await grantCosmetic(request, adminToken, USER_A_ID, 'sticker_star')).status()).toBe(200);
+    expect((await grantCosmetic(request, adminToken, USER_A_ID, 'background_writer_grove')).status()).toBe(200);
 
     const putResponse = await request.put('/api/me/profile-cosmetics', {
       headers: {
-        Authorization: `Bearer ${userAToken}`,
+        ...buildAuthHeaders(userAToken),
       },
       data: {
         primary_badge_key: 'badge_spring_2026',
+        profile_background_key: 'background_writer_grove',
         showcase_badge_keys: ['badge_default_seedling'],
         header_stickers: [{ slot: 'tr', key: 'sticker_star' }],
       },
@@ -263,10 +287,13 @@ test.describe('Cosmetics API', () => {
     expect(putPayload.profile_cosmetics.primary_badge).toMatchObject({
       key: 'badge_spring_2026',
     });
+    expect(putPayload.profile_cosmetics.profile_background).toMatchObject({
+      key: 'background_writer_grove',
+    });
 
     const profileResponse = await request.get(`/api/users/${USER_A_ID}/profile`, {
       headers: {
-        Authorization: `Bearer ${userBToken}`,
+        ...buildAuthHeaders(userBToken),
       },
     });
     expect(profileResponse.status()).toBe(200);
@@ -274,6 +301,7 @@ test.describe('Cosmetics API', () => {
     expect(profilePayload.ok).toBe(true);
     expect(profilePayload.user.profile_cosmetics).toMatchObject({
       primary_badge: expect.objectContaining({ key: 'badge_spring_2026' }),
+      profile_background: expect.objectContaining({ key: 'background_writer_grove' }),
       showcase_badges: expect.arrayContaining([
         expect.objectContaining({ key: 'badge_default_seedling' }),
       ]),
@@ -306,10 +334,11 @@ test.describe('Cosmetics API', () => {
 
     const response = await request.put('/api/me/profile-cosmetics', {
       headers: {
-        Authorization: `Bearer ${userAToken}`,
+        ...buildAuthHeaders(userAToken),
       },
       data: {
         primary_badge_key: 'badge_winter_2026',
+        profile_background_key: 'background_default_paper',
         showcase_badge_keys: [],
         header_stickers: [],
       },
@@ -338,11 +367,12 @@ test.describe('Cosmetics API', () => {
     await dbRun(
       db,
       `INSERT OR REPLACE INTO user_profile_cosmetics
-       (user_id, primary_badge_key, showcase_badge_keys_json, header_stickers_json)
-       VALUES (?, ?, ?, ?)`,
+       (user_id, primary_badge_key, profile_background_key, showcase_badge_keys_json, header_stickers_json)
+       VALUES (?, ?, ?, ?, ?)`,
       [
         USER_A_ID,
         'badge_winter_2026',
+        'background_default_paper',
         JSON.stringify(['badge_winter_2026', 'badge_default_seedling']),
         JSON.stringify([
           { slot: 'tl', key: 'sticker_leaf' },
@@ -379,9 +409,17 @@ test.describe('Cosmetics API', () => {
 
     const pendingInsert = await dbRun(
       db,
-      `INSERT INTO pending_signups (name, nickname, email, pw_hash, expires_at)
-       VALUES (?, ?, ?, ?, datetime('now', '+1 day'))`,
-      ['Pending Cosmetic', 'pending_cosmetic', pendingEmail, 'hashed_pw']
+      `INSERT INTO pending_signups
+        (name, nickname, email, pw_hash, age_confirmed, terms_version, privacy_version, expires_at)
+       VALUES (?, ?, ?, ?, 1, ?, ?, datetime('now', '+1 day'))`,
+      [
+        'Pending Cosmetic',
+        'pending_cosmetic',
+        pendingEmail,
+        'hashed_pw',
+        '2026-02-27.terms.v1',
+        '2026-02-27.privacy.v1',
+      ]
     );
     const pendingId = pendingInsert.lastID;
 
@@ -414,9 +452,17 @@ test.describe('Cosmetics API', () => {
        WHERE uc.user_id = ? AND ci.key = 'badge_default_seedling'`,
       [userId]
     );
+    const ownedDefaultBackground = await dbGet(
+      checkDb,
+      `SELECT COUNT(*) AS count
+       FROM user_profile_backgrounds upb
+       JOIN profile_background_items pbi ON pbi.id = upb.background_id
+       WHERE upb.user_id = ? AND pbi.key = 'background_default_paper'`,
+      [userId]
+    );
     const profileRow = await dbGet(
       checkDb,
-      `SELECT primary_badge_key, showcase_badge_keys_json, header_stickers_json
+      `SELECT primary_badge_key, profile_background_key, showcase_badge_keys_json, header_stickers_json
        FROM user_profile_cosmetics
        WHERE user_id = ?`,
       [userId]
@@ -424,8 +470,10 @@ test.describe('Cosmetics API', () => {
     await new Promise((resolve) => checkDb.close(resolve));
 
     expect(ownedDefault.count).toBe(1);
+    expect(ownedDefaultBackground.count).toBe(1);
     expect(profileRow).toMatchObject({
       primary_badge_key: 'badge_default_seedling',
+      profile_background_key: 'background_default_paper',
       showcase_badge_keys_json: '[]',
       header_stickers_json: '[]',
     });

@@ -137,21 +137,42 @@ async function fetchCosmeticRowsByKeys(keys = []) {
   }
 
   const placeholders = keys.map(() => '?').join(', ');
-  return allAsync(
+  const cosmeticRows = await allAsync(
     `
       SELECT
+        'cosmetic_items' AS source_table,
         id,
         key,
         type,
         name,
         icon_emoji,
         COALESCE(rarity, 'common') AS rarity,
-        season
+        season,
+        meta_json
       FROM cosmetic_items
       WHERE key IN (${placeholders})
     `,
     keys
   );
+  const backgroundRows = await allAsync(
+    `
+      SELECT
+        'profile_background_items' AS source_table,
+        id,
+        key,
+        'background' AS type,
+        name,
+        icon_emoji,
+        COALESCE(rarity, 'common') AS rarity,
+        season,
+        meta_json
+      FROM profile_background_items
+      WHERE key IN (${placeholders})
+        AND is_active = 1
+    `,
+    keys
+  );
+  return [...cosmeticRows, ...backgroundRows];
 }
 
 async function grantQuestRewardCosmetics(userId, cosmeticKeys = []) {
@@ -174,17 +195,26 @@ async function grantQuestRewardCosmetics(userId, cosmeticKeys = []) {
     if (!item) {
       continue;
     }
-    if (item.type !== 'badge' && item.type !== 'sticker') {
+    if (item.type !== 'badge' && item.type !== 'sticker' && item.type !== 'background') {
       continue;
     }
 
-    const result = await runAsync(
-      `
-        INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
-        VALUES (?, ?, 'quest')
-      `,
-      [userId, item.id]
-    );
+    const result =
+      item.type === 'background'
+        ? await runAsync(
+            `
+              INSERT OR IGNORE INTO user_profile_backgrounds (user_id, background_id, source)
+              VALUES (?, ?, 'quest')
+            `,
+            [userId, item.id]
+          )
+        : await runAsync(
+            `
+              INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
+              VALUES (?, ?, 'quest')
+            `,
+            [userId, item.id]
+          );
 
     if (Number(result?.changes || 0) > 0) {
       gained.push(mapCosmeticItem(item));
@@ -217,9 +247,12 @@ function mapAchievements(achievements = []) {
     status: item.status,
     progress: item.progress,
     target: item.target,
+    state_id: item.stateId,
     unlocked_at: item.unlockedAt,
+    reward_claimed_at: item.rewardClaimedAt,
     position_index: item.positionIndex,
     icon: item.icon,
+    ui_json: item.uiJson,
   }));
 }
 

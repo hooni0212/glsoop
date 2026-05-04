@@ -540,20 +540,36 @@ function seedDefaultCosmeticsForSignup(userId, done) {
 
       db.run(
         `
-        INSERT OR IGNORE INTO user_profile_cosmetics (
-          user_id,
-          primary_badge_key,
-          showcase_badge_keys_json,
-          header_stickers_json
-        )
-        VALUES (?, 'badge_default_seedling', '[]', '[]')
+        INSERT OR IGNORE INTO user_profile_backgrounds (user_id, background_id, source)
+        SELECT ?, id, 'default'
+        FROM profile_background_items
+        WHERE key = 'background_default_paper'
         `,
         [userId],
-        (profileErr) => {
-          if (profileErr) {
-            return done(profileErr);
+        (backgroundErr) => {
+          if (backgroundErr) {
+            return done(backgroundErr);
           }
-          return done(null);
+
+          db.run(
+            `
+            INSERT OR IGNORE INTO user_profile_cosmetics (
+              user_id,
+              primary_badge_key,
+              profile_background_key,
+              showcase_badge_keys_json,
+              header_stickers_json
+            )
+            VALUES (?, 'badge_default_seedling', 'background_default_paper', '[]', '[]')
+            `,
+            [userId],
+            (profileErr) => {
+              if (profileErr) {
+                return done(profileErr);
+              }
+              return done(null);
+            }
+          );
         }
       );
     }

@@ -218,6 +218,7 @@ function buildAuthorProfileCosmetics(row = {}) {
   if (hasOwn(row, 'author_id') && row.author_id == null) {
     return {
       primary_badge: null,
+      profile_background: null,
       showcase_badges: [],
       header_stickers: [],
     };
@@ -226,25 +227,49 @@ function buildAuthorProfileCosmetics(row = {}) {
   const key = typeof row.author_primary_badge_key === 'string'
     ? row.author_primary_badge_key.trim()
     : '';
-  if (!key) {
-    return {
-      primary_badge: null,
-      showcase_badges: [],
-      header_stickers: [],
-    };
-  }
+  const backgroundKey =
+    typeof row.author_profile_background_key === 'string'
+      ? row.author_profile_background_key.trim()
+      : '';
 
   return {
-    primary_badge: {
-      key,
-      name: row.author_primary_badge_name || key,
-      icon_emoji: row.author_primary_badge_icon_emoji || null,
-      rarity: row.author_primary_badge_rarity || 'common',
-      season: row.author_primary_badge_season || null,
-    },
+    primary_badge: key
+      ? {
+          key,
+          type: 'badge',
+          name: row.author_primary_badge_name || key,
+          icon_emoji: row.author_primary_badge_icon_emoji || null,
+          rarity: row.author_primary_badge_rarity || 'common',
+          season: row.author_primary_badge_season || null,
+          meta: null,
+        }
+      : null,
+    profile_background: backgroundKey
+      ? {
+          key: backgroundKey,
+          type: 'background',
+          name: row.author_profile_background_name || backgroundKey,
+          icon_emoji: row.author_profile_background_icon_emoji || null,
+          rarity: row.author_profile_background_rarity || 'common',
+          season: row.author_profile_background_season || null,
+          meta: parseJsonObject(row.author_profile_background_meta_json),
+        }
+      : null,
     showcase_badges: [],
     header_stickers: [],
   };
+}
+
+function parseJsonObject(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function hasOwn(obj, key) {
@@ -1258,10 +1283,16 @@ function handleFeedRequest(req, res) {
         COALESCE(u.account_status, 'active') AS author_account_status,
         ci.key AS author_primary_badge_key,
         ci.name AS author_primary_badge_name,
-        ci.icon_emoji AS author_primary_badge_icon_emoji,
-        COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
-        ci.season AS author_primary_badge_season,
-        IFNULL(lc.like_count, 0) AS like_count,
+	        ci.icon_emoji AS author_primary_badge_icon_emoji,
+	        COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
+	        ci.season AS author_primary_badge_season,
+	        pbi.key AS author_profile_background_key,
+	        pbi.name AS author_profile_background_name,
+	        pbi.icon_emoji AS author_profile_background_icon_emoji,
+	        COALESCE(pbi.rarity, 'common') AS author_profile_background_rarity,
+	        pbi.season AS author_profile_background_season,
+	        pbi.meta_json AS author_profile_background_meta_json,
+	        IFNULL(lc.like_count, 0) AS like_count,
         ${
           userId
             ? 'CASE WHEN my.user_id IS NULL THEN 0 ELSE 1 END'
@@ -1272,10 +1303,11 @@ function handleFeedRequest(req, res) {
 
     const joins = [
       'FROM posts p',
-      'JOIN users u ON p.user_id = u.id',
-      'LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id',
-      "LEFT JOIN cosmetic_items ci ON ci.key = upc.primary_badge_key AND ci.type = 'badge' AND ci.is_active = 1",
-      'LEFT JOIN post_hashtags ph ON ph.post_id = p.id',
+	      'JOIN users u ON p.user_id = u.id',
+	      'LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id',
+	      "LEFT JOIN cosmetic_items ci ON ci.key = upc.primary_badge_key AND ci.type = 'badge' AND ci.is_active = 1",
+	      'LEFT JOIN profile_background_items pbi ON pbi.key = upc.profile_background_key AND pbi.is_active = 1',
+	      'LEFT JOIN post_hashtags ph ON ph.post_id = p.id',
       'LEFT JOIN hashtags h ON h.id = ph.hashtag_id',
       'LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM likes GROUP BY post_id) lc ON lc.post_id = p.id',
     ];
@@ -1543,10 +1575,16 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
           COALESCE(u.account_status, 'active') AS author_account_status,
           ci.key AS author_primary_badge_key,
           ci.name AS author_primary_badge_name,
-          ci.icon_emoji AS author_primary_badge_icon_emoji,
-          COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
-          ci.season AS author_primary_badge_season,
-          IFNULL(l.like_count, 0) AS like_count,
+	          ci.icon_emoji AS author_primary_badge_icon_emoji,
+	          COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
+	          ci.season AS author_primary_badge_season,
+	          pbi.key AS author_profile_background_key,
+	          pbi.name AS author_profile_background_name,
+	          pbi.icon_emoji AS author_profile_background_icon_emoji,
+	          COALESCE(pbi.rarity, 'common') AS author_profile_background_rarity,
+	          pbi.season AS author_profile_background_season,
+	          pbi.meta_json AS author_profile_background_meta_json,
+	          IFNULL(l.like_count, 0) AS like_count,
           -- ✅ 이 유저가 누른 좋아요 여부
           CASE
             WHEN my.user_id IS NULL THEN 0
@@ -1556,11 +1594,14 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
         FROM posts p
         JOIN users u ON p.user_id = u.id
         LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id
-        LEFT JOIN cosmetic_items ci
-          ON ci.key = upc.primary_badge_key
-         AND ci.type = 'badge'
-         AND ci.is_active = 1
-        -- 전체 좋아요 개수 집계
+	        LEFT JOIN cosmetic_items ci
+	          ON ci.key = upc.primary_badge_key
+	         AND ci.type = 'badge'
+	         AND ci.is_active = 1
+	        LEFT JOIN profile_background_items pbi
+	          ON pbi.key = upc.profile_background_key
+	         AND pbi.is_active = 1
+	        -- 전체 좋아요 개수 집계
         LEFT JOIN (
           SELECT post_id, COUNT(*) AS like_count
           FROM likes
@@ -1990,19 +2031,28 @@ function handlePublicPostDetail(req, res) {
       COALESCE(u.account_status, 'active') AS author_account_status,
       ci.key AS author_primary_badge_key,
       ci.name AS author_primary_badge_name,
-      ci.icon_emoji AS author_primary_badge_icon_emoji,
-      COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
-      ci.season AS author_primary_badge_season,
-      IFNULL(l.like_count, 0) AS like_count,
+	      ci.icon_emoji AS author_primary_badge_icon_emoji,
+	      COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
+	      ci.season AS author_primary_badge_season,
+	      pbi.key AS author_profile_background_key,
+	      pbi.name AS author_profile_background_name,
+	      pbi.icon_emoji AS author_profile_background_icon_emoji,
+	      COALESCE(pbi.rarity, 'common') AS author_profile_background_rarity,
+	      pbi.season AS author_profile_background_season,
+	      pbi.meta_json AS author_profile_background_meta_json,
+	      IFNULL(l.like_count, 0) AS like_count,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
     FROM posts p
     JOIN users u ON p.user_id = u.id
     LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id
-    LEFT JOIN cosmetic_items ci
-      ON ci.key = upc.primary_badge_key
-     AND ci.type = 'badge'
-     AND ci.is_active = 1
-    LEFT JOIN (
+	    LEFT JOIN cosmetic_items ci
+	      ON ci.key = upc.primary_badge_key
+	     AND ci.type = 'badge'
+	     AND ci.is_active = 1
+	    LEFT JOIN profile_background_items pbi
+	      ON pbi.key = upc.profile_background_key
+	     AND pbi.is_active = 1
+	    LEFT JOIN (
       SELECT post_id, COUNT(*) AS like_count
       FROM likes
       GROUP BY post_id
