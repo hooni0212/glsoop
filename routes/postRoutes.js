@@ -25,6 +25,7 @@ const db = require('../db');
 const { authRequired, authOptional } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 const { handlePostCreated, handleLikeAdded } = require('../utils/growth-service');
+const { completePromptPostQuest, QuestContextError } = require('../utils/questService');
 const { ACTIVITY_TYPES, createActivityEvent } = require('../utils/activityEvents');
 const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
@@ -741,6 +742,21 @@ const dbRunAsync = (sql, params = []) =>
     });
   });
 
+const saveHashtagsAsync = (postId, hashtags) =>
+  new Promise((resolve) => {
+    saveHashtagsForPostFromInput(postId, hashtags, (err) => {
+      resolve(err || null);
+    });
+  });
+
+async function rollbackQuietly() {
+  try {
+    await dbRunAsync('ROLLBACK;');
+  } catch (error) {
+    console.error('post transaction rollback failed:', error);
+  }
+}
+
 async function logPostActivationEvents(userId, postId) {
   await logUxEvent({
     user_id: userId,
@@ -802,13 +818,14 @@ async function logPostActivationEvents(userId, postId) {
 const router = express.Router();
 
 // 9-1) 글 작성
-router.post('/posts', authRequired, (req, res) => {
+router.post('/posts', authRequired, async (req, res) => {
   const { title, content, hashtags, category } = req.body;
   const userId = req.user.id;
   const normalizedCategory = requireValidCategory(category, res);
   const visibility = normalizeVisibility(req.body?.visibility);
   const commentPolicy = normalizeCommentPolicy(req.body?.comment_policy);
   const layoutInput = parseLayoutInputFromBody(req.body);
+  const questContext = req.body?.quest_context || null;
 
   if (!normalizedCategory) return;
   if (layoutInput.error) {
@@ -825,61 +842,65 @@ router.post('/posts', authRequired, (req, res) => {
   }
 
   const safeContent = sanitizeForStorage(content);
+  let newPostId = null;
+  let questCompletion = null;
+  let tagErr = null;
 
-  // 본문 저장 후 해시태그를 별도 테이블에 기록
-  db.run(
-    `
-      INSERT INTO posts (user_id, title, content, category, layout_json, visibility, comment_policy)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `,
-    [
-      userId,
-      title,
-      safeContent,
-      normalizedCategory,
-      layoutInput.provided ? layoutInput.value : null,
-      visibility,
-      commentPolicy,
-    ],
-    function (err) {
-      if (err) {
-        console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '글 저장 중 DB 오류가 발생했습니다.' });
-      }
+  try {
+    await dbRunAsync('BEGIN IMMEDIATE;');
+    const insertResult = await dbRunAsync(
+      `
+        INSERT INTO posts (user_id, title, content, category, layout_json, visibility, comment_policy)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        userId,
+        title,
+        safeContent,
+        normalizedCategory,
+        layoutInput.provided ? layoutInput.value : null,
+        visibility,
+        commentPolicy,
+      ]
+    );
+    newPostId = insertResult?.lastID || null;
+    tagErr = await saveHashtagsAsync(newPostId, hashtags);
 
-      const newPostId = this.lastID;
+    if (questContext) {
+      questCompletion = await completePromptPostQuest(userId, newPostId, questContext);
+    }
 
-      saveHashtagsForPostFromInput(newPostId, hashtags, (tagErr) => {
-        const finalize = async () => {
-          try {
-            await handlePostCreated(userId, newPostId);
-            await logPostActivationEvents(userId, newPostId);
-          } catch (growthErr) {
-            console.error('post growth/activation 처리 실패:', growthErr);
-          }
-
-          if (tagErr) {
-            return res.json({
-              ok: true,
-              message:
-                '글은 저장되었지만, 해시태그 저장 중 오류가 발생했습니다.',
-              post_id: newPostId,
-            });
-          }
-
-          return res.json({
-            ok: true,
-            message: '글이 저장되었습니다.',
-            post_id: newPostId,
-          });
-        };
-
-        finalize();
+    await dbRunAsync('COMMIT;');
+  } catch (err) {
+    await rollbackQuietly();
+    if (err instanceof QuestContextError) {
+      return res.status(err.status).json({
+        ok: false,
+        code: err.code,
+        message: err.message,
       });
     }
-  );
+    console.error(err);
+    return res
+      .status(500)
+      .json({ ok: false, message: '글 저장 중 DB 오류가 발생했습니다.' });
+  }
+
+  try {
+    await handlePostCreated(userId, newPostId);
+    await logPostActivationEvents(userId, newPostId);
+  } catch (growthErr) {
+    console.error('post growth/activation 처리 실패:', growthErr);
+  }
+
+  return res.json({
+    ok: true,
+    message: tagErr
+      ? '글은 저장되었지만, 해시태그 저장 중 오류가 발생했습니다.'
+      : '글이 저장되었습니다.',
+    post_id: newPostId,
+    ...(questCompletion ? { quest_completion: questCompletion } : {}),
+  });
 });
 
 // 9-2) 글 수정

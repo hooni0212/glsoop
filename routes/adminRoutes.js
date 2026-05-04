@@ -92,6 +92,43 @@ async function removeCampaignItem(campaignId, templateId) {
   );
 }
 
+function parseJsonObject(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function validateQuestTemplatePayload({ conditionType, uiJson, targetValue }) {
+  const target = Number(targetValue);
+  if (!Number.isFinite(target) || target <= 0) {
+    return { error: '목표는 1 이상의 숫자여야 합니다.' };
+  }
+
+  if (conditionType !== 'PROMPT_POST_CREATED') {
+    return { uiJson };
+  }
+
+  const parsed = parseJsonObject(uiJson);
+  const prompt = parsed?.prompt && typeof parsed.prompt === 'object' ? parsed.prompt : null;
+  const key = typeof prompt?.key === 'string' ? prompt.key.trim() : '';
+  const title = typeof prompt?.title === 'string' ? prompt.title.trim() : '';
+
+  if (!parsed || parsed.quest_kind !== 'writing_prompt' || !key || !title) {
+    return {
+      error:
+        '프롬프트 글쓰기 퀘스트는 ui_json에 quest_kind=writing_prompt와 prompt.key/title이 필요합니다.',
+    };
+  }
+
+  return { uiJson: JSON.stringify(parsed) };
+}
+
 // 모든 관리자 라우트에 인증/관리자 검증을 공통 적용
 router.use(authRequired, adminRequired);
 
@@ -243,6 +280,14 @@ function recordOperationalAlert(input = {}) {
     console.error('[admin/operational-alerts] failed to record alert:', error);
     return null;
   });
+}
+
+async function rollbackAdminTransactionQuietly(context) {
+  try {
+    await runAsync('ROLLBACK;');
+  } catch (rollbackError) {
+    console.error(`[admin] ${context} rollback failed:`, rollbackError);
+  }
 }
 
 function isValidIsoDate(value) {
@@ -2141,6 +2186,14 @@ router.post('/quest-templates', async (req, res) => {
   if (!name || !condition_type || !target_value) {
     return res.status(400).json({ ok: false, message: '필수 입력이 누락되었습니다.' });
   }
+  const templateValidation = validateQuestTemplatePayload({
+    conditionType: condition_type,
+    uiJson: ui_json,
+    targetValue: target_value,
+  });
+  if (templateValidation.error) {
+    return res.status(400).json({ ok: false, message: templateValidation.error });
+  }
   const normalizedTemplateKind = String(template_kind || 'quest').toLowerCase();
   let createdTemplateId = null;
   try {
@@ -2157,7 +2210,7 @@ router.post('/quest-templates', async (req, res) => {
         is_active ? 1 : 0,
         normalizedTemplateKind || 'quest',
         code,
-        ui_json,
+        templateValidation.uiJson,
       ]
     );
     createdTemplateId = result?.lastID || null;
@@ -2227,6 +2280,17 @@ router.put('/quest-templates/:id', async (req, res) => {
     ui_json = null,
   } = req.body;
   const templateId = req.params.id;
+  if (!name || !condition_type || !target_value) {
+    return res.status(400).json({ ok: false, message: '필수 입력이 누락되었습니다.' });
+  }
+  const templateValidation = validateQuestTemplatePayload({
+    conditionType: condition_type,
+    uiJson: ui_json,
+    targetValue: target_value,
+  });
+  if (templateValidation.error) {
+    return res.status(400).json({ ok: false, message: templateValidation.error });
+  }
   const normalizedTemplateKind = String(template_kind || 'quest').toLowerCase();
   try {
     const previous = await getAsync(
@@ -2248,7 +2312,7 @@ router.put('/quest-templates/:id', async (req, res) => {
         is_active ? 1 : 0,
         normalizedTemplateKind || 'quest',
         code,
-        ui_json,
+        templateValidation.uiJson,
         templateId,
       ]
     );
@@ -2322,12 +2386,26 @@ router.put('/quest-templates/:id', async (req, res) => {
 });
 
 router.delete('/quest-templates/:id', async (req, res) => {
+  const templateId = parsePositiveInt(req.params.id);
+  if (!templateId) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', 'template id가 올바르지 않습니다.');
+  }
+
+  let previous = null;
   try {
-    const previous = await getAsync('SELECT * FROM quest_templates WHERE id = ? LIMIT 1', [
-      req.params.id,
-    ]);
-    await runAsync('DELETE FROM quest_campaign_items WHERE template_id = ?', [req.params.id]);
-    await runAsync('DELETE FROM quest_templates WHERE id = ?', [req.params.id]);
+    await runAsync('BEGIN IMMEDIATE;');
+    previous = await getAsync('SELECT * FROM quest_templates WHERE id = ? LIMIT 1', [templateId]);
+    if (!previous) {
+      await runAsync('ROLLBACK;');
+      return sendAdminError(res, 404, 'RESOURCE_NOT_FOUND', '템플릿을 찾을 수 없습니다.');
+    }
+
+    await runAsync('DELETE FROM quest_post_submissions WHERE template_id = ?', [templateId]);
+    await runAsync('DELETE FROM user_quest_state WHERE template_id = ?', [templateId]);
+    await runAsync('DELETE FROM quest_campaign_items WHERE template_id = ?', [templateId]);
+    await runAsync('DELETE FROM quest_templates WHERE id = ?', [templateId]);
+    await runAsync('COMMIT;');
+
     if (String(previous?.template_kind || '').toLowerCase() === 'achievement') {
       await recordOperationalAlert({
         domain: 'growth',
@@ -2336,15 +2414,16 @@ router.delete('/quest-templates/:id', async (req, res) => {
         title: '업적 템플릿이 삭제되었습니다.',
         message: `"${previous.name}" 업적 템플릿과 캠페인 연결이 삭제되었습니다.`,
         context: {
-          template_id: Number(req.params.id),
+          template_id: templateId,
           code: previous.code || null,
         },
-        dedupeKey: `growth:achievement-template:${req.params.id}:deleted`,
+        dedupeKey: `growth:achievement-template:${templateId}:deleted`,
         createdByAdminId: req.user?.id || null,
       });
     }
     res.json({ ok: true, message: '템플릿이 삭제되었습니다.' });
   } catch (err) {
+    await rollbackAdminTransactionQuietly('quest template delete');
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 삭제 중 오류가 발생했습니다.' });
   }
@@ -2508,39 +2587,54 @@ router.put('/quest-campaigns/:id', async (req, res) => {
 });
 
 router.delete('/quest-campaigns/:id', async (req, res) => {
+  const campaignId = parsePositiveInt(req.params.id);
+  if (!campaignId) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', 'campaign id가 올바르지 않습니다.');
+  }
+
+  let previous = null;
   try {
-    const previous = await getAsync('SELECT * FROM quest_campaigns WHERE id = ? LIMIT 1', [
-      req.params.id,
-    ]);
-    await runAsync('DELETE FROM user_quest_state WHERE campaign_id = ?', [req.params.id]);
-    await runAsync('DELETE FROM quest_campaigns WHERE id = ?', [req.params.id]);
+    await runAsync('BEGIN IMMEDIATE;');
+    previous = await getAsync('SELECT * FROM quest_campaigns WHERE id = ? LIMIT 1', [campaignId]);
+    if (!previous) {
+      await runAsync('ROLLBACK;');
+      return sendAdminError(res, 404, 'RESOURCE_NOT_FOUND', '캠페인을 찾을 수 없습니다.');
+    }
+
+    await runAsync('DELETE FROM quest_post_submissions WHERE campaign_id = ?', [campaignId]);
+    await runAsync('DELETE FROM user_quest_state WHERE campaign_id = ?', [campaignId]);
+    await runAsync('DELETE FROM quest_campaign_items WHERE campaign_id = ?', [campaignId]);
+    await runAsync('DELETE FROM quest_campaigns WHERE id = ?', [campaignId]);
+    await runAsync('COMMIT;');
+
     await recordOperationalAlert({
       domain: 'campaign',
       level: 'warn',
       code: 'QUEST_CAMPAIGN_DELETED',
       title: '퀘스트 캠페인이 삭제되었습니다.',
-      message: `"${previous?.name || req.params.id}" 캠페인과 사용자 진행 상태가 삭제되었습니다.`,
+      message: `"${previous?.name || campaignId}" 캠페인과 사용자 진행 상태가 삭제되었습니다.`,
       context: {
-        campaign_id: Number(req.params.id),
+        campaign_id: campaignId,
         campaign_type: previous?.campaign_type || null,
       },
-      dedupeKey: `growth:campaign:${req.params.id}:deleted`,
+      dedupeKey: `growth:campaign:${campaignId}:deleted`,
       createdByAdminId: req.user?.id || null,
     });
     res.json({ ok: true, message: '캠페인이 삭제되었습니다.' });
   } catch (err) {
+    await rollbackAdminTransactionQuietly('quest campaign delete');
     console.error(err);
     await recordOperationalAlert({
       domain: 'campaign',
       level: 'error',
       code: 'QUEST_CAMPAIGN_DELETE_FAILED',
       title: '퀘스트 캠페인 삭제에 실패했습니다.',
-      message: `${req.params.id} 캠페인 삭제 중 오류가 발생했습니다.`,
+      message: `${campaignId} 캠페인 삭제 중 오류가 발생했습니다.`,
       context: {
-        campaign_id: Number(req.params.id),
+        campaign_id: campaignId,
         error: err?.message || String(err),
       },
-      dedupeKey: `growth:campaign:${req.params.id}:delete-failed`,
+      dedupeKey: `growth:campaign:${campaignId}:delete-failed`,
       createdByAdminId: req.user?.id || null,
       notifyAdmins: true,
     });
