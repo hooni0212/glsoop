@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const db = require('../db');
 const { authRequired, adminRequired } = require('../middleware/auth');
 const { allAsync, getAsync, runAsync } = require('../utils/questService');
@@ -20,6 +21,48 @@ const {
 } = require('../utils/adminOperationalAlerts');
 
 const router = express.Router();
+
+function normalizeAdminPassword(body = {}) {
+  const value = body.admin_password ?? body.adminPassword ?? body.password;
+  return typeof value === 'string' ? value : '';
+}
+
+async function verifyAdminPasswordForDangerAction(req, res) {
+  const adminPassword = normalizeAdminPassword(req.body);
+  if (!adminPassword.trim()) {
+    res.status(400).json({
+      ok: false,
+      code: 'ADMIN_PASSWORD_REQUIRED',
+      message: '관리자 비밀번호를 입력해주세요.',
+    });
+    return false;
+  }
+
+  const adminUser = await getAsync('SELECT id, pw, is_admin FROM users WHERE id = ? LIMIT 1', [
+    req.user?.id,
+  ]);
+
+  if (!adminUser || Number(adminUser.is_admin) !== 1 || typeof adminUser.pw !== 'string') {
+    res.status(403).json({
+      ok: false,
+      code: 'ADMIN_PASSWORD_FORBIDDEN',
+      message: '관리자 권한을 확인할 수 없습니다.',
+    });
+    return false;
+  }
+
+  const passwordMatched = await bcrypt.compare(adminPassword, adminUser.pw);
+  if (!passwordMatched) {
+    res.status(403).json({
+      ok: false,
+      code: 'ADMIN_PASSWORD_INVALID',
+      message: '관리자 비밀번호가 일치하지 않습니다.',
+    });
+    return false;
+  }
+
+  return true;
+}
 
 async function ensureAchievementCampaign() {
   const existing = await getAsync(
@@ -2170,20 +2213,26 @@ router.get('/posts/:id', async (req, res) => {
   }
 });
 
-router.delete('/posts/:id', (req, res) => {
+router.delete('/posts/:id', async (req, res) => {
   const postId = req.params.id;
-  db.serialize(() => {
-    db.run('DELETE FROM likes WHERE post_id = ?', [postId]);
-    db.run('DELETE FROM bookmark_items WHERE post_id = ?', [postId]);
-    db.run('DELETE FROM posts WHERE id = ?', [postId], function (err) {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ ok: false, message: '글 삭제 중 오류가 발생했습니다.' });
-      }
-      if (this.changes === 0) return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
-      return res.json({ ok: true, message: '삭제되었습니다.' });
-    });
-  });
+
+  try {
+    const verified = await verifyAdminPasswordForDangerAction(req, res);
+    if (!verified) return;
+
+    await runAsync('DELETE FROM likes WHERE post_id = ?', [postId]);
+    await runAsync('DELETE FROM bookmark_items WHERE post_id = ?', [postId]);
+    const result = await runAsync('DELETE FROM posts WHERE id = ?', [postId]);
+
+    if (!result?.changes) {
+      return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+    }
+
+    return res.json({ ok: true, message: '삭제되었습니다.' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, message: '글 삭제 중 오류가 발생했습니다.' });
+  }
 });
 
 // Quest templates CRUD

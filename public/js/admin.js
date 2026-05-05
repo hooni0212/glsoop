@@ -419,8 +419,10 @@ Glsoop.AdminPage = (function () {
     document.body.dataset.adminDangerConfirm = 'closed';
 
     const sync = () => {
-      const isTokenMatched = String(input.value || '').trim().toUpperCase() === DANGER_CONFIRM_TOKEN;
-      confirmBtn.disabled = !isTokenMatched;
+      const mode = input.dataset.confirmMode || 'token';
+      const value = String(input.value || '').trim();
+      confirmBtn.disabled =
+        mode === 'admin-password' ? value.length === 0 : value.toUpperCase() !== DANGER_CONFIRM_TOKEN;
     };
 
     input.addEventListener('input', sync);
@@ -447,6 +449,7 @@ Glsoop.AdminPage = (function () {
     const modal = document.getElementById('adminDangerConfirmModal');
     const titleEl = document.getElementById('adminDangerTitle');
     const messageEl = document.getElementById('adminDangerMessage');
+    const inputLabelEl = document.getElementById('adminDangerInputLabel');
     const input = document.getElementById('adminDangerInput');
     const confirmBtn = document.getElementById('adminDangerConfirmBtn');
     if (!modal || !input || !confirmBtn) return Promise.resolve(false);
@@ -460,11 +463,21 @@ Glsoop.AdminPage = (function () {
     const title = options.title || '삭제 확인';
     const message = options.message || '이 작업은 되돌릴 수 없습니다.';
     const actionLabel = options.confirmLabel || '삭제 실행';
+    const confirmMode = options.confirmMode || 'token';
+    const inputLabel =
+      options.inputLabel ||
+      (confirmMode === 'admin-password'
+        ? '관리자 비밀번호를 입력하세요.'
+        : '삭제하려면 DELETE 를 입력하세요.');
 
     if (titleEl) titleEl.textContent = title;
     if (messageEl) messageEl.textContent = message;
+    if (inputLabelEl) inputLabelEl.textContent = inputLabel;
     confirmBtn.textContent = actionLabel;
     input.value = '';
+    input.type = confirmMode === 'admin-password' ? 'password' : 'text';
+    input.autocomplete = confirmMode === 'admin-password' ? 'current-password' : 'off';
+    input.dataset.confirmMode = confirmMode;
     confirmBtn.disabled = true;
 
     modal.classList.remove('gls-hidden');
@@ -488,10 +501,17 @@ Glsoop.AdminPage = (function () {
     const confirmBtn = document.getElementById('adminDangerConfirmBtn');
     if (!modal) return;
 
+    const inputValue = input ? String(input.value || '') : '';
+
     modal.classList.add('gls-hidden');
     modal.dataset.adminDangerConfirm = 'closed';
     document.body.dataset.adminDangerConfirm = 'closed';
-    if (input) input.value = '';
+    if (input) {
+      input.value = '';
+      input.type = 'text';
+      input.autocomplete = 'off';
+      input.dataset.confirmMode = 'token';
+    }
     if (confirmBtn) confirmBtn.disabled = true;
 
     const actionKey = dangerModalState.actionKey;
@@ -511,7 +531,7 @@ Glsoop.AdminPage = (function () {
       });
     }
     if (resolver) {
-      resolver(Boolean(confirmed));
+      resolver({ confirmed: Boolean(confirmed), inputValue });
     }
   }
 
@@ -541,6 +561,8 @@ Glsoop.AdminPage = (function () {
       message,
       triggerEl = null,
       confirmLabel = '삭제 실행',
+      confirmMode = 'token',
+      inputLabel,
       pendingLabel = '삭제 중...',
       request,
       successMessage = '작업이 완료되었습니다.',
@@ -555,15 +577,24 @@ Glsoop.AdminPage = (function () {
       title,
       message,
       confirmLabel,
+      confirmMode,
+      inputLabel,
       triggerEl,
     });
-    if (!confirmed) return false;
+    const confirmationResult =
+      typeof confirmed === 'object' && confirmed !== null
+        ? confirmed
+        : { confirmed: Boolean(confirmed), inputValue: '' };
+    if (!confirmationResult.confirmed) return false;
     if (inFlightDangerActions.has(actionKey)) return false;
 
     inFlightDangerActions.add(actionKey);
     const releaseTrigger = lockDangerTrigger(triggerEl, pendingLabel);
     try {
-      await request();
+      await request({
+        confirmationInput: confirmationResult.inputValue,
+        adminPassword: confirmMode === 'admin-password' ? confirmationResult.inputValue : '',
+      });
       showAdminNotice(successMessage, 'success');
       return true;
     } catch (error) {
@@ -1851,9 +1882,15 @@ Glsoop.AdminPage = (function () {
       title: '글 삭제 확인',
       message: `글 ID ${postId}를 삭제합니다. 이 작업은 되돌릴 수 없습니다.`,
       triggerEl,
+      confirmMode: 'admin-password',
+      inputLabel: '삭제하려면 관리자 비밀번호를 입력하세요.',
       pendingLabel: triggerEl?.id === 'adminPostModalDelete' ? '삭제 중...' : '',
-      request: async () => {
-        const delRes = await fetch(`/api/admin/posts/${postId}`, { method: 'DELETE' });
+      request: async ({ adminPassword }) => {
+        const delRes = await fetch(`/api/admin/posts/${postId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ admin_password: adminPassword }),
+        });
         const delData = await parseJsonSafe(delRes);
         if (!delRes.ok || !delData.ok) {
           throw new Error(delData.message || '글 삭제에 실패했습니다.');
