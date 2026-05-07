@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let previewSessionTruncated = false;
   let previewCreatedAt = new Date().toISOString();
   let previewOverlayText = { title: '제목', body: '본문' };
+  let selectedBackgroundTemplate = 'paper01';
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -181,6 +182,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const previewCarouselCurrentPageEl = document.getElementById('previewCarouselCurrentPage');
   const previewCarouselTotalPagesEl = document.getElementById('previewCarouselTotalPages');
   const previewTruncatedNoticeEl = document.getElementById('previewTruncatedNotice');
+  const backgroundTemplateButtons = Array.from(
+    document.querySelectorAll('[data-background-template]')
+  );
 
   // ✅ 남은 글자 수 표시 요소 (에디터 박스 오른쪽 아래)
   const charCounterEl = document.getElementById('charCounter');
@@ -205,6 +209,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     sans: '담백한 고딕체',
     hand: '손글씨 느낌',
   };
+
+  function normalizeTemplateKey(value) {
+    return value === 'paper02' ? 'paper02' : 'paper01';
+  }
+
+  function extractTemplateFromLayout(raw) {
+    let parsed = raw;
+    if (typeof parsed === 'string') {
+      const trimmed = parsed.trim();
+      if (!trimmed) return 'paper01';
+      try {
+        parsed = JSON.parse(trimmed);
+      } catch (_error) {
+        return 'paper01';
+      }
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return 'paper01';
+    }
+    return normalizeTemplateKey(parsed.canvas?.presetId);
+  }
 
   const LAYOUT_UNIT_NORMALIZED = 'normalized';
   const LAYOUT_BOX_KEYS = ['title_box', 'text_box', 'footer_box'];
@@ -261,6 +286,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     return {
       layout_version: 1,
       unit: LAYOUT_UNIT_NORMALIZED,
+      canvas: {
+        presetId: normalizeTemplateKey(selectedBackgroundTemplate),
+      },
       title_box: cloneLayout(DEFAULT_LAYOUT_BOXES.title_box),
       text_box: cloneLayout(DEFAULT_LAYOUT_BOXES.text_box),
     };
@@ -270,6 +298,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     return {
       layout_version: 2,
       unit: LAYOUT_UNIT_NORMALIZED,
+      canvas: {
+        presetId: normalizeTemplateKey(selectedBackgroundTemplate),
+      },
       base: {
         title_box: cloneLayout(DEFAULT_LAYOUT_BOXES.title_box),
         text_box: cloneLayout(DEFAULT_LAYOUT_BOXES.text_box),
@@ -476,6 +507,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const footerBox = normalizeLayoutBox(parsed.footer_box, { required: false });
 
       const state = buildDefaultLayoutState();
+      state.canvas = {
+        presetId: normalizeTemplateKey(parsed.canvas?.presetId),
+      };
       state.base.text_box = textBox;
       state.base.title_box = titleBox;
       if (footerBox) {
@@ -503,6 +537,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const normalized = {
       layout_version: 2,
       unit: LAYOUT_UNIT_NORMALIZED,
+      canvas: {
+        presetId: normalizeTemplateKey(parsed.canvas?.presetId),
+      },
       base: {
         text_box: baseTextBox,
         title_box: baseTitleBox,
@@ -530,12 +567,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function buildLayoutPayloadForSave(layoutState) {
-    if (!layoutState) return null;
-    const parsed = parseLayoutJson(layoutState);
+    const templateKey = normalizeTemplateKey(selectedBackgroundTemplate);
+    if (!layoutState && templateKey === 'paper01') return null;
+    const parsed = parseLayoutJson(layoutState || buildDefaultLayoutState());
     if (!parsed) return null;
     return {
       layout_version: 2,
       unit: LAYOUT_UNIT_NORMALIZED,
+      canvas: {
+        presetId: templateKey,
+      },
       base: cloneLayout(parsed.base),
       pages: trimLayoutPages(parsed.pages),
     };
@@ -634,6 +675,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     return buildDefaultLayoutState();
   }
 
+  function syncBackgroundTemplateButtons() {
+    backgroundTemplateButtons.forEach((button) => {
+      const isActive =
+        normalizeTemplateKey(button.dataset.backgroundTemplate) === selectedBackgroundTemplate;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+
+  function applyBackgroundTemplate(
+    templateKey,
+    { markDirty = false, refreshPreview = true } = {}
+  ) {
+    const nextTemplate = normalizeTemplateKey(templateKey);
+    selectedBackgroundTemplate = nextTemplate;
+
+    if (manualLayoutState) {
+      const parsed = parseLayoutJson(manualLayoutState) || buildDefaultLayoutState();
+      manualLayoutState = {
+        ...parsed,
+        canvas: {
+          presetId: nextTemplate,
+        },
+      };
+    }
+
+    syncBackgroundTemplateButtons();
+    if (refreshPreview) {
+      updatePreview();
+    }
+    if (markDirty) {
+      onEditorUserMutation('background_change');
+    }
+  }
+
   /**
    * ✅ 에디터 + 미리보기 카드에 폰트 적용
    * - select에서 폰트 변경 시 호출
@@ -725,8 +801,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  backgroundTemplateButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      applyBackgroundTemplate(button.dataset.backgroundTemplate, { markDirty: true });
+    });
+  });
+
   updateLayoutToggleUi();
   updateLayoutSafeAreaHint(false);
+  syncBackgroundTemplateButtons();
 
   /* -----------------------
      해시태그 칩 유틸 함수들
@@ -1323,7 +1406,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             content: previewPost.content,
             content_format: 'html',
             category: previewPost.category,
-            template: 'paper01',
+            template: normalizeTemplateKey(selectedBackgroundTemplate),
             scale: 1,
             layout_json: layoutForPreview,
             created_at: previewPost.created_at,
@@ -1497,6 +1580,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const restoredLayout = parseLayoutJson(state.layout_json);
       manualLayoutState = restoredLayout ? cloneLayout(restoredLayout) : null;
+      applyBackgroundTemplate(extractTemplateFromLayout(state.layout_json), {
+        markDirty: false,
+        refreshPreview: false,
+      });
       if (layoutEditor) {
         const previewCard = previewFeedCardMountEl?.querySelector('.gls-post-card');
         if (previewCard) {
@@ -1618,6 +1705,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const loadedLayout = parseLayoutJson(post.layout_json);
         manualLayoutState = loadedLayout ? cloneLayout(loadedLayout) : null;
+        applyBackgroundTemplate(extractTemplateFromLayout(post.layout_json), {
+          markDirty: false,
+          refreshPreview: false,
+        });
         if (layoutEditor) {
           const previewCard = previewFeedCardMountEl?.querySelector('.gls-post-card');
           if (previewCard) {

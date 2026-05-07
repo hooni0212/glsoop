@@ -175,6 +175,12 @@ test.describe.serial('Safety API', () => {
       privacy: expect.stringContaining('/html/privacy.html'),
       guidelines: expect.stringContaining('/html/community-guidelines.html'),
     });
+    expect(payload.legal.contacts).toMatchObject({
+      operator_name: '김태훈',
+      email: 'glsoop1752@gmail.com',
+      phone: '010-5152-8847',
+      dpo_name: '김태훈',
+    });
     expect(payload.safety).toMatchObject({
       report_enabled: true,
       block_enabled: true,
