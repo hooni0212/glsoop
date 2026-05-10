@@ -21,6 +21,8 @@ Glsoop.AdminPage = (function () {
     campaignItems: [],
     operationalAlerts: [],
     operationalHealth: null,
+    autoClaimLimit: 100,
+    autoClaimResult: null,
   };
 
   const shareSummaryState = {
@@ -116,6 +118,8 @@ Glsoop.AdminPage = (function () {
     'badge_autumn_2026',
     'badge_winter_2026',
   ];
+  const AUTO_CLAIM_LIMIT_MIN = 1;
+  const AUTO_CLAIM_LIMIT_MAX = 500;
 
   const DANGER_CONFIRM_TOKEN = 'DELETE';
   const inFlightDangerActions = new Set();
@@ -2043,6 +2047,7 @@ Glsoop.AdminPage = (function () {
           </div>
         </div>
       </div>
+      ${buildExpiredRewardAutoClaimPanel()}
       <div class="gls-mt-3">
         <h5 class="gls-mb-2">열린 운영 알림</h5>
         ${alertsHtml}
@@ -2050,9 +2055,221 @@ Glsoop.AdminPage = (function () {
     `;
   }
 
+  function buildExpiredRewardAutoClaimPanel() {
+    const limit = normalizeAutoClaimLimit(questState.autoClaimLimit);
+
+    return `
+      <div class="growth-auto-claim-panel gls-mt-3">
+        <div class="growth-auto-claim-panel__header">
+          <div>
+            <p class="gls-text-muted gls-text-small gls-mb-1">시즌 종료 처리</p>
+            <h5 class="gls-mb-1">미수령 완료 보상 자동 수령</h5>
+            <p class="gls-text-muted gls-text-small gls-mb-0">
+              종료된 시즌/이벤트에서 이미 완료했지만 받지 않은 보상만 처리합니다. 지급 검증은 일반 보상 수령과 같은 로직을 사용합니다.
+            </p>
+          </div>
+          <div class="growth-auto-claim-controls">
+            <label class="gls-label gls-mb-0" for="growthAutoClaimLimit">처리 한도</label>
+            <input
+              class="gls-input gls-input-sm"
+              id="growthAutoClaimLimit"
+              type="number"
+              min="${AUTO_CLAIM_LIMIT_MIN}"
+              max="${AUTO_CLAIM_LIMIT_MAX}"
+              step="1"
+              value="${limit}"
+            />
+            <button class="gls-btn gls-btn-secondary gls-btn-sm" id="growthAutoClaimPreviewBtn" type="button">
+              대상 확인
+            </button>
+            <button class="gls-btn gls-btn-primary gls-btn-sm" id="growthAutoClaimRunBtn" type="button">
+              자동 수령 실행
+            </button>
+          </div>
+        </div>
+        <div id="growthAutoClaimResult" class="growth-auto-claim-result">
+          ${buildExpiredRewardAutoClaimResult(questState.autoClaimResult)}
+        </div>
+      </div>
+    `;
+  }
+
+  function buildExpiredRewardAutoClaimResult(result) {
+    if (!result) {
+      return '<p class="gls-text-muted gls-text-small gls-mb-0">먼저 대상 확인을 실행하면 처리 후보를 볼 수 있습니다.</p>';
+    }
+
+    const candidateCount = Number(result.candidate_count || 0);
+    const claimedCount = Number(result.claimed_count || 0);
+    const skippedCount = Number(result.skipped_count || 0);
+    const dryRun = Boolean(result.dry_run);
+    const candidates = Array.isArray(result.candidates) ? result.candidates : [];
+    const claimed = Array.isArray(result.claimed) ? result.claimed : [];
+    const skipped = Array.isArray(result.skipped) ? result.skipped : [];
+
+    return `
+      <div class="growth-auto-claim-summary">
+        <span class="quest-ops-pill">${dryRun ? '대상 확인' : '실행 완료'}</span>
+        <span class="quest-ops-pill">대상 ${candidateCount}건</span>
+        <span class="quest-ops-pill">수령 ${claimedCount}건</span>
+        <span class="quest-ops-pill ${skippedCount > 0 ? 'quest-ops-pill--warn' : 'quest-ops-pill--muted'}">스킵 ${skippedCount}건</span>
+      </div>
+      ${
+        dryRun
+          ? buildAutoClaimRows('처리 후보', candidates, '자동 수령 후보가 없습니다.', 'candidate')
+          : [
+              buildAutoClaimRows('수령 완료', claimed, '수령 처리된 보상이 없습니다.', 'claimed'),
+              buildAutoClaimRows('스킵', skipped, '스킵된 보상이 없습니다.', 'skipped'),
+            ].join('')
+      }
+    `;
+  }
+
+  function buildAutoClaimRows(title, rows, emptyLabel, mode) {
+    const safeRows = Array.isArray(rows) ? rows : [];
+    if (safeRows.length === 0) {
+      return `
+        <div class="growth-auto-claim-table-wrap">
+          <h6 class="gls-mb-1">${escapeHtml(title)}</h6>
+          <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(emptyLabel)}</p>
+        </div>
+      `;
+    }
+
+    const visibleRows = safeRows.slice(0, 10);
+    const extraCount = Math.max(0, safeRows.length - visibleRows.length);
+    const rowsHtml = visibleRows
+      .map((row) => {
+        const stateId = row.state_id ?? row.stateId ?? '-';
+        const userId = row.user_id ?? row.userId ?? '-';
+        const campaignName = row.campaign_name || `캠페인 ${row.campaign_id || '-'}`;
+        const endAt = formatAdminDateTime(row.end_at);
+        const resultText =
+          mode === 'claimed'
+            ? `+${Number(row.gained_xp || 0)} XP · 코스메틱 ${Number(
+                row.gained_cosmetics_count || 0
+              )}개`
+            : mode === 'skipped'
+              ? `${row.code || 'SKIPPED'} · ${row.message || ''}`
+              : '수령 가능';
+
+        return `
+          <tr>
+            <td>${escapeHtml(stateId)}</td>
+            <td>${escapeHtml(userId)}</td>
+            <td>${escapeHtml(campaignName)}</td>
+            <td>${escapeHtml(endAt)}</td>
+            <td>${escapeHtml(resultText)}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    return `
+      <div class="growth-auto-claim-table-wrap">
+        <h6 class="gls-mb-1">${escapeHtml(title)}</h6>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle gls-mb-0 growth-auto-claim-table">
+            <thead>
+              <tr>
+                <th>State</th>
+                <th>User</th>
+                <th>캠페인</th>
+                <th>종료</th>
+                <th>결과</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+        ${
+          extraCount > 0
+            ? `<p class="gls-text-muted gls-text-small gls-mt-1 gls-mb-0">외 ${extraCount}건이 더 있습니다.</p>`
+            : ''
+        }
+      </div>
+    `;
+  }
+
+  function normalizeAutoClaimLimit(raw) {
+    const parsed = Number.parseInt(String(raw ?? ''), 10);
+    if (!Number.isFinite(parsed)) return 100;
+    return Math.max(AUTO_CLAIM_LIMIT_MIN, Math.min(AUTO_CLAIM_LIMIT_MAX, parsed));
+  }
+
+  function readAutoClaimLimit() {
+    const input = document.getElementById('growthAutoClaimLimit');
+    const parsed = Number.parseInt(String(input?.value || ''), 10);
+    if (!Number.isInteger(parsed) || parsed < AUTO_CLAIM_LIMIT_MIN || parsed > AUTO_CLAIM_LIMIT_MAX) {
+      showAdminNotice(`처리 한도는 ${AUTO_CLAIM_LIMIT_MIN} 이상 ${AUTO_CLAIM_LIMIT_MAX} 이하로 입력하세요.`, 'error');
+      return null;
+    }
+    questState.autoClaimLimit = parsed;
+    return parsed;
+  }
+
+  async function runExpiredRewardAutoClaim(dryRun, triggerEl) {
+    const limit = readAutoClaimLimit();
+    if (!limit) return;
+
+    if (!dryRun) {
+      const confirmed = window.confirm(
+        '종료된 시즌/이벤트의 완료 미수령 보상을 실제 지급합니다. 계속할까요?'
+      );
+      if (!confirmed) return;
+    }
+
+    const originalText = triggerEl?.textContent || '';
+    if (triggerEl) {
+      triggerEl.disabled = true;
+      triggerEl.textContent = dryRun ? '확인 중...' : '처리 중...';
+    }
+
+    try {
+      const res = await fetch('/api/admin/quests/auto-claim-expired-rewards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit, dry_run: Boolean(dryRun) }),
+      });
+      const data = await parseJsonSafe(res);
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || '자동 수령 처리에 실패했습니다.');
+      }
+
+      questState.autoClaimResult = data;
+      showAdminNotice(
+        dryRun
+          ? `자동 수령 후보 ${Number(data.candidate_count || 0)}건을 확인했습니다.`
+          : `자동 수령 ${Number(data.claimed_count || 0)}건을 처리했습니다.`,
+        'success'
+      );
+      await loadGrowthOperationalStatus();
+    } catch (err) {
+      console.error(err);
+      showAdminNotice(err.message || '자동 수령 처리 중 오류가 발생했습니다.', 'error');
+    } finally {
+      if (triggerEl && document.body.contains(triggerEl)) {
+        triggerEl.disabled = false;
+        triggerEl.textContent = originalText;
+      }
+    }
+  }
+
   function bindGrowthOperationalStatusEvents() {
     const box = document.getElementById('growthOperationalStatus');
     if (!box) return;
+    const limitInput = box.querySelector('#growthAutoClaimLimit');
+    limitInput?.addEventListener('change', () => {
+      const nextLimit = normalizeAutoClaimLimit(limitInput.value);
+      questState.autoClaimLimit = nextLimit;
+      limitInput.value = String(nextLimit);
+    });
+    box.querySelector('#growthAutoClaimPreviewBtn')?.addEventListener('click', (event) => {
+      runExpiredRewardAutoClaim(true, event.currentTarget);
+    });
+    box.querySelector('#growthAutoClaimRunBtn')?.addEventListener('click', (event) => {
+      runExpiredRewardAutoClaim(false, event.currentTarget);
+    });
     box.querySelectorAll('.growth-alert-resolve').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const alertId = btn.getAttribute('data-alert-id');

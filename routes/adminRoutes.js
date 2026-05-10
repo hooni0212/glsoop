@@ -15,6 +15,7 @@ const {
   resolveSafetyReport,
   resolveSafetyReportsForPost,
 } = require('../utils/safety');
+const { autoClaimExpiredQuestRewards } = require('../utils/questRewardClaimService');
 const {
   createAdminOperationalAlert,
   mapOperationalAlert,
@@ -344,6 +345,14 @@ function parseBoundedInt(raw, fallback, min, max) {
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed) || parsed < min || parsed > max) return null;
   return parsed;
+}
+
+function parseBooleanFlag(raw) {
+  if (raw === true || raw === false) return raw;
+  if (typeof raw === 'number') return raw === 1;
+  if (typeof raw !== 'string') return false;
+  const normalized = raw.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
 }
 
 function parsePositiveInt(raw) {
@@ -2538,6 +2547,62 @@ router.post('/quests/achievements/backfill', async (req, res) => {
       notifyAdmins: true,
     });
     res.status(500).json({ ok: false, message: '업적 backfill 중 오류가 발생했습니다.' });
+  }
+});
+
+router.post('/quests/auto-claim-expired-rewards', async (req, res) => {
+  const rawLimit = req.body?.limit ?? req.query?.limit;
+  const limit = parseBoundedInt(rawLimit, 100, 1, 500);
+  if (limit === null) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', 'limit은 1 이상 500 이하의 숫자여야 합니다.');
+  }
+
+  const dryRun = parseBooleanFlag(req.body?.dry_run ?? req.body?.dryRun ?? req.query?.dry_run);
+
+  try {
+    const result = await autoClaimExpiredQuestRewards({ limit, dryRun });
+
+    if (!dryRun && result.claimed_count > 0) {
+      await recordOperationalAlert({
+        domain: 'growth',
+        level: 'info',
+        code: 'EXPIRED_QUEST_REWARDS_AUTO_CLAIMED',
+        title: '종료된 시즌/이벤트 퀘스트 보상이 자동 수령되었습니다.',
+        message: `미수령 완료 보상 ${result.claimed_count}건을 자동 수령 처리했습니다.`,
+        context: {
+          claimed_count: result.claimed_count,
+          skipped_count: result.skipped_count,
+          limit,
+        },
+        createdByAdminId: req.user?.id || null,
+      });
+    }
+
+    return res.json({
+      ok: true,
+      message: dryRun
+        ? '자동 수령 대상 퀘스트 보상을 확인했습니다.'
+        : '종료된 시즌/이벤트 퀘스트 보상 자동 수령을 처리했습니다.',
+      ...result,
+    });
+  } catch (error) {
+    console.error('[admin/quests/auto-claim-expired-rewards] failed:', error);
+    await recordOperationalAlert({
+      domain: 'growth',
+      level: 'error',
+      code: 'EXPIRED_QUEST_REWARDS_AUTO_CLAIM_FAILED',
+      title: '종료된 퀘스트 보상 자동 수령에 실패했습니다.',
+      message: '종료된 시즌/이벤트의 미수령 완료 보상 처리 중 오류가 발생했습니다.',
+      context: {
+        error: error?.message || String(error),
+        limit,
+        dry_run: dryRun,
+      },
+      dedupeKey: 'growth:expired-quest-rewards:auto-claim:failed',
+      createdByAdminId: req.user?.id || null,
+      notifyAdmins: true,
+    });
+    return sendAdminError(res, 500, 'INTERNAL_ERROR', '퀘스트 보상 자동 수령 중 오류가 발생했습니다.');
   }
 });
 

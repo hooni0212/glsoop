@@ -254,14 +254,6 @@ async function ensureDefaultProfileCosmetics(userId) {
     )
     VALUES (?, ?, ?, '[]', '[]', CURRENT_TIMESTAMP)
     ON CONFLICT(user_id) DO UPDATE SET
-      primary_badge_key = CASE
-        WHEN primary_badge_key IS NULL OR TRIM(primary_badge_key) = '' THEN excluded.primary_badge_key
-        ELSE primary_badge_key
-      END,
-      profile_background_key = CASE
-        WHEN profile_background_key IS NULL OR TRIM(profile_background_key) = '' THEN excluded.profile_background_key
-        ELSE profile_background_key
-      END,
       showcase_badge_keys_json = CASE
         WHEN showcase_badge_keys_json IS NULL OR TRIM(showcase_badge_keys_json) = '' THEN '[]'
         ELSE showcase_badge_keys_json

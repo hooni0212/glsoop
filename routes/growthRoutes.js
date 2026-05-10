@@ -1,39 +1,26 @@
 const express = require('express');
 const { authRequired } = require('../middleware/auth');
 const {
-  addXp,
   fetchGrowthSummary,
   fetchUserAchievements,
 } = require('../utils/growth-service');
 const { buildPublicDisplayName } = require('../utils/accountLifecycle');
 const { getActiveQuestsForUser } = require('../utils/questService');
 const { buildPostExcerpt } = require('../utils/postPreview');
-const { mapCosmeticItem } = require('../utils/profileCosmetics');
+const {
+  QuestRewardClaimError,
+  buildQuestLockState,
+  claimQuestReward,
+  collectRewardCosmeticKeys,
+  fetchActiveEntitlementKeySet,
+  fetchRewardCosmeticMap,
+  getRewardCosmeticPayload,
+} = require('../utils/questRewardClaimService');
 const { normalizeUtcDateTime } = require('../utils/dateTime');
 const db = require('../db');
 
-const LOCK_REASON_ENTITLEMENT_REQUIRED = 'SEASON_PASS_REQUIRED';
-
 function sendGrowthError(res, status, code, message) {
   return res.status(status).json({ ok: false, code, message });
-}
-
-function runAsync(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) return reject(err);
-      resolve(this);
-    });
-  });
-}
-
-function getAsync(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) return reject(err);
-      resolve(row);
-    });
-  });
 }
 
 function allAsync(sql, params = []) {
@@ -43,185 +30,6 @@ function allAsync(sql, params = []) {
       resolve(rows);
     });
   });
-}
-
-function parseUiJson(raw) {
-  if (!raw) return null;
-  if (typeof raw === 'object') {
-    return raw;
-  }
-  if (typeof raw !== 'string') {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch (error) {
-    return null;
-  }
-}
-
-function normalizeEntitlementKey(value) {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (trimmed.length > 120) return null;
-  return trimmed;
-}
-
-function normalizeRewardCosmeticKeys(value) {
-  if (!Array.isArray(value)) return [];
-  const unique = new Set();
-  const keys = [];
-
-  for (const raw of value) {
-    if (typeof raw !== 'string') continue;
-    const trimmed = raw.trim();
-    if (!trimmed || unique.has(trimmed)) continue;
-    unique.add(trimmed);
-    keys.push(trimmed);
-  }
-
-  return keys;
-}
-
-function parseQuestMonetizationConfig(rawUiJson) {
-  const parsed = parseUiJson(rawUiJson);
-  const requiredEntitlement = normalizeEntitlementKey(parsed?.required_entitlement);
-  const rewardCosmeticKeys = normalizeRewardCosmeticKeys(parsed?.rewards?.cosmetics);
-  return {
-    required_entitlement: requiredEntitlement,
-    reward_cosmetic_keys: rewardCosmeticKeys,
-  };
-}
-
-async function fetchActiveEntitlementKeySet(userId) {
-  const rows = await allAsync(
-    `
-      SELECT entitlement_key
-      FROM user_entitlements
-      WHERE user_id = ?
-        AND status = 'active'
-        AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
-    `,
-    [userId]
-  );
-
-  const keys = new Set();
-  for (const row of rows) {
-    const key = normalizeEntitlementKey(row?.entitlement_key);
-    if (key) {
-      keys.add(key);
-    }
-  }
-  return keys;
-}
-
-function buildQuestLockState(quest, entitlementKeySet = new Set()) {
-  const monetization = parseQuestMonetizationConfig(quest?.uiJson);
-  const requiredEntitlement = monetization.required_entitlement || null;
-  const isLocked =
-    !!requiredEntitlement && !entitlementKeySet.has(requiredEntitlement);
-
-  return {
-    is_locked: isLocked,
-    required_entitlement: requiredEntitlement,
-    lock_reason: isLocked ? LOCK_REASON_ENTITLEMENT_REQUIRED : null,
-  };
-}
-
-async function fetchCosmeticRowsByKeys(keys = []) {
-  if (!Array.isArray(keys) || keys.length === 0) {
-    return [];
-  }
-
-  const placeholders = keys.map(() => '?').join(', ');
-  const cosmeticRows = await allAsync(
-    `
-      SELECT
-        'cosmetic_items' AS source_table,
-        id,
-        key,
-        type,
-        name,
-        icon_emoji,
-        COALESCE(rarity, 'common') AS rarity,
-        season,
-        meta_json
-      FROM cosmetic_items
-      WHERE key IN (${placeholders})
-    `,
-    keys
-  );
-  const backgroundRows = await allAsync(
-    `
-      SELECT
-        'profile_background_items' AS source_table,
-        id,
-        key,
-        'background' AS type,
-        name,
-        icon_emoji,
-        COALESCE(rarity, 'common') AS rarity,
-        season,
-        meta_json
-      FROM profile_background_items
-      WHERE key IN (${placeholders})
-        AND is_active = 1
-    `,
-    keys
-  );
-  return [...cosmeticRows, ...backgroundRows];
-}
-
-async function grantQuestRewardCosmetics(userId, cosmeticKeys = []) {
-  if (!Array.isArray(cosmeticKeys) || cosmeticKeys.length === 0) {
-    return [];
-  }
-
-  const rows = await fetchCosmeticRowsByKeys(cosmeticKeys);
-  const itemByKey = new Map();
-  for (const row of rows) {
-    if (!row?.key) continue;
-    if (!itemByKey.has(row.key)) {
-      itemByKey.set(row.key, row);
-    }
-  }
-
-  const gained = [];
-  for (const key of cosmeticKeys) {
-    const item = itemByKey.get(key);
-    if (!item) {
-      continue;
-    }
-    if (item.type !== 'badge' && item.type !== 'sticker' && item.type !== 'background') {
-      continue;
-    }
-
-    const result =
-      item.type === 'background'
-        ? await runAsync(
-            `
-              INSERT OR IGNORE INTO user_profile_backgrounds (user_id, background_id, source)
-              VALUES (?, ?, 'quest')
-            `,
-            [userId, item.id]
-          )
-        : await runAsync(
-            `
-              INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
-              VALUES (?, ?, 'quest')
-            `,
-            [userId, item.id]
-          );
-
-    if (Number(result?.changes || 0) > 0) {
-      gained.push(mapCosmeticItem(item));
-    }
-  }
-
-  return gained;
 }
 
 function mapSummary(summary) {
@@ -237,7 +45,11 @@ function mapSummary(summary) {
   };
 }
 
-function mapAchievements(achievements = []) {
+async function mapAchievements(achievements = []) {
+  const rewardCosmeticByKey = await fetchRewardCosmeticMap(
+    collectRewardCosmeticKeys(achievements, (item) => item?.uiJson)
+  );
+
   return achievements.map((item) => ({
     id: item.id,
     code: item.code,
@@ -253,10 +65,16 @@ function mapAchievements(achievements = []) {
     position_index: item.positionIndex,
     icon: item.icon,
     ui_json: item.uiJson,
+    ...getRewardCosmeticPayload(item.uiJson, rewardCosmeticByKey),
   }));
 }
 
-function mapCampaigns(campaigns = [], entitlementKeySet = new Set()) {
+async function mapCampaigns(campaigns = [], entitlementKeySet = new Set()) {
+  const quests = campaigns.flatMap((campaign) => campaign.quests || []);
+  const rewardCosmeticByKey = await fetchRewardCosmeticMap(
+    collectRewardCosmeticKeys(quests, (quest) => quest?.uiJson)
+  );
+
   return campaigns.map((campaign) => ({
     id: campaign.id,
     name: campaign.name,
@@ -284,6 +102,7 @@ function mapCampaigns(campaigns = [], entitlementKeySet = new Set()) {
       ui_json: quest.uiJson,
       completed_at: quest.completedAt,
       reward_claimed_at: quest.rewardClaimedAt,
+      ...getRewardCosmeticPayload(quest.uiJson, rewardCosmeticByKey),
     })),
   }));
 }
@@ -366,13 +185,17 @@ router.get('/growth/dashboard', authRequired, async (req, res) => {
         fetchGrowthTopPosts(),
         fetchActiveEntitlementKeySet(req.user.id),
       ]);
+    const [mappedAchievements, mappedCampaigns] = await Promise.all([
+      mapAchievements(achievements),
+      mapCampaigns(campaigns, entitlementKeySet),
+    ]);
 
     return res.json({
       ok: true,
       message: '성장 대시보드 정보를 불러왔습니다.',
       summary: mapSummary(summary),
-      achievements: mapAchievements(achievements),
-      campaigns: mapCampaigns(campaigns, entitlementKeySet),
+      achievements: mappedAchievements,
+      campaigns: mappedCampaigns,
       top_posts: mapTopPosts(topPosts),
     });
   } catch (error) {
@@ -417,10 +240,11 @@ router.get('/growth/summary', authRequired, async (req, res) => {
 router.get('/growth/achievements', authRequired, async (req, res) => {
   try {
     const achievements = await fetchUserAchievements(req.user.id);
+    const mappedAchievements = await mapAchievements(achievements);
     return res.json({
       ok: true,
       message: '업적 정보를 불러왔습니다.',
-      achievements: mapAchievements(achievements),
+      achievements: mappedAchievements,
     });
   } catch (error) {
     console.error('growth achievements error:', error);
@@ -438,7 +262,7 @@ router.get('/quests/active', authRequired, async (req, res) => {
     return res.json({
       ok: true,
       message: '활성 퀘스트를 불러왔습니다.',
-      campaigns: mapCampaigns(campaigns, entitlementKeySet),
+      campaigns: await mapCampaigns(campaigns, entitlementKeySet),
     });
   } catch (error) {
     console.error('active quests error:', error);
@@ -452,99 +276,19 @@ router.post('/quests/:stateId/claim', authRequired, async (req, res) => {
     return sendGrowthError(res, 400, 'INVALID_REQUEST', '올바르지 않은 stateId입니다.');
   }
 
-  const nowIso = new Date().toISOString();
   try {
-    await runAsync('BEGIN IMMEDIATE;');
-    const state = await getAsync(
-      `SELECT uqs.id, uqs.user_id, uqs.completed_at, uqs.reward_claimed_at, uqs.template_id, uqs.campaign_id,
-              qt.reward_xp, qt.ui_json
-       FROM user_quest_state uqs
-       JOIN quest_templates qt ON qt.id = uqs.template_id
-       WHERE uqs.id = ? AND uqs.user_id = ?`,
-      [stateId, req.user.id]
-    );
-
-    if (!state) {
-      await runAsync('ROLLBACK;');
-      return sendGrowthError(res, 404, 'RESOURCE_NOT_FOUND', '퀘스트 상태를 찾을 수 없습니다.');
-    }
-
-    if (!state.completed_at) {
-      await runAsync('ROLLBACK;');
-      return sendGrowthError(
-        res,
-        400,
-        'INVALID_REQUEST',
-        '아직 완료되지 않은 퀘스트입니다.'
-      );
-    }
-
-    if (state.reward_claimed_at) {
-      await runAsync('ROLLBACK;');
-      return sendGrowthError(res, 409, 'CONFLICT', '이미 보상을 받았습니다.');
-    }
-
-    const monetization = parseQuestMonetizationConfig(state.ui_json);
-    if (monetization.required_entitlement) {
-      const entitlement = await getAsync(
-        `
-        SELECT entitlement_key
-        FROM user_entitlements
-        WHERE user_id = ?
-          AND entitlement_key = ?
-          AND status = 'active'
-          AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
-        LIMIT 1
-        `,
-        [req.user.id, monetization.required_entitlement]
-      );
-
-      if (!entitlement) {
-        await runAsync('ROLLBACK;');
-        return sendGrowthError(
-          res,
-          403,
-          'ENTITLEMENT_REQUIRED',
-          '시즌 패스가 필요합니다.'
-        );
-      }
-    }
-
-    await runAsync(
-      'UPDATE user_quest_state SET reward_claimed_at = ? WHERE id = ?',
-      [nowIso, stateId]
-    );
-
-    const rewardXp = Number(state.reward_xp) || 0;
-    const gainedXp =
-      rewardXp > 0
-        ? await addXp(req.user.id, rewardXp, 'QUEST_REWARD', {
-            stateId,
-            templateId: state.template_id,
-            campaignId: state.campaign_id,
-          })
-        : 0;
-
-    const updated = await getAsync('SELECT xp FROM users WHERE id = ?', [req.user.id]);
-    const newXp = updated?.xp || 0;
-    const gainedCosmetics = await grantQuestRewardCosmetics(
-      req.user.id,
-      monetization.reward_cosmetic_keys
-    );
-
-    await runAsync('COMMIT;');
+    const result = await claimQuestReward({
+      stateId,
+      userId: req.user.id,
+      source: 'manual',
+    });
     return res.json({
       ok: true,
-      reward_claimed_at: nowIso,
-      gained_xp: gainedXp,
-      new_xp: newXp,
-      gained_cosmetics: gainedCosmetics,
+      ...result,
     });
   } catch (error) {
-    try {
-      await runAsync('ROLLBACK;');
-    } catch (rollbackError) {
-      console.error('claim rollback failed:', rollbackError);
+    if (error instanceof QuestRewardClaimError) {
+      return sendGrowthError(res, error.status, error.code, error.message);
     }
     console.error('claim reward error:', error);
     return sendGrowthError(res, 500, 'INTERNAL_ERROR', '보상 지급 중 오류가 발생했습니다.');

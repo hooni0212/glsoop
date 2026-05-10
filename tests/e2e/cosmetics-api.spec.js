@@ -314,6 +314,68 @@ test.describe('Cosmetics API', () => {
     });
   });
 
+  test('cleared primary badge persists after cosmetics refresh and public profile fetch', async ({
+    request,
+  }) => {
+    const userAToken = signAuthToken({
+      id: USER_A_ID,
+      name: 'Writer Cosmetic A',
+      nickname: 'writer_cosmetic_a',
+      email: 'writer-cosmetic-a@glsoop.test',
+    });
+    const userBToken = signAuthToken({
+      id: USER_B_ID,
+      name: 'Writer Cosmetic B',
+      nickname: 'writer_cosmetic_b',
+      email: 'writer-cosmetic-b@glsoop.test',
+    });
+
+    const clearResponse = await request.put('/api/me/profile-cosmetics', {
+      headers: {
+        ...buildAuthHeaders(userAToken),
+      },
+      data: {
+        primary_badge_key: null,
+        profile_background_key: 'background_writer_grove',
+        showcase_badge_keys: ['badge_default_seedling'],
+        header_stickers: [{ slot: 'tr', key: 'sticker_star' }],
+      },
+    });
+    expect(clearResponse.status()).toBe(200);
+    const clearPayload = await clearResponse.json();
+    expect(clearPayload.ok).toBe(true);
+    expect(clearPayload.profile_cosmetics.primary_badge).toBeNull();
+
+    const meResponse = await request.get('/api/cosmetics/me', {
+      headers: {
+        ...buildAuthHeaders(userAToken),
+      },
+    });
+    expect(meResponse.status()).toBe(200);
+    const mePayload = await meResponse.json();
+    expect(mePayload.ok).toBe(true);
+    expect(mePayload.profile.primary_badge_key).toBeNull();
+
+    const secondMeResponse = await request.get('/api/cosmetics/me', {
+      headers: {
+        ...buildAuthHeaders(userAToken),
+      },
+    });
+    expect(secondMeResponse.status()).toBe(200);
+    const secondMePayload = await secondMeResponse.json();
+    expect(secondMePayload.profile.primary_badge_key).toBeNull();
+
+    const profileResponse = await request.get(`/api/users/${USER_A_ID}/profile`, {
+      headers: {
+        ...buildAuthHeaders(userBToken),
+      },
+    });
+    expect(profileResponse.status()).toBe(200);
+    const profilePayload = await profileResponse.json();
+    expect(profilePayload.ok).toBe(true);
+    expect(profilePayload.user.profile_cosmetics.primary_badge).toBeNull();
+  });
+
   test('returns 403 when user tries to equip unowned cosmetic', async ({ request }) => {
     const db = new sqlite3.Database(DB_PATH);
     await dbRun(
