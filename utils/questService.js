@@ -1,5 +1,7 @@
 const db = require('../db');
 
+const CONDITION_PROMPT_POST_CREATED = 'PROMPT_POST_CREATED';
+
 function runAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
@@ -31,6 +33,61 @@ function getNowKstDate() {
   const now = new Date();
   const kstOffsetMs = 9 * 60 * 60 * 1000;
   return new Date(now.getTime() + kstOffsetMs);
+}
+
+class QuestContextError extends Error {
+  constructor(status, code, message) {
+    super(message);
+    this.name = 'QuestContextError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
+function parseJsonObject(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizePromptKey(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 120) return null;
+  return trimmed;
+}
+
+function normalizeEntitlementKey(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 120) return null;
+  return trimmed;
+}
+
+function parseQuestPromptConfig(rawUiJson) {
+  const parsed = parseJsonObject(rawUiJson);
+  const prompt = parsed?.prompt && typeof parsed.prompt === 'object' ? parsed.prompt : null;
+  return {
+    quest_kind: typeof parsed?.quest_kind === 'string' ? parsed.quest_kind : null,
+    prompt_key: normalizePromptKey(prompt?.key),
+    required_entitlement: normalizeEntitlementKey(parsed?.required_entitlement),
+  };
+}
+
+function normalizeQuestContext(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const stateId = Number(input.state_id ?? input.stateId);
+  const promptKey = normalizePromptKey(input.prompt_key ?? input.promptKey);
+  if (!Number.isInteger(stateId) || stateId <= 0 || !promptKey) {
+    throw new QuestContextError(400, 'INVALID_QUEST_CONTEXT', '퀘스트 문맥이 올바르지 않습니다.');
+  }
+  return { stateId, promptKey };
 }
 
 function toKstIsoString(date) {
@@ -73,9 +130,25 @@ function buildResetKey(campaignType) {
 }
 
 async function computeUserMetrics(userId) {
-  const [postCount, postCountsByCat, likesGiven, likesReceived, bookmarksGiven, bookmarksReceived, userRow] = await Promise.all([
+  const [
+    postCount,
+    postCountsByCat,
+    promptSubmissionCounts,
+    likesGiven,
+    likesReceived,
+    bookmarksGiven,
+    bookmarksReceived,
+    userRow,
+  ] = await Promise.all([
     getAsync('SELECT COUNT(*) AS cnt FROM posts WHERE user_id = ?', [userId]),
     allAsync('SELECT category, COUNT(*) AS cnt FROM posts WHERE user_id = ? GROUP BY category', [userId]),
+    allAsync(
+      `SELECT campaign_id, template_id, COUNT(*) AS cnt
+       FROM quest_post_submissions
+       WHERE user_id = ?
+       GROUP BY campaign_id, template_id`,
+      [userId]
+    ),
     getAsync('SELECT COUNT(*) AS cnt FROM likes WHERE user_id = ?', [userId]),
     getAsync(
       `SELECT COUNT(*) AS cnt
@@ -105,10 +178,15 @@ async function computeUserMetrics(userId) {
   (postCountsByCat || []).forEach((row) => {
     catMap[row.category || ''] = row.cnt;
   });
+  const promptSubmissionMap = {};
+  (promptSubmissionCounts || []).forEach((row) => {
+    promptSubmissionMap[`${row.campaign_id}:${row.template_id}`] = row.cnt;
+  });
 
   return {
     postCount: postCount?.cnt || 0,
     postCountByCategory: catMap,
+    promptPostCreated: promptSubmissionMap,
     likesGiven: likesGiven?.cnt || 0,
     likesReceived: likesReceived?.cnt || 0,
     bookmarksGiven: bookmarksGiven?.cnt || 0,
@@ -133,9 +211,146 @@ function calculateProgress(template, metrics) {
       return metrics.bookmarksReceived;
     case 'STREAK_DAYS':
       return metrics.streakDays;
+    case CONDITION_PROMPT_POST_CREATED:
+      return metrics.promptPostCreated[`${template.campaign_id}:${template.id}`] || 0;
     default:
       return 0;
   }
+}
+
+async function hasActiveEntitlement(userId, entitlementKey) {
+  const normalized = normalizeEntitlementKey(entitlementKey);
+  if (!normalized) return true;
+  const row = await getAsync(
+    `
+    SELECT entitlement_key
+    FROM user_entitlements
+    WHERE user_id = ?
+      AND entitlement_key = ?
+      AND status = 'active'
+      AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
+    LIMIT 1
+    `,
+    [userId, normalized]
+  );
+  return Boolean(row?.entitlement_key);
+}
+
+function ensureActiveCampaign(row) {
+  if (!row?.campaign_is_active) {
+    throw new QuestContextError(409, 'QUEST_CAMPAIGN_INACTIVE', '진행 중인 퀘스트가 아닙니다.');
+  }
+  const nowIso = toKstIsoString(getNowKstDate());
+  if (row.start_at && row.start_at > nowIso) {
+    throw new QuestContextError(409, 'QUEST_CAMPAIGN_INACTIVE', '아직 시작되지 않은 퀘스트입니다.');
+  }
+  if (row.end_at && row.end_at < nowIso) {
+    throw new QuestContextError(409, 'QUEST_CAMPAIGN_ENDED', '이미 종료된 퀘스트입니다.');
+  }
+}
+
+async function completePromptPostQuest(userId, postId, rawQuestContext) {
+  const questContext = normalizeQuestContext(rawQuestContext);
+  const row = await getAsync(
+    `
+    SELECT
+      uqs.id AS state_id,
+      uqs.user_id,
+      uqs.campaign_id,
+      uqs.template_id,
+      uqs.completed_at,
+      qc.is_active AS campaign_is_active,
+      qc.start_at,
+      qc.end_at,
+      qt.condition_type,
+      qt.target_value,
+      qt.is_active AS template_is_active,
+      qt.ui_json
+    FROM user_quest_state uqs
+    JOIN quest_campaigns qc ON qc.id = uqs.campaign_id
+    JOIN quest_templates qt ON qt.id = uqs.template_id
+    WHERE uqs.id = ?
+    LIMIT 1
+    `,
+    [questContext.stateId]
+  );
+
+  if (!row) {
+    throw new QuestContextError(404, 'RESOURCE_NOT_FOUND', '퀘스트 상태를 찾을 수 없습니다.');
+  }
+  if (Number(row.user_id) !== Number(userId)) {
+    throw new QuestContextError(403, 'FORBIDDEN', '이 퀘스트를 완료할 권한이 없습니다.');
+  }
+  if (row.condition_type !== CONDITION_PROMPT_POST_CREATED) {
+    throw new QuestContextError(400, 'INVALID_QUEST_CONTEXT', '프롬프트 글쓰기 퀘스트가 아닙니다.');
+  }
+  if (!row.template_is_active) {
+    throw new QuestContextError(409, 'QUEST_TEMPLATE_INACTIVE', '비활성화된 퀘스트입니다.');
+  }
+  ensureActiveCampaign(row);
+
+  const promptConfig = parseQuestPromptConfig(row.ui_json);
+  if (promptConfig.quest_kind !== 'writing_prompt') {
+    throw new QuestContextError(400, 'INVALID_QUEST_CONTEXT', '글쓰기 프롬프트 설정이 올바르지 않습니다.');
+  }
+  if (!promptConfig.prompt_key || promptConfig.prompt_key !== questContext.promptKey) {
+    throw new QuestContextError(400, 'PROMPT_KEY_MISMATCH', '프롬프트 정보가 일치하지 않습니다.');
+  }
+  if (!(await hasActiveEntitlement(userId, promptConfig.required_entitlement))) {
+    throw new QuestContextError(403, 'ENTITLEMENT_REQUIRED', '시즌 패스가 필요합니다.');
+  }
+
+  await runAsync(
+    `
+    INSERT OR IGNORE INTO quest_post_submissions
+      (user_id, post_id, state_id, campaign_id, template_id, prompt_key)
+    VALUES (?, ?, ?, ?, ?, ?)
+    `,
+    [
+      userId,
+      postId,
+      row.state_id,
+      row.campaign_id,
+      row.template_id,
+      questContext.promptKey,
+    ]
+  );
+
+  const progressRow = await getAsync(
+    `
+    SELECT COUNT(*) AS cnt
+    FROM quest_post_submissions
+    WHERE user_id = ? AND campaign_id = ? AND template_id = ?
+    `,
+    [userId, row.campaign_id, row.template_id]
+  );
+  const progress = Number(progressRow?.cnt || 0);
+  const target = Math.max(1, Number(row.target_value || 1));
+  const newlyCompleted = progress >= target && !row.completed_at;
+  const completedAt = newlyCompleted ? getNowKstDate().toISOString() : null;
+
+  await runAsync(
+    `UPDATE user_quest_state
+     SET progress = ?, completed_at = COALESCE(completed_at, ?)
+     WHERE id = ?`,
+    [progress, completedAt, row.state_id]
+  );
+
+  const updated = await getAsync(
+    'SELECT completed_at FROM user_quest_state WHERE id = ? LIMIT 1',
+    [row.state_id]
+  );
+
+  return {
+    state_id: row.state_id,
+    template_id: row.template_id,
+    campaign_id: row.campaign_id,
+    prompt_key: questContext.promptKey,
+    progress,
+    target,
+    status: row.completed_at ? 'already_completed' : newlyCompleted ? 'completed' : 'in_progress',
+    completed_at: updated?.completed_at || null,
+  };
 }
 
 async function fetchActiveCampaigns() {
@@ -223,7 +438,14 @@ async function getActiveQuestsForUser(userId) {
         category: template.category,
         target: template.target_value,
         rewardXp: template.reward_xp,
-        status: completed ? 'completed' : progress > 0 ? 'in_progress' : 'locked',
+        status:
+          completed || state?.completed_at
+            ? 'completed'
+            : template.condition_type === CONDITION_PROMPT_POST_CREATED
+              ? 'in_progress'
+              : progress > 0
+                ? 'in_progress'
+                : 'locked',
         progress,
         positionIndex: template.position_index || template.sort_order || 0,
         campaignId: campaign.id,
@@ -250,10 +472,14 @@ async function getActiveQuestsForUser(userId) {
 }
 
 module.exports = {
+  CONDITION_PROMPT_POST_CREATED,
+  QuestContextError,
   allAsync,
   getAsync,
   runAsync,
+  completePromptPostQuest,
   getActiveQuestsForUser,
   fetchActiveCampaigns,
   fetchCampaignTemplates,
+  parseQuestPromptConfig,
 };

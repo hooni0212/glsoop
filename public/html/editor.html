@@ -183,6 +183,41 @@
                 </div>
               </div>
 
+              <div class="editor-background-section gls-mb-3">
+                <div class="gls-flex gls-justify-between gls-items-center gls-mb-2">
+                  <label class="gls-label gls-mb-0">배경</label>
+                  <span class="gls-text-small gls-text-muted">모바일 글쓰기와 같은 배경을 사용합니다.</span>
+                </div>
+                <div class="editor-background-grid" id="editorBackgroundGrid" aria-label="배경 선택">
+                  <button
+                    type="button"
+                    class="editor-background-option is-active"
+                    data-background-template="paper01"
+                    aria-pressed="true"
+                  >
+                    <span class="editor-background-swatch" aria-hidden="true"></span>
+                    <span class="editor-background-check" aria-hidden="true">✓</span>
+                    <span class="editor-background-copy">
+                      <strong>기본 종이</strong>
+                      <small>차분한 책 페이지</small>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    class="editor-background-option"
+                    data-background-template="paper02"
+                    aria-pressed="false"
+                  >
+                    <span class="editor-background-swatch" aria-hidden="true"></span>
+                    <span class="editor-background-check" aria-hidden="true">✓</span>
+                    <span class="editor-background-copy">
+                      <strong>옅은 책장</strong>
+                      <small>부드러운 여백감</small>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
               <!-- 본문 에디터 + 글자 수 카운터 -->
               <div class="gls-mb-3 editor-wrapper gls-relative">
                 <label class="gls-label">내용</label>

@@ -27,6 +27,10 @@ Glsoop.AdminPage = (function () {
     templates: [],
     campaigns: [],
     campaignItems: [],
+    operationalAlerts: [],
+    operationalHealth: null,
+    autoClaimLimit: 100,
+    autoClaimResult: null,
   };
 
   const shareSummaryState = {
@@ -105,6 +109,7 @@ Glsoop.AdminPage = (function () {
     BOOKMARK_GIVEN: '북마크 추가',
     BOOKMARK_RECEIVED: '북마크 받기',
     STREAK_DAYS: '연속 글쓰기',
+    PROMPT_POST_CREATED: '프롬프트 글쓰기',
   };
 
   const CAMPAIGN_TYPE_LABELS = {
@@ -114,6 +119,15 @@ Glsoop.AdminPage = (function () {
     season: '시즌',
     event: '이벤트',
   };
+
+  const SEASON_REWARD_BADGE_KEYS = [
+    'badge_spring_2026',
+    'badge_summer_2026',
+    'badge_autumn_2026',
+    'badge_winter_2026',
+  ];
+  const AUTO_CLAIM_LIMIT_MIN = 1;
+  const AUTO_CLAIM_LIMIT_MAX = 500;
 
   const DANGER_CONFIRM_TOKEN = 'DELETE';
   const inFlightDangerActions = new Set();
@@ -175,6 +189,8 @@ Glsoop.AdminPage = (function () {
     await loadPosts(postsBox);
     setupSafetyUi(safetyReportsBox, reportedPostsBox);
     await loadSafetyDashboard(safetyReportsBox, reportedPostsBox);
+    setupGrowthOperationalControls();
+    await loadGrowthOperationalStatus();
     await loadQuestTemplates();
     await loadQuestCampaigns();
     setupAchievementBackfillButton();
@@ -416,8 +432,10 @@ Glsoop.AdminPage = (function () {
     document.body.dataset.adminDangerConfirm = 'closed';
 
     const sync = () => {
-      const isTokenMatched = String(input.value || '').trim().toUpperCase() === DANGER_CONFIRM_TOKEN;
-      confirmBtn.disabled = !isTokenMatched;
+      const mode = input.dataset.confirmMode || 'token';
+      const value = String(input.value || '').trim();
+      confirmBtn.disabled =
+        mode === 'admin-password' ? value.length === 0 : value.toUpperCase() !== DANGER_CONFIRM_TOKEN;
     };
 
     input.addEventListener('input', sync);
@@ -444,6 +462,7 @@ Glsoop.AdminPage = (function () {
     const modal = document.getElementById('adminDangerConfirmModal');
     const titleEl = document.getElementById('adminDangerTitle');
     const messageEl = document.getElementById('adminDangerMessage');
+    const inputLabelEl = document.getElementById('adminDangerInputLabel');
     const input = document.getElementById('adminDangerInput');
     const confirmBtn = document.getElementById('adminDangerConfirmBtn');
     if (!modal || !input || !confirmBtn) return Promise.resolve(false);
@@ -457,11 +476,21 @@ Glsoop.AdminPage = (function () {
     const title = options.title || '삭제 확인';
     const message = options.message || '이 작업은 되돌릴 수 없습니다.';
     const actionLabel = options.confirmLabel || '삭제 실행';
+    const confirmMode = options.confirmMode || 'token';
+    const inputLabel =
+      options.inputLabel ||
+      (confirmMode === 'admin-password'
+        ? '관리자 비밀번호를 입력하세요.'
+        : '삭제하려면 DELETE 를 입력하세요.');
 
     if (titleEl) titleEl.textContent = title;
     if (messageEl) messageEl.textContent = message;
+    if (inputLabelEl) inputLabelEl.textContent = inputLabel;
     confirmBtn.textContent = actionLabel;
     input.value = '';
+    input.type = confirmMode === 'admin-password' ? 'password' : 'text';
+    input.autocomplete = confirmMode === 'admin-password' ? 'current-password' : 'off';
+    input.dataset.confirmMode = confirmMode;
     confirmBtn.disabled = true;
 
     modal.classList.remove('gls-hidden');
@@ -485,10 +514,17 @@ Glsoop.AdminPage = (function () {
     const confirmBtn = document.getElementById('adminDangerConfirmBtn');
     if (!modal) return;
 
+    const inputValue = input ? String(input.value || '') : '';
+
     modal.classList.add('gls-hidden');
     modal.dataset.adminDangerConfirm = 'closed';
     document.body.dataset.adminDangerConfirm = 'closed';
-    if (input) input.value = '';
+    if (input) {
+      input.value = '';
+      input.type = 'text';
+      input.autocomplete = 'off';
+      input.dataset.confirmMode = 'token';
+    }
     if (confirmBtn) confirmBtn.disabled = true;
 
     const actionKey = dangerModalState.actionKey;
@@ -508,7 +544,7 @@ Glsoop.AdminPage = (function () {
       });
     }
     if (resolver) {
-      resolver(Boolean(confirmed));
+      resolver({ confirmed: Boolean(confirmed), inputValue });
     }
   }
 
@@ -538,6 +574,8 @@ Glsoop.AdminPage = (function () {
       message,
       triggerEl = null,
       confirmLabel = '삭제 실행',
+      confirmMode = 'token',
+      inputLabel,
       pendingLabel = '삭제 중...',
       request,
       successMessage = '작업이 완료되었습니다.',
@@ -552,15 +590,24 @@ Glsoop.AdminPage = (function () {
       title,
       message,
       confirmLabel,
+      confirmMode,
+      inputLabel,
       triggerEl,
     });
-    if (!confirmed) return false;
+    const confirmationResult =
+      typeof confirmed === 'object' && confirmed !== null
+        ? confirmed
+        : { confirmed: Boolean(confirmed), inputValue: '' };
+    if (!confirmationResult.confirmed) return false;
     if (inFlightDangerActions.has(actionKey)) return false;
 
     inFlightDangerActions.add(actionKey);
     const releaseTrigger = lockDangerTrigger(triggerEl, pendingLabel);
     try {
-      await request();
+      await request({
+        confirmationInput: confirmationResult.inputValue,
+        adminPassword: confirmMode === 'admin-password' ? confirmationResult.inputValue : '',
+      });
       showAdminNotice(successMessage, 'success');
       return true;
     } catch (error) {
@@ -1978,9 +2025,15 @@ Glsoop.AdminPage = (function () {
       title: '글 삭제 확인',
       message: `글 ID ${postId}를 삭제합니다. 이 작업은 되돌릴 수 없습니다.`,
       triggerEl,
+      confirmMode: 'admin-password',
+      inputLabel: '삭제하려면 관리자 비밀번호를 입력하세요.',
       pendingLabel: triggerEl?.id === 'adminPostModalDelete' ? '삭제 중...' : '',
-      request: async () => {
-        const delRes = await fetch(`/api/admin/posts/${postId}`, { method: 'DELETE' });
+      request: async ({ adminPassword }) => {
+        const delRes = await fetch(`/api/admin/posts/${postId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ admin_password: adminPassword }),
+        });
         const delData = await parseJsonSafe(delRes);
         if (!delRes.ok || !delData.ok) {
           throw new Error(delData.message || '글 삭제에 실패했습니다.');
@@ -1998,38 +2051,567 @@ Glsoop.AdminPage = (function () {
     });
   }
 
-  async function loadQuestTemplates() {
+  function setupGrowthOperationalControls() {
+    const syncBtn = document.getElementById('growthOpsSyncBtn');
+    syncBtn?.addEventListener('click', async () => {
+      syncBtn.disabled = true;
+      const originalText = syncBtn.textContent;
+      syncBtn.textContent = '점검 중...';
+      try {
+        const res = await fetch('/api/admin/growth/operations/alerts/sync', { method: 'POST' });
+        const data = await parseJsonSafe(res);
+        if (!res.ok || !data.ok) {
+          throw new Error(data.message || '운영 점검에 실패했습니다.');
+        }
+        await loadGrowthOperationalStatus();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || '성장 운영 점검 중 오류가 발생했습니다.');
+      } finally {
+        syncBtn.disabled = false;
+        syncBtn.textContent = originalText || '운영 점검';
+      }
+    });
+
+    document.getElementById('addTemplateBtn')?.addEventListener('click', () => {
       const box = document.getElementById('questTemplates');
       if (!box) return;
-      box.innerHTML = '<p class="gls-text-muted">템플릿을 불러오는 중입니다...</p>';
-      try {
-        const res = await fetch('/api/admin/quest-templates');
-        if (res.status === 401 || res.status === 403) {
-          const txt = await res.text();
-          box.innerHTML = `<p class="text-danger">${txt || '권한을 다시 확인해주세요.'}</p>`;
-          return;
+      box.innerHTML = buildTemplateEditor();
+      bindTemplateEvents();
+      box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    document.getElementById('addCampaignBtn')?.addEventListener('click', () => {
+      const box = document.getElementById('questCampaigns');
+      if (!box) return;
+      box.innerHTML = buildCampaignEditor();
+      bindCampaignEvents();
+      box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  async function loadGrowthOperationalStatus() {
+    const box = document.getElementById('growthOperationalStatus');
+    if (!box) return;
+    box.innerHTML = '<p class="gls-text-muted">운영 상태를 불러오는 중입니다...</p>';
+
+    try {
+      const [healthRes, alertsRes] = await Promise.all([
+        fetch('/api/admin/growth/operations/health'),
+        fetch('/api/admin/operational-alerts?status=open&limit=20'),
+      ]);
+      const healthData = await parseJsonSafe(healthRes);
+      const alertsData = await parseJsonSafe(alertsRes);
+
+      if (!healthRes.ok || !healthData.ok) {
+        throw new Error(healthData.message || '성장 운영 상태를 불러오지 못했습니다.');
+      }
+      if (!alertsRes.ok || !alertsData.ok) {
+        throw new Error(alertsData.message || '운영 알림을 불러오지 못했습니다.');
+      }
+
+      questState.operationalHealth = healthData.health || null;
+      questState.operationalAlerts = (alertsData.alerts || []).filter((alert) =>
+        ['growth', 'campaign'].includes(alert.domain)
+      );
+      box.innerHTML = buildGrowthOperationalStatus();
+      bindGrowthOperationalStatusEvents();
+    } catch (err) {
+      console.error(err);
+      box.innerHTML = '<p class="text-danger">성장 운영 상태를 불러오지 못했습니다.</p>';
+    }
+  }
+
+  function buildGrowthOperationalStatus() {
+    const health = questState.operationalHealth || {};
+    const checks = Array.isArray(health.checks) ? health.checks : [];
+    const alerts = Array.isArray(questState.operationalAlerts)
+      ? questState.operationalAlerts
+      : [];
+    const problemCount = checks.filter((check) => check.status !== 'pass').length;
+
+    const checksHtml = checks
+      .map((check) => {
+        const tone =
+          check.status === 'error' ? 'danger' : check.status === 'warn' ? 'warning' : 'success';
+        return `
+          <tr>
+            <td><span class="badge text-bg-${tone}">${escapeHtml(check.status || 'pass')}</span></td>
+            <td>
+              <strong>${escapeHtml(check.title || check.code || '')}</strong>
+              <div class="gls-text-muted gls-text-small">${escapeHtml(check.message || '')}</div>
+            </td>
+            <td class="gls-text-end">${Number(check.count || 0)}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const alertsHtml = alerts.length
+      ? alerts
+          .map((alert) => {
+            const tone =
+              alert.level === 'error' ? 'danger' : alert.level === 'warn' ? 'warning' : 'secondary';
+            return `
+              <div class="gls-flex gls-flex-col gls-md-flex-row gls-md-items-center gls-justify-between gls-gap-2 gls-py-2 border-top">
+                <div>
+                  <div class="gls-flex gls-gap-2 gls-items-center">
+                    <span class="badge text-bg-${tone}">${escapeHtml(alert.level)}</span>
+                    <strong>${escapeHtml(alert.title || '')}</strong>
+                  </div>
+                  <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(alert.message || '')}</p>
+                </div>
+                <button class="gls-btn gls-btn-secondary gls-btn-xs growth-alert-resolve" type="button" data-alert-id="${alert.id}">해결</button>
+              </div>
+            `;
+          })
+          .join('')
+      : '<p class="gls-text-muted gls-text-small gls-mb-0">열린 성장 운영 알림이 없습니다.</p>';
+
+    return `
+      <div class="gls-grid gls-grid-12 gls-gap-3">
+        <div class="gls-col-span-12 gls-lg-col-span-4">
+          <div class="gls-p-3 rounded border bg-light">
+            <p class="gls-text-muted gls-text-small gls-mb-1">운영 점검 결과</p>
+            <h4 class="gls-mb-1">${problemCount === 0 ? '정상' : `${problemCount}건 확인 필요`}</h4>
+            <p class="gls-text-muted gls-text-small gls-mb-0">열린 알림 ${Number(health.open_alert_count || 0)}건</p>
+          </div>
+        </div>
+        <div class="gls-col-span-12 gls-lg-col-span-8">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle gls-mb-0">
+              <thead><tr><th>상태</th><th>점검</th><th class="gls-text-end">건수</th></tr></thead>
+              <tbody>${checksHtml || '<tr><td colspan="3" class="gls-text-muted">점검 항목이 없습니다.</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      ${buildExpiredRewardAutoClaimPanel()}
+      <div class="gls-mt-3">
+        <h5 class="gls-mb-2">열린 운영 알림</h5>
+        ${alertsHtml}
+      </div>
+    `;
+  }
+
+  function buildExpiredRewardAutoClaimPanel() {
+    const limit = normalizeAutoClaimLimit(questState.autoClaimLimit);
+
+    return `
+      <div class="growth-auto-claim-panel gls-mt-3">
+        <div class="growth-auto-claim-panel__header">
+          <div>
+            <p class="gls-text-muted gls-text-small gls-mb-1">시즌 종료 처리</p>
+            <h5 class="gls-mb-1">미수령 완료 보상 자동 수령</h5>
+            <p class="gls-text-muted gls-text-small gls-mb-0">
+              종료된 시즌/이벤트에서 이미 완료했지만 받지 않은 보상만 처리합니다. 지급 검증은 일반 보상 수령과 같은 로직을 사용합니다.
+            </p>
+          </div>
+          <div class="growth-auto-claim-controls">
+            <label class="gls-label gls-mb-0" for="growthAutoClaimLimit">처리 한도</label>
+            <input
+              class="gls-input gls-input-sm"
+              id="growthAutoClaimLimit"
+              type="number"
+              min="${AUTO_CLAIM_LIMIT_MIN}"
+              max="${AUTO_CLAIM_LIMIT_MAX}"
+              step="1"
+              value="${limit}"
+            />
+            <button class="gls-btn gls-btn-secondary gls-btn-sm" id="growthAutoClaimPreviewBtn" type="button">
+              대상 확인
+            </button>
+            <button class="gls-btn gls-btn-primary gls-btn-sm" id="growthAutoClaimRunBtn" type="button">
+              자동 수령 실행
+            </button>
+          </div>
+        </div>
+        <div id="growthAutoClaimResult" class="growth-auto-claim-result">
+          ${buildExpiredRewardAutoClaimResult(questState.autoClaimResult)}
+        </div>
+      </div>
+    `;
+  }
+
+  function buildExpiredRewardAutoClaimResult(result) {
+    if (!result) {
+      return '<p class="gls-text-muted gls-text-small gls-mb-0">먼저 대상 확인을 실행하면 처리 후보를 볼 수 있습니다.</p>';
+    }
+
+    const candidateCount = Number(result.candidate_count || 0);
+    const claimedCount = Number(result.claimed_count || 0);
+    const skippedCount = Number(result.skipped_count || 0);
+    const dryRun = Boolean(result.dry_run);
+    const candidates = Array.isArray(result.candidates) ? result.candidates : [];
+    const claimed = Array.isArray(result.claimed) ? result.claimed : [];
+    const skipped = Array.isArray(result.skipped) ? result.skipped : [];
+
+    return `
+      <div class="growth-auto-claim-summary">
+        <span class="quest-ops-pill">${dryRun ? '대상 확인' : '실행 완료'}</span>
+        <span class="quest-ops-pill">대상 ${candidateCount}건</span>
+        <span class="quest-ops-pill">수령 ${claimedCount}건</span>
+        <span class="quest-ops-pill ${skippedCount > 0 ? 'quest-ops-pill--warn' : 'quest-ops-pill--muted'}">스킵 ${skippedCount}건</span>
+      </div>
+      ${
+        dryRun
+          ? buildAutoClaimRows('처리 후보', candidates, '자동 수령 후보가 없습니다.', 'candidate')
+          : [
+              buildAutoClaimRows('수령 완료', claimed, '수령 처리된 보상이 없습니다.', 'claimed'),
+              buildAutoClaimRows('스킵', skipped, '스킵된 보상이 없습니다.', 'skipped'),
+            ].join('')
+      }
+    `;
+  }
+
+  function buildAutoClaimRows(title, rows, emptyLabel, mode) {
+    const safeRows = Array.isArray(rows) ? rows : [];
+    if (safeRows.length === 0) {
+      return `
+        <div class="growth-auto-claim-table-wrap">
+          <h6 class="gls-mb-1">${escapeHtml(title)}</h6>
+          <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(emptyLabel)}</p>
+        </div>
+      `;
+    }
+
+    const visibleRows = safeRows.slice(0, 10);
+    const extraCount = Math.max(0, safeRows.length - visibleRows.length);
+    const rowsHtml = visibleRows
+      .map((row) => {
+        const stateId = row.state_id ?? row.stateId ?? '-';
+        const userId = row.user_id ?? row.userId ?? '-';
+        const campaignName = row.campaign_name || `캠페인 ${row.campaign_id || '-'}`;
+        const endAt = formatAdminDateTime(row.end_at);
+        const resultText =
+          mode === 'claimed'
+            ? `+${Number(row.gained_xp || 0)} XP · 코스메틱 ${Number(
+                row.gained_cosmetics_count || 0
+              )}개`
+            : mode === 'skipped'
+              ? `${row.code || 'SKIPPED'} · ${row.message || ''}`
+              : '수령 가능';
+
+        return `
+          <tr>
+            <td>${escapeHtml(stateId)}</td>
+            <td>${escapeHtml(userId)}</td>
+            <td>${escapeHtml(campaignName)}</td>
+            <td>${escapeHtml(endAt)}</td>
+            <td>${escapeHtml(resultText)}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    return `
+      <div class="growth-auto-claim-table-wrap">
+        <h6 class="gls-mb-1">${escapeHtml(title)}</h6>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle gls-mb-0 growth-auto-claim-table">
+            <thead>
+              <tr>
+                <th>State</th>
+                <th>User</th>
+                <th>캠페인</th>
+                <th>종료</th>
+                <th>결과</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+        ${
+          extraCount > 0
+            ? `<p class="gls-text-muted gls-text-small gls-mt-1 gls-mb-0">외 ${extraCount}건이 더 있습니다.</p>`
+            : ''
         }
-        if (res.status === 404) {
-          const txt = await res.text();
-          throw new Error(`관리자 템플릿 API가 없습니다. status=404 body=${txt.slice(0, 200)}`);
+      </div>
+    `;
+  }
+
+  function normalizeAutoClaimLimit(raw) {
+    const parsed = Number.parseInt(String(raw ?? ''), 10);
+    if (!Number.isFinite(parsed)) return 100;
+    return Math.max(AUTO_CLAIM_LIMIT_MIN, Math.min(AUTO_CLAIM_LIMIT_MAX, parsed));
+  }
+
+  function readAutoClaimLimit() {
+    const input = document.getElementById('growthAutoClaimLimit');
+    const parsed = Number.parseInt(String(input?.value || ''), 10);
+    if (!Number.isInteger(parsed) || parsed < AUTO_CLAIM_LIMIT_MIN || parsed > AUTO_CLAIM_LIMIT_MAX) {
+      showAdminNotice(`처리 한도는 ${AUTO_CLAIM_LIMIT_MIN} 이상 ${AUTO_CLAIM_LIMIT_MAX} 이하로 입력하세요.`, 'error');
+      return null;
+    }
+    questState.autoClaimLimit = parsed;
+    return parsed;
+  }
+
+  async function runExpiredRewardAutoClaim(dryRun, triggerEl) {
+    const limit = readAutoClaimLimit();
+    if (!limit) return;
+
+    if (!dryRun) {
+      const confirmed = window.confirm(
+        '종료된 시즌/이벤트의 완료 미수령 보상을 실제 지급합니다. 계속할까요?'
+      );
+      if (!confirmed) return;
+    }
+
+    const originalText = triggerEl?.textContent || '';
+    if (triggerEl) {
+      triggerEl.disabled = true;
+      triggerEl.textContent = dryRun ? '확인 중...' : '처리 중...';
+    }
+
+    try {
+      const res = await fetch('/api/admin/quests/auto-claim-expired-rewards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit, dry_run: Boolean(dryRun) }),
+      });
+      const data = await parseJsonSafe(res);
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || '자동 수령 처리에 실패했습니다.');
+      }
+
+      questState.autoClaimResult = data;
+      showAdminNotice(
+        dryRun
+          ? `자동 수령 후보 ${Number(data.candidate_count || 0)}건을 확인했습니다.`
+          : `자동 수령 ${Number(data.claimed_count || 0)}건을 처리했습니다.`,
+        'success'
+      );
+      await loadGrowthOperationalStatus();
+    } catch (err) {
+      console.error(err);
+      showAdminNotice(err.message || '자동 수령 처리 중 오류가 발생했습니다.', 'error');
+    } finally {
+      if (triggerEl && document.body.contains(triggerEl)) {
+        triggerEl.disabled = false;
+        triggerEl.textContent = originalText;
+      }
+    }
+  }
+
+  function bindGrowthOperationalStatusEvents() {
+    const box = document.getElementById('growthOperationalStatus');
+    if (!box) return;
+    const limitInput = box.querySelector('#growthAutoClaimLimit');
+    limitInput?.addEventListener('change', () => {
+      const nextLimit = normalizeAutoClaimLimit(limitInput.value);
+      questState.autoClaimLimit = nextLimit;
+      limitInput.value = String(nextLimit);
+    });
+    box.querySelector('#growthAutoClaimPreviewBtn')?.addEventListener('click', (event) => {
+      runExpiredRewardAutoClaim(true, event.currentTarget);
+    });
+    box.querySelector('#growthAutoClaimRunBtn')?.addEventListener('click', (event) => {
+      runExpiredRewardAutoClaim(false, event.currentTarget);
+    });
+    box.querySelectorAll('.growth-alert-resolve').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const alertId = btn.getAttribute('data-alert-id');
+        if (!alertId) return;
+        btn.disabled = true;
+        try {
+          const res = await fetch(`/api/admin/operational-alerts/${alertId}/resolve`, {
+            method: 'POST',
+          });
+          const data = await parseJsonSafe(res);
+          if (!res.ok || !data.ok) {
+            throw new Error(data.message || '운영 알림 해결 처리에 실패했습니다.');
+          }
+          await loadGrowthOperationalStatus();
+        } catch (err) {
+          console.error(err);
+          alert(err.message || '운영 알림 해결 처리 중 오류가 발생했습니다.');
+          btn.disabled = false;
         }
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
-        }
-        const data = await res.json();
-        if (!data.ok) {
-          setTabCount('questsTab', '-');
-          box.innerHTML = `<p class="text-danger">${
-            data?.message || '템플릿 조회에 실패했습니다.'
-          }</p>`;
-          return;
-        }
-        questState.templates = data.items || data.templates || [];
-        updateQuestTabCount();
-        box.innerHTML = buildTemplateEditor();
-        bindTemplateEvents();
-      } catch (err) {
+      });
+    });
+  }
+
+  function renderQuestOpsOverview() {
+    const box = document.getElementById('questOpsOverview');
+    if (!box) return;
+    box.innerHTML = buildQuestOpsOverview();
+  }
+
+  function buildQuestOpsOverview() {
+    const templates = Array.isArray(questState.templates) ? questState.templates : [];
+    const campaigns = Array.isArray(questState.campaigns) ? questState.campaigns : [];
+    const campaignItems = Array.isArray(questState.campaignItems) ? questState.campaignItems : [];
+    const templateById = buildTemplateMap(templates);
+    const linkedTemplateIds = new Set(campaignItems.map((item) => Number(item.template_id)));
+    const activeTemplates = templates.filter((template) => Number(template.is_active) === 1);
+    const promptTemplates = activeTemplates.filter(
+      (template) => template.condition_type === 'PROMPT_POST_CREATED'
+    );
+    const rewardTemplates = activeTemplates.filter(
+      (template) => parseQuestUiJson(template.ui_json).reward_cosmetics.length > 0
+    );
+    const activeCampaigns = campaigns.filter((campaign) => Number(campaign.is_active) === 1);
+    const visibleCampaigns = activeCampaigns.filter((campaign) =>
+      campaignItems.some((item) => Number(item.campaign_id) === Number(campaign.id))
+    );
+    const unlinkedTemplates = activeTemplates.filter(
+      (template) =>
+        String(template.template_kind || 'quest').toLowerCase() !== 'achievement' &&
+        !linkedTemplateIds.has(Number(template.id))
+    );
+    const seasonCampaigns = campaigns.filter(
+      (campaign) => String(campaign.campaign_type || '').toLowerCase() === 'season'
+    );
+    const seasonRewardCampaigns = seasonCampaigns.filter((campaign) => {
+      const items = campaignItems.filter((item) => Number(item.campaign_id) === Number(campaign.id));
+      return items.some((item) => {
+        const template = templateById.get(Number(item.template_id));
+        return parseQuestUiJson(template?.ui_json).reward_cosmetics.some((key) =>
+          key.startsWith('badge_')
+        );
+      });
+    });
+
+    const steps = [
+      {
+        index: '1',
+        title: '템플릿',
+        value: `${activeTemplates.length}개 활성`,
+        detail: `프롬프트 ${promptTemplates.length}개 · 보상 ${rewardTemplates.length}개`,
+      },
+      {
+        index: '2',
+        title: '캠페인 연결',
+        value: `${visibleCampaigns.length}/${activeCampaigns.length}개 노출 준비`,
+        detail:
+          unlinkedTemplates.length > 0
+            ? `미연결 활성 템플릿 ${unlinkedTemplates.length}개`
+            : '활성 템플릿 연결 상태 정상',
+        state: unlinkedTemplates.length > 0 ? 'warn' : 'ok',
+      },
+      {
+        index: '3',
+        title: '모바일 노출',
+        value: `${campaignItems.length}개 연결`,
+        detail: '성장 홈 미리보기와 퀘스트 탭에 캠페인을 노출합니다.',
+      },
+      {
+        index: '4',
+        title: '시즌 보상',
+        value: `${seasonRewardCampaigns.length}/${seasonCampaigns.length}개 배지 보상`,
+        detail:
+          seasonCampaigns.length === 0
+            ? '시즌 캠페인을 만들면 배지 보상을 연결할 수 있습니다.'
+            : 'badge_* 키가 연결된 시즌 캠페인 수입니다.',
+        state:
+          seasonCampaigns.length > 0 && seasonRewardCampaigns.length === 0 ? 'warn' : 'ok',
+      },
+    ];
+
+    const stepHtml = steps
+      .map(
+        (step) => `
+        <div class="quest-ops-step quest-ops-step--${escapeHtml(step.state || 'normal')}">
+          <span class="quest-ops-step__index">${escapeHtml(step.index)}</span>
+          <div>
+            <p class="quest-ops-step__title">${escapeHtml(step.title)}</p>
+            <strong>${escapeHtml(step.value)}</strong>
+            <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(step.detail)}</p>
+          </div>
+        </div>`
+      )
+      .join('');
+
+    const campaignHtml = activeCampaigns.length
+      ? activeCampaigns
+          .slice(0, 6)
+          .map((campaign) => buildQuestOpsCampaignCard(campaign, campaignItems, templateById))
+          .join('')
+      : '<p class="gls-text-muted gls-text-small gls-mb-0">활성 캠페인이 없습니다. 캠페인을 만들고 템플릿을 연결하세요.</p>';
+
+    return `
+      <div class="quest-ops-overview">
+        <div class="quest-ops-steps">${stepHtml}</div>
+        <div class="quest-ops-section">
+          <div class="gls-spread gls-mb-2">
+            <h5 class="gls-mb-0">활성 캠페인 흐름</h5>
+            <span class="quest-ops-pill">시즌 배지 예: ${SEASON_REWARD_BADGE_KEYS.join(', ')}</span>
+          </div>
+          <div class="quest-ops-campaigns">${campaignHtml}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function buildQuestOpsCampaignCard(campaign, campaignItems, templateById) {
+    const items = campaignItems.filter((item) => Number(item.campaign_id) === Number(campaign.id));
+    const templates = items
+      .map((item) => templateById.get(Number(item.template_id)))
+      .filter(Boolean);
+    const rewardKeys = Array.from(
+      new Set(
+        templates.flatMap((template) => parseQuestUiJson(template.ui_json).reward_cosmetics)
+      )
+    );
+    const promptCount = templates.filter(
+      (template) => template.condition_type === 'PROMPT_POST_CREATED'
+    ).length;
+    const rewardHtml = rewardKeys.length
+      ? rewardKeys.map((key) => `<span class="quest-ops-pill">${escapeHtml(key)}</span>`).join('')
+      : '<span class="quest-ops-pill quest-ops-pill--muted">XP 보상만</span>';
+
+    return `
+      <div class="quest-ops-campaign-card">
+        <div class="gls-spread gls-gap-2">
+          <strong>${escapeHtml(campaign.name || `캠페인 ${campaign.id}`)}</strong>
+          <span class="quest-ops-pill">${escapeHtml(
+            CAMPAIGN_TYPE_LABELS[campaign.campaign_type] || campaign.campaign_type || '캠페인'
+          )}</span>
+        </div>
+        <p class="gls-text-muted gls-text-small gls-mb-2">
+          템플릿 ${templates.length}개 · 프롬프트 ${promptCount}개 · priority ${Number(
+            campaign.priority || 1
+          )}
+        </p>
+        <div class="quest-ops-rewards">${rewardHtml}</div>
+      </div>
+    `;
+  }
+
+  async function loadQuestTemplates() {
+    const box = document.getElementById('questTemplates');
+    if (!box) return;
+    box.innerHTML = '<p class="gls-text-muted">템플릿을 불러오는 중입니다...</p>';
+    try {
+      const res = await fetch('/api/admin/quest-templates');
+      if (res.status === 401 || res.status === 403) {
+        const txt = await res.text();
+        box.innerHTML = `<p class="text-danger">${txt || '권한을 다시 확인해주세요.'}</p>`;
+        return;
+      }
+      if (res.status === 404) {
+        const txt = await res.text();
+        throw new Error(`관리자 템플릿 API가 없습니다. status=404 body=${txt.slice(0, 200)}`);
+      }
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`status=${res.status} body=${txt.slice(0, 200)}`);
+      }
+      const data = await res.json();
+      if (!data.ok) {
+        setTabCount('questsTab', '-');
+        box.innerHTML = `<p class="text-danger">${
+          data?.message || '템플릿 조회에 실패했습니다.'
+        }</p>`;
+        return;
+      }
+      questState.templates = data.items || data.templates || [];
+      updateQuestTabCount();
+      box.innerHTML = buildTemplateEditor();
+      bindTemplateEvents();
+      renderQuestOpsOverview();
+    } catch (err) {
       console.error(err);
       setTabCount('questsTab', '-');
       box.innerHTML = '<p class="text-danger">템플릿 조회 중 오류가 발생했습니다.</p>';
@@ -2050,6 +2632,7 @@ Glsoop.AdminPage = (function () {
           return;
         }
         alert(`업적 backfill 완료: ${data.inserted || 0}건`);
+        await loadGrowthOperationalStatus();
       } catch (err) {
         console.error(err);
         alert('업적 backfill 중 오류가 발생했습니다.');
@@ -2062,9 +2645,12 @@ Glsoop.AdminPage = (function () {
   function buildTemplateEditor(editingId = '') {
     const target = questState.templates.find((t) => String(t.id) === String(editingId));
     const values = target || {};
+    const promptValues = parsePromptUiJson(values.ui_json);
+    const questUiValues = parseQuestUiJson(values.ui_json);
     const listHtml = questState.templates
-      .map(
-        (t) => `
+      .map((t) => {
+        const rewardSummary = buildQuestRewardSummary(t.ui_json);
+        return `
         <tr data-template-id="${t.id}">
           <td>${escapeHtml(t.name)}</td>
           <td><span class="gls-badge gls-badge-soft">${escapeHtml(
@@ -2075,14 +2661,15 @@ Glsoop.AdminPage = (function () {
           <td>${t.target_value}</td>
           <td>${t.reward_xp || 0} XP</td>
           <td>${escapeHtml(t.template_kind || 'quest')}</td>
+          <td>${rewardSummary}</td>
           <td>${escapeHtml(t.code || '-')}</td>
           <td>${t.is_active ? '활성' : '비활성'}</td>
           <td class="gls-text-end">
             <button class="gls-btn gls-btn-secondary gls-btn-xs quest-template-edit" type="button">수정</button>
             <button class="gls-btn gls-btn-danger gls-btn-xs quest-template-delete" type="button">삭제</button>
           </td>
-        </tr>`
-      )
+        </tr>`;
+      })
       .join('');
 
     return `
@@ -2148,6 +2735,72 @@ Glsoop.AdminPage = (function () {
               values.ui_json || ''
             )}</textarea>
           </div>
+          <div class="gls-col-span-12">
+            <div class="quest-reward-panel">
+              <div>
+                <strong>잠금/시즌 보상</strong>
+                <p class="gls-text-muted gls-text-small gls-mb-0">시즌 캠페인은 badge_spring_2026 같은 배지 키를 연결하면 보상 수령 시 지급됩니다.</p>
+              </div>
+              <div class="gls-grid gls-grid-12 gls-gap-2">
+                <div class="gls-col-span-12 gls-md-col-span-5">
+                  <label class="gls-label gls-text-small gls-mb-1">필요 권한</label>
+                  <input class="gls-input gls-input-sm" name="required_entitlement" value="${escapeHtml(
+                    questUiValues.required_entitlement || ''
+                  )}" placeholder="pass:2026_spring" />
+                </div>
+                <div class="gls-col-span-12 gls-md-col-span-7">
+                  <label class="gls-label gls-text-small gls-mb-1">보상 배지/스티커 키</label>
+                  <input class="gls-input gls-input-sm" name="reward_cosmetics" value="${escapeHtml(
+                    (questUiValues.reward_cosmetics || []).join(', ')
+                  )}" placeholder="${SEASON_REWARD_BADGE_KEYS.join(', ')}, sticker_star" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="gls-col-span-12">
+            <div class="gls-p-3 border rounded bg-light">
+              <div class="gls-spread gls-mb-2">
+                <div>
+                  <strong>프롬프트 글쓰기 퀘스트</strong>
+                  <p class="gls-text-muted gls-text-small gls-mb-0">조건 타입이 프롬프트 글쓰기일 때 아래 입력값으로 UI 메타를 생성합니다.</p>
+                </div>
+              </div>
+              <div class="gls-grid gls-grid-12 gls-gap-2">
+                <div class="gls-col-span-12 gls-md-col-span-4">
+                  <label class="gls-label gls-text-small gls-mb-1">프롬프트 키</label>
+                  <input class="gls-input gls-input-sm" name="prompt_key" value="${escapeHtml(promptValues.key || '')}" placeholder="letter_to_past_love_202605" />
+                </div>
+                <div class="gls-col-span-12 gls-md-col-span-4">
+                  <label class="gls-label gls-text-small gls-mb-1">CTA 문구</label>
+                  <input class="gls-input gls-input-sm" name="prompt_cta_label" value="${escapeHtml(promptValues.cta_label || '이 주제로 글쓰기')}" />
+                </div>
+                <div class="gls-col-span-12 gls-md-col-span-4">
+                  <label class="gls-label gls-text-small gls-mb-1">출처 URL/메모</label>
+                  <input class="gls-input gls-input-sm" name="prompt_source_url" value="${escapeHtml(promptValues.source_url || '')}" placeholder="https://instagram.com/..." />
+                </div>
+                <div class="gls-col-span-12">
+                  <label class="gls-label gls-text-small gls-mb-1">프롬프트 제목</label>
+                  <input class="gls-input gls-input-sm" name="prompt_title" value="${escapeHtml(promptValues.title || values.name || '')}" placeholder="지나간 연인에게 편지를 써봐요" />
+                </div>
+                <div class="gls-col-span-12">
+                  <label class="gls-label gls-text-small gls-mb-1">프롬프트 본문 가이드</label>
+                  <textarea class="gls-input gls-input-sm" name="prompt_body" rows="2" placeholder="사용자에게 보여줄 글감 설명">${escapeHtml(promptValues.body || values.description || '')}</textarea>
+                </div>
+                <div class="gls-col-span-12 gls-md-col-span-4">
+                  <label class="gls-label gls-text-small gls-mb-1">기본 카테고리</label>
+                  <select class="gls-select gls-select-sm" name="prompt_default_category">
+                    <option value="essay" ${promptValues.default_category === 'essay' ? 'selected' : ''}>에세이</option>
+                    <option value="poem" ${promptValues.default_category === 'poem' ? 'selected' : ''}>시</option>
+                    <option value="short" ${promptValues.default_category === 'short' ? 'selected' : ''}>짧은 구절</option>
+                  </select>
+                </div>
+                <div class="gls-col-span-12 gls-md-col-span-8">
+                  <label class="gls-label gls-text-small gls-mb-1">추천 해시태그</label>
+                  <input class="gls-input gls-input-sm" name="prompt_suggested_hashtags" value="${escapeHtml((promptValues.suggested_hashtags || []).join(', '))}" placeholder="편지, 지난사랑, 글감" />
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="gls-col-span-12 gls-md-col-span-3 gls-flex gls-items-end">
             <div class="gls-check">
               <input class="gls-check-input" type="checkbox" name="is_active" id="templateActive" ${
@@ -2164,7 +2817,7 @@ Glsoop.AdminPage = (function () {
       </form>
       <div class="table-responsive">
         <table class="table align-middle table-sm">
-          <thead><tr><th>제목</th><th>조건</th><th>목표</th><th>보상</th><th>종류</th><th>코드</th><th>상태</th><th class="gls-text-end">관리</th></tr></thead>
+          <thead><tr><th>제목</th><th>조건</th><th>목표</th><th>XP</th><th>종류</th><th>배지/잠금</th><th>코드</th><th>상태</th><th class="gls-text-end">관리</th></tr></thead>
           <tbody>${listHtml}</tbody>
         </table>
       </div>
@@ -2181,6 +2834,18 @@ Glsoop.AdminPage = (function () {
       const formData = new FormData(form);
       const payload = Object.fromEntries(formData.entries());
       payload.is_active = formData.get('is_active') ? 1 : 0;
+      if (payload.condition_type === 'PROMPT_POST_CREATED') {
+        const promptUiJson = buildPromptUiJsonFromForm(formData);
+        if (!promptUiJson) {
+          alert('프롬프트 글쓰기 퀘스트는 프롬프트 키와 제목이 필요합니다.');
+          return;
+        }
+        payload.ui_json = promptUiJson;
+        payload.template_kind = 'quest';
+        payload.target_value = payload.target_value || '1';
+      } else {
+        payload.ui_json = buildQuestUiJsonFromForm(payload.ui_json, formData);
+      }
       const isEdit = payload.id;
       const method = isEdit ? 'PUT' : 'POST';
       const url = isEdit
@@ -2199,6 +2864,7 @@ Glsoop.AdminPage = (function () {
         }
         await loadQuestTemplates();
         await loadQuestCampaigns();
+        await loadGrowthOperationalStatus();
       } catch (err) {
         console.error(err);
         alert('템플릿 저장 중 오류가 발생했습니다.');
@@ -2234,6 +2900,7 @@ Glsoop.AdminPage = (function () {
             }
             await loadQuestTemplates();
             await loadQuestCampaigns();
+            await loadGrowthOperationalStatus();
           },
           successMessage: '템플릿을 삭제했습니다.',
           failMessage: '템플릿 삭제 중 오류가 발생했습니다.',
@@ -2251,6 +2918,7 @@ Glsoop.AdminPage = (function () {
       'BOOKMARK_GIVEN',
       'BOOKMARK_RECEIVED',
       'STREAK_DAYS',
+      'PROMPT_POST_CREATED',
     ];
     return options
       .map(
@@ -2259,6 +2927,178 @@ Glsoop.AdminPage = (function () {
         }</option>`
       )
       .join('');
+  }
+
+  function parsePromptUiJson(raw) {
+    if (!raw || typeof raw !== 'string') return {};
+    try {
+      const parsed = JSON.parse(raw);
+      const prompt = parsed?.prompt && typeof parsed.prompt === 'object' ? parsed.prompt : {};
+      return {
+        key: typeof prompt.key === 'string' ? prompt.key : '',
+        title: typeof prompt.title === 'string' ? prompt.title : '',
+        body: typeof prompt.body === 'string' ? prompt.body : '',
+        cta_label: typeof prompt.cta_label === 'string' ? prompt.cta_label : '',
+        default_category:
+          prompt.default_category === 'poem' || prompt.default_category === 'short'
+            ? prompt.default_category
+            : 'essay',
+        suggested_hashtags: Array.isArray(prompt.suggested_hashtags)
+          ? prompt.suggested_hashtags.map(String).filter(Boolean)
+          : [],
+        source_url:
+          typeof parsed.source_url === 'string'
+            ? parsed.source_url
+            : typeof prompt.source_url === 'string'
+              ? prompt.source_url
+              : '',
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  function parseUiJsonObject(raw) {
+    if (!raw || typeof raw !== 'string') return { ok: false, value: {} };
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return { ok: false, value: {} };
+      }
+      return { ok: true, value: parsed };
+    } catch {
+      return { ok: false, value: {} };
+    }
+  }
+
+  function parseCommaList(raw) {
+    return String(raw || '')
+      .split(/[\s,]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function parseQuestUiJson(raw) {
+    const parsed = parseUiJsonObject(raw);
+    const meta = parsed.value || {};
+    const rewards = meta.rewards && typeof meta.rewards === 'object' ? meta.rewards : {};
+    return {
+      required_entitlement:
+        typeof meta.required_entitlement === 'string' ? meta.required_entitlement.trim() : '',
+      reward_cosmetics: Array.isArray(rewards.cosmetics)
+        ? rewards.cosmetics.map(String).map((key) => key.trim()).filter(Boolean)
+        : [],
+    };
+  }
+
+  function applyQuestRewardConfig(meta, formData) {
+    const next = meta && typeof meta === 'object' && !Array.isArray(meta) ? { ...meta } : {};
+    const requiredEntitlement = String(formData.get('required_entitlement') || '').trim();
+    const rewardCosmetics = parseCommaList(formData.get('reward_cosmetics')).slice(0, 12);
+
+    if (requiredEntitlement) {
+      next.required_entitlement = requiredEntitlement;
+    } else {
+      delete next.required_entitlement;
+    }
+
+    const rewards =
+      next.rewards && typeof next.rewards === 'object' && !Array.isArray(next.rewards)
+        ? { ...next.rewards }
+        : {};
+    if (rewardCosmetics.length > 0) {
+      rewards.cosmetics = rewardCosmetics;
+    } else {
+      delete rewards.cosmetics;
+    }
+
+    if (Object.keys(rewards).length > 0) {
+      next.rewards = rewards;
+    } else {
+      delete next.rewards;
+    }
+
+    return next;
+  }
+
+  function buildQuestUiJsonFromForm(rawUiJson, formData) {
+    const raw = String(rawUiJson || '').trim();
+    const parsed = parseUiJsonObject(raw);
+    const hasRewardInputs =
+      String(formData.get('required_entitlement') || '').trim() ||
+      String(formData.get('reward_cosmetics') || '').trim();
+
+    if (!parsed.ok && !hasRewardInputs) {
+      return raw;
+    }
+
+    const next = applyQuestRewardConfig(parsed.ok ? parsed.value : {}, formData);
+    return Object.keys(next).length > 0 ? JSON.stringify(next) : '';
+  }
+
+  function buildQuestRewardSummary(rawUiJson) {
+    const config = parseQuestUiJson(rawUiJson);
+    const chips = [];
+    if (config.required_entitlement) {
+      chips.push(
+        `<span class="quest-reward-chip quest-reward-chip--lock">${escapeHtml(
+          config.required_entitlement
+        )}</span>`
+      );
+    }
+    config.reward_cosmetics.forEach((key) => {
+      const isBadge = key.startsWith('badge_');
+      chips.push(
+        `<span class="quest-reward-chip ${
+          isBadge ? 'quest-reward-chip--badge' : 'quest-reward-chip--sticker'
+        }">${escapeHtml(key)}</span>`
+      );
+    });
+    return chips.length
+      ? `<div class="quest-reward-chips">${chips.join('')}</div>`
+      : '<span class="gls-text-muted gls-text-small">XP만</span>';
+  }
+
+  function buildTemplateMap(templates = questState.templates) {
+    const map = new Map();
+    (Array.isArray(templates) ? templates : []).forEach((template) => {
+      map.set(Number(template.id), template);
+    });
+    return map;
+  }
+
+  function buildPromptUiJsonFromForm(formData) {
+    const key = String(formData.get('prompt_key') || '').trim();
+    const title = String(formData.get('prompt_title') || '').trim();
+    if (!key || !title) return null;
+    const body = String(formData.get('prompt_body') || '').trim();
+    const ctaLabel = String(formData.get('prompt_cta_label') || '').trim() || '이 주제로 글쓰기';
+    const defaultCategory = String(formData.get('prompt_default_category') || 'essay').trim();
+    const hashtags = String(formData.get('prompt_suggested_hashtags') || '')
+      .split(/[\s,]+/)
+      .map((tag) => tag.trim().replace(/^#+/, ''))
+      .filter(Boolean)
+      .slice(0, 12);
+    const sourceUrl = String(formData.get('prompt_source_url') || '').trim();
+    const meta = applyQuestRewardConfig(
+      {
+        quest_kind: 'writing_prompt',
+        prompt: {
+          key,
+          title,
+          body,
+          cta_label: ctaLabel,
+          default_category: ['poem', 'essay', 'short'].includes(defaultCategory)
+            ? defaultCategory
+            : 'essay',
+          suggested_hashtags: hashtags,
+        },
+        source: 'instagram',
+        ...(sourceUrl ? { source_url: sourceUrl } : {}),
+      },
+      formData
+    );
+    return JSON.stringify(meta);
   }
 
   async function loadQuestCampaigns() {
@@ -2293,7 +3133,8 @@ Glsoop.AdminPage = (function () {
       updateQuestTabCount();
       box.innerHTML = buildCampaignEditor();
       bindCampaignEvents();
-      } catch (err) {
+      renderQuestOpsOverview();
+    } catch (err) {
       console.error(err);
       setTabCount('questsTab', '-');
       box.innerHTML = '<p class="text-danger">캠페인 조회 중 오류가 발생했습니다.</p>';
@@ -2309,16 +3150,24 @@ Glsoop.AdminPage = (function () {
       acc[cur.campaign_id].push(cur);
       return acc;
     }, {});
+    const templateById = buildTemplateMap();
     const selectedItems = itemsByCampaign[values.id] || [];
     const selection = questState.templates
       .map((t) => {
         const found = selectedItems.find((i) => Number(i.template_id) === Number(t.id));
+        const rewardConfig = parseQuestUiJson(t.ui_json);
+        const rewardLabel = rewardConfig.reward_cosmetics.length
+          ? ` · 보상 ${rewardConfig.reward_cosmetics.length}개`
+          : '';
         return `
           <div class="gls-check gls-check-inline gls-mb-1">
             <input class="gls-check-input quest-campaign-template" type="checkbox" data-template-id="${t.id}" id="campaignTpl${t.id}" ${
           found ? 'checked' : ''
         } />
-            <label class="gls-check-label" for="campaignTpl${t.id}">${escapeHtml(t.name)}</label>
+            <label class="gls-check-label quest-template-select__label" for="campaignTpl${t.id}">
+              <span>${escapeHtml(t.name)}</span>
+              <small>${escapeHtml(t.template_kind || 'quest')}${escapeHtml(rewardLabel)}</small>
+            </label>
             <input type="number" class="gls-input gls-input-sm gls-ms-2 admin-template-order-input" placeholder="순서" data-template-order="${t.id}" value="${
           found ? found.sort_order || 0 : ''
         }" />
@@ -2327,19 +3176,29 @@ Glsoop.AdminPage = (function () {
       .join('');
 
     const listHtml = questState.campaigns
-      .map(
-        (c) => `
+      .map((c) => {
+        const linkedItems = itemsByCampaign[c.id] || [];
+        const linkedTemplates = linkedItems
+          .map((item) => templateById.get(Number(item.template_id)))
+          .filter(Boolean);
+        const rewardCount = linkedTemplates.filter(
+          (template) => parseQuestUiJson(template.ui_json).reward_cosmetics.length > 0
+        ).length;
+        return `
         <tr data-campaign-id="${c.id}">
           <td>${escapeHtml(c.name)}</td>
           <td>${escapeHtml(CAMPAIGN_TYPE_LABELS[c.campaign_type] || c.campaign_type || '')}</td>
           <td>${c.start_at || '-'} ~ ${c.end_at || '-'}</td>
+          <td>${linkedTemplates.length}개${
+          rewardCount ? ` <span class="quest-ops-pill">${rewardCount}개 보상</span>` : ''
+        }</td>
           <td>${c.is_active ? '활성' : '비활성'} (priority ${c.priority || 1})</td>
           <td class="gls-text-end">
             <button class="gls-btn gls-btn-secondary gls-btn-xs quest-campaign-edit" type="button">편집</button>
             <button class="gls-btn gls-btn-danger gls-btn-xs quest-campaign-delete" type="button">삭제</button>
           </td>
-        </tr>`
-      )
+        </tr>`;
+      })
       .join('');
 
     return `
@@ -2413,7 +3272,7 @@ Glsoop.AdminPage = (function () {
       </form>
       <div class="table-responsive">
         <table class="table align-middle table-sm">
-          <thead><tr><th>이름</th><th>유형</th><th>기간</th><th>상태</th><th class="gls-text-end">관리</th></tr></thead>
+          <thead><tr><th>이름</th><th>유형</th><th>기간</th><th>연결</th><th>상태</th><th class="gls-text-end">관리</th></tr></thead>
           <tbody>${listHtml}</tbody>
         </table>
       </div>
@@ -2446,14 +3305,16 @@ Glsoop.AdminPage = (function () {
           alert(data.message || '캠페인 저장에 실패했습니다.');
           return;
         }
-        if (isEdit) {
-          await saveCampaignItems(payload.id, form);
+        const campaignId = isEdit ? payload.id : data.campaign_id;
+        if (campaignId) {
+          await saveCampaignItems(campaignId, form);
         }
         await loadQuestCampaigns();
         await loadQuestTemplates();
+        await loadGrowthOperationalStatus();
       } catch (err) {
         console.error(err);
-        alert('캠페인 저장 중 오류가 발생했습니다.');
+        alert(err.message || '캠페인 저장 중 오류가 발생했습니다.');
       }
     });
 
@@ -2485,6 +3346,7 @@ Glsoop.AdminPage = (function () {
               throw new Error(data.message || '삭제에 실패했습니다.');
             }
             await loadQuestCampaigns();
+            await loadGrowthOperationalStatus();
           },
           successMessage: '캠페인을 삭제했습니다.',
           failMessage: '캠페인 삭제 중 오류가 발생했습니다.',
@@ -2509,13 +3371,18 @@ Glsoop.AdminPage = (function () {
         };
       });
     try {
-      await fetch(`/api/admin/quest-campaigns/${campaignId}/items`, {
+      const res = await fetch(`/api/admin/quest-campaigns/${campaignId}/items`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: selectedTemplates }),
       });
+      const data = await parseJsonSafe(res);
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || '캠페인 템플릿 저장에 실패했습니다.');
+      }
     } catch (err) {
       console.error(err);
+      throw err;
     }
   }
 

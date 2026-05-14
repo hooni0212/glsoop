@@ -244,7 +244,7 @@
                   <p id="adminDangerMessage" class="gls-mb-3">
                     이 작업은 되돌릴 수 없습니다.
                   </p>
-                  <label for="adminDangerInput" class="gls-label">
+                  <label for="adminDangerInput" class="gls-label" id="adminDangerInputLabel">
                     삭제하려면 <strong>DELETE</strong> 를 입력하세요.
                   </label>
                   <input
@@ -317,6 +317,33 @@
             </div>
 
             <div class="tab-panel gls-hidden" id="questsTab">
+              <div class="admin-panel card glass-card gls-mb-4">
+                <div class="card-body">
+                  <div class="gls-flex gls-flex-wrap gls-gap-2 gls-items-center gls-justify-between gls-mb-3 sticky-admin-toolbar">
+                    <div>
+                      <h3 class="gls-mb-0">성장 운영 알림</h3>
+                      <p class="gls-text-muted gls-text-small gls-mb-0">업적·캠페인 배포 후 누락과 조치가 필요한 항목을 확인합니다.</p>
+                    </div>
+                    <button class="gls-btn gls-btn-secondary gls-btn-sm" id="growthOpsSyncBtn">운영 점검</button>
+                  </div>
+                  <div id="growthOperationalStatus">
+                    <p class="gls-text-muted">운영 상태를 불러오는 중입니다...</p>
+                  </div>
+                </div>
+              </div>
+              <div class="admin-panel card glass-card gls-mb-4">
+                <div class="card-body">
+                  <div class="gls-flex gls-flex-wrap gls-gap-2 gls-items-center gls-justify-between gls-mb-3 sticky-admin-toolbar">
+                    <div>
+                      <h3 class="gls-mb-0">퀘스트 운영 흐름</h3>
+                      <p class="gls-text-muted gls-text-small gls-mb-0">템플릿 생성부터 캠페인 연결, 모바일 노출, 보상 수령까지 한눈에 확인합니다.</p>
+                    </div>
+                  </div>
+                  <div id="questOpsOverview">
+                    <p class="gls-text-muted">퀘스트 운영 흐름을 불러오는 중입니다...</p>
+                  </div>
+                </div>
+              </div>
               <div class="admin-panel card glass-card gls-mb-4">
                 <div class="card-body">
                   <div class="gls-flex gls-flex-wrap gls-gap-2 gls-items-center gls-justify-between gls-mb-3 sticky-admin-toolbar">

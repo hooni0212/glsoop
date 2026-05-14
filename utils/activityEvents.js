@@ -110,11 +110,21 @@ function resolveNotificationType(activity) {
   if (activity.event_type === ACTIVITY_TYPES.SYSTEM && meta?.notification_type === 'new_follower') {
     return 'new_follower';
   }
+  if (
+    activity.event_type === ACTIVITY_TYPES.SYSTEM &&
+    meta?.notification_type === 'admin_operational_alert'
+  ) {
+    return 'admin_operational_alert';
+  }
 
   return null;
 }
 
 function resolveNotificationTargetPath(activity, notificationType) {
+  const meta = parseMeta(activity?.meta_json);
+  if (typeof meta?.target_path === 'string' && meta.target_path.startsWith('/')) {
+    return meta.target_path;
+  }
   if (notificationType === 'new_follower' && activity.actor_user_id) {
     return `/users/${activity.actor_user_id}`;
   }
@@ -127,7 +137,11 @@ function isPushEligibleActivity(activity) {
   if (PUSH_ENABLED_ACTIVITY_TYPES.has(activity.event_type)) return true;
 
   const meta = parseMeta(activity.meta_json);
-  return activity.event_type === ACTIVITY_TYPES.SYSTEM && meta?.notification_type === 'new_follower';
+  return (
+    activity.event_type === ACTIVITY_TYPES.SYSTEM &&
+    (meta?.notification_type === 'new_follower' ||
+      meta?.notification_type === 'admin_operational_alert')
+  );
 }
 
 async function fetchActorSummary(actorUserId) {

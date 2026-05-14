@@ -51,30 +51,29 @@ MAIL_FAIL_SEND=0
 
 ---
 
-## 4) 문서 구조 (기능별 리팩토링)
+## 4) 문서 구조
 
-로컬 서버 문서 허브:
+이 저장소에는 서버 실행, API 구현, DB 구조처럼 코드와 직접 붙어 있는 기술 문서만 둡니다.
+제품, 기획, QA, 릴리즈, App Review, 운영, 정책, 마케팅, 디자인 문서는 `../glsoop-docs`를 기준으로 관리합니다.
 
-- `docs/문서-허브.md`
+서버 기술 문서:
+
 - `docs/참고/API-레퍼런스.md`
 - `docs/서버/API/인증-계정.md`
 - `docs/서버/API/인증-쿠키-세션-정책.md`
-
-로컬 서버 구조 문서:
-
 - `docs/참고/시스템-개요.md`
 - `docs/참고/DB-스키마.md`
 
-공통 운영 / 출시 / 심사 / archive canonical:
+공통 문서 canonical:
 
-- `../glsoop-ops/docs/index.md`
-- `../glsoop-ops/docs/operations/agent-start-here.md`
-- `../glsoop-ops/docs/operations/documentation-standard.md`
-- `../glsoop-ops/docs/operations/notion-sync-standard.md`
-- `../glsoop-ops/docs/qa/README.md`
-- `../glsoop-ops/docs/operations/glsoop/`
-- `../glsoop-ops/docs/api-contract/monetization-api-contract-v1.md`
-- `../glsoop-ops/docs/archive/glsoop/`
+- 문서 허브: `../glsoop-docs/00_Index/문서-허브.md`
+- 작업 시작 가이드: `../glsoop-docs/08_Operations/agent-start-here.md`
+- 문서 표준: `../glsoop-docs/08_Operations/documentation-standard.md`
+- Notion sync 표준: `../glsoop-docs/08_Operations/notion-sync-standard.md`
+- QA 분류 허브: `../glsoop-docs/05_QA/README.md`
+- 서버 공통 운영 문서: `../glsoop-docs/08_Operations/glsoop/`
+- 공통 API 계약: `../glsoop-docs/04_API_Contracts/monetization-api-contract-v1.md`
+- 서버 archive: `../glsoop-docs/90_Archive/glsoop/`
 
 주의:
 

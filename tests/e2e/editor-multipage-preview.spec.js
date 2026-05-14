@@ -240,6 +240,44 @@ test.describe('Editor multipage preview', () => {
     await expect(page.locator('[data-background-template="paper02"]')).toHaveClass(/is-active/);
   });
 
+  test('editor saves and restores the selected background template', async ({ page, request }, testInfo) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+
+    await applyAuthCookie(page, baseURL, token);
+    await page.goto('/html/editor.html');
+
+    await page.locator('#postTitle').fill('기본 에디터 배경 저장');
+    await page.locator('#categorySelect').selectOption('short');
+    await setEditorBodyText(page, 'paper02 배경 선택을 저장하는 본문입니다.');
+    await page.locator('[data-background-template="paper02"]').click();
+    await expect(page.locator('[data-background-template="paper02"]')).toHaveClass(/is-active/);
+
+    const createPostResponsePromise = page.waitForResponse((response) => {
+      return response.url().includes('/api/posts') && response.request().method() === 'POST';
+    });
+    page.once('dialog', async (dialog) => {
+      await dialog.accept();
+    });
+    await page.locator('#saveBtn').click();
+    const createPostResponse = await createPostResponsePromise;
+    expect(createPostResponse.status()).toBe(200);
+    const createPostBody = await createPostResponse.json();
+    const createdPostId = createPostBody.post_id;
+    expect(typeof createdPostId).toBe('number');
+    await page.waitForURL('**/html/mypage.html');
+
+    const editResponse = await request.get(`/api/posts/${createdPostId}/edit`, { headers });
+    expect(editResponse.status()).toBe(200);
+    const editBody = await editResponse.json();
+    const savedLayout = parseLayoutJson(editBody.post.layout_json);
+    expect(savedLayout.canvas.presetId).toBe('paper02');
+
+    await page.goto(`/html/editor.html?postId=${createdPostId}`);
+    await expect(page.locator('[data-background-template="paper02"]')).toHaveClass(/is-active/);
+  });
+
   test('saves page-specific layout override from the current preview page', async ({ page, request }, testInfo) => {
     const token = await loginAsLayoutWriter(request);
     const headers = { Authorization: `Bearer ${token}` };

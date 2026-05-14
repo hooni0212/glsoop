@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const db = require('../db');
 const { authRequired, adminRequired } = require('../middleware/auth');
 const { allAsync, getAsync, runAsync } = require('../utils/questService');
@@ -14,8 +15,55 @@ const {
   resolveSafetyReport,
   resolveSafetyReportsForPost,
 } = require('../utils/safety');
+const { autoClaimExpiredQuestRewards } = require('../utils/questRewardClaimService');
+const {
+  createAdminOperationalAlert,
+  mapOperationalAlert,
+} = require('../utils/adminOperationalAlerts');
 
 const router = express.Router();
+
+function normalizeAdminPassword(body = {}) {
+  const value = body.admin_password ?? body.adminPassword ?? body.password;
+  return typeof value === 'string' ? value : '';
+}
+
+async function verifyAdminPasswordForDangerAction(req, res) {
+  const adminPassword = normalizeAdminPassword(req.body);
+  if (!adminPassword.trim()) {
+    res.status(400).json({
+      ok: false,
+      code: 'ADMIN_PASSWORD_REQUIRED',
+      message: '관리자 비밀번호를 입력해주세요.',
+    });
+    return false;
+  }
+
+  const adminUser = await getAsync('SELECT id, pw, is_admin FROM users WHERE id = ? LIMIT 1', [
+    req.user?.id,
+  ]);
+
+  if (!adminUser || Number(adminUser.is_admin) !== 1 || typeof adminUser.pw !== 'string') {
+    res.status(403).json({
+      ok: false,
+      code: 'ADMIN_PASSWORD_FORBIDDEN',
+      message: '관리자 권한을 확인할 수 없습니다.',
+    });
+    return false;
+  }
+
+  const passwordMatched = await bcrypt.compare(adminPassword, adminUser.pw);
+  if (!passwordMatched) {
+    res.status(403).json({
+      ok: false,
+      code: 'ADMIN_PASSWORD_INVALID',
+      message: '관리자 비밀번호가 일치하지 않습니다.',
+    });
+    return false;
+  }
+
+  return true;
+}
 
 async function ensureAchievementCampaign() {
   const existing = await getAsync(
@@ -88,6 +136,43 @@ async function removeCampaignItem(campaignId, templateId) {
   );
 }
 
+function parseJsonObject(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function validateQuestTemplatePayload({ conditionType, uiJson, targetValue }) {
+  const target = Number(targetValue);
+  if (!Number.isFinite(target) || target <= 0) {
+    return { error: '목표는 1 이상의 숫자여야 합니다.' };
+  }
+
+  if (conditionType !== 'PROMPT_POST_CREATED') {
+    return { uiJson };
+  }
+
+  const parsed = parseJsonObject(uiJson);
+  const prompt = parsed?.prompt && typeof parsed.prompt === 'object' ? parsed.prompt : null;
+  const key = typeof prompt?.key === 'string' ? prompt.key.trim() : '';
+  const title = typeof prompt?.title === 'string' ? prompt.title.trim() : '';
+
+  if (!parsed || parsed.quest_kind !== 'writing_prompt' || !key || !title) {
+    return {
+      error:
+        '프롬프트 글쓰기 퀘스트는 ui_json에 quest_kind=writing_prompt와 prompt.key/title이 필요합니다.',
+    };
+  }
+
+  return { uiJson: JSON.stringify(parsed) };
+}
+
 // 모든 관리자 라우트에 인증/관리자 검증을 공통 적용
 router.use(authRequired, adminRequired);
 
@@ -96,8 +181,157 @@ router.get('/', (req, res) => {
   res.json({ ok: true, message: 'admin api ready' });
 });
 
+router.get('/operational-alerts', async (req, res) => {
+  const parsed = parseOperationalAlertsQuery(req.query || {});
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  const where = [];
+  const params = [];
+  if (parsed.status !== 'all') {
+    where.push('status = ?');
+    params.push(parsed.status);
+  }
+  if (parsed.level !== 'all') {
+    where.push('level = ?');
+    params.push(parsed.level);
+  }
+  if (parsed.domain !== 'all') {
+    where.push('domain = ?');
+    params.push(parsed.domain);
+  }
+
+  const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+  try {
+    const rows = await allAsync(
+      `
+      SELECT *
+      FROM admin_operational_alerts
+      ${whereClause}
+      ORDER BY created_at DESC, id DESC
+      LIMIT ?
+      `,
+      [...params, parsed.limit]
+    );
+
+    return res.json({
+      ok: true,
+      message: '운영 알림 목록을 불러왔습니다.',
+      alerts: (rows || []).map(mapOperationalAlert),
+      filters: parsed,
+    });
+  } catch (error) {
+    console.error('[admin/operational-alerts] failed:', error);
+    return sendAdminError(res, 500, 'INTERNAL_ERROR', '운영 알림 목록 조회 중 오류가 발생했습니다.');
+  }
+});
+
+router.post('/operational-alerts/:id/resolve', async (req, res) => {
+  const alertId = parsePositiveInt(req.params.id);
+  if (!alertId) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', 'alert id가 올바르지 않습니다.');
+  }
+
+  try {
+    await runAsync(
+      `
+      UPDATE admin_operational_alerts
+      SET
+        status = 'resolved',
+        resolved_at = CURRENT_TIMESTAMP,
+        resolved_by_admin_id = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND status <> 'resolved'
+      `,
+      [req.user?.id || null, alertId]
+    );
+
+    const alert = await getAsync('SELECT * FROM admin_operational_alerts WHERE id = ? LIMIT 1', [
+      alertId,
+    ]);
+    if (!alert) {
+      return sendAdminError(res, 404, 'RESOURCE_NOT_FOUND', '해당 운영 알림을 찾을 수 없습니다.');
+    }
+
+    return res.json({
+      ok: true,
+      message: '운영 알림을 해결 처리했습니다.',
+      alert: mapOperationalAlert(alert),
+    });
+  } catch (error) {
+    console.error('[admin/operational-alerts/resolve] failed:', error);
+    return sendAdminError(res, 500, 'INTERNAL_ERROR', '운영 알림 해결 처리 중 오류가 발생했습니다.');
+  }
+});
+
+router.get('/growth/operations/health', async (req, res) => {
+  try {
+    const health = await buildGrowthOperationalHealth();
+    return res.json({
+      ok: true,
+      message: '성장 운영 상태를 불러왔습니다.',
+      health,
+    });
+  } catch (error) {
+    console.error('[admin/growth/operations/health] failed:', error);
+    return sendAdminError(res, 500, 'INTERNAL_ERROR', '성장 운영 상태 조회 중 오류가 발생했습니다.');
+  }
+});
+
+router.post('/growth/operations/alerts/sync', async (req, res) => {
+  try {
+    const health = await buildGrowthOperationalHealth();
+    const createdAlerts = [];
+    for (const check of health.checks) {
+      if (check.status === 'pass') continue;
+      const alert = await createAdminOperationalAlert({
+        domain: check.code.includes('CAMPAIGN') ? 'campaign' : 'growth',
+        level: check.level,
+        code: check.code,
+        title: check.title,
+        message: check.message,
+        context: {
+          count: check.count,
+          items: check.items,
+          source: 'growth_operations_health_sync',
+        },
+        dedupeKey: `growth-health:${check.code}`,
+        createdByAdminId: req.user?.id || null,
+      });
+      if (alert) createdAlerts.push(alert);
+    }
+
+    return res.json({
+      ok: true,
+      message: '성장 운영 알림을 동기화했습니다.',
+      health,
+      alerts: createdAlerts,
+    });
+  } catch (error) {
+    console.error('[admin/growth/operations/alerts/sync] failed:', error);
+    return sendAdminError(res, 500, 'INTERNAL_ERROR', '성장 운영 알림 동기화 중 오류가 발생했습니다.');
+  }
+});
+
 function sendAdminError(res, status, code, message) {
   return res.status(status).json({ ok: false, code, message });
+}
+
+function recordOperationalAlert(input = {}) {
+  return createAdminOperationalAlert(input).catch((error) => {
+    console.error('[admin/operational-alerts] failed to record alert:', error);
+    return null;
+  });
+}
+
+async function rollbackAdminTransactionQuietly(context) {
+  try {
+    await runAsync('ROLLBACK;');
+  } catch (rollbackError) {
+    console.error(`[admin] ${context} rollback failed:`, rollbackError);
+  }
 }
 
 function isValidIsoDate(value) {
@@ -111,6 +345,14 @@ function parseBoundedInt(raw, fallback, min, max) {
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed) || parsed < min || parsed > max) return null;
   return parsed;
+}
+
+function parseBooleanFlag(raw) {
+  if (raw === true || raw === false) return raw;
+  if (typeof raw === 'number') return raw === 1;
+  if (typeof raw !== 'string') return false;
+  const normalized = raw.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
 }
 
 function parsePositiveInt(raw) {
@@ -607,6 +849,207 @@ function parseMonetizationAlertsQuery(query = {}) {
   }
 
   return { status, level, limit };
+}
+
+function parseOperationalAlertsQuery(query = {}) {
+  const status = parseEnum(query.status, ['open', 'resolved', 'all'], 'open');
+  if (!status) {
+    return { error: 'status는 open, resolved, all 중 하나여야 합니다.' };
+  }
+
+  const level = parseEnum(query.level, ['info', 'warn', 'error', 'all'], 'all');
+  if (!level) {
+    return { error: 'level은 info, warn, error, all 중 하나여야 합니다.' };
+  }
+
+  const domain = parseEnum(
+    query.domain,
+    ['growth', 'campaign', 'notifications', 'monetization', 'system', 'all'],
+    'all'
+  );
+  if (!domain) {
+    return {
+      error: 'domain은 growth, campaign, notifications, monetization, system, all 중 하나여야 합니다.',
+    };
+  }
+
+  const limit = parseBoundedInt(query.limit, 50, 1, 200);
+  if (limit === null) {
+    return { error: 'limit은 1~200 범위여야 합니다.' };
+  }
+
+  return { status, level, domain, limit };
+}
+
+function mapGrowthHealthCheck(input) {
+  return {
+    code: input.code,
+    level: input.level || 'info',
+    status: input.status || 'pass',
+    title: input.title,
+    message: input.message || '',
+    count: Number(input.count || 0),
+    items: input.items || [],
+  };
+}
+
+async function buildGrowthOperationalHealth() {
+  const checks = [];
+  const achievementCampaign = await getAsync(
+    "SELECT id, is_active FROM quest_campaigns WHERE LOWER(campaign_type) = 'permanent' AND name = '업적' LIMIT 1"
+  );
+
+  checks.push(
+    mapGrowthHealthCheck({
+      code: 'GROWTH_ACHIEVEMENT_CAMPAIGN_READY',
+      level: achievementCampaign?.id ? 'info' : 'error',
+      status: achievementCampaign?.id ? 'pass' : 'error',
+      title: '업적 상시 캠페인',
+      message: achievementCampaign?.id
+        ? '업적 상시 캠페인이 준비되어 있습니다.'
+        : '업적 상시 캠페인이 없어 업적 템플릿을 사용자 상태와 연결할 수 없습니다.',
+      count: achievementCampaign?.id ? 1 : 0,
+      items: achievementCampaign?.id ? [achievementCampaign] : [],
+    })
+  );
+
+  const achievementCampaignId = achievementCampaign?.id || 0;
+  const unlinkedAchievements = await allAsync(
+    `
+    SELECT qt.id, qt.name, qt.code
+    FROM quest_templates qt
+    WHERE qt.template_kind = 'achievement'
+      AND qt.is_active = 1
+      AND NOT EXISTS (
+        SELECT 1
+        FROM quest_campaign_items qci
+        WHERE qci.template_id = qt.id
+          AND qci.campaign_id = ?
+      )
+    ORDER BY qt.id DESC
+    LIMIT 20
+    `,
+    [achievementCampaignId]
+  );
+
+  checks.push(
+    mapGrowthHealthCheck({
+      code: 'GROWTH_ACHIEVEMENT_TEMPLATE_UNLINKED',
+      level: unlinkedAchievements.length > 0 ? 'warn' : 'info',
+      status: unlinkedAchievements.length > 0 ? 'warn' : 'pass',
+      title: '연결되지 않은 업적 템플릿',
+      message:
+        unlinkedAchievements.length > 0
+          ? '활성 업적 템플릿 중 업적 캠페인에 연결되지 않은 항목이 있습니다.'
+          : '활성 업적 템플릿이 업적 캠페인에 연결되어 있습니다.',
+      count: unlinkedAchievements.length,
+      items: unlinkedAchievements,
+    })
+  );
+
+  const emptyActiveCampaigns = await allAsync(
+    `
+    SELECT qc.id, qc.name, qc.campaign_type
+    FROM quest_campaigns qc
+    WHERE qc.is_active = 1
+      AND NOT EXISTS (
+        SELECT 1
+        FROM quest_campaign_items qci
+        WHERE qci.campaign_id = qc.id
+      )
+    ORDER BY qc.priority DESC, qc.id DESC
+    LIMIT 20
+    `
+  );
+
+  checks.push(
+    mapGrowthHealthCheck({
+      code: 'GROWTH_ACTIVE_CAMPAIGN_EMPTY',
+      level: emptyActiveCampaigns.length > 0 ? 'warn' : 'info',
+      status: emptyActiveCampaigns.length > 0 ? 'warn' : 'pass',
+      title: '비어 있는 활성 캠페인',
+      message:
+        emptyActiveCampaigns.length > 0
+          ? '활성 캠페인 중 연결된 템플릿이 없는 항목이 있습니다.'
+          : '활성 캠페인에 하나 이상의 템플릿이 연결되어 있습니다.',
+      count: emptyActiveCampaigns.length,
+      items: emptyActiveCampaigns,
+    })
+  );
+
+  const inactiveLinkedTemplates = await allAsync(
+    `
+    SELECT
+      qc.id AS campaign_id,
+      qc.name AS campaign_name,
+      qt.id AS template_id,
+      qt.name AS template_name
+    FROM quest_campaigns qc
+    JOIN quest_campaign_items qci ON qci.campaign_id = qc.id
+    JOIN quest_templates qt ON qt.id = qci.template_id
+    WHERE qc.is_active = 1
+      AND COALESCE(qt.is_active, 0) = 0
+    ORDER BY qc.id DESC, qt.id DESC
+    LIMIT 20
+    `
+  );
+
+  checks.push(
+    mapGrowthHealthCheck({
+      code: 'GROWTH_ACTIVE_CAMPAIGN_INACTIVE_TEMPLATE',
+      level: inactiveLinkedTemplates.length > 0 ? 'warn' : 'info',
+      status: inactiveLinkedTemplates.length > 0 ? 'warn' : 'pass',
+      title: '비활성 템플릿이 포함된 활성 캠페인',
+      message:
+        inactiveLinkedTemplates.length > 0
+          ? '활성 캠페인에 비활성 템플릿이 포함되어 사용자에게 보이지 않을 수 있습니다.'
+          : '활성 캠페인에 비활성 템플릿이 포함되어 있지 않습니다.',
+      count: inactiveLinkedTemplates.length,
+      items: inactiveLinkedTemplates,
+    })
+  );
+
+  const invalidDateCampaigns = await allAsync(
+    `
+    SELECT id, name, campaign_type, start_at, end_at
+    FROM quest_campaigns
+    WHERE start_at IS NOT NULL
+      AND end_at IS NOT NULL
+      AND datetime(end_at) < datetime(start_at)
+    ORDER BY id DESC
+    LIMIT 20
+    `
+  );
+
+  checks.push(
+    mapGrowthHealthCheck({
+      code: 'GROWTH_CAMPAIGN_INVALID_DATE_RANGE',
+      level: invalidDateCampaigns.length > 0 ? 'error' : 'info',
+      status: invalidDateCampaigns.length > 0 ? 'error' : 'pass',
+      title: '캠페인 기간 설정',
+      message:
+        invalidDateCampaigns.length > 0
+          ? '종료일이 시작일보다 빠른 캠페인이 있습니다.'
+          : '캠페인 기간 설정이 유효합니다.',
+      count: invalidDateCampaigns.length,
+      items: invalidDateCampaigns,
+    })
+  );
+
+  const openAlertCount = await getAsync(
+    `
+    SELECT COUNT(*) AS cnt
+    FROM admin_operational_alerts
+    WHERE status = 'open'
+      AND domain IN ('growth', 'campaign')
+    `
+  );
+
+  return {
+    ok: checks.every((check) => check.status === 'pass'),
+    checks,
+    open_alert_count: Number(openAlertCount?.cnt || 0),
+  };
 }
 
 function parseMonetizationWebhookEventsQuery(query = {}) {
@@ -1232,7 +1675,7 @@ router.post('/cosmetics/grant', async (req, res) => {
   }
 
   try {
-    const [user, cosmeticItem] = await Promise.all([
+    const [user, cosmeticItem, backgroundItem] = await Promise.all([
       getAsync('SELECT id FROM users WHERE id = ? LIMIT 1', [parsed.userId]),
       getAsync(
         `
@@ -1250,7 +1693,25 @@ router.post('/cosmetics/grant', async (req, res) => {
         `,
         [parsed.cosmeticKey]
       ),
+      getAsync(
+        `
+        SELECT
+          id,
+          key,
+          'background' AS type,
+          name,
+          icon_emoji,
+          COALESCE(rarity, 'common') AS rarity,
+          season
+        FROM profile_background_items
+        WHERE key = ?
+          AND is_active = 1
+        LIMIT 1
+        `,
+        [parsed.cosmeticKey]
+      ),
     ]);
+    const grantItem = cosmeticItem || backgroundItem;
 
     if (!user) {
       return sendAdminError(
@@ -1260,7 +1721,7 @@ router.post('/cosmetics/grant', async (req, res) => {
         '지급 대상 사용자를 찾을 수 없습니다.'
       );
     }
-    if (!cosmeticItem) {
+    if (!grantItem) {
       return sendAdminError(
         res,
         404,
@@ -1269,13 +1730,22 @@ router.post('/cosmetics/grant', async (req, res) => {
       );
     }
 
-    const result = await runAsync(
-      `
-      INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
-      VALUES (?, ?, 'admin')
-      `,
-      [parsed.userId, cosmeticItem.id]
-    );
+    const result =
+      grantItem.type === 'background'
+        ? await runAsync(
+            `
+            INSERT OR IGNORE INTO user_profile_backgrounds (user_id, background_id, source)
+            VALUES (?, ?, 'admin')
+            `,
+            [parsed.userId, grantItem.id]
+          )
+        : await runAsync(
+            `
+            INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
+            VALUES (?, ?, 'admin')
+            `,
+            [parsed.userId, grantItem.id]
+          );
 
     return res.json({
       ok: true,
@@ -1284,12 +1754,12 @@ router.post('/cosmetics/grant', async (req, res) => {
         user_id: parsed.userId,
         source: 'admin',
         cosmetic: {
-          key: cosmeticItem.key,
-          type: cosmeticItem.type,
-          name: cosmeticItem.name,
-          icon_emoji: cosmeticItem.icon_emoji || null,
-          rarity: cosmeticItem.rarity || 'common',
-          season: cosmeticItem.season || null,
+	          key: grantItem.key,
+	          type: grantItem.type,
+	          name: grantItem.name,
+	          icon_emoji: grantItem.icon_emoji || null,
+	          rarity: grantItem.rarity || 'common',
+	          season: grantItem.season || null,
         },
       },
       inserted: Number(result?.changes || 0) > 0,
@@ -1771,20 +2241,26 @@ router.get('/posts/:id', async (req, res) => {
   }
 });
 
-router.delete('/posts/:id', (req, res) => {
+router.delete('/posts/:id', async (req, res) => {
   const postId = req.params.id;
-  db.serialize(() => {
-    db.run('DELETE FROM likes WHERE post_id = ?', [postId]);
-    db.run('DELETE FROM bookmark_items WHERE post_id = ?', [postId]);
-    db.run('DELETE FROM posts WHERE id = ?', [postId], function (err) {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ ok: false, message: '글 삭제 중 오류가 발생했습니다.' });
-      }
-      if (this.changes === 0) return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
-      return res.json({ ok: true, message: '삭제되었습니다.' });
-    });
-  });
+
+  try {
+    const verified = await verifyAdminPasswordForDangerAction(req, res);
+    if (!verified) return;
+
+    await runAsync('DELETE FROM likes WHERE post_id = ?', [postId]);
+    await runAsync('DELETE FROM bookmark_items WHERE post_id = ?', [postId]);
+    const result = await runAsync('DELETE FROM posts WHERE id = ?', [postId]);
+
+    if (!result?.changes) {
+      return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
+    }
+
+    return res.json({ ok: true, message: '삭제되었습니다.' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, message: '글 삭제 중 오류가 발생했습니다.' });
+  }
 });
 
 // Quest templates CRUD
@@ -1814,7 +2290,16 @@ router.post('/quest-templates', async (req, res) => {
   if (!name || !condition_type || !target_value) {
     return res.status(400).json({ ok: false, message: '필수 입력이 누락되었습니다.' });
   }
+  const templateValidation = validateQuestTemplatePayload({
+    conditionType: condition_type,
+    uiJson: ui_json,
+    targetValue: target_value,
+  });
+  if (templateValidation.error) {
+    return res.status(400).json({ ok: false, message: templateValidation.error });
+  }
   const normalizedTemplateKind = String(template_kind || 'quest').toLowerCase();
+  let createdTemplateId = null;
   try {
     const result = await runAsync(
       `INSERT INTO quest_templates (name, description, condition_type, category, target_value, reward_xp, is_active, template_kind, code, ui_json)
@@ -1829,23 +2314,58 @@ router.post('/quest-templates', async (req, res) => {
         is_active ? 1 : 0,
         normalizedTemplateKind || 'quest',
         code,
-        ui_json,
+        templateValidation.uiJson,
       ]
     );
+    createdTemplateId = result?.lastID || null;
     let campaignId = null;
+    let backfillResult = null;
     if (normalizedTemplateKind === 'achievement') {
       campaignId = await ensureAchievementCampaign();
-      await ensureCampaignItem(campaignId, result?.lastID);
-      await backfillAchievementTemplate(campaignId, result?.lastID);
+      await ensureCampaignItem(campaignId, createdTemplateId);
+      backfillResult = await backfillAchievementTemplate(campaignId, createdTemplateId);
+      await recordOperationalAlert({
+        domain: 'growth',
+        level: 'info',
+        code: 'ACHIEVEMENT_TEMPLATE_PUBLISHED',
+        title: '업적 템플릿이 게시되었습니다.',
+        message: `"${name}" 업적이 상시 업적 캠페인에 연결되었습니다.`,
+        context: {
+          template_id: createdTemplateId,
+          campaign_id: campaignId,
+          code,
+          backfilled_count: Number(backfillResult?.changes || 0),
+        },
+        dedupeKey: `growth:achievement-template:${createdTemplateId}:published`,
+        createdByAdminId: req.user?.id || null,
+      });
     }
     res.json({
       ok: true,
       message: '템플릿이 생성되었습니다.',
-      template_id: result?.lastID,
+      template_id: createdTemplateId,
       campaign_id: campaignId,
+      backfilled_count: Number(backfillResult?.changes || 0),
     });
   } catch (err) {
     console.error(err);
+    if (normalizedTemplateKind === 'achievement') {
+      await recordOperationalAlert({
+        domain: 'growth',
+        level: 'error',
+        code: 'ACHIEVEMENT_TEMPLATE_PUBLISH_FAILED',
+        title: '업적 템플릿 게시에 실패했습니다.',
+        message: `"${name}" 업적 생성 중 캠페인 연결 또는 백필 단계에서 오류가 발생했습니다.`,
+        context: {
+          template_id: createdTemplateId,
+          code,
+          error: err?.message || String(err),
+        },
+        dedupeKey: `growth:achievement-template:${createdTemplateId || code || name}:publish-failed`,
+        createdByAdminId: req.user?.id || null,
+        notifyAdmins: true,
+      });
+    }
     res.status(500).json({ ok: false, message: '템플릿 생성 중 오류가 발생했습니다.' });
   }
 });
@@ -1864,6 +2384,17 @@ router.put('/quest-templates/:id', async (req, res) => {
     ui_json = null,
   } = req.body;
   const templateId = req.params.id;
+  if (!name || !condition_type || !target_value) {
+    return res.status(400).json({ ok: false, message: '필수 입력이 누락되었습니다.' });
+  }
+  const templateValidation = validateQuestTemplatePayload({
+    conditionType: condition_type,
+    uiJson: ui_json,
+    targetValue: target_value,
+  });
+  if (templateValidation.error) {
+    return res.status(400).json({ ok: false, message: templateValidation.error });
+  }
   const normalizedTemplateKind = String(template_kind || 'quest').toLowerCase();
   try {
     const previous = await getAsync(
@@ -1885,31 +2416,118 @@ router.put('/quest-templates/:id', async (req, res) => {
         is_active ? 1 : 0,
         normalizedTemplateKind || 'quest',
         code,
-        ui_json,
+        templateValidation.uiJson,
         templateId,
       ]
     );
     if (normalizedTemplateKind === 'achievement') {
       const campaignId = await ensureAchievementCampaign();
       await ensureCampaignItem(campaignId, templateId);
-      await backfillAchievementTemplate(campaignId, templateId);
+      const backfillResult = await backfillAchievementTemplate(campaignId, templateId);
+      await recordOperationalAlert({
+        domain: 'growth',
+        level: 'info',
+        code:
+          previousKind === 'achievement'
+            ? 'ACHIEVEMENT_TEMPLATE_UPDATED'
+            : 'ACHIEVEMENT_TEMPLATE_PROMOTED',
+        title:
+          previousKind === 'achievement'
+            ? '업적 템플릿이 수정되었습니다.'
+            : '템플릿이 업적으로 전환되었습니다.',
+        message: `"${name}" 템플릿이 업적 캠페인에 연결되어 있습니다.`,
+        context: {
+          template_id: Number(templateId),
+          campaign_id: campaignId,
+          code,
+          previous_kind: previousKind,
+          backfilled_count: Number(backfillResult?.changes || 0),
+        },
+        dedupeKey: `growth:achievement-template:${templateId}:updated`,
+        createdByAdminId: req.user?.id || null,
+      });
     } else if (previousKind === 'achievement') {
       const campaignId = await getAchievementCampaignId();
       await removeCampaignItem(campaignId, templateId);
+      await recordOperationalAlert({
+        domain: 'growth',
+        level: 'warn',
+        code: 'ACHIEVEMENT_TEMPLATE_UNLINKED_BY_KIND_CHANGE',
+        title: '업적 템플릿 연결이 해제되었습니다.',
+        message: `"${name}" 템플릿이 업적이 아닌 유형으로 변경되어 업적 캠페인에서 제외되었습니다.`,
+        context: {
+          template_id: Number(templateId),
+          campaign_id: campaignId,
+          code,
+          next_kind: normalizedTemplateKind,
+        },
+        dedupeKey: `growth:achievement-template:${templateId}:kind-unlinked`,
+        createdByAdminId: req.user?.id || null,
+      });
     }
     res.json({ ok: true, message: '템플릿이 수정되었습니다.' });
   } catch (err) {
     console.error(err);
+    if (normalizedTemplateKind === 'achievement') {
+      await recordOperationalAlert({
+        domain: 'growth',
+        level: 'error',
+        code: 'ACHIEVEMENT_TEMPLATE_UPDATE_FAILED',
+        title: '업적 템플릿 수정에 실패했습니다.',
+        message: `"${name}" 업적 수정 중 캠페인 연결 또는 백필 단계에서 오류가 발생했습니다.`,
+        context: {
+          template_id: Number(templateId),
+          code,
+          error: err?.message || String(err),
+        },
+        dedupeKey: `growth:achievement-template:${templateId}:update-failed`,
+        createdByAdminId: req.user?.id || null,
+        notifyAdmins: true,
+      });
+    }
     res.status(500).json({ ok: false, message: '템플릿 수정 중 오류가 발생했습니다.' });
   }
 });
 
 router.delete('/quest-templates/:id', async (req, res) => {
+  const templateId = parsePositiveInt(req.params.id);
+  if (!templateId) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', 'template id가 올바르지 않습니다.');
+  }
+
+  let previous = null;
   try {
-    await runAsync('DELETE FROM quest_campaign_items WHERE template_id = ?', [req.params.id]);
-    await runAsync('DELETE FROM quest_templates WHERE id = ?', [req.params.id]);
+    await runAsync('BEGIN IMMEDIATE;');
+    previous = await getAsync('SELECT * FROM quest_templates WHERE id = ? LIMIT 1', [templateId]);
+    if (!previous) {
+      await runAsync('ROLLBACK;');
+      return sendAdminError(res, 404, 'RESOURCE_NOT_FOUND', '템플릿을 찾을 수 없습니다.');
+    }
+
+    await runAsync('DELETE FROM quest_post_submissions WHERE template_id = ?', [templateId]);
+    await runAsync('DELETE FROM user_quest_state WHERE template_id = ?', [templateId]);
+    await runAsync('DELETE FROM quest_campaign_items WHERE template_id = ?', [templateId]);
+    await runAsync('DELETE FROM quest_templates WHERE id = ?', [templateId]);
+    await runAsync('COMMIT;');
+
+    if (String(previous?.template_kind || '').toLowerCase() === 'achievement') {
+      await recordOperationalAlert({
+        domain: 'growth',
+        level: 'warn',
+        code: 'ACHIEVEMENT_TEMPLATE_DELETED',
+        title: '업적 템플릿이 삭제되었습니다.',
+        message: `"${previous.name}" 업적 템플릿과 캠페인 연결이 삭제되었습니다.`,
+        context: {
+          template_id: templateId,
+          code: previous.code || null,
+        },
+        dedupeKey: `growth:achievement-template:${templateId}:deleted`,
+        createdByAdminId: req.user?.id || null,
+      });
+    }
     res.json({ ok: true, message: '템플릿이 삭제되었습니다.' });
   } catch (err) {
+    await rollbackAdminTransactionQuietly('quest template delete');
     console.error(err);
     res.status(500).json({ ok: false, message: '템플릿 삭제 중 오류가 발생했습니다.' });
   }
@@ -1919,10 +2537,91 @@ router.post('/quests/achievements/backfill', async (req, res) => {
   try {
     const campaignId = await ensureAchievementCampaign();
     const result = await backfillAllAchievements(campaignId);
+    await recordOperationalAlert({
+      domain: 'growth',
+      level: 'info',
+      code: 'ACHIEVEMENT_BACKFILL_COMPLETED',
+      title: '업적 전체 유저 부여가 완료되었습니다.',
+      message: `업적 상태 ${Number(result?.changes || 0)}건을 새로 부여했습니다.`,
+      context: {
+        campaign_id: campaignId,
+        inserted_count: Number(result?.changes || 0),
+      },
+      createdByAdminId: req.user?.id || null,
+    });
     res.json({ ok: true, inserted: result?.changes || 0, campaign_id: campaignId });
   } catch (err) {
     console.error(err);
+    await recordOperationalAlert({
+      domain: 'growth',
+      level: 'error',
+      code: 'ACHIEVEMENT_BACKFILL_FAILED',
+      title: '업적 전체 유저 부여에 실패했습니다.',
+      message: '업적 백필 중 오류가 발생했습니다. 원격 서버 로그와 DB 상태를 확인하세요.',
+      context: {
+        error: err?.message || String(err),
+      },
+      dedupeKey: 'growth:achievement-backfill:failed',
+      createdByAdminId: req.user?.id || null,
+      notifyAdmins: true,
+    });
     res.status(500).json({ ok: false, message: '업적 backfill 중 오류가 발생했습니다.' });
+  }
+});
+
+router.post('/quests/auto-claim-expired-rewards', async (req, res) => {
+  const rawLimit = req.body?.limit ?? req.query?.limit;
+  const limit = parseBoundedInt(rawLimit, 100, 1, 500);
+  if (limit === null) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', 'limit은 1 이상 500 이하의 숫자여야 합니다.');
+  }
+
+  const dryRun = parseBooleanFlag(req.body?.dry_run ?? req.body?.dryRun ?? req.query?.dry_run);
+
+  try {
+    const result = await autoClaimExpiredQuestRewards({ limit, dryRun });
+
+    if (!dryRun && result.claimed_count > 0) {
+      await recordOperationalAlert({
+        domain: 'growth',
+        level: 'info',
+        code: 'EXPIRED_QUEST_REWARDS_AUTO_CLAIMED',
+        title: '종료된 시즌/이벤트 퀘스트 보상이 자동 수령되었습니다.',
+        message: `미수령 완료 보상 ${result.claimed_count}건을 자동 수령 처리했습니다.`,
+        context: {
+          claimed_count: result.claimed_count,
+          skipped_count: result.skipped_count,
+          limit,
+        },
+        createdByAdminId: req.user?.id || null,
+      });
+    }
+
+    return res.json({
+      ok: true,
+      message: dryRun
+        ? '자동 수령 대상 퀘스트 보상을 확인했습니다.'
+        : '종료된 시즌/이벤트 퀘스트 보상 자동 수령을 처리했습니다.',
+      ...result,
+    });
+  } catch (error) {
+    console.error('[admin/quests/auto-claim-expired-rewards] failed:', error);
+    await recordOperationalAlert({
+      domain: 'growth',
+      level: 'error',
+      code: 'EXPIRED_QUEST_REWARDS_AUTO_CLAIM_FAILED',
+      title: '종료된 퀘스트 보상 자동 수령에 실패했습니다.',
+      message: '종료된 시즌/이벤트의 미수령 완료 보상 처리 중 오류가 발생했습니다.',
+      context: {
+        error: error?.message || String(error),
+        limit,
+        dry_run: dryRun,
+      },
+      dedupeKey: 'growth:expired-quest-rewards:auto-claim:failed',
+      createdByAdminId: req.user?.id || null,
+      notifyAdmins: true,
+    });
+    return sendAdminError(res, 500, 'INTERNAL_ERROR', '퀘스트 보상 자동 수령 중 오류가 발생했습니다.');
   }
 });
 
@@ -1955,14 +2654,45 @@ router.post('/quest-campaigns', async (req, res) => {
     return res.status(400).json({ ok: false, message: '허용되지 않는 campaign_type입니다.' });
   }
   try {
-    await runAsync(
+    const result = await runAsync(
       `INSERT INTO quest_campaigns (name, description, campaign_type, start_at, end_at, is_active, priority)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [name, description || '', normalizedCampaignType, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1]
     );
-    res.json({ ok: true, message: '캠페인이 생성되었습니다.' });
+    const campaignId = result?.lastID || null;
+    await recordOperationalAlert({
+      domain: 'campaign',
+      level: is_active ? 'warn' : 'info',
+      code: 'QUEST_CAMPAIGN_CREATED',
+      title: '퀘스트 캠페인이 생성되었습니다.',
+      message: is_active
+        ? `"${name}" 캠페인이 활성 상태로 생성되었습니다. 템플릿 연결 상태를 확인하세요.`
+        : `"${name}" 캠페인이 생성되었습니다.`,
+      context: {
+        campaign_id: campaignId,
+        campaign_type: normalizedCampaignType,
+        is_active: Boolean(is_active),
+      },
+      dedupeKey: `growth:campaign:${campaignId}:created`,
+      createdByAdminId: req.user?.id || null,
+    });
+    res.json({ ok: true, message: '캠페인이 생성되었습니다.', campaign_id: campaignId });
   } catch (err) {
     console.error(err);
+    await recordOperationalAlert({
+      domain: 'campaign',
+      level: 'error',
+      code: 'QUEST_CAMPAIGN_CREATE_FAILED',
+      title: '퀘스트 캠페인 생성에 실패했습니다.',
+      message: `"${name || '이름 없음'}" 캠페인 생성 중 오류가 발생했습니다.`,
+      context: {
+        campaign_type: normalizedCampaignType,
+        error: err?.message || String(err),
+      },
+      dedupeKey: `growth:campaign:${name || 'unknown'}:create-failed`,
+      createdByAdminId: req.user?.id || null,
+      notifyAdmins: true,
+    });
     res.status(500).json({ ok: false, message: '캠페인 생성 중 오류가 발생했습니다.' });
   }
 });
@@ -1980,20 +2710,94 @@ router.put('/quest-campaigns/:id', async (req, res) => {
       `UPDATE quest_campaigns SET name=?, description=?, campaign_type=?, start_at=?, end_at=?, is_active=?, priority=? WHERE id=?`,
       [name, description || '', normalizedCampaignType, start_at || null, end_at || null, is_active ? 1 : 0, Number(priority) || 1, campaignId]
     );
+    await recordOperationalAlert({
+      domain: 'campaign',
+      level: 'info',
+      code: 'QUEST_CAMPAIGN_UPDATED',
+      title: '퀘스트 캠페인이 수정되었습니다.',
+      message: `"${name}" 캠페인 설정이 저장되었습니다.`,
+      context: {
+        campaign_id: Number(campaignId),
+        campaign_type: normalizedCampaignType,
+        is_active: Boolean(is_active),
+      },
+      dedupeKey: `growth:campaign:${campaignId}:updated`,
+      createdByAdminId: req.user?.id || null,
+    });
     res.json({ ok: true, message: '캠페인이 수정되었습니다.' });
   } catch (err) {
     console.error(err);
+    await recordOperationalAlert({
+      domain: 'campaign',
+      level: 'error',
+      code: 'QUEST_CAMPAIGN_UPDATE_FAILED',
+      title: '퀘스트 캠페인 수정에 실패했습니다.',
+      message: `"${name || campaignId}" 캠페인 수정 중 오류가 발생했습니다.`,
+      context: {
+        campaign_id: Number(campaignId),
+        campaign_type: normalizedCampaignType,
+        error: err?.message || String(err),
+      },
+      dedupeKey: `growth:campaign:${campaignId}:update-failed`,
+      createdByAdminId: req.user?.id || null,
+      notifyAdmins: true,
+    });
     res.status(500).json({ ok: false, message: '캠페인 수정 중 오류가 발생했습니다.' });
   }
 });
 
 router.delete('/quest-campaigns/:id', async (req, res) => {
+  const campaignId = parsePositiveInt(req.params.id);
+  if (!campaignId) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', 'campaign id가 올바르지 않습니다.');
+  }
+
+  let previous = null;
   try {
-    await runAsync('DELETE FROM user_quest_state WHERE campaign_id = ?', [req.params.id]);
-    await runAsync('DELETE FROM quest_campaigns WHERE id = ?', [req.params.id]);
+    await runAsync('BEGIN IMMEDIATE;');
+    previous = await getAsync('SELECT * FROM quest_campaigns WHERE id = ? LIMIT 1', [campaignId]);
+    if (!previous) {
+      await runAsync('ROLLBACK;');
+      return sendAdminError(res, 404, 'RESOURCE_NOT_FOUND', '캠페인을 찾을 수 없습니다.');
+    }
+
+    await runAsync('DELETE FROM quest_post_submissions WHERE campaign_id = ?', [campaignId]);
+    await runAsync('DELETE FROM user_quest_state WHERE campaign_id = ?', [campaignId]);
+    await runAsync('DELETE FROM quest_campaign_items WHERE campaign_id = ?', [campaignId]);
+    await runAsync('DELETE FROM quest_campaigns WHERE id = ?', [campaignId]);
+    await runAsync('COMMIT;');
+
+    await recordOperationalAlert({
+      domain: 'campaign',
+      level: 'warn',
+      code: 'QUEST_CAMPAIGN_DELETED',
+      title: '퀘스트 캠페인이 삭제되었습니다.',
+      message: `"${previous?.name || campaignId}" 캠페인과 사용자 진행 상태가 삭제되었습니다.`,
+      context: {
+        campaign_id: campaignId,
+        campaign_type: previous?.campaign_type || null,
+      },
+      dedupeKey: `growth:campaign:${campaignId}:deleted`,
+      createdByAdminId: req.user?.id || null,
+    });
     res.json({ ok: true, message: '캠페인이 삭제되었습니다.' });
   } catch (err) {
+    await rollbackAdminTransactionQuietly('quest campaign delete');
     console.error(err);
+    await recordOperationalAlert({
+      domain: 'campaign',
+      level: 'error',
+      code: 'QUEST_CAMPAIGN_DELETE_FAILED',
+      title: '퀘스트 캠페인 삭제에 실패했습니다.',
+      message: `${campaignId} 캠페인 삭제 중 오류가 발생했습니다.`,
+      context: {
+        campaign_id: campaignId,
+        error: err?.message || String(err),
+      },
+      dedupeKey: `growth:campaign:${campaignId}:delete-failed`,
+      createdByAdminId: req.user?.id || null,
+      notifyAdmins: true,
+    });
     res.status(500).json({ ok: false, message: '캠페인 삭제 중 오류가 발생했습니다.' });
   }
 });
@@ -2010,9 +2814,43 @@ router.put('/quest-campaigns/:id/items', async (req, res) => {
         [campaignId, item.template_id, item.sort_order || 0]
       );
     }
+    const campaign = await getAsync('SELECT name, is_active FROM quest_campaigns WHERE id = ? LIMIT 1', [
+      campaignId,
+    ]);
+    await recordOperationalAlert({
+      domain: 'campaign',
+      level: campaign?.is_active && items.length === 0 ? 'warn' : 'info',
+      code: items.length === 0 ? 'QUEST_CAMPAIGN_ITEMS_EMPTY' : 'QUEST_CAMPAIGN_ITEMS_SAVED',
+      title: items.length === 0 ? '캠페인 템플릿 연결이 비어 있습니다.' : '캠페인 템플릿 연결이 저장되었습니다.',
+      message:
+        items.length === 0
+          ? `"${campaign?.name || campaignId}" 캠페인에 연결된 템플릿이 없습니다.`
+          : `"${campaign?.name || campaignId}" 캠페인에 템플릿 ${items.length}개를 연결했습니다.`,
+      context: {
+        campaign_id: Number(campaignId),
+        item_count: items.length,
+        template_ids: items.map((item) => Number(item.template_id)).filter(Number.isFinite),
+      },
+      dedupeKey: `growth:campaign:${campaignId}:items`,
+      createdByAdminId: req.user?.id || null,
+    });
     res.json({ ok: true, message: '캠페인 템플릿이 저장되었습니다.' });
   } catch (err) {
     console.error(err);
+    await recordOperationalAlert({
+      domain: 'campaign',
+      level: 'error',
+      code: 'QUEST_CAMPAIGN_ITEMS_SAVE_FAILED',
+      title: '캠페인 템플릿 연결 저장에 실패했습니다.',
+      message: `${campaignId} 캠페인의 템플릿 연결 저장 중 오류가 발생했습니다.`,
+      context: {
+        campaign_id: Number(campaignId),
+        error: err?.message || String(err),
+      },
+      dedupeKey: `growth:campaign:${campaignId}:items-failed`,
+      createdByAdminId: req.user?.id || null,
+      notifyAdmins: true,
+    });
     res.status(500).json({ ok: false, message: '캠페인 템플릿 저장 중 오류가 발생했습니다.' });
   }
 });

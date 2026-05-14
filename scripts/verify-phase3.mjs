@@ -114,9 +114,16 @@ async function main() {
 
   // (2) legacy templates seeded via migrations
   try {
-    const legacyPath = path.join(repoRoot, 'docs', 'legacy-achievements.json');
-    const legacyList = JSON.parse(fs.readFileSync(legacyPath, 'utf8'));
-    const codes = legacyList.map((item) => item.legacy_key);
+    const seedSqlPath = path.join(repoRoot, 'migrations', '0006_seed_legacy_achievements.sql');
+    const seedSql = fs.readFileSync(seedSqlPath, 'utf8');
+    const codes = [
+      ...new Set(
+        [...seedSql.matchAll(/"legacy_key":"([^"]+)"/g)].map((match) => match[1])
+      ),
+    ];
+    if (codes.length === 0) {
+      throw new Error('No legacy_key values found in 0006_seed_legacy_achievements.sql');
+    }
     const placeholders = codes.map(() => '?').join(',');
     const templateCount = await dbGet(
       `SELECT COUNT(*) as cnt FROM quest_templates

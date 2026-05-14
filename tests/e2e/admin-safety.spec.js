@@ -217,6 +217,104 @@ async function mockAdminBootApis(page, options = {}) {
     })
   );
 
+  await page.route('**/api/admin/growth/operations/health', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        health: {
+          open_alert_count: 0,
+          checks: [
+            {
+              code: 'GROWTH_FIXTURE_OK',
+              status: 'pass',
+              level: 'info',
+              title: '테스트 운영 상태',
+              message: '테스트 fixture 상태입니다.',
+              count: 0,
+              items: [],
+            },
+          ],
+        },
+      }),
+    })
+  );
+
+  await page.route('**/api/admin/operational-alerts**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        alerts: [],
+      }),
+    })
+  );
+
+  await page.route('**/api/admin/quests/auto-claim-expired-rewards', async (route) => {
+    const body = JSON.parse(route.request().postData() || '{}');
+    if (typeof options.onAutoClaimRewards === 'function') {
+      options.onAutoClaimRewards({ body });
+    }
+
+    const dryRun = body.dry_run === true;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        dryRun
+          ? {
+              ok: true,
+              message: '자동 수령 대상 퀘스트 보상을 확인했습니다.',
+              dry_run: true,
+              limit: body.limit,
+              candidate_count: 1,
+              claimed_count: 0,
+              skipped_count: 0,
+              candidates: [
+                {
+                  state_id: 901,
+                  user_id: 2,
+                  template_id: 101,
+                  campaign_id: 11,
+                  campaign_name: '봄 시즌',
+                  campaign_type: 'season',
+                  end_at: '2026-03-01T00:00:00.000Z',
+                },
+              ],
+              claimed: [],
+              skipped: [],
+            }
+          : {
+              ok: true,
+              message: '종료된 시즌/이벤트 퀘스트 보상 자동 수령을 처리했습니다.',
+              dry_run: false,
+              limit: body.limit,
+              candidate_count: 1,
+              claimed_count: 1,
+              skipped_count: 0,
+              candidates: [],
+              claimed: [
+                {
+                  state_id: 901,
+                  user_id: 2,
+                  template_id: 101,
+                  campaign_id: 11,
+                  campaign_name: '봄 시즌',
+                  campaign_type: 'season',
+                  end_at: '2026-03-01T00:00:00.000Z',
+                  reward_claimed_at: '2026-05-09T00:00:00.000Z',
+                  gained_xp: 20,
+                  gained_cosmetics_count: 1,
+                },
+              ],
+              skipped: [],
+            }
+      ),
+    });
+  });
+
   await page.route('**/api/admin/share-events/summary**', (route) =>
     route.fulfill({
       status: 200,
@@ -440,6 +538,39 @@ test.describe('Admin dangerous action safety', () => {
     await expect(page.locator('#adminReportedPosts')).toContainText('신고자');
     await expect(page.locator('#adminReportedPosts')).toContainText('5');
     await expect(page.locator('#adminReportedPosts')).toContainText('삭제');
+  });
+
+  test('runs expired reward auto-claim from the quests admin UI', async ({ page }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+    const calls = [];
+
+    await mockAdminBootApis(page, {
+      onAutoClaimRewards({ body }) {
+        calls.push(body);
+      },
+    });
+    await applyAdminCookie(page, baseURL);
+
+    await page.goto('/admin');
+    await page.getByRole('button', { name: /퀘스트/ }).click();
+
+    await expect(page.locator('#growthOperationalStatus')).toContainText('미수령 완료 보상 자동 수령');
+    await page.fill('#growthAutoClaimLimit', '12');
+    await page.click('#growthAutoClaimPreviewBtn');
+
+    await expect.poll(() => calls.length).toBe(1);
+    expect(calls[0]).toMatchObject({ limit: 12, dry_run: true });
+    await expect(page.locator('#growthAutoClaimResult')).toContainText('대상 1건');
+    await expect(page.locator('#growthAutoClaimResult')).toContainText('봄 시즌');
+
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.click('#growthAutoClaimRunBtn');
+
+    await expect.poll(() => calls.length).toBe(2);
+    expect(calls[1]).toMatchObject({ limit: 12, dry_run: false });
+    await expect(page.locator('#growthAutoClaimResult')).toContainText('실행 완료');
+    await expect(page.locator('#growthAutoClaimResult')).toContainText('수령 1건');
+    await expect(page.locator('#growthAutoClaimResult')).toContainText('+20 XP');
   });
 
   test('opens admin post detail links with postId query parameter', async ({ page }, testInfo) => {

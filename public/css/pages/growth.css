@@ -162,6 +162,17 @@ body.page-growth .growth-quest-board .card-body {
   padding: clamp(14px, 2.1vw, 22px);
 }
 
+body.page-growth .growth-stat-card h4 {
+  font-size: clamp(1rem, 1.4vw, 1.16rem);
+  line-height: 1.35;
+}
+
+body.page-growth .growth-stat-card .card-body > .gls-flex:first-child {
+  flex-direction: column;
+  align-items: flex-start !important;
+  gap: 6px;
+}
+
 body.page-growth .growth-section-title {
   font-family: var(--gls-font-serif, "Hahmlet", serif);
   font-size: clamp(1.08rem, 1.8vw, 1.34rem);
@@ -322,7 +333,8 @@ body.page-growth .growth-stat-label {
 }
 
 body.page-growth .growth-quest-board {
-  padding: var(--gls-space-4);
+  padding: 0;
+  overflow: hidden;
 }
 
 body.page-growth .growth-quests-grid {
@@ -332,7 +344,7 @@ body.page-growth .growth-quests-grid {
 
 @media (min-width: 992px) {
   body.page-growth .growth-quests-grid {
-    grid-template-columns: minmax(240px, 0.6fr) minmax(0, 1fr);
+    grid-template-columns: minmax(210px, 0.46fr) minmax(0, 1fr);
   }
 }
 
@@ -351,6 +363,7 @@ body.page-growth .quest-column {
   border-radius: var(--gls-radius-md);
   padding: var(--gls-space-3);
   background: color-mix(in srgb, var(--gls-glass-bg-subtle) 92%, rgba(255, 255, 255, 0.3));
+  min-width: 0;
 }
 
 @media (min-width: 992px) {
@@ -361,13 +374,16 @@ body.page-growth .quest-column {
 
 body.page-growth .quest-column-header {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 10px;
   margin-bottom: var(--gls-space-2);
 }
 
 body.page-growth .quest-column-title {
   font-weight: 700;
+  line-height: 1.35;
 }
 
 body.page-growth .quest-column-sub {
@@ -376,7 +392,7 @@ body.page-growth .quest-column-sub {
 }
 
 body.page-growth .quest-card-list {
-  min-height: 120px;
+  min-height: 0;
   display: grid;
   gap: var(--gls-space-3);
 }
@@ -398,10 +414,12 @@ body.page-growth .campaign-card {
 body.page-growth .campaign-card h5 {
   margin: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   font-size: 0.96rem;
+  line-height: 1.35;
 }
 
 body.page-growth .campaign-card .campaign-type {
@@ -435,7 +453,7 @@ body.page-growth .quest-card {
 
 body.page-growth .quest-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
@@ -443,6 +461,8 @@ body.page-growth .quest-card-header {
 body.page-growth .quest-card-title {
   font-weight: 700;
   font-size: 0.96rem;
+  line-height: 1.35;
+  min-width: 0;
 }
 
 body.page-growth .quest-card-status {
@@ -451,19 +471,25 @@ body.page-growth .quest-card-status {
   padding: 3px 8px;
   border: 1px solid color-mix(in srgb, var(--gls-border) 55%, transparent);
   background: color-mix(in srgb, var(--gls-glass-bg-subtle) 90%, transparent);
+  flex: 0 0 auto;
 }
 
 body.page-growth .quest-card-meta {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 6px 12px;
   font-size: 0.78rem;
   color: var(--gls-muted);
 }
 
 body.page-growth .quest-card-meta-secondary {
   font-size: 0.74rem;
+}
+
+body.page-growth .quest-card-desc {
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 
 body.page-growth .quest-card-progress {

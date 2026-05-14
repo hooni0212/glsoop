@@ -4,6 +4,7 @@ const db = require('../db');
 const { authRequired } = require('../middleware/auth');
 const {
   DEFAULT_BADGE_KEY,
+  DEFAULT_BACKGROUND_KEY,
   ALLOWED_PROFILE_STICKER_SLOTS,
   MAX_SHOWCASE_BADGES,
   MAX_HEADER_STICKERS,
@@ -50,6 +51,7 @@ function sendCosmeticsError(res, status, message) {
 function mapInventoryRows(rows = []) {
   const badges = [];
   const stickers = [];
+  const backgrounds = [];
 
   for (const row of rows) {
     const mapped = mapCosmeticItem(row);
@@ -57,14 +59,17 @@ function mapInventoryRows(rows = []) {
       badges.push(mapped);
     } else if (row.type === 'sticker') {
       stickers.push(mapped);
+    } else if (row.type === 'background') {
+      backgrounds.push(mapped);
     }
   }
 
-  return { badges, stickers };
+  return { badges, stickers, backgrounds };
 }
 
 function parseProfileUpdatePayload(body = {}) {
   const hasPrimary = Object.prototype.hasOwnProperty.call(body, 'primary_badge_key');
+  const hasBackground = Object.prototype.hasOwnProperty.call(body, 'profile_background_key');
   const hasShowcase = Object.prototype.hasOwnProperty.call(body, 'showcase_badge_keys');
   const hasHeader = Object.prototype.hasOwnProperty.call(body, 'header_stickers');
 
@@ -80,6 +85,17 @@ function parseProfileUpdatePayload(body = {}) {
     primaryBadgeKey = normalizeCosmeticKey(body.primary_badge_key);
     if (!primaryBadgeKey) {
       return { error: 'primary_badge_key는 문자열 또는 null 이어야 합니다.' };
+    }
+  }
+
+  let profileBackgroundKey = undefined;
+  if (hasBackground) {
+    profileBackgroundKey = null;
+    if (body.profile_background_key !== null) {
+      profileBackgroundKey = normalizeCosmeticKey(body.profile_background_key);
+      if (!profileBackgroundKey) {
+        return { error: 'profile_background_key는 문자열 또는 null 이어야 합니다.' };
+      }
     }
   }
 
@@ -142,13 +158,14 @@ function parseProfileUpdatePayload(body = {}) {
 
   return {
     primary_badge_key: primaryBadgeKey,
+    profile_background_key: profileBackgroundKey,
     showcase_badge_keys: showcaseBadges,
     header_stickers: headerStickers,
   };
 }
 
 async function fetchOwnedCosmetics(userId) {
-  return dbAll(
+  const cosmeticRows = await dbAll(
     `
     SELECT
       ci.key,
@@ -156,7 +173,8 @@ async function fetchOwnedCosmetics(userId) {
       ci.name,
       ci.icon_emoji,
       COALESCE(ci.rarity, 'common') AS rarity,
-      ci.season
+      ci.season,
+      ci.meta_json
     FROM user_cosmetics uc
     JOIN cosmetic_items ci ON ci.id = uc.cosmetic_id
     WHERE uc.user_id = ?
@@ -167,6 +185,25 @@ async function fetchOwnedCosmetics(userId) {
     `,
     [userId]
   );
+  const backgroundRows = await dbAll(
+    `
+    SELECT
+      pbi.key,
+      'background' AS type,
+      pbi.name,
+      pbi.icon_emoji,
+      COALESCE(pbi.rarity, 'common') AS rarity,
+      pbi.season,
+      pbi.meta_json
+    FROM user_profile_backgrounds upb
+    JOIN profile_background_items pbi ON pbi.id = upb.background_id
+    WHERE upb.user_id = ?
+      AND pbi.is_active = 1
+    ORDER BY upb.earned_at ASC, pbi.id ASC
+    `,
+    [userId]
+  );
+  return [...cosmeticRows, ...backgroundRows];
 }
 
 async function fetchProfileRow(userId) {
@@ -175,6 +212,7 @@ async function fetchProfileRow(userId) {
     SELECT
       user_id,
       primary_badge_key,
+      profile_background_key,
       showcase_badge_keys_json,
       header_stickers_json
     FROM user_profile_cosmetics
@@ -185,10 +223,54 @@ async function fetchProfileRow(userId) {
   );
 }
 
+async function ensureDefaultProfileCosmetics(userId) {
+  await dbRun(
+    `
+    INSERT OR IGNORE INTO user_cosmetics (user_id, cosmetic_id, source)
+    SELECT ?, ci.id, 'default'
+    FROM cosmetic_items ci
+    WHERE ci.key = ?
+    `,
+    [userId, DEFAULT_BADGE_KEY]
+  );
+  await dbRun(
+    `
+    INSERT OR IGNORE INTO user_profile_backgrounds (user_id, background_id, source)
+    SELECT ?, pbi.id, 'default'
+    FROM profile_background_items pbi
+    WHERE pbi.key = ?
+    `,
+    [userId, DEFAULT_BACKGROUND_KEY]
+  );
+  await dbRun(
+    `
+    INSERT INTO user_profile_cosmetics (
+      user_id,
+      primary_badge_key,
+      profile_background_key,
+      showcase_badge_keys_json,
+      header_stickers_json,
+      updated_at
+    )
+    VALUES (?, ?, ?, '[]', '[]', CURRENT_TIMESTAMP)
+    ON CONFLICT(user_id) DO UPDATE SET
+      showcase_badge_keys_json = CASE
+        WHEN showcase_badge_keys_json IS NULL OR TRIM(showcase_badge_keys_json) = '' THEN '[]'
+        ELSE showcase_badge_keys_json
+      END,
+      header_stickers_json = CASE
+        WHEN header_stickers_json IS NULL OR TRIM(header_stickers_json) = '' THEN '[]'
+        ELSE header_stickers_json
+      END
+    `,
+    [userId, DEFAULT_BADGE_KEY, DEFAULT_BACKGROUND_KEY]
+  );
+}
+
 async function fetchItemsWithOwnershipByKeys(userId, keys) {
   if (!Array.isArray(keys) || keys.length === 0) return [];
   const placeholders = keys.map(() => '?').join(', ');
-  return dbAll(
+  const cosmeticRows = await dbAll(
     `
     SELECT
       ci.id,
@@ -198,6 +280,7 @@ async function fetchItemsWithOwnershipByKeys(userId, keys) {
       ci.icon_emoji,
       COALESCE(ci.rarity, 'common') AS rarity,
       ci.season,
+      ci.meta_json,
       CASE WHEN uc.id IS NOT NULL THEN 1 ELSE 0 END AS owned
     FROM cosmetic_items ci
     LEFT JOIN user_cosmetics uc
@@ -207,12 +290,35 @@ async function fetchItemsWithOwnershipByKeys(userId, keys) {
     `,
     [userId, ...keys]
   );
+  const backgroundRows = await dbAll(
+    `
+    SELECT
+      pbi.id,
+      pbi.key,
+      'background' AS type,
+      pbi.name,
+      pbi.icon_emoji,
+      COALESCE(pbi.rarity, 'common') AS rarity,
+      pbi.season,
+      pbi.meta_json,
+      CASE WHEN upb.id IS NOT NULL THEN 1 ELSE 0 END AS owned
+    FROM profile_background_items pbi
+    LEFT JOIN user_profile_backgrounds upb
+      ON upb.background_id = pbi.id
+     AND upb.user_id = ?
+    WHERE pbi.key IN (${placeholders})
+      AND pbi.is_active = 1
+    `,
+    [userId, ...keys]
+  );
+  return [...cosmeticRows, ...backgroundRows];
 }
 
 router.get('/cosmetics/me', authRequired, async (req, res) => {
   const userId = req.user.id;
 
   try {
+    await ensureDefaultProfileCosmetics(userId);
     const [ownedRows, profileRow] = await Promise.all([
       fetchOwnedCosmetics(userId),
       fetchProfileRow(userId),
@@ -225,6 +331,8 @@ router.get('/cosmetics/me', authRequired, async (req, res) => {
     const parsedProfile = parseStoredProfileCosmetics(profileRow);
     const profile = sanitizeEquippedProfileCosmetics(parsedProfile, ownedTypeByKey, {
       fallbackDefaultBadge: !profileRow && ownedTypeByKey.has(DEFAULT_BADGE_KEY),
+      fallbackDefaultBackground:
+        !profileRow && ownedTypeByKey.has(DEFAULT_BACKGROUND_KEY),
     });
 
     return res.json({
@@ -252,13 +360,18 @@ router.put('/me/profile-cosmetics', authRequired, async (req, res) => {
 
   const requestedProfile = {
     primary_badge_key: parsed.primary_badge_key,
+    profile_background_key: parsed.profile_background_key,
     showcase_badge_keys: parsed.showcase_badge_keys,
     header_stickers: parsed.header_stickers,
   };
 
-  const allKeys = extractProfileCosmeticKeys(requestedProfile);
-
   try {
+    await ensureDefaultProfileCosmetics(userId);
+    if (parsed.profile_background_key === undefined) {
+      const existingProfile = parseStoredProfileCosmetics(await fetchProfileRow(userId));
+      requestedProfile.profile_background_key = existingProfile.profile_background_key;
+    }
+    const allKeys = extractProfileCosmeticKeys(requestedProfile);
     const itemRows = await fetchItemsWithOwnershipByKeys(userId, allKeys);
     const itemByKey = makeKeyedCosmeticMap(itemRows);
 
@@ -284,6 +397,17 @@ router.put('/me/profile-cosmetics', authRequired, async (req, res) => {
       const primaryItem = itemByKey.get(requestedProfile.primary_badge_key);
       if (!primaryItem || primaryItem.type !== 'badge') {
         return sendCosmeticsError(res, 400, 'primary_badge_key는 badge 타입이어야 합니다.');
+      }
+    }
+
+    if (requestedProfile.profile_background_key) {
+      const backgroundItem = itemByKey.get(requestedProfile.profile_background_key);
+      if (!backgroundItem || backgroundItem.type !== 'background') {
+        return sendCosmeticsError(
+          res,
+          400,
+          'profile_background_key는 background 타입이어야 합니다.'
+        );
       }
     }
 
@@ -315,13 +439,15 @@ router.put('/me/profile-cosmetics', authRequired, async (req, res) => {
       INSERT INTO user_profile_cosmetics (
         user_id,
         primary_badge_key,
+        profile_background_key,
         showcase_badge_keys_json,
         header_stickers_json,
         updated_at
       )
-      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(user_id) DO UPDATE SET
         primary_badge_key = excluded.primary_badge_key,
+        profile_background_key = excluded.profile_background_key,
         showcase_badge_keys_json = excluded.showcase_badge_keys_json,
         header_stickers_json = excluded.header_stickers_json,
         updated_at = CURRENT_TIMESTAMP
@@ -329,6 +455,7 @@ router.put('/me/profile-cosmetics', authRequired, async (req, res) => {
       [
         userId,
         requestedProfile.primary_badge_key,
+        requestedProfile.profile_background_key,
         serialized.showcase_badge_keys_json,
         serialized.header_stickers_json,
       ]

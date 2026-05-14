@@ -4,11 +4,12 @@
 - 적용 범위: `glsoop/docs/참고/API-레퍼런스.md`
 - 대상 독자: 서버/웹/모바일 개발자, QA
 - 상태: `Draft`
-- 최종 업데이트: `2026-04-25`
+- 최종 업데이트: `2026-05-09`
 - Owner: `taehun`
 - 관련 문서:
   - `docs/서버/API/인증-계정.md`
   - `docs/서버/API/인증-쿠키-세션-정책.md`
+  - `glsoop-docs/04_API_Contracts/growth-rewards-cosmetics-api-contract-v1.md`
 
 ---
 
@@ -60,6 +61,46 @@
 - `GET /api/me`
 - `GET /api/me/sessions`
 - `POST /api/password-reset/validate`
+- `GET /api/growth/dashboard`
+- `GET /api/growth/summary`
+- `GET /api/growth/achievements`
+- `GET /api/quests/active`
+- `POST /api/quests/:stateId/claim`
+- `GET /api/cosmetics/me`
+- `PUT /api/me/profile-cosmetics`
+- `POST /api/admin/quests/auto-claim-expired-rewards`
+
+## 성장/보상/프로필 코스메틱 API 계약 (2026-05-09)
+
+- `GET /api/growth/dashboard`
+  - 인증 필수.
+  - `summary`, `achievements`, `campaigns`, `top_posts`를 단일 응답으로 반환한다.
+  - 업적/퀘스트 보상 프리뷰는 `reward_cosmetic_keys`, `reward_cosmetics`를 기준으로 표시한다.
+- `GET /api/growth/achievements`
+  - 인증 필수.
+  - 업적 목록과 `state_id`, `reward_claimed_at`, 보상 코스메틱 메타데이터를 반환한다.
+- `GET /api/quests/active`
+  - 인증 필수.
+  - 활성 캠페인/퀘스트를 반환한다.
+  - `required_entitlement`가 있고 보유 권한이 없으면 `is_locked=true`, `lock_reason="SEASON_PASS_REQUIRED"`다.
+- `POST /api/quests/:stateId/claim`
+  - 인증 필수.
+  - 완료된 업적/퀘스트 보상을 수령한다.
+  - 성공 시 `reward_claimed_at`, `gained_xp`, `new_xp`, `gained_cosmetics`를 반환한다.
+  - 미완료는 `400`, 필요 entitlement 없음은 `403 ENTITLEMENT_REQUIRED`, 중복 수령은 `409`다.
+- `POST /api/admin/quests/auto-claim-expired-rewards`
+  - 관리자 권한 필수.
+  - 종료된 시즌/이벤트 캠페인의 완료됐지만 미수령인 보상을 수동 운영 작업으로 자동 수령 처리한다.
+  - body: `{ "limit": 100, "dry_run": false }`
+  - 관리자 페이지 `/admin`의 `퀘스트` 탭에서 대상 확인과 실행을 할 수 있다.
+- `GET /api/cosmetics/me`
+  - 인증 필수.
+  - 내 코스메틱 인벤토리와 현재 장착 상태를 반환한다.
+- `PUT /api/me/profile-cosmetics`
+  - 인증 필수.
+  - 보유한 배지/스티커/프로필 배경을 프로필에 장착한다.
+
+상세 shape와 QA 체크리스트는 `glsoop-docs/04_API_Contracts/growth-rewards-cosmetics-api-contract-v1.md`를 canonical 기준으로 따른다.
 
 ## 게시글 레이아웃(`layout_json`) 계약 (2026-03-04)
 

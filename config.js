@@ -120,10 +120,11 @@ const LEGAL_CONFIG = {
     guidelines: getTrimmedEnv('LEGAL_GUIDELINES_EFFECTIVE_DATE', '2026-02-27'),
   },
   contacts: {
-    department: getTrimmedEnv('PRIVACY_CONTACT_DEPARTMENT', '글숲 개인정보보호팀'),
-    email: getTrimmedEnv('PRIVACY_CONTACT_EMAIL', 'privacy@glsoop.com'),
-    phone: getTrimmedEnv('PRIVACY_CONTACT_PHONE', '0000-0000'),
-    dpo_name: getTrimmedEnv('PRIVACY_DPO_NAME', '개인정보 보호책임자 미지정'),
+    operator_name: getTrimmedEnv('LEGAL_OPERATOR_NAME', '김태훈'),
+    department: getTrimmedEnv('PRIVACY_CONTACT_DEPARTMENT', '글숲 운영자'),
+    email: getTrimmedEnv('PRIVACY_CONTACT_EMAIL', 'glsoop1752@gmail.com'),
+    phone: getTrimmedEnv('PRIVACY_CONTACT_PHONE', '010-5152-8847'),
+    dpo_name: getTrimmedEnv('PRIVACY_DPO_NAME', '김태훈'),
   },
 };
 

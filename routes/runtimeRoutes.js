@@ -37,6 +37,7 @@ router.get('/runtime-config', (req, res) => {
         guidelines: LEGAL_CONFIG.effective_dates.guidelines,
       },
       contacts: {
+        operator_name: LEGAL_CONFIG.contacts.operator_name,
         department: LEGAL_CONFIG.contacts.department,
         email: LEGAL_CONFIG.contacts.email,
         phone: LEGAL_CONFIG.contacts.phone,

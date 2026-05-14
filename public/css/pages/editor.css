@@ -91,6 +91,114 @@
   }
 }
 
+.editor-background-section {
+  padding: 14px;
+  border: 1px solid rgba(88, 67, 43, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 252, 247, 0.68);
+}
+
+.editor-background-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.editor-background-option {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(88, 67, 43, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 252, 247, 0.84);
+  color: #1f2a22;
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.editor-background-option:hover,
+.editor-background-option:focus-visible {
+  border-color: rgba(21, 92, 64, 0.32);
+  box-shadow: 0 10px 22px rgba(35, 61, 48, 0.08);
+  transform: translateY(-1px);
+}
+
+.editor-background-option.is-active {
+  border-color: rgba(21, 92, 64, 0.34);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 24px rgba(35, 61, 48, 0.1);
+}
+
+.editor-background-swatch {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid rgba(99, 77, 51, 0.1);
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+[data-background-template="paper01"] .editor-background-swatch {
+  background-color: #fffdf8;
+  background-image: url('/img/feed-templates-v2/paper-source-01.jpg');
+}
+
+[data-background-template="paper02"] .editor-background-swatch {
+  background-color: #f4efe4;
+  background-image: url('/img/feed-templates-v2/paper-source-02.jpg');
+  background-size: 108% auto;
+  background-position: center -40px;
+}
+
+.editor-background-check {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  background: rgba(21, 92, 64, 0.94);
+  color: #fffaf3;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0;
+  transform: translateY(-3px) scale(0.88);
+  box-shadow: 0 8px 16px rgba(35, 61, 48, 0.18);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.editor-background-option.is-active .editor-background-check {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.editor-background-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.editor-background-copy strong {
+  color: #2f3a31;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.editor-background-copy small {
+  color: rgba(54, 60, 55, 0.64);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
 /* 해시태그 입력 + 저장 버튼: 데스크탑에서 한 줄, 모바일에서 스택 */
 .hashtag-save-grid {
   display: grid;

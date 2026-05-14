@@ -25,6 +25,7 @@ const db = require('../db');
 const { authRequired, authOptional } = require('../middleware/auth');
 const { saveHashtagsForPostFromInput } = require('../utils/hashtags');
 const { handlePostCreated, handleLikeAdded } = require('../utils/growth-service');
+const { completePromptPostQuest, QuestContextError } = require('../utils/questService');
 const { ACTIVITY_TYPES, createActivityEvent } = require('../utils/activityEvents');
 const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
@@ -217,6 +218,7 @@ function buildAuthorProfileCosmetics(row = {}) {
   if (hasOwn(row, 'author_id') && row.author_id == null) {
     return {
       primary_badge: null,
+      profile_background: null,
       showcase_badges: [],
       header_stickers: [],
     };
@@ -225,25 +227,49 @@ function buildAuthorProfileCosmetics(row = {}) {
   const key = typeof row.author_primary_badge_key === 'string'
     ? row.author_primary_badge_key.trim()
     : '';
-  if (!key) {
-    return {
-      primary_badge: null,
-      showcase_badges: [],
-      header_stickers: [],
-    };
-  }
+  const backgroundKey =
+    typeof row.author_profile_background_key === 'string'
+      ? row.author_profile_background_key.trim()
+      : '';
 
   return {
-    primary_badge: {
-      key,
-      name: row.author_primary_badge_name || key,
-      icon_emoji: row.author_primary_badge_icon_emoji || null,
-      rarity: row.author_primary_badge_rarity || 'common',
-      season: row.author_primary_badge_season || null,
-    },
+    primary_badge: key
+      ? {
+          key,
+          type: 'badge',
+          name: row.author_primary_badge_name || key,
+          icon_emoji: row.author_primary_badge_icon_emoji || null,
+          rarity: row.author_primary_badge_rarity || 'common',
+          season: row.author_primary_badge_season || null,
+          meta: null,
+        }
+      : null,
+    profile_background: backgroundKey
+      ? {
+          key: backgroundKey,
+          type: 'background',
+          name: row.author_profile_background_name || backgroundKey,
+          icon_emoji: row.author_profile_background_icon_emoji || null,
+          rarity: row.author_profile_background_rarity || 'common',
+          season: row.author_profile_background_season || null,
+          meta: parseJsonObject(row.author_profile_background_meta_json),
+        }
+      : null,
     showcase_badges: [],
     header_stickers: [],
   };
+}
+
+function parseJsonObject(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function hasOwn(obj, key) {
@@ -741,6 +767,21 @@ const dbRunAsync = (sql, params = []) =>
     });
   });
 
+const saveHashtagsAsync = (postId, hashtags) =>
+  new Promise((resolve) => {
+    saveHashtagsForPostFromInput(postId, hashtags, (err) => {
+      resolve(err || null);
+    });
+  });
+
+async function rollbackQuietly() {
+  try {
+    await dbRunAsync('ROLLBACK;');
+  } catch (error) {
+    console.error('post transaction rollback failed:', error);
+  }
+}
+
 async function logPostActivationEvents(userId, postId) {
   await logUxEvent({
     user_id: userId,
@@ -802,13 +843,14 @@ async function logPostActivationEvents(userId, postId) {
 const router = express.Router();
 
 // 9-1) 글 작성
-router.post('/posts', authRequired, (req, res) => {
+router.post('/posts', authRequired, async (req, res) => {
   const { title, content, hashtags, category } = req.body;
   const userId = req.user.id;
   const normalizedCategory = requireValidCategory(category, res);
   const visibility = normalizeVisibility(req.body?.visibility);
   const commentPolicy = normalizeCommentPolicy(req.body?.comment_policy);
   const layoutInput = parseLayoutInputFromBody(req.body);
+  const questContext = req.body?.quest_context || null;
 
   if (!normalizedCategory) return;
   if (layoutInput.error) {
@@ -825,61 +867,65 @@ router.post('/posts', authRequired, (req, res) => {
   }
 
   const safeContent = sanitizeForStorage(content);
+  let newPostId = null;
+  let questCompletion = null;
+  let tagErr = null;
 
-  // 본문 저장 후 해시태그를 별도 테이블에 기록
-  db.run(
-    `
-      INSERT INTO posts (user_id, title, content, category, layout_json, visibility, comment_policy)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `,
-    [
-      userId,
-      title,
-      safeContent,
-      normalizedCategory,
-      layoutInput.provided ? layoutInput.value : null,
-      visibility,
-      commentPolicy,
-    ],
-    function (err) {
-      if (err) {
-        console.error(err);
-        return res
-          .status(500)
-          .json({ ok: false, message: '글 저장 중 DB 오류가 발생했습니다.' });
-      }
+  try {
+    await dbRunAsync('BEGIN IMMEDIATE;');
+    const insertResult = await dbRunAsync(
+      `
+        INSERT INTO posts (user_id, title, content, category, layout_json, visibility, comment_policy)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        userId,
+        title,
+        safeContent,
+        normalizedCategory,
+        layoutInput.provided ? layoutInput.value : null,
+        visibility,
+        commentPolicy,
+      ]
+    );
+    newPostId = insertResult?.lastID || null;
+    tagErr = await saveHashtagsAsync(newPostId, hashtags);
 
-      const newPostId = this.lastID;
+    if (questContext) {
+      questCompletion = await completePromptPostQuest(userId, newPostId, questContext);
+    }
 
-      saveHashtagsForPostFromInput(newPostId, hashtags, (tagErr) => {
-        const finalize = async () => {
-          try {
-            await handlePostCreated(userId, newPostId);
-            await logPostActivationEvents(userId, newPostId);
-          } catch (growthErr) {
-            console.error('post growth/activation 처리 실패:', growthErr);
-          }
-
-          if (tagErr) {
-            return res.json({
-              ok: true,
-              message:
-                '글은 저장되었지만, 해시태그 저장 중 오류가 발생했습니다.',
-              post_id: newPostId,
-            });
-          }
-
-          return res.json({
-            ok: true,
-            message: '글이 저장되었습니다.',
-            post_id: newPostId,
-          });
-        };
-
-        finalize();
+    await dbRunAsync('COMMIT;');
+  } catch (err) {
+    await rollbackQuietly();
+    if (err instanceof QuestContextError) {
+      return res.status(err.status).json({
+        ok: false,
+        code: err.code,
+        message: err.message,
       });
     }
-  );
+    console.error(err);
+    return res
+      .status(500)
+      .json({ ok: false, message: '글 저장 중 DB 오류가 발생했습니다.' });
+  }
+
+  try {
+    await handlePostCreated(userId, newPostId);
+    await logPostActivationEvents(userId, newPostId);
+  } catch (growthErr) {
+    console.error('post growth/activation 처리 실패:', growthErr);
+  }
+
+  return res.json({
+    ok: true,
+    message: tagErr
+      ? '글은 저장되었지만, 해시태그 저장 중 오류가 발생했습니다.'
+      : '글이 저장되었습니다.',
+    post_id: newPostId,
+    ...(questCompletion ? { quest_completion: questCompletion } : {}),
+  });
 });
 
 // 9-2) 글 수정
@@ -1237,10 +1283,16 @@ function handleFeedRequest(req, res) {
         COALESCE(u.account_status, 'active') AS author_account_status,
         ci.key AS author_primary_badge_key,
         ci.name AS author_primary_badge_name,
-        ci.icon_emoji AS author_primary_badge_icon_emoji,
-        COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
-        ci.season AS author_primary_badge_season,
-        IFNULL(lc.like_count, 0) AS like_count,
+	        ci.icon_emoji AS author_primary_badge_icon_emoji,
+	        COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
+	        ci.season AS author_primary_badge_season,
+	        pbi.key AS author_profile_background_key,
+	        pbi.name AS author_profile_background_name,
+	        pbi.icon_emoji AS author_profile_background_icon_emoji,
+	        COALESCE(pbi.rarity, 'common') AS author_profile_background_rarity,
+	        pbi.season AS author_profile_background_season,
+	        pbi.meta_json AS author_profile_background_meta_json,
+	        IFNULL(lc.like_count, 0) AS like_count,
         ${
           userId
             ? 'CASE WHEN my.user_id IS NULL THEN 0 ELSE 1 END'
@@ -1251,10 +1303,11 @@ function handleFeedRequest(req, res) {
 
     const joins = [
       'FROM posts p',
-      'JOIN users u ON p.user_id = u.id',
-      'LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id',
-      "LEFT JOIN cosmetic_items ci ON ci.key = upc.primary_badge_key AND ci.type = 'badge' AND ci.is_active = 1",
-      'LEFT JOIN post_hashtags ph ON ph.post_id = p.id',
+	      'JOIN users u ON p.user_id = u.id',
+	      'LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id',
+	      "LEFT JOIN cosmetic_items ci ON ci.key = upc.primary_badge_key AND ci.type = 'badge' AND ci.is_active = 1",
+	      'LEFT JOIN profile_background_items pbi ON pbi.key = upc.profile_background_key AND pbi.is_active = 1',
+	      'LEFT JOIN post_hashtags ph ON ph.post_id = p.id',
       'LEFT JOIN hashtags h ON h.id = ph.hashtag_id',
       'LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM likes GROUP BY post_id) lc ON lc.post_id = p.id',
     ];
@@ -1522,10 +1575,16 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
           COALESCE(u.account_status, 'active') AS author_account_status,
           ci.key AS author_primary_badge_key,
           ci.name AS author_primary_badge_name,
-          ci.icon_emoji AS author_primary_badge_icon_emoji,
-          COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
-          ci.season AS author_primary_badge_season,
-          IFNULL(l.like_count, 0) AS like_count,
+	          ci.icon_emoji AS author_primary_badge_icon_emoji,
+	          COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
+	          ci.season AS author_primary_badge_season,
+	          pbi.key AS author_profile_background_key,
+	          pbi.name AS author_profile_background_name,
+	          pbi.icon_emoji AS author_profile_background_icon_emoji,
+	          COALESCE(pbi.rarity, 'common') AS author_profile_background_rarity,
+	          pbi.season AS author_profile_background_season,
+	          pbi.meta_json AS author_profile_background_meta_json,
+	          IFNULL(l.like_count, 0) AS like_count,
           -- ✅ 이 유저가 누른 좋아요 여부
           CASE
             WHEN my.user_id IS NULL THEN 0
@@ -1535,11 +1594,14 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
         FROM posts p
         JOIN users u ON p.user_id = u.id
         LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id
-        LEFT JOIN cosmetic_items ci
-          ON ci.key = upc.primary_badge_key
-         AND ci.type = 'badge'
-         AND ci.is_active = 1
-        -- 전체 좋아요 개수 집계
+	        LEFT JOIN cosmetic_items ci
+	          ON ci.key = upc.primary_badge_key
+	         AND ci.type = 'badge'
+	         AND ci.is_active = 1
+	        LEFT JOIN profile_background_items pbi
+	          ON pbi.key = upc.profile_background_key
+	         AND pbi.is_active = 1
+	        -- 전체 좋아요 개수 집계
         LEFT JOIN (
           SELECT post_id, COUNT(*) AS like_count
           FROM likes
@@ -1969,19 +2031,28 @@ function handlePublicPostDetail(req, res) {
       COALESCE(u.account_status, 'active') AS author_account_status,
       ci.key AS author_primary_badge_key,
       ci.name AS author_primary_badge_name,
-      ci.icon_emoji AS author_primary_badge_icon_emoji,
-      COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
-      ci.season AS author_primary_badge_season,
-      IFNULL(l.like_count, 0) AS like_count,
+	      ci.icon_emoji AS author_primary_badge_icon_emoji,
+	      COALESCE(ci.rarity, 'common') AS author_primary_badge_rarity,
+	      ci.season AS author_primary_badge_season,
+	      pbi.key AS author_profile_background_key,
+	      pbi.name AS author_profile_background_name,
+	      pbi.icon_emoji AS author_profile_background_icon_emoji,
+	      COALESCE(pbi.rarity, 'common') AS author_profile_background_rarity,
+	      pbi.season AS author_profile_background_season,
+	      pbi.meta_json AS author_profile_background_meta_json,
+	      IFNULL(l.like_count, 0) AS like_count,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
     FROM posts p
     JOIN users u ON p.user_id = u.id
     LEFT JOIN user_profile_cosmetics upc ON upc.user_id = u.id
-    LEFT JOIN cosmetic_items ci
-      ON ci.key = upc.primary_badge_key
-     AND ci.type = 'badge'
-     AND ci.is_active = 1
-    LEFT JOIN (
+	    LEFT JOIN cosmetic_items ci
+	      ON ci.key = upc.primary_badge_key
+	     AND ci.type = 'badge'
+	     AND ci.is_active = 1
+	    LEFT JOIN profile_background_items pbi
+	      ON pbi.key = upc.profile_background_key
+	     AND pbi.is_active = 1
+	    LEFT JOIN (
       SELECT post_id, COUNT(*) AS like_count
       FROM likes
       GROUP BY post_id

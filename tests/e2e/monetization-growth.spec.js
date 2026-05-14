@@ -8,6 +8,7 @@ const E2E_JWT_SECRET = 'devsecret';
 const E2E_JWT_ALGORITHM = 'HS256';
 const E2E_JWT_ISSUER = 'glsoop';
 const E2E_JWT_AUDIENCE = 'glsoop-client';
+const AUTH_HEADER_NOW = '2026-03-01T00:00:00+09:00';
 
 const ADMIN_ID = 9921;
 const PLAYER_ID = 9922;
@@ -17,9 +18,14 @@ const TEMPLATE_LOCKED_ID = 99211;
 const TEMPLATE_REWARD_ID = 99212;
 const STATE_LOCKED_ID = 99213;
 const STATE_REWARD_ID = 99214;
+const EXPIRED_CAMPAIGN_ID = 99220;
+const EXPIRED_TEMPLATE_ID = 99221;
+const EXPIRED_STATE_ID = 99222;
 
 const REQUIRED_ENTITLEMENT = 'pass:2026_spring';
 const REWARD_COSMETIC_KEY = 'sticker_star';
+const REWARD_BADGE_KEY = 'badge_spring_2026';
+const AUTO_CLAIM_REWARD_KEY = 'sticker_moon';
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -77,6 +83,11 @@ const signAuthToken = ({ id, name, nickname, email, isAdmin = false, isVerified 
     }
   );
 
+const buildAuthHeaders = (token) => ({
+  Authorization: `Bearer ${token}`,
+  'x-auth-legacy-now': AUTH_HEADER_NOW,
+});
+
 const seedGrowthMonetizationFixtures = async () => {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   await waitForFile(DB_PATH, 20000);
@@ -103,23 +114,29 @@ const seedGrowthMonetizationFixtures = async () => {
     `DELETE FROM user_cosmetics
      WHERE user_id = ?
        AND cosmetic_id IN (
-         SELECT id FROM cosmetic_items WHERE key = ?
+         SELECT id FROM cosmetic_items WHERE key IN (?, ?, ?)
        )`,
-    [PLAYER_ID, REWARD_COSMETIC_KEY]
+    [PLAYER_ID, REWARD_COSMETIC_KEY, REWARD_BADGE_KEY, AUTO_CLAIM_REWARD_KEY]
   );
 
   await dbRun(
     db,
-    'DELETE FROM user_quest_state WHERE id IN (?, ?) OR (user_id = ? AND campaign_id = ?)',
-    [STATE_LOCKED_ID, STATE_REWARD_ID, PLAYER_ID, CAMPAIGN_ID]
+    'DELETE FROM user_quest_state WHERE id IN (?, ?, ?) OR (user_id = ? AND campaign_id IN (?, ?))',
+    [STATE_LOCKED_ID, STATE_REWARD_ID, EXPIRED_STATE_ID, PLAYER_ID, CAMPAIGN_ID, EXPIRED_CAMPAIGN_ID]
   );
-  await dbRun(db, 'DELETE FROM quest_campaign_items WHERE campaign_id = ?', [CAMPAIGN_ID]);
+  await dbRun(db, 'DELETE FROM quest_campaign_items WHERE campaign_id IN (?, ?)', [
+    CAMPAIGN_ID,
+    EXPIRED_CAMPAIGN_ID,
+  ]);
   await dbRun(
     db,
-    'DELETE FROM quest_templates WHERE id IN (?, ?)',
-    [TEMPLATE_LOCKED_ID, TEMPLATE_REWARD_ID]
+    'DELETE FROM quest_templates WHERE id IN (?, ?, ?)',
+    [TEMPLATE_LOCKED_ID, TEMPLATE_REWARD_ID, EXPIRED_TEMPLATE_ID]
   );
-  await dbRun(db, 'DELETE FROM quest_campaigns WHERE id = ?', [CAMPAIGN_ID]);
+  await dbRun(db, 'DELETE FROM quest_campaigns WHERE id IN (?, ?)', [
+    CAMPAIGN_ID,
+    EXPIRED_CAMPAIGN_ID,
+  ]);
 
   await dbRun(
     db,
@@ -127,10 +144,26 @@ const seedGrowthMonetizationFixtures = async () => {
      VALUES (?, ?, ?, ?, ?, ?)`,
     [CAMPAIGN_ID, 'Premium Campaign Fixture', 'entitlement lock test', 'permanent', 1, 100]
   );
+  await dbRun(
+    db,
+    `INSERT INTO quest_campaigns
+      (id, name, description, campaign_type, is_active, priority, start_at, end_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      EXPIRED_CAMPAIGN_ID,
+      'Expired Season Fixture',
+      'auto claim test',
+      'season',
+      1,
+      90,
+      '2025-12-01T00:00:00.000Z',
+      '2026-01-01T00:00:00.000Z',
+    ]
+  );
 
   const uiJson = JSON.stringify({
     required_entitlement: REQUIRED_ENTITLEMENT,
-    rewards: { cosmetics: [REWARD_COSMETIC_KEY] },
+    rewards: { cosmetics: [REWARD_COSMETIC_KEY, REWARD_BADGE_KEY] },
   });
 
   await dbRun(
@@ -172,12 +205,41 @@ const seedGrowthMonetizationFixtures = async () => {
       uiJson,
     ]
   );
+  await dbRun(
+    db,
+    `INSERT INTO quest_templates
+      (id, name, description, condition_type, category, target_value, reward_xp, is_active, template_kind, code, ui_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      EXPIRED_TEMPLATE_ID,
+      'Expired Season Completed Quest',
+      'auto-claims after season close',
+      'POST_COUNT_TOTAL',
+      null,
+      1,
+      9,
+      1,
+      'quest',
+      'expired_season_auto_claim_fixture',
+      JSON.stringify({ rewards: { cosmetics: [AUTO_CLAIM_REWARD_KEY] } }),
+    ]
+  );
 
   await dbRun(
     db,
     `INSERT INTO quest_campaign_items (campaign_id, template_id, sort_order)
-     VALUES (?, ?, ?), (?, ?, ?)`,
-    [CAMPAIGN_ID, TEMPLATE_LOCKED_ID, 1, CAMPAIGN_ID, TEMPLATE_REWARD_ID, 2]
+     VALUES (?, ?, ?), (?, ?, ?), (?, ?, ?)`,
+    [
+      CAMPAIGN_ID,
+      TEMPLATE_LOCKED_ID,
+      1,
+      CAMPAIGN_ID,
+      TEMPLATE_REWARD_ID,
+      2,
+      EXPIRED_CAMPAIGN_ID,
+      EXPIRED_TEMPLATE_ID,
+      1,
+    ]
   );
 
   const nowIso = new Date().toISOString();
@@ -194,6 +256,20 @@ const seedGrowthMonetizationFixtures = async () => {
       (id, user_id, campaign_id, template_id, progress, reset_key, completed_at, reward_claimed_at)
      VALUES (?, ?, ?, ?, ?, 'permanent', ?, NULL)`,
     [STATE_REWARD_ID, PLAYER_ID, CAMPAIGN_ID, TEMPLATE_REWARD_ID, 1, nowIso]
+  );
+  await dbRun(
+    db,
+    `INSERT INTO user_quest_state
+      (id, user_id, campaign_id, template_id, progress, reset_key, completed_at, reward_claimed_at)
+     VALUES (?, ?, ?, ?, ?, 'season:expired-fixture', ?, NULL)`,
+    [
+      EXPIRED_STATE_ID,
+      PLAYER_ID,
+      EXPIRED_CAMPAIGN_ID,
+      EXPIRED_TEMPLATE_ID,
+      1,
+      '2026-01-01T00:00:01.000Z',
+    ]
   );
 
   await dbRun(db, 'PRAGMA foreign_keys = ON');
@@ -223,7 +299,7 @@ test.describe('Monetization + Growth entitlement lock', () => {
     });
 
     const response = await request.get('/api/growth/dashboard', {
-      headers: { Authorization: `Bearer ${playerToken}` },
+      headers: buildAuthHeaders(playerToken),
     });
     expect(response.status()).toBe(200);
 
@@ -237,7 +313,22 @@ test.describe('Monetization + Growth entitlement lock', () => {
       is_locked: true,
       required_entitlement: REQUIRED_ENTITLEMENT,
       lock_reason: 'SEASON_PASS_REQUIRED',
+      reward_cosmetic_keys: [REWARD_COSMETIC_KEY, REWARD_BADGE_KEY],
     });
+    expect(premiumQuest.reward_cosmetics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: REWARD_COSMETIC_KEY,
+          type: 'sticker',
+          name: '스타 스티커',
+        }),
+        expect.objectContaining({
+          key: REWARD_BADGE_KEY,
+          type: 'badge',
+          season: '2026_spring',
+        }),
+      ])
+    );
   });
 
   test('claim blocks locked premium quest without entitlement', async ({ request }) => {
@@ -249,7 +340,7 @@ test.describe('Monetization + Growth entitlement lock', () => {
     });
 
     const response = await request.post(`/api/quests/${STATE_LOCKED_ID}/claim`, {
-      headers: { Authorization: `Bearer ${playerToken}` },
+      headers: buildAuthHeaders(playerToken),
     });
     expect(response.status()).toBe(403);
     const payload = await response.json();
@@ -279,7 +370,7 @@ test.describe('Monetization + Growth entitlement lock', () => {
     });
 
     const response = await request.post('/api/admin/entitlements/grant', {
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: buildAuthHeaders(adminToken),
       data: {
         user_id: PLAYER_ID,
         entitlement_key: REQUIRED_ENTITLEMENT,
@@ -297,6 +388,53 @@ test.describe('Monetization + Growth entitlement lock', () => {
     });
   });
 
+  test('admin can auto-claim completed rewards after season ends', async ({ request }) => {
+    const adminToken = signAuthToken({
+      id: ADMIN_ID,
+      name: 'Admin Entitlement',
+      nickname: 'admin_entitlement',
+      email: 'admin-entitlement@glsoop.test',
+      isAdmin: true,
+    });
+
+    const response = await request.post('/api/admin/quests/auto-claim-expired-rewards', {
+      headers: buildAuthHeaders(adminToken),
+      data: { limit: 20 },
+    });
+    expect(response.status()).toBe(200);
+    const payload = await response.json();
+    expect(payload.ok).toBe(true);
+    expect(payload.claimed).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          state_id: EXPIRED_STATE_ID,
+          user_id: PLAYER_ID,
+          gained_xp: 9,
+          gained_cosmetics_count: 1,
+        }),
+      ])
+    );
+
+    const db = new sqlite3.Database(DB_PATH);
+    const state = await dbGet(
+      db,
+      'SELECT reward_claimed_at FROM user_quest_state WHERE id = ? LIMIT 1',
+      [EXPIRED_STATE_ID]
+    );
+    const ownedReward = await dbGet(
+      db,
+      `SELECT COUNT(*) AS cnt
+       FROM user_cosmetics uc
+       JOIN cosmetic_items ci ON ci.id = uc.cosmetic_id
+       WHERE uc.user_id = ? AND ci.key = ?`,
+      [PLAYER_ID, AUTO_CLAIM_REWARD_KEY]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(state.reward_claimed_at).toBeTruthy();
+    expect(ownedReward.cnt).toBe(1);
+  });
+
   test('claim grants cosmetics when entitlement is active', async ({ request }) => {
     const playerToken = signAuthToken({
       id: PLAYER_ID,
@@ -306,23 +444,26 @@ test.describe('Monetization + Growth entitlement lock', () => {
     });
 
     const response = await request.post(`/api/quests/${STATE_REWARD_ID}/claim`, {
-      headers: { Authorization: `Bearer ${playerToken}` },
+      headers: buildAuthHeaders(playerToken),
     });
     expect(response.status()).toBe(200);
     const payload = await response.json();
     expect(payload.ok).toBe(true);
     expect(payload.gained_cosmetics).toEqual(
-      expect.arrayContaining([expect.objectContaining({ key: REWARD_COSMETIC_KEY })])
+      expect.arrayContaining([
+        expect.objectContaining({ key: REWARD_COSMETIC_KEY }),
+        expect.objectContaining({ key: REWARD_BADGE_KEY, season: '2026_spring' }),
+      ])
     );
 
     const db = new sqlite3.Database(DB_PATH);
-    const ownedReward = await dbGet(
+    const ownedRewards = await dbGet(
       db,
       `SELECT COUNT(*) AS cnt
        FROM user_cosmetics uc
        JOIN cosmetic_items ci ON ci.id = uc.cosmetic_id
-       WHERE uc.user_id = ? AND ci.key = ?`,
-      [PLAYER_ID, REWARD_COSMETIC_KEY]
+       WHERE uc.user_id = ? AND ci.key IN (?, ?)`,
+      [PLAYER_ID, REWARD_COSMETIC_KEY, REWARD_BADGE_KEY]
     );
     const state = await dbGet(
       db,
@@ -331,7 +472,7 @@ test.describe('Monetization + Growth entitlement lock', () => {
     );
     await new Promise((resolve) => db.close(resolve));
 
-    expect(ownedReward.cnt).toBe(1);
+    expect(ownedRewards.cnt).toBe(2);
     expect(state.reward_claimed_at).toBeTruthy();
   });
 });

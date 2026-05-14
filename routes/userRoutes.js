@@ -172,9 +172,10 @@ async function fetchExpandedProfileCosmetics(userId) {
   const profileRow = await dbGet(
     `
     SELECT
-      primary_badge_key,
-      showcase_badge_keys_json,
-      header_stickers_json
+	      primary_badge_key,
+	      profile_background_key,
+	      showcase_badge_keys_json,
+	      header_stickers_json
     FROM user_profile_cosmetics
     WHERE user_id = ?
     LIMIT 1
@@ -189,7 +190,7 @@ async function fetchExpandedProfileCosmetics(userId) {
   }
 
   const placeholders = keys.map(() => '?').join(', ');
-  const items = await dbAll(
+  const cosmeticItems = await dbAll(
     `
     SELECT
       ci.key,
@@ -197,7 +198,8 @@ async function fetchExpandedProfileCosmetics(userId) {
       ci.name,
       ci.icon_emoji,
       COALESCE(ci.rarity, 'common') AS rarity,
-      ci.season
+      ci.season,
+      ci.meta_json
     FROM user_cosmetics uc
     JOIN cosmetic_items ci ON ci.id = uc.cosmetic_id
     WHERE uc.user_id = ?
@@ -205,8 +207,26 @@ async function fetchExpandedProfileCosmetics(userId) {
     `,
     [userId, ...keys]
   );
+  const backgroundItems = await dbAll(
+    `
+    SELECT
+      pbi.key,
+      'background' AS type,
+      pbi.name,
+      pbi.icon_emoji,
+      COALESCE(pbi.rarity, 'common') AS rarity,
+      pbi.season,
+      pbi.meta_json
+    FROM user_profile_backgrounds upb
+    JOIN profile_background_items pbi ON pbi.id = upb.background_id
+    WHERE upb.user_id = ?
+      AND pbi.key IN (${placeholders})
+      AND pbi.is_active = 1
+    `,
+    [userId, ...keys]
+  );
 
-  const itemByKey = makeKeyedCosmeticMap(items);
+  const itemByKey = makeKeyedCosmeticMap([...cosmeticItems, ...backgroundItems]);
   return buildExpandedProfileCosmetics(parsedProfile, itemByKey);
 }
 
