@@ -166,6 +166,13 @@
     - 같은 token은 upsert로 최신 사용자/기기 정보에 귀속한다.
   - `DELETE /api/push-tokens`
     - 인증 필수. body 또는 query의 `token`을 비활성화한다.
+- 마케팅 푸시
+  - `POST /api/admin/marketing-push-campaigns`
+    - 관리자 전용. 수동 마케팅 캠페인을 만들고 `push_delivery_queue`에 발송 대기 row를 쌓는다.
+  - 조건부 저녁 리마인더
+    - `MARKETING_PUSH_REMINDER_ENABLED=true`일 때 서버 내부 스케줄러가 매일 20:00 KST 실행 창에서 하루 1회 캠페인을 자동 생성한다.
+    - 대상 조건: 마케팅 푸시 동의, 활성 계정, 활성 push token, 최근 인증 세션, 과거 글 작성 이력, 오늘 KST 미작성.
+    - 실제 Expo 발송은 별도 워커인 `PUSH_DISPATCH_ENABLED=true`가 켜져 있어야 처리된다.
 - 이벤트 생성 정책
   - 내 글에 좋아요/북마크가 추가되면 글 작성자에게 활동 이벤트를 만든다.
   - 내 글에 댓글이 달리면 글 작성자에게 `comment_created` 이벤트를 만든다.

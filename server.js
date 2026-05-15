@@ -17,6 +17,7 @@ const { runMigrations } = require('./utils/migrations');
 const { reconcileMonetizationState } = require('./utils/monetizationState');
 const { cleanupExpiredSessions } = require('./utils/authSession');
 const { startPushDispatcher } = require('./services/pushDispatcher');
+const { startMarketingPushReminderScheduler } = require('./services/marketingPushReminder');
 
 // 환경 변수 및 메일/JWT 설정, DB는 각각 모듈에서 처리
 // (실제 DB 연결 로직은 db.js, 이메일/JWT 키는 config.js에서 초기화됨)
@@ -51,6 +52,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const PUSH_DISPATCH_ENABLED = process.env.PUSH_DISPATCH_ENABLED === 'true';
+const MARKETING_PUSH_REMINDER_ENABLED = process.env.MARKETING_PUSH_REMINDER_ENABLED === 'true';
 const PENDING_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
 const MONETIZATION_RECONCILE_INTERVAL_MS = 30 * 60 * 1000;
 const AUTH_SESSION_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
@@ -158,6 +160,15 @@ const startServer = async () => {
   if (PUSH_DISPATCH_ENABLED) {
     startPushDispatcher();
     console.log('[push/dispatcher] enabled');
+  }
+  if (MARKETING_PUSH_REMINDER_ENABLED) {
+    startMarketingPushReminderScheduler();
+    console.log('[marketing-push-reminder] enabled');
+    if (!PUSH_DISPATCH_ENABLED) {
+      console.warn(
+        '[marketing-push-reminder] PUSH_DISPATCH_ENABLED is not true; reminders will queue but not send.'
+      );
+    }
   }
 
   cleanupExpiredPending().catch((error) => {
