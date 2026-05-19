@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
@@ -159,26 +160,36 @@ const FEED_TITLE_BOX_PRESETS = {
 
 const TEXT_COLOR = '#473f36';
 const TEXT_FONT_WEIGHT = 600;
-const SVG_FONT_FAMILY =
-  "'Noto Serif KR','Nanum Myeongjo','Apple SD Gothic Neo','Malgun Gothic','Times New Roman',serif";
+const PREVIEW_FONT_DIR = path.join(__dirname, '..', 'public', 'fonts', 'glsoop-preview');
+const PREVIEW_FONT_FILES = {
+  serif: path.join(PREVIEW_FONT_DIR, 'Hahmlet.ttf'),
+  sans: path.join(PREVIEW_FONT_DIR, 'IBMPlexSansKR-Medium.ttf'),
+  hand: path.join(PREVIEW_FONT_DIR, 'Gaegu-Regular.ttf'),
+};
+const PREVIEW_FONT_FAMILY = {
+  serif: 'GlsPreviewSerif',
+  sans: 'GlsPreviewSans',
+  hand: 'GlsPreviewHand',
+};
+const SVG_FONT_FAMILY = `'${PREVIEW_FONT_FAMILY.serif}','Hahmlet','Nanum Myeongjo','Apple SD Gothic Neo','Malgun Gothic','Times New Roman',serif`;
 const FONT_META_REGEX = /<!--\s*FONT:(serif|sans|hand)\s*-->/i;
 const SVG_FONT_CONFIG = {
   serif: {
     key: 'serif',
     family:
-      "'Noto Serif KR','Nanum Myeongjo','Hahmlet','Apple SD Gothic Neo','Malgun Gothic','Times New Roman',serif",
+      `'${PREVIEW_FONT_FAMILY.serif}','Hahmlet','Nanum Myeongjo','Apple SD Gothic Neo','Malgun Gothic','Times New Roman',serif`,
     weight: 600,
   },
   sans: {
     key: 'sans',
     family:
-      "'Noto Sans KR','IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic','Arial',sans-serif",
+      `'${PREVIEW_FONT_FAMILY.sans}','IBM Plex Sans KR','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic','Arial',sans-serif`,
     weight: 500,
   },
   hand: {
     key: 'hand',
     family:
-      "'Nanum Pen Script','Gaegu','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',cursive",
+      `'${PREVIEW_FONT_FAMILY.hand}','Gaegu','Nanum Pen Script','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',cursive`,
     weight: 400,
   },
 };
@@ -1090,6 +1101,39 @@ function escapeXml(text) {
     .replace(/'/g, '&#39;');
 }
 
+function escapeCssString(text) {
+  return String(text || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function buildSvgFontFaceStyle() {
+  const serifUrl = pathToFileURL(PREVIEW_FONT_FILES.serif).href;
+  const sansUrl = pathToFileURL(PREVIEW_FONT_FILES.sans).href;
+  const handUrl = pathToFileURL(PREVIEW_FONT_FILES.hand).href;
+
+  return `
+    <style>
+      @font-face {
+        font-family: "${escapeCssString(PREVIEW_FONT_FAMILY.serif)}";
+        src: url("${escapeCssString(serifUrl)}") format("truetype");
+        font-weight: 400 700;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: "${escapeCssString(PREVIEW_FONT_FAMILY.sans)}";
+        src: url("${escapeCssString(sansUrl)}") format("truetype");
+        font-weight: 500;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: "${escapeCssString(PREVIEW_FONT_FAMILY.hand)}";
+        src: url("${escapeCssString(handUrl)}") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+      }
+    </style>
+  `.trim();
+}
+
 async function getTemplateMetadata(filePath) {
   if (templateMetaCache.has(filePath)) {
     return templateMetaCache.get(filePath);
@@ -1307,6 +1351,7 @@ function buildSvgTextOverlay({
   return `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    ${buildSvgFontFaceStyle()}
     ${defs.join('\n    ')}
   </defs>
   ${groups.join('\n  ')}
@@ -1571,6 +1616,7 @@ function buildSvgShareOverlay({
   return `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    ${buildSvgFontFaceStyle()}
     ${titleGroup.defs}
     ${bodyGroup.defs}
   </defs>
