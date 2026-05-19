@@ -3,6 +3,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const PREVIEW_SESSION_TTL_MS = 30 * 60 * 1000;
+const PREVIEW_SESSION_PAGE_CAP = 8;
 const PREVIEW_SESSION_DIR = path.join(__dirname, '..', 'tmp', 'feed-preview-sessions');
 const SESSION_ID_RE = /^[a-f0-9]{32}$/i;
 
@@ -134,6 +135,8 @@ async function createPreviewSession({
   const now = Date.now();
   const createdAt = new Date(now).toISOString();
   const expiresAt = new Date(now + PREVIEW_SESSION_TTL_MS).toISOString();
+  const manifestPageCount = Math.max(1, Number(manifest?.pageCount) || 1);
+  const pageCount = Math.min(manifestPageCount, PREVIEW_SESSION_PAGE_CAP);
   const session = {
     preview_session_id: previewSessionId,
     user_id: String(userId),
@@ -142,9 +145,9 @@ async function createPreviewSession({
     template: template || 'paper01',
     scale: Number.parseInt(scale, 10) === 2 ? 2 : 1,
     version: manifest?.version || '',
-    page_count: Math.max(1, Number(manifest?.pageCount) || 1),
-    page_cap: Math.max(1, Number(manifest?.pageCap) || 8),
-    is_truncated: Boolean(manifest?.isTruncated),
+    page_count: pageCount,
+    page_cap: PREVIEW_SESSION_PAGE_CAP,
+    is_truncated: Boolean(manifest?.isTruncated) || manifestPageCount > pageCount,
     post: post || null,
   };
 

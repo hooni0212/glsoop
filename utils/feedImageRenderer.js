@@ -5,7 +5,7 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v23';
+const RENDER_VERSION = 'feed-image-poc-v26';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 const FEED_IMAGE_PAGE_CAP = 24;
 const IMAGE_FORMAT_CONFIG = {
@@ -54,8 +54,8 @@ const TEMPLATE_CONFIG = {
 const LAYOUT_PRESETS = {
   oneLine: {
     topPct: 0.34,
-    leftPct: 0.29,
-    widthPct: 0.42,
+    leftPct: 0.22,
+    widthPct: 0.56,
     bottomPct: 0.34,
     fontSizeRatio: 0.041,
     lineHeightRatio: 1.14,
@@ -64,46 +64,46 @@ const LAYOUT_PRESETS = {
     verticalAlign: 'center',
   },
   short: {
-    topPct: 0.364,
-    leftPct: 0.336,
-    widthPct: 0.424,
-    bottomPct: 0.29,
+    topPct: 0.354,
+    leftPct: 0.23,
+    widthPct: 0.56,
+    bottomPct: 0.23,
     fontSizeRatio: 0.035,
-    lineHeightRatio: 1.15,
-    maxLines: 5,
+    lineHeightRatio: 1.13,
+    maxLines: 7,
     textAlign: 'center',
     verticalAlign: 'center',
   },
   medium: {
-    topPct: 0.462,
-    leftPct: 0.354,
-    widthPct: 0.41,
-    bottomPct: 0.126,
+    topPct: 0.415,
+    leftPct: 0.2,
+    widthPct: 0.64,
+    bottomPct: 0.075,
     fontSizeRatio: 0.0325,
-    lineHeightRatio: 1.13,
-    maxLines: 8,
-    textAlign: 'left',
-    verticalAlign: 'top',
-  },
-  long: {
-    topPct: 0.448,
-    leftPct: 0.322,
-    widthPct: 0.452,
-    bottomPct: 0.102,
-    fontSizeRatio: 0.03,
     lineHeightRatio: 1.12,
     maxLines: 12,
     textAlign: 'left',
     verticalAlign: 'top',
   },
+  long: {
+    topPct: 0.385,
+    leftPct: 0.22,
+    widthPct: 0.64,
+    bottomPct: 0.045,
+    fontSizeRatio: 0.03,
+    lineHeightRatio: 1.1,
+    maxLines: 18,
+    textAlign: 'left',
+    verticalAlign: 'top',
+  },
   xlong: {
-    topPct: 0.438,
-    leftPct: 0.299,
-    widthPct: 0.488,
-    bottomPct: 0.088,
+    topPct: 0.365,
+    leftPct: 0.22,
+    widthPct: 0.64,
+    bottomPct: 0.04,
     fontSizeRatio: 0.0275,
-    lineHeightRatio: 1.11,
-    maxLines: 15,
+    lineHeightRatio: 1.08,
+    maxLines: 22,
     textAlign: 'left',
     verticalAlign: 'top',
   },
@@ -111,46 +111,46 @@ const LAYOUT_PRESETS = {
 
 const FEED_TITLE_BOX_PRESETS = {
   oneLine: {
-    leftPct: 0.29,
+    leftPct: 0.22,
     topPct: 0.24,
-    widthPct: 0.42,
+    widthPct: 0.56,
     heightPct: 0.125,
     textAlign: 'center',
     verticalAlign: 'top',
     maxLines: 2,
   },
   short: {
-    leftPct: 0.336,
-    topPct: 0.256,
-    widthPct: 0.424,
-    heightPct: 0.122,
+    leftPct: 0.23,
+    topPct: 0.25,
+    widthPct: 0.56,
+    heightPct: 0.124,
     textAlign: 'center',
     verticalAlign: 'top',
     maxLines: 2,
   },
   medium: {
-    leftPct: 0.354,
-    topPct: 0.268,
-    widthPct: 0.41,
-    heightPct: 0.12,
-    textAlign: 'left',
-    verticalAlign: 'top',
-    maxLines: 2,
-  },
-  long: {
-    leftPct: 0.322,
-    topPct: 0.262,
-    widthPct: 0.452,
+    leftPct: 0.2,
+    topPct: 0.26,
+    widthPct: 0.64,
     heightPct: 0.124,
     textAlign: 'left',
     verticalAlign: 'top',
     maxLines: 2,
   },
-  xlong: {
-    leftPct: 0.299,
-    topPct: 0.258,
-    widthPct: 0.488,
+  long: {
+    leftPct: 0.22,
+    topPct: 0.252,
+    widthPct: 0.64,
     heightPct: 0.128,
+    textAlign: 'left',
+    verticalAlign: 'top',
+    maxLines: 2,
+  },
+  xlong: {
+    leftPct: 0.22,
+    topPct: 0.248,
+    widthPct: 0.64,
+    heightPct: 0.132,
     textAlign: 'left',
     verticalAlign: 'top',
     maxLines: 2,
@@ -189,18 +189,18 @@ const SHARE_LAYOUT_PRESETS = {
     fontSizeRatio: 0.041,
     lineHeightRatio: 1.14,
     title: {
-      leftPct: 0.29,
+      leftPct: 0.22,
       topPct: 0.24,
-      widthPct: 0.42,
+      widthPct: 0.56,
       heightPct: 0.125,
       textAlign: 'center',
       verticalAlign: 'top',
       maxLines: 2,
     },
     body: {
-      leftPct: 0.29,
+      leftPct: 0.22,
       topPct: 0.34,
-      widthPct: 0.42,
+      widthPct: 0.56,
       heightPct: 0.32,
       textAlign: 'center',
       verticalAlign: 'center',
@@ -209,90 +209,90 @@ const SHARE_LAYOUT_PRESETS = {
   },
   short: {
     fontSizeRatio: 0.035,
-    lineHeightRatio: 1.15,
+    lineHeightRatio: 1.13,
     title: {
-      leftPct: 0.336,
-      topPct: 0.256,
-      widthPct: 0.424,
-      heightPct: 0.122,
+      leftPct: 0.23,
+      topPct: 0.25,
+      widthPct: 0.56,
+      heightPct: 0.124,
       textAlign: 'center',
       verticalAlign: 'top',
       maxLines: 2,
     },
     body: {
-      leftPct: 0.336,
-      topPct: 0.364,
-      widthPct: 0.424,
-      heightPct: 0.346,
+      leftPct: 0.23,
+      topPct: 0.354,
+      widthPct: 0.56,
+      heightPct: 0.405,
       textAlign: 'center',
       verticalAlign: 'center',
-      maxLines: 6,
+      maxLines: 7,
     },
   },
   medium: {
     fontSizeRatio: 0.0325,
-    lineHeightRatio: 1.13,
-    title: {
-      leftPct: 0.354,
-      topPct: 0.268,
-      widthPct: 0.41,
-      heightPct: 0.12,
-      textAlign: 'left',
-      verticalAlign: 'top',
-      maxLines: 2,
-    },
-    body: {
-      leftPct: 0.354,
-      topPct: 0.462,
-      widthPct: 0.41,
-      heightPct: 0.412,
-      textAlign: 'left',
-      verticalAlign: 'top',
-      maxLines: 8,
-    },
-  },
-  long: {
-    fontSizeRatio: 0.03,
     lineHeightRatio: 1.12,
     title: {
-      leftPct: 0.322,
-      topPct: 0.262,
-      widthPct: 0.452,
+      leftPct: 0.2,
+      topPct: 0.26,
+      widthPct: 0.64,
       heightPct: 0.124,
       textAlign: 'left',
       verticalAlign: 'top',
       maxLines: 2,
     },
     body: {
-      leftPct: 0.322,
-      topPct: 0.448,
-      widthPct: 0.452,
-      heightPct: 0.45,
+      leftPct: 0.2,
+      topPct: 0.415,
+      widthPct: 0.64,
+      heightPct: 0.51,
       textAlign: 'left',
       verticalAlign: 'top',
-      maxLines: 11,
+      maxLines: 12,
     },
   },
-  xlong: {
-    fontSizeRatio: 0.0275,
-    lineHeightRatio: 1.11,
+  long: {
+    fontSizeRatio: 0.03,
+    lineHeightRatio: 1.1,
     title: {
-      leftPct: 0.299,
-      topPct: 0.258,
-      widthPct: 0.488,
+      leftPct: 0.22,
+      topPct: 0.252,
+      widthPct: 0.64,
       heightPct: 0.128,
       textAlign: 'left',
       verticalAlign: 'top',
       maxLines: 2,
     },
     body: {
-      leftPct: 0.299,
-      topPct: 0.438,
-      widthPct: 0.488,
-      heightPct: 0.474,
+      leftPct: 0.22,
+      topPct: 0.385,
+      widthPct: 0.64,
+      heightPct: 0.575,
       textAlign: 'left',
       verticalAlign: 'top',
-      maxLines: 13,
+      maxLines: 18,
+    },
+  },
+  xlong: {
+    fontSizeRatio: 0.0275,
+    lineHeightRatio: 1.08,
+    title: {
+      leftPct: 0.22,
+      topPct: 0.248,
+      widthPct: 0.64,
+      heightPct: 0.132,
+      textAlign: 'left',
+      verticalAlign: 'top',
+      maxLines: 2,
+    },
+    body: {
+      leftPct: 0.22,
+      topPct: 0.365,
+      widthPct: 0.64,
+      heightPct: 0.595,
+      textAlign: 'left',
+      verticalAlign: 'top',
+      maxLines: 22,
     },
   },
 };
@@ -400,6 +400,33 @@ function normalizePostText(raw) {
     .replace(/\n{3,}/g, '\n\n')
     .replace(/\u200b/g, '')
     .trim();
+}
+
+function parsePostContentPages(rawContentPages) {
+  if (!rawContentPages) return null;
+
+  let parsed = rawContentPages;
+  if (typeof parsed === 'string') {
+    const trimmed = parsed.trim();
+    if (!trimmed) return null;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  if (!Array.isArray(parsed)) return null;
+
+  const pages = parsed
+    .slice(0, FEED_IMAGE_PAGE_CAP)
+    .map((page) => normalizePostText(page));
+
+  while (pages.length > 1 && !pages[pages.length - 1]) {
+    pages.pop();
+  }
+
+  return pages.some((page) => page.trim()) ? pages : null;
 }
 
 function selectLengthPreset(textLength) {
@@ -1100,6 +1127,7 @@ function buildRenderVersion({ post, templateKey, scale, renderMode }) {
     post_id: post?.id,
     title: post?.title || '',
     content: post?.content || '',
+    content_pages: post?.content_pages || '',
     created_at: post?.created_at || '',
     layout_json: post?.layout_json || '',
   });
@@ -1561,6 +1589,7 @@ function buildFeedModeRenderPlan({
 }) {
   const titleText = normalizePostText(post?.title) || '';
   const bodyText = normalizePostText(post?.content) || titleText || ' ';
+  const manualContentPages = parsePostContentPages(post?.content_pages);
   const font = resolvePostFont(post?.content);
   const presetKey = selectLengthPreset(bodyText.length);
   const preset = LAYOUT_PRESETS[presetKey];
@@ -1604,8 +1633,8 @@ function buildFeedModeRenderPlan({
       effectivePreset = {
         ...preset,
         topPct: 0.34,
-        leftPct: 0.26,
-        widthPct: 0.48,
+        leftPct: 0.22,
+        widthPct: 0.56,
         bottomPct: 0.34,
         textAlign: 'center',
         verticalAlign: 'center',
@@ -1630,13 +1659,21 @@ function buildFeedModeRenderPlan({
     }
   }
 
-  const pagination = paginateTextLines(allLines, pageMaxLines, FEED_IMAGE_PAGE_CAP);
+  const pagination = manualContentPages
+    ? {
+        pages: [],
+        pageCount: manualContentPages.length,
+        isTruncated: false,
+        pageCap: FEED_IMAGE_PAGE_CAP,
+      }
+    : paginateTextLines(allLines, pageMaxLines, FEED_IMAGE_PAGE_CAP);
 
   return {
     pageCount: pagination.pageCount,
     pageCap: pagination.pageCap,
     isTruncated: pagination.isTruncated,
     pages: pagination.pages,
+    manualContentPages,
     parsedLayout,
     presetKey,
     preset,
@@ -1660,7 +1697,7 @@ function buildFeedModeRenderPlan({
       : effectivePreset.fontSizeRatio,
     textAlign: customBodyBox?.align || effectivePreset.textAlign,
     verticalAlign: effectivePreset.verticalAlign,
-    layoutTag: `${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}-font-${font.key}${
+    layoutTag: `${manualContentPages ? 'manual-pages-' : ''}${hasCustomBodyLayout ? 'custom' : 'preset'}-${presetKey}-font-${font.key}${
       shouldRenderTitleInImage ? '-with-title' : ''
     }${hasCustomFooterLayout ? '-with-footer' : ''}`,
   };
@@ -1683,7 +1720,6 @@ async function renderFeedModePageBuffer({
   });
   const normalizedPage = Math.max(1, Number.parseInt(page, 10) || 1);
   const pageIndex = Math.min(normalizedPage, plan.pageCount) - 1;
-  const pageLines = plan.pages[pageIndex] || plan.pages[0] || [''];
   const resolvedPageLayout = resolvePostLayoutPage(plan.parsedLayout, pageIndex);
   const resolvedBodyLayout = resolvedPageLayout?.text_box || null;
   const bodyBox = resolvedBodyLayout
@@ -1699,6 +1735,20 @@ async function renderFeedModePageBuffer({
     outputWidth * plan.bodyFontSizeRatio * pageBodyFontScale
   );
   const pageLineHeightPx = pageFontSizePx * pageBodyLineHeightRatio;
+  const manualPageText = Array.isArray(plan.manualContentPages)
+    ? plan.manualContentPages[pageIndex]
+    : null;
+  const pageMaxLines = resolveBodyPageMaxLines(bodyBox.height, pageLineHeightPx);
+  const pageLines =
+    manualPageText != null
+      ? layoutTextLines(
+          manualPageText,
+          Math.max(20, bodyBox.width),
+          pageFontSizePx,
+          pageMaxLines,
+          pageBodyLetterSpacingEm
+        )
+      : plan.pages[pageIndex] || plan.pages[0] || [''];
 
   let titleConfig = null;
   if (pageIndex === 0 && plan.shouldRenderTitleInImage) {

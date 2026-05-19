@@ -26,6 +26,9 @@ const LAYOUT_UNIT_NORMALIZED = 'normalized';
 const PREVIEW_FONT_SCALE_RANGE = { min: 0.7, max: 2.0 };
 const PREVIEW_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.2 };
 const PREVIEW_LETTER_SPACING_RANGE = { min: -0.04, max: 0.08 };
+const PREVIEW_CONTENT_PAGE_MAX_COUNT = 8;
+const PREVIEW_CONTENT_PAGE_MAX_CHARS = 1000;
+const PREVIEW_CONTENT_PAGE_MAX_TOTAL_CHARS = 8000;
 
 function dbGetAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -53,6 +56,60 @@ function pickPreviewText(raw, maxLen) {
   const value = String(raw || '').trim();
   if (!value) return '';
   return value.slice(0, maxLen);
+}
+
+function normalizePreviewContentPage(raw) {
+  return String(raw ?? '').replace(/\r\n?/g, '\n').trim();
+}
+
+function countCompactPreviewChars(value) {
+  return Array.from(String(value || '').replace(/\s/g, '')).length;
+}
+
+function parsePreviewContentPages(body = {}) {
+  if (!Object.prototype.hasOwnProperty.call(body, 'content_pages')) {
+    return { provided: false, pages: null };
+  }
+
+  if (!Array.isArray(body.content_pages)) {
+    return { provided: true, error: 'content_pages는 배열이어야 합니다.' };
+  }
+
+  if (body.content_pages.some((page) => typeof page !== 'string')) {
+    return { provided: true, error: 'content_pages는 문자열 배열이어야 합니다.' };
+  }
+
+  const pages = body.content_pages
+    .slice(0, PREVIEW_CONTENT_PAGE_MAX_COUNT + 1)
+    .map(normalizePreviewContentPage);
+
+  while (pages.length > 1 && !pages[pages.length - 1]) {
+    pages.pop();
+  }
+
+  if (pages.length < 1 || !pages.some(Boolean)) {
+    return { provided: true, error: '미리보기 페이지 본문이 비어 있습니다.' };
+  }
+
+  if (pages.length > PREVIEW_CONTENT_PAGE_MAX_COUNT) {
+    return { provided: true, error: `미리보기는 최대 ${PREVIEW_CONTENT_PAGE_MAX_COUNT}장까지 지원합니다.` };
+  }
+
+  if (pages.some((page) => countCompactPreviewChars(page) > PREVIEW_CONTENT_PAGE_MAX_CHARS)) {
+    return {
+      provided: true,
+      error: `한 페이지는 최대 ${PREVIEW_CONTENT_PAGE_MAX_CHARS}자까지 미리보기할 수 있습니다.`,
+    };
+  }
+
+  if (countCompactPreviewChars(pages.join('')) > PREVIEW_CONTENT_PAGE_MAX_TOTAL_CHARS) {
+    return {
+      provided: true,
+      error: `전체 본문은 최대 ${PREVIEW_CONTENT_PAGE_MAX_TOTAL_CHARS}자까지 미리보기할 수 있습니다.`,
+    };
+  }
+
+  return { provided: true, pages };
 }
 
 function toFiniteQueryNumber(raw) {
@@ -104,7 +161,14 @@ function normalizePreviewDraftPost(body = {}) {
 
   const rawContent = typeof body.content === 'string' ? body.content : '';
   const content = rawContent.trim();
-  if (!normalizePostText(content)) {
+  const contentPages = parsePreviewContentPages(body);
+  if (contentPages.error) {
+    return {
+      error: contentPages.error,
+    };
+  }
+
+  if (!normalizePostText(content) && !contentPages.pages?.some(Boolean)) {
     return {
       error: '미리보기 본문이 비어 있습니다.',
     };
@@ -129,6 +193,7 @@ function normalizePreviewDraftPost(body = {}) {
       created_at: parsePreviewCreatedAt(body.created_at),
       category: parsePreviewCategory(body.category),
       layout_json: layoutJson,
+      content_pages: contentPages.provided ? JSON.stringify(contentPages.pages) : null,
     },
   };
 }
@@ -341,7 +406,8 @@ router.get('/feed-images/post/:postId', async (req, res) => {
         content,
         created_at,
         category,
-        layout_json
+        layout_json,
+        content_pages
       FROM posts
       WHERE id = ?
       LIMIT 1
@@ -445,7 +511,8 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
         content,
         created_at,
         category,
-        layout_json
+        layout_json,
+        content_pages
       FROM posts
       WHERE id = ?
       LIMIT 1
@@ -544,6 +611,7 @@ router.post('/feed-images/preview/sessions', authRequired, async (req, res) => {
 
 router.get('/feed-images/preview/sessions/:sessionId', authOptional, async (req, res) => {
   const page = parsePageNumber(req.query.page);
+  const imageFormat = normalizeImageFormat(req.query.format);
   if (!page) {
     return res.status(400).json({
       ok: false,
@@ -587,6 +655,7 @@ router.get('/feed-images/preview/sessions/:sessionId', authOptional, async (req,
       scale: session.scale,
       renderMode: 'feed',
       page,
+      imageFormat,
     });
 
     res.set('Cache-Control', 'no-store, max-age=0');
@@ -596,6 +665,7 @@ router.get('/feed-images/preview/sessions/:sessionId', authOptional, async (req,
     res.set('X-Feed-Image-Cache', rendered.cacheHit ? 'HIT' : 'MISS');
     res.set('X-Feed-Image-Template', rendered.template || session.template || 'paper01');
     res.set('X-Feed-Image-Scale', String(rendered.scale || session.scale || 1));
+    res.set('X-Feed-Image-Format', rendered.imageFormat || imageFormat);
     res.set('X-Feed-Image-Page', String(rendered.page || page));
     res.set('X-Feed-Image-Page-Count', String(session.page_count || 1));
     res.set('X-Feed-Image-Truncated', session.is_truncated ? '1' : '0');
@@ -616,6 +686,7 @@ router.get('/feed-images/preview/sessions/:sessionId', authOptional, async (req,
 router.get('/feed-images/preview', async (req, res) => {
   const template = normalizeTemplateKey(req.query.template);
   const scale = normalizeScale(req.query.scale);
+  const imageFormat = normalizeImageFormat(req.query.format);
   const previewLayout = parsePreviewLayoutFromQuery(req.query);
 
   if (previewLayout.error) {
@@ -651,6 +722,7 @@ router.get('/feed-images/preview', async (req, res) => {
       templateKey: template,
       scale,
       renderMode: 'feed',
+      imageFormat,
     });
 
     res.set('Cache-Control', 'no-store, max-age=0');
@@ -659,6 +731,7 @@ router.get('/feed-images/preview', async (req, res) => {
     res.set('Content-Type', rendered.contentType || 'image/webp');
     res.set('X-Feed-Image-Template', rendered.template || template);
     res.set('X-Feed-Image-Scale', String(rendered.scale || scale));
+    res.set('X-Feed-Image-Format', rendered.imageFormat || imageFormat);
 
     return res.status(200).send(rendered.buffer);
   } catch (error) {

@@ -444,13 +444,16 @@ test.describe('Post layout letter spacing', () => {
     expect(detailBody.post.image_url).toBe(detailBody.post.primary_image);
     expect(detailBody.post.primary_image).toBe(detailBody.post.images[0]);
     expect(detailBody.post.has_multiple).toBe(true);
-    expect(detailBody.post.images.length).toBe(8);
     expect(detailBody.post.render_images.primary_image).toBe(detailBody.post.primary_image);
     expect(detailBody.post.render_images.images).toEqual(detailBody.post.images);
     expect(detailBody.post.render_images.has_multiple).toBe(true);
-    expect(detailBody.post.render_images.page_count).toBe(8);
-    expect(detailBody.post.render_images.page_cap).toBe(8);
-    expect(detailBody.post.render_images.is_truncated).toBe(true);
+    expect(detailBody.post.render_images.page_count).toBeGreaterThan(1);
+    expect(detailBody.post.render_images.page_count).toBeLessThanOrEqual(
+      detailBody.post.render_images.page_cap
+    );
+    expect(detailBody.post.images.length).toBe(detailBody.post.render_images.page_count);
+    expect(detailBody.post.render_images.page_cap).toBe(24);
+    expect(detailBody.post.render_images.is_truncated).toBe(false);
 
     const pageTwoResponse = await request.get(`/api/feed-images/post/${postId}`, {
       params: { template: 'paper01', scale: '2', page: '2' },
@@ -458,16 +461,22 @@ test.describe('Post layout letter spacing', () => {
     expect(pageTwoResponse.status()).toBe(200);
     expect(pageTwoResponse.headers()['content-type']).toContain('image/');
     expect(pageTwoResponse.headers()['x-feed-image-page']).toBe('2');
-    expect(pageTwoResponse.headers()['x-feed-image-page-count']).toBe('8');
-    expect(pageTwoResponse.headers()['x-feed-image-truncated']).toBe('1');
+    expect(pageTwoResponse.headers()['x-feed-image-page-count']).toBe(
+      String(detailBody.post.render_images.page_count)
+    );
+    expect(pageTwoResponse.headers()['x-feed-image-truncated']).toBe('0');
 
     const overflowPageResponse = await request.get(`/api/feed-images/post/${postId}`, {
-      params: { template: 'paper01', scale: '2', page: '9' },
+      params: {
+        template: 'paper01',
+        scale: '2',
+        page: String(detailBody.post.render_images.page_count + 1),
+      },
     });
     expect(overflowPageResponse.status()).toBe(404);
   });
 
-  test('keeps legacy posts on single rendered image metadata', async ({ request }) => {
+  test('returns multipage render metadata for posts without custom layout', async ({ request }) => {
     const token = await loginAsLayoutWriter(request);
     const headers = { Authorization: `Bearer ${token}` };
 
@@ -493,17 +502,20 @@ test.describe('Post layout letter spacing', () => {
     expect(detailBody.ok).toBe(true);
     expect(detailBody.post.image_url).toBe(detailBody.post.primary_image);
     expect(detailBody.post.primary_image).toBe(detailBody.post.images[0]);
-    expect(detailBody.post.images.length).toBe(1);
-    expect(detailBody.post.has_multiple).toBe(false);
-    expect(detailBody.post.render_images.page_count).toBe(1);
-    expect(detailBody.post.render_images.page_cap).toBe(8);
-    expect(detailBody.post.render_images.has_multiple).toBe(false);
-    expect(detailBody.post.render_images.is_truncated).toBe(true);
+    expect(detailBody.post.images.length).toBeGreaterThan(1);
+    expect(detailBody.post.has_multiple).toBe(true);
+    expect(detailBody.post.render_images.page_count).toBe(detailBody.post.images.length);
+    expect(detailBody.post.render_images.page_cap).toBe(24);
+    expect(detailBody.post.render_images.has_multiple).toBe(true);
+    expect(detailBody.post.render_images.is_truncated).toBe(false);
 
     const secondPageResponse = await request.get(`/api/feed-images/post/${postId}`, {
       params: { template: 'paper01', scale: '2', page: '2' },
     });
-    expect(secondPageResponse.status()).toBe(404);
+    expect(secondPageResponse.status()).toBe(200);
+    expect(secondPageResponse.headers()['x-feed-image-page-count']).toBe(
+      String(detailBody.post.render_images.page_count)
+    );
   });
 
   test('accepts layout version 2 and preserves multipage metadata after reset-like save', async ({ request }) => {
@@ -554,9 +566,13 @@ test.describe('Post layout letter spacing', () => {
     expect(detailResponse.status()).toBe(200);
     const detailBody = await detailResponse.json();
     expect(detailBody.ok).toBe(true);
-    expect(detailBody.post.render_images.page_count).toBe(8);
+    expect(detailBody.post.render_images.page_count).toBeGreaterThan(1);
+    expect(detailBody.post.render_images.page_count).toBeLessThanOrEqual(
+      detailBody.post.render_images.page_cap
+    );
     expect(detailBody.post.has_multiple).toBe(true);
-    expect(detailBody.post.images.length).toBe(8);
+    expect(detailBody.post.images.length).toBe(detailBody.post.render_images.page_count);
+    expect(detailBody.post.render_images.page_cap).toBe(24);
 
     const updatedEditResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
     expect(updatedEditResponse.status()).toBe(200);
@@ -618,6 +634,152 @@ test.describe('Post layout letter spacing', () => {
     const publicPageTwoResponse = await request.get(body.images[1]);
     expect(publicPageTwoResponse.status()).toBe(200);
     expect(publicPageTwoResponse.headers()["content-type"]).toContain("image/webp");
+
+    const pngPageTwoResponse = await request.get(`${body.images[1]}&format=png`);
+    expect(pngPageTwoResponse.status()).toBe(200);
+    expect(pngPageTwoResponse.headers()["content-type"]).toContain("image/png");
+    expect(pngPageTwoResponse.headers()["x-feed-image-format"]).toBe("png");
+    const pngPageTwoMetadata = await sharp(Buffer.from(await pngPageTwoResponse.body())).metadata();
+    expect(pngPageTwoMetadata.format).toBe("png");
+  });
+
+  test('stores manual content_pages and renders preserved page boundaries', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+    const contentPages = [
+      '수동 1페이지입니다. 첫 페이지는 짧게 유지합니다.',
+      '수동 2페이지입니다. 자동 pagination 없이 이 장으로 렌더링되어야 합니다.',
+      '수동 3페이지입니다. 배열 순서가 페이지 순서입니다.',
+    ];
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '수동 페이지 저장',
+        content: `<!--FONT:sans-->${contentPages.join('\n\n')}`,
+        content_pages: contentPages,
+        category: 'essay',
+        layout_json: buildLayoutPayloadV2(),
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    const editResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
+    expect(editResponse.status()).toBe(200);
+    const editBody = await editResponse.json();
+    expect(editBody.post.content_pages).toEqual(contentPages);
+    expect(editBody.post.content).toContain('FONT:sans');
+
+    const detailResponse = await request.get(`/api/posts/${postId}`, { headers });
+    expect(detailResponse.status()).toBe(200);
+    const detailBody = await detailResponse.json();
+    expect(detailBody.post.render_images.page_count).toBe(3);
+    expect(detailBody.post.images.length).toBe(3);
+    expect(detailBody.post.render_images.is_truncated).toBe(false);
+
+    const pageThreeResponse = await request.get(`/api/feed-images/post/${postId}`, {
+      params: { template: 'paper01', scale: '2', page: '3' },
+    });
+    expect(pageThreeResponse.status()).toBe(200);
+    expect(pageThreeResponse.headers()['x-feed-image-page']).toBe('3');
+    expect(pageThreeResponse.headers()['x-feed-image-page-count']).toBe('3');
+    expect(pageThreeResponse.headers()['x-feed-image-layout']).toContain('manual-pages');
+    expect(pageThreeResponse.headers()['x-feed-image-layout']).toContain('font-sans');
+
+    const updatePages = ['수정 1페이지입니다.', '수정 2페이지입니다.'];
+    const updateResponse = await request.put(`/api/posts/${postId}`, {
+      headers,
+      data: {
+        title: '수동 페이지 수정',
+        content: `<!--FONT:hand-->${updatePages.join('\n\n')}`,
+        content_pages: updatePages,
+        category: 'essay',
+        hashtags: [],
+        layout_json: buildLayoutPayloadV2(),
+      },
+    });
+    expect(updateResponse.status()).toBe(200);
+
+    const updatedEditResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
+    expect(updatedEditResponse.status()).toBe(200);
+    const updatedEditBody = await updatedEditResponse.json();
+    expect(updatedEditBody.post.content_pages).toEqual(updatePages);
+  });
+
+  test('creates preview sessions from manual content_pages', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+    const contentPages = ['프리뷰 1페이지', '프리뷰 2페이지', '프리뷰 3페이지'];
+
+    const response = await request.post('/api/feed-images/preview/sessions', {
+      headers,
+      data: {
+        title: '수동 페이지 프리뷰',
+        content: `<!--FONT:serif-->${contentPages.join('\n\n')}`,
+        content_pages: contentPages,
+        content_format: 'plain',
+        category: 'essay',
+        template: 'paper01',
+        scale: 1,
+        layout_json: buildLayoutPayloadV2(),
+      },
+    });
+
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.ok).toBe(true);
+    expect(body.images.length).toBe(3);
+    expect(body.render_images.page_count).toBe(3);
+    expect(body.render_images.is_truncated).toBe(false);
+
+    const pageTwoResponse = await request.get(body.images[1], { headers });
+    expect(pageTwoResponse.status()).toBe(200);
+    expect(pageTwoResponse.headers()['x-feed-image-page']).toBe('2');
+    expect(pageTwoResponse.headers()['x-feed-image-page-count']).toBe('3');
+    expect(pageTwoResponse.headers()['x-feed-image-layout']).toContain('manual-pages');
+  });
+
+  test('rejects invalid manual content_pages payloads', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const tooManyPages = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '페이지 초과',
+        content: '본문',
+        content_pages: Array.from({ length: 9 }, (_item, index) => `페이지 ${index + 1}`),
+        category: 'essay',
+      },
+    });
+    expect(tooManyPages.status()).toBe(400);
+    expect((await tooManyPages.json()).message).toContain('최대 8장');
+
+    const emptyPages = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '빈 페이지',
+        content: '본문',
+        content_pages: ['', '   '],
+        category: 'essay',
+      },
+    });
+    expect(emptyPages.status()).toBe(400);
+
+    const tooLongPage = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '긴 페이지',
+        content: '본문',
+        content_pages: ['가'.repeat(1001)],
+        category: 'essay',
+      },
+    });
+    expect(tooLongPage.status()).toBe(400);
+    expect((await tooLongPage.json()).message).toContain('1000자');
   });
 
   test('caps preview sessions at eight pages and expires them with 410', async ({ request }) => {

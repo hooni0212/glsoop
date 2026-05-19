@@ -54,6 +54,10 @@ const LAYOUT_VALIDATION_ERROR_MESSAGE = '레이아웃 데이터가 올바르지 
 const LAYOUT_FONT_SCALE_RANGE = { min: 0.7, max: 2.0 };
 const LAYOUT_LINE_HEIGHT_RANGE = { min: 1.0, max: 2.2 };
 const LAYOUT_LETTER_SPACING_RANGE = { min: -0.04, max: 0.08 };
+const CONTENT_PAGE_MAX_COUNT = 8;
+const CONTENT_PAGE_MAX_CHARS = 1000;
+const CONTENT_PAGE_MAX_TOTAL_CHARS = 8000;
+const FONT_META_REGEX = /<!--\s*FONT:(serif|sans|hand)\s*-->/i;
 const DEFAULT_LAYOUT_TITLE_BOX = {
   x: 0.336,
   y: 0.256,
@@ -713,6 +717,83 @@ function parseLayoutInputFromBody(body = {}) {
   };
 }
 
+function normalizeManualContentPage(raw) {
+  return String(raw ?? '').replace(/\r\n?/g, '\n').trim();
+}
+
+function countCompactContentChars(value) {
+  return Array.from(String(value || '').replace(/\s/g, '')).length;
+}
+
+function extractFontMeta(raw) {
+  const match = String(raw || '').match(FONT_META_REGEX);
+  return match?.[1] ? `<!--FONT:${match[1].toLowerCase()}-->` : '';
+}
+
+function parseContentPagesInput(body = {}) {
+  if (!hasOwn(body, 'content_pages')) {
+    return { provided: false, pages: null, storageValue: null, flattenedContent: null };
+  }
+
+  if (!Array.isArray(body.content_pages)) {
+    return { provided: true, error: 'content_pages는 배열이어야 합니다.' };
+  }
+
+  if (body.content_pages.some((page) => typeof page !== 'string')) {
+    return { provided: true, error: 'content_pages는 문자열 배열이어야 합니다.' };
+  }
+
+  const pages = body.content_pages
+    .slice(0, CONTENT_PAGE_MAX_COUNT + 1)
+    .map(normalizeManualContentPage);
+
+  while (pages.length > 1 && !pages[pages.length - 1]) {
+    pages.pop();
+  }
+
+  if (pages.length < 1 || !pages.some(Boolean)) {
+    return { provided: true, error: '페이지 본문을 한 장 이상 입력해주세요.' };
+  }
+
+  if (pages.length > CONTENT_PAGE_MAX_COUNT) {
+    return { provided: true, error: `페이지는 최대 ${CONTENT_PAGE_MAX_COUNT}장까지 작성할 수 있습니다.` };
+  }
+
+  const pageTooLong = pages.some(
+    (page) => countCompactContentChars(page) > CONTENT_PAGE_MAX_CHARS
+  );
+  if (pageTooLong) {
+    return { provided: true, error: `한 페이지는 최대 ${CONTENT_PAGE_MAX_CHARS}자까지 작성할 수 있습니다.` };
+  }
+
+  const totalChars = countCompactContentChars(pages.join(''));
+  if (totalChars > CONTENT_PAGE_MAX_TOTAL_CHARS) {
+    return { provided: true, error: `전체 본문은 최대 ${CONTENT_PAGE_MAX_TOTAL_CHARS}자까지 작성할 수 있습니다.` };
+  }
+
+  const safePages = pages.map((page) => sanitizeForStorage(page));
+  return {
+    provided: true,
+    pages: safePages,
+    storageValue: JSON.stringify(safePages),
+    flattenedContent: pages.join('\n\n'),
+  };
+}
+
+function parseStoredContentPages(raw) {
+  if (!raw) return [];
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch (_error) {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed.map((page) => String(page ?? '')).slice(0, CONTENT_PAGE_MAX_COUNT);
+}
+
 function extractTagsFromQuery(query = {}) {
   if (query.tags) {
     const tags = String(query.tags)
@@ -850,9 +931,16 @@ router.post('/posts', authRequired, async (req, res) => {
   const visibility = normalizeVisibility(req.body?.visibility);
   const commentPolicy = normalizeCommentPolicy(req.body?.comment_policy);
   const layoutInput = parseLayoutInputFromBody(req.body);
+  const contentPagesInput = parseContentPagesInput(req.body);
   const questContext = req.body?.quest_context || null;
 
   if (!normalizedCategory) return;
+  if (contentPagesInput.error) {
+    return res.status(400).json({
+      ok: false,
+      message: contentPagesInput.error,
+    });
+  }
   if (layoutInput.error) {
     return res.status(400).json({
       ok: false,
@@ -860,13 +948,17 @@ router.post('/posts', authRequired, async (req, res) => {
     });
   }
 
-  if (!title || !content) {
+  const contentForStorage = contentPagesInput.provided
+    ? `${extractFontMeta(content)}${contentPagesInput.flattenedContent || ''}`
+    : content;
+
+  if (!title || !contentForStorage) {
     return res
       .status(400)
       .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
   }
 
-  const safeContent = sanitizeForStorage(content);
+  const safeContent = sanitizeForStorage(contentForStorage);
   let newPostId = null;
   let questCompletion = null;
   let tagErr = null;
@@ -875,13 +967,14 @@ router.post('/posts', authRequired, async (req, res) => {
     await dbRunAsync('BEGIN IMMEDIATE;');
     const insertResult = await dbRunAsync(
       `
-        INSERT INTO posts (user_id, title, content, category, layout_json, visibility, comment_policy)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO posts (user_id, title, content, content_pages, category, layout_json, visibility, comment_policy)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         userId,
         title,
         safeContent,
+        contentPagesInput.provided ? contentPagesInput.storageValue : null,
         normalizedCategory,
         layoutInput.provided ? layoutInput.value : null,
         visibility,
@@ -938,8 +1031,15 @@ router.put('/posts/:id', authRequired, (req, res) => {
   const visibility = normalizeVisibility(req.body?.visibility);
   const commentPolicy = normalizeCommentPolicy(req.body?.comment_policy);
   const layoutInput = parseLayoutInputFromBody(req.body);
+  const contentPagesInput = parseContentPagesInput(req.body);
 
   if (!normalizedCategory) return;
+  if (contentPagesInput.error) {
+    return res.status(400).json({
+      ok: false,
+      message: contentPagesInput.error,
+    });
+  }
   if (layoutInput.error) {
     return res.status(400).json({
       ok: false,
@@ -947,13 +1047,17 @@ router.put('/posts/:id', authRequired, (req, res) => {
     });
   }
 
-  if (!title || !content) {
+  const contentForStorage = contentPagesInput.provided
+    ? `${extractFontMeta(content)}${contentPagesInput.flattenedContent || ''}`
+    : content;
+
+  if (!title || !contentForStorage) {
     return res
       .status(400)
       .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
   }
 
-  const safeContent = sanitizeForStorage(content);
+  const safeContent = sanitizeForStorage(contentForStorage);
 
   // 수정 권한 확인(작성자 또는 관리자만 허용)
   db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (err, row) => {
@@ -980,13 +1084,21 @@ router.put('/posts/:id', authRequired, (req, res) => {
     const updateFields = [
       'title = ?',
       'content = ?',
+      'content_pages = ?',
       'category = ?',
       'visibility = ?',
       'comment_policy = ?',
       'visibility_updated_at = CURRENT_TIMESTAMP',
       'comment_policy_updated_at = CURRENT_TIMESTAMP',
     ];
-    const updateParams = [title, safeContent, normalizedCategory, visibility, commentPolicy];
+    const updateParams = [
+      title,
+      safeContent,
+      contentPagesInput.provided ? contentPagesInput.storageValue : null,
+      normalizedCategory,
+      visibility,
+      commentPolicy,
+    ];
     if (layoutInput.provided) {
       updateFields.push('layout_json = ?');
       updateParams.push(layoutInput.value);
@@ -1092,6 +1204,7 @@ router.get('/posts/my', authRequired, (req, res) => {
       p.title,
       p.content,
       p.layout_json,
+      p.content_pages,
       ${CATEGORY_SQL} AS category,
       ${VISIBILITY_SQL} AS visibility,
       ${COMMENT_POLICY_SQL} AS comment_policy,
@@ -1157,6 +1270,7 @@ router.get('/posts/liked', authRequired, (req, res) => {
       p.title,
       p.content,
       p.layout_json,
+      p.content_pages,
       ${CATEGORY_SQL} AS category,
       ${VISIBILITY_SQL} AS visibility,
       ${COMMENT_POLICY_SQL} AS comment_policy,
@@ -1272,6 +1386,7 @@ function handleFeedRequest(req, res) {
         p.title,
         p.content,
         p.layout_json,
+        p.content_pages,
         p.created_at,
         ${CATEGORY_SQL} AS category,
         ${VISIBILITY_SQL} AS visibility,
@@ -1564,6 +1679,7 @@ router.get('/posts/:id/related', authOptional, (req, res) => {
           p.title,
           p.content,
           p.layout_json,
+          p.content_pages,
           ${CATEGORY_SQL} AS category,
           ${VISIBILITY_SQL} AS visibility,
           ${COMMENT_POLICY_SQL} AS comment_policy,
@@ -1726,6 +1842,7 @@ router.get('/posts/:id/edit', authRequired, (req, res) => {
       p.title,
       p.content,
       p.layout_json,
+      p.content_pages,
       ${CATEGORY_SQL} AS category,
       ${VISIBILITY_SQL} AS visibility,
       ${COMMENT_POLICY_SQL} AS comment_policy,
@@ -1763,6 +1880,7 @@ router.get('/posts/:id/edit', authRequired, (req, res) => {
           id: row.id,
           title: row.title,
           content: row.content,
+          content_pages: parseStoredContentPages(row.content_pages),
           layout_json: row.layout_json || null,
           category: row.category,
           visibility: normalizeVisibility(row.visibility),
@@ -2020,6 +2138,7 @@ function handlePublicPostDetail(req, res) {
       p.title,
       p.content,
       p.layout_json,
+      p.content_pages,
       ${CATEGORY_SQL} AS category,
       ${VISIBILITY_SQL} AS visibility,
       ${COMMENT_POLICY_SQL} AS comment_policy,
