@@ -31,6 +31,11 @@ function parseBoolean(value) {
   return ['1', 'true', 'yes', 'y', 'on'].includes(value.trim().toLowerCase());
 }
 
+function parseOptionalBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback;
+  return parseBoolean(value);
+}
+
 function isBooleanLike(value) {
   if (typeof value === 'boolean') return true;
   if (typeof value === 'number') return value === 0 || value === 1;
@@ -68,10 +73,16 @@ function getMarketingVersion() {
   return LEGAL_CONFIG?.versions?.marketing || '';
 }
 
-function normalizeMarketingTitle(value) {
+function stripAdLabel(value) {
+  return String(value || '').replace(/^\(광고\)\s*/u, '').trim();
+}
+
+function normalizeMarketingTitle(value, options = {}) {
   const raw = normalizeNullableText(value, 80);
   if (!raw) return null;
-  return raw.startsWith('(광고)') ? raw : `(광고) ${raw}`;
+  const title = stripAdLabel(raw);
+  if (!title) return null;
+  return options.includeAdLabel === false ? title : `(광고) ${title}`;
 }
 
 function serializeMeta(meta) {
@@ -111,6 +122,38 @@ function buildMarketingPushAudienceSummary(recipientRows) {
     eligible_user_count: uniqueUsers.size,
     eligible_token_count: rows.length,
   };
+}
+
+function parseAdminListLimit(value, fallback = 30, max = 100) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, max);
+}
+
+function normalizePushDeliveryStatus(value) {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return ['queued', 'sent', 'failed', 'skipped'].includes(normalized) ? normalized : null;
+}
+
+function buildPushDeliverySummary(rows) {
+  const summary = {
+    total_count: 0,
+    queued_count: 0,
+    sent_count: 0,
+    failed_count: 0,
+    skipped_count: 0,
+  };
+
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const count = Number(row.cnt || 0);
+    summary.total_count += count;
+    if (row.status === 'queued') summary.queued_count = count;
+    if (row.status === 'sent') summary.sent_count = count;
+    if (row.status === 'failed') summary.failed_count = count;
+    if (row.status === 'skipped') summary.skipped_count = count;
+  }
+
+  return summary;
 }
 
 function isV1NotificationRow(row) {
@@ -535,8 +578,203 @@ router.get('/admin/marketing-push-campaigns', authRequired, adminRequired, async
   }
 });
 
+router.get('/admin/push-deliveries', authRequired, adminRequired, async (req, res) => {
+  const limit = parseAdminListLimit(req.query?.limit, 30, 100);
+  const status = normalizePushDeliveryStatus(req.query?.status);
+  const where = status ? 'WHERE q.status = ?' : '';
+  const params = status ? [status, limit] : [limit];
+
+  try {
+    const [summaryRows, deliveryRows] = await Promise.all([
+      allAsync(
+        `
+        SELECT status, COUNT(*) AS cnt
+        FROM push_delivery_queue
+        GROUP BY status
+        `
+      ),
+      allAsync(
+        `
+        SELECT
+          q.id,
+          q.activity_event_id,
+          q.recipient_user_id,
+          q.push_token_id,
+          q.status,
+          q.provider,
+          q.title,
+          q.body,
+          q.payload_json,
+          q.attempt_count,
+          q.last_error,
+          q.provider_message_id,
+          q.created_at,
+          q.updated_at,
+          q.sent_at,
+          q.last_attempt_at,
+          q.next_attempt_at,
+          ae.event_type,
+          ae.post_id,
+          ae.comment_id,
+          ae.actor_user_id,
+          u.name AS recipient_name,
+          u.nickname AS recipient_nickname,
+          u.email AS recipient_email,
+          COALESCE(u.account_status, 'active') AS recipient_account_status,
+          pt.platform,
+          pt.device_id,
+          pt.app_version,
+          pt.enabled AS push_token_enabled,
+          pt.last_seen_at AS push_token_last_seen_at
+        FROM push_delivery_queue q
+        LEFT JOIN activity_events ae ON ae.id = q.activity_event_id
+        LEFT JOIN users u ON u.id = q.recipient_user_id
+        LEFT JOIN push_tokens pt ON pt.id = q.push_token_id
+        ${where}
+        ORDER BY datetime(q.created_at) DESC, q.id DESC
+        LIMIT ?
+        `,
+        params
+      ),
+    ]);
+
+    return res.json({
+      ok: true,
+      summary: buildPushDeliverySummary(summaryRows),
+      deliveries: deliveryRows.map((row) => {
+        const payload = parseMeta(row.payload_json);
+        return {
+          id: row.id,
+          activity_event_id: row.activity_event_id || null,
+          recipient_user_id: row.recipient_user_id || null,
+          push_token_id: row.push_token_id || null,
+          status: row.status,
+          provider: row.provider,
+          title: row.title,
+          body: row.body,
+          type: payload.type || null,
+          event_type: payload.event_type || row.event_type || null,
+          target_path: payload.target_path || null,
+          campaign_id: payload.campaign_id || null,
+          post_id: payload.post_id || row.post_id || null,
+          comment_id: payload.comment_id || row.comment_id || null,
+          actor_user_id: row.actor_user_id || null,
+          attempt_count: Number(row.attempt_count || 0),
+          last_error: row.last_error || null,
+          provider_message_id: row.provider_message_id || null,
+          created_at: row.created_at || null,
+          updated_at: row.updated_at || null,
+          sent_at: row.sent_at || null,
+          last_attempt_at: row.last_attempt_at || null,
+          next_attempt_at: row.next_attempt_at || null,
+          recipient: {
+            id: row.recipient_user_id || null,
+            name: row.recipient_name || null,
+            nickname: row.recipient_nickname || null,
+            email: row.recipient_email || null,
+            account_status: row.recipient_account_status || null,
+          },
+          push_token: {
+            id: row.push_token_id || null,
+            platform: row.platform || null,
+            device_id: row.device_id || null,
+            app_version: row.app_version || null,
+            enabled: Number(row.push_token_enabled || 0) === 1,
+            last_seen_at: row.push_token_last_seen_at || null,
+          },
+        };
+      }),
+    });
+  } catch (error) {
+    console.error('[admin/push-deliveries/list] failed:', error);
+    return sendNotificationError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '푸시 알림 발송 목록 조회 중 오류가 발생했습니다.'
+    );
+  }
+});
+
+router.get('/admin/push-recipients', authRequired, adminRequired, async (req, res) => {
+  const limit = parseAdminListLimit(req.query?.limit, 50, 100);
+
+  try {
+    const [recipientRows, optInCountRow, activeTokenRows] = await Promise.all([
+      allAsync(
+        `
+        SELECT
+          u.id,
+          u.name,
+          u.nickname,
+          u.email,
+          COALESCE(u.account_status, 'active') AS account_status,
+          COALESCE(u.marketing_push_opt_in, 0) AS marketing_push_opt_in,
+          u.marketing_push_opt_in_updated_at,
+          COUNT(DISTINCT pt.id) AS total_push_token_count,
+          COUNT(DISTINCT CASE WHEN pt.enabled = 1 THEN pt.id END) AS active_push_token_count,
+          GROUP_CONCAT(DISTINCT CASE WHEN pt.enabled = 1 THEN pt.platform END) AS platforms,
+          MAX(pt.last_seen_at) AS last_push_token_seen_at
+        FROM users u
+        LEFT JOIN push_tokens pt ON pt.user_id = u.id
+        WHERE COALESCE(u.marketing_push_opt_in, 0) = 1
+          AND COALESCE(u.account_status, 'active') = 'active'
+        GROUP BY u.id
+        ORDER BY datetime(COALESCE(u.marketing_push_opt_in_updated_at, '1970-01-01')) DESC,
+                 u.id DESC
+        LIMIT ?
+        `,
+        [limit]
+      ),
+      getAsync(
+        `
+        SELECT COUNT(*) AS cnt
+        FROM users
+        WHERE COALESCE(marketing_push_opt_in, 0) = 1
+          AND COALESCE(account_status, 'active') = 'active'
+        `
+      ),
+      fetchMarketingPushRecipientRows(),
+    ]);
+
+    return res.json({
+      ok: true,
+      summary: {
+        opted_in_user_count: Number(optInCountRow?.cnt || 0),
+        active_token_count: Array.isArray(activeTokenRows) ? activeTokenRows.length : 0,
+        listed_count: recipientRows.length,
+      },
+      recipients: recipientRows.map((row) => ({
+        id: row.id,
+        name: row.name || null,
+        nickname: row.nickname || null,
+        email: row.email || null,
+        account_status: row.account_status || null,
+        marketing_push_opt_in: Number(row.marketing_push_opt_in || 0) === 1,
+        marketing_push_opt_in_updated_at: row.marketing_push_opt_in_updated_at || null,
+        total_push_token_count: Number(row.total_push_token_count || 0),
+        active_push_token_count: Number(row.active_push_token_count || 0),
+        platforms: String(row.platforms || '')
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean),
+        last_push_token_seen_at: row.last_push_token_seen_at || null,
+      })),
+    });
+  } catch (error) {
+    console.error('[admin/push-recipients/list] failed:', error);
+    return sendNotificationError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '푸시 알림 수신 동의자 목록 조회 중 오류가 발생했습니다.'
+    );
+  }
+});
+
 router.post('/admin/marketing-push-campaigns', authRequired, adminRequired, async (req, res) => {
-  const title = normalizeMarketingTitle(req.body?.title);
+  const includeAdLabel = parseOptionalBoolean(req.body?.include_ad_label ?? req.body?.includeAdLabel, true);
+  const title = normalizeMarketingTitle(req.body?.title, { includeAdLabel });
   const body = normalizeNullableText(req.body?.body, 180);
   const targetPath = normalizeInternalTargetPath(req.body?.target_path ?? req.body?.targetPath);
   const dryRun = parseBoolean(req.body?.dry_run);
