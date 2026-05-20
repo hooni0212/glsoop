@@ -377,11 +377,11 @@ async function mockAdminBootApis(page, options = {}) {
 
     const campaignId = pushCampaignId;
     pushCampaignId += 1;
+    const includeAdLabel = body.include_ad_label !== false;
+    const rawTitle = String(body.title || '테스트 푸시').replace(/^\(광고\)\s*/u, '').trim();
     pushCampaignRows.unshift({
       id: campaignId,
-      title: String(body.title || '').startsWith('(광고)')
-        ? body.title
-        : `(광고) ${body.title || '테스트 푸시'}`,
+      title: includeAdLabel ? `(광고) ${rawTitle}` : rawTitle,
       body: body.body || '',
       target_path: body.target_path || '/write',
       queued_count: 2,
@@ -659,6 +659,8 @@ test.describe('Admin dangerous action safety', () => {
 
     await page.fill('#adminPushTitle', '이번 주 글쓰기 리마인드');
     await page.fill('#adminPushBody', '조용히 남겨둘 문장을 한 편 써보세요.');
+    await expect(page.locator('input[name="include_ad_label"]')).toBeChecked();
+    await page.locator('input[name="include_ad_label"]').uncheck();
     await page.click('#adminPushForm button[type="submit"]');
 
     await expect.poll(() => calls.length).toBe(1);
@@ -666,6 +668,7 @@ test.describe('Admin dangerous action safety', () => {
       title: '이번 주 글쓰기 리마인드',
       body: '조용히 남겨둘 문장을 한 편 써보세요.',
       target_path: '/write',
+      include_ad_label: false,
       dry_run: true,
     });
     await expect(page.locator('#adminPushControls')).toContainText('대상 확인 완료');
@@ -678,9 +681,11 @@ test.describe('Admin dangerous action safety', () => {
       title: '이번 주 글쓰기 리마인드',
       body: '조용히 남겨둘 문장을 한 편 써보세요.',
       target_path: '/write',
+      include_ad_label: false,
       dry_run: false,
     });
-    await expect(page.locator('#adminPushControls')).toContainText('(광고) 이번 주 글쓰기 리마인드');
+    await expect(page.locator('#adminPushControls')).toContainText('이번 주 글쓰기 리마인드');
+    await expect(page.locator('#adminPushControls')).not.toContainText('(광고) 이번 주 글쓰기 리마인드');
     await expect(page.locator('#adminPushControls')).toContainText('2');
   });
 

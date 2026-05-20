@@ -302,6 +302,29 @@ body.page-admin .admin-push-target-row .gls-label {
   margin: 0;
 }
 
+body.page-admin .admin-push-ad-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border-radius: 12px;
+  border: 1px solid rgba(61, 52, 36, 0.12);
+  background: rgba(255, 253, 248, 0.74);
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+body.page-admin .admin-push-ad-row strong,
+body.page-admin .admin-push-ad-row small {
+  display: block;
+}
+
+body.page-admin .admin-push-ad-row small {
+  margin-top: 2px;
+  color: var(--gls-admin-muted);
+  font-size: 0.78rem;
+}
+
 body.page-admin .admin-push-result {
   display: flex;
   align-items: center;

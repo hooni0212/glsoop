@@ -49,6 +49,7 @@ Glsoop.AdminPage = (function () {
     body: '짧은 문장 하나로 오늘의 마음을 남겨보세요.',
     targetPath: '/write',
     customTargetPath: '',
+    includeAdLabel: true,
     dryRun: null,
     audience: null,
     campaigns: [],
@@ -1566,10 +1567,12 @@ Glsoop.AdminPage = (function () {
     const bodyInput = form.querySelector('[name="body"]');
     const presetInput = form.querySelector('[name="target_preset"]');
     const customTargetInput = form.querySelector('[name="custom_target_path"]');
+    const includeAdLabelInput = form.querySelector('[name="include_ad_label"]');
     const preset = presetInput?.value || '/write';
 
     pushState.title = titleInput?.value || '';
     pushState.body = bodyInput?.value || '';
+    pushState.includeAdLabel = includeAdLabelInput?.checked !== false;
     pushState.customTargetPath = customTargetInput?.value || '';
     pushState.targetPath =
       preset === 'custom'
@@ -1663,7 +1666,7 @@ Glsoop.AdminPage = (function () {
             <div>
               <p class="gls-text-muted gls-text-small gls-mb-1">수동 마케팅 푸시</p>
               <h4 class="gls-mb-1">대상 확인 후 발송 예약</h4>
-              <p class="gls-text-muted gls-text-small gls-mb-0">제목에는 발송 시 법적 표기인 (광고)가 자동으로 붙습니다.</p>
+              <p class="gls-text-muted gls-text-small gls-mb-0">광고성 발송이 아니라고 판단되는 경우 표기를 끌 수 있습니다.</p>
             </div>
             ${buildPushAudienceHtml()}
           </div>
@@ -1689,6 +1692,20 @@ Glsoop.AdminPage = (function () {
             placeholder="짧은 문장 하나로 오늘의 마음을 남겨보세요."
             ${disabledAttr}
           >${escapeHtml(pushState.body)}</textarea>
+
+          <label class="admin-push-ad-row">
+            <input
+              class="gls-check-input"
+              type="checkbox"
+              name="include_ad_label"
+              ${pushState.includeAdLabel ? 'checked' : ''}
+              ${disabledAttr}
+            />
+            <span>
+              <strong>(광고) 표기 붙이기</strong>
+              <small>켜면 서버가 제목 맨 앞에 자동으로 붙입니다.</small>
+            </span>
+          </label>
 
           <div class="admin-push-target-row">
             <label class="gls-label" for="adminPushTargetPreset">이동 위치</label>
@@ -1800,6 +1817,7 @@ Glsoop.AdminPage = (function () {
           title,
           body,
           target_path: pushState.targetPath,
+          include_ad_label: pushState.includeAdLabel,
           dry_run: dryRun,
         }),
       });

@@ -31,6 +31,11 @@ function parseBoolean(value) {
   return ['1', 'true', 'yes', 'y', 'on'].includes(value.trim().toLowerCase());
 }
 
+function parseOptionalBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback;
+  return parseBoolean(value);
+}
+
 function isBooleanLike(value) {
   if (typeof value === 'boolean') return true;
   if (typeof value === 'number') return value === 0 || value === 1;
@@ -68,10 +73,16 @@ function getMarketingVersion() {
   return LEGAL_CONFIG?.versions?.marketing || '';
 }
 
-function normalizeMarketingTitle(value) {
+function stripAdLabel(value) {
+  return String(value || '').replace(/^\(광고\)\s*/u, '').trim();
+}
+
+function normalizeMarketingTitle(value, options = {}) {
   const raw = normalizeNullableText(value, 80);
   if (!raw) return null;
-  return raw.startsWith('(광고)') ? raw : `(광고) ${raw}`;
+  const title = stripAdLabel(raw);
+  if (!title) return null;
+  return options.includeAdLabel === false ? title : `(광고) ${title}`;
 }
 
 function serializeMeta(meta) {
@@ -536,7 +547,8 @@ router.get('/admin/marketing-push-campaigns', authRequired, adminRequired, async
 });
 
 router.post('/admin/marketing-push-campaigns', authRequired, adminRequired, async (req, res) => {
-  const title = normalizeMarketingTitle(req.body?.title);
+  const includeAdLabel = parseOptionalBoolean(req.body?.include_ad_label ?? req.body?.includeAdLabel, true);
+  const title = normalizeMarketingTitle(req.body?.title, { includeAdLabel });
   const body = normalizeNullableText(req.body?.body, 180);
   const targetPath = normalizeInternalTargetPath(req.body?.target_path ?? req.body?.targetPath);
   const dryRun = parseBoolean(req.body?.dry_run);
