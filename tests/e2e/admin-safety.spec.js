@@ -77,6 +77,64 @@ async function mockAdminBootApis(page, options = {}) {
   let reportStatus = options.initialReportStatus || 'queued';
   let pushCampaignId = 700;
   const pushCampaignRows = [...(options.initialPushCampaigns || [])];
+  const pushDeliveryRows = [
+    ...(options.initialPushDeliveries || [
+      {
+        id: 810,
+        activity_event_id: 910,
+        recipient_user_id: 2,
+        status: 'queued',
+        provider: 'expo',
+        title: '새 독자가 생겼어요',
+        body: '독자님이 나를 팔로우했어요.',
+        type: 'new_follower',
+        event_type: 'system',
+        target_path: '/users/9',
+        attempt_count: 0,
+        created_at: '2026-05-20T08:40:00.000Z',
+        recipient: {
+          id: 2,
+          name: '일반사용자',
+          nickname: '글쓴이',
+          email: 'writer@example.com',
+        },
+        push_token: {
+          id: 510,
+          platform: 'ios',
+          enabled: true,
+          last_seen_at: '2026-05-20T08:35:00.000Z',
+        },
+      },
+    ]),
+  ];
+  const pushRecipientRows = [
+    ...(options.initialPushRecipients || [
+      {
+        id: 2,
+        name: '일반사용자',
+        nickname: '글쓴이',
+        email: 'writer@example.com',
+        marketing_push_opt_in: true,
+        marketing_push_opt_in_updated_at: '2026-05-20T08:30:00.000Z',
+        total_push_token_count: 1,
+        active_push_token_count: 1,
+        platforms: ['ios'],
+        last_push_token_seen_at: '2026-05-20T08:35:00.000Z',
+      },
+      {
+        id: 3,
+        name: '독자사용자',
+        nickname: '독자',
+        email: 'reader@example.com',
+        marketing_push_opt_in: true,
+        marketing_push_opt_in_updated_at: '2026-05-20T08:20:00.000Z',
+        total_push_token_count: 1,
+        active_push_token_count: 1,
+        platforms: ['android'],
+        last_push_token_seen_at: '2026-05-20T08:25:00.000Z',
+      },
+    ]),
+  ];
   let reportedPostRows = [
     {
       target_post_id: 11,
@@ -334,6 +392,43 @@ async function mockAdminBootApis(page, options = {}) {
         by_channel: [],
         by_surface: [],
         daily: [],
+      }),
+    })
+  );
+
+  await page.route('**/api/admin/push-deliveries**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        summary: {
+          total_count: pushDeliveryRows.length,
+          queued_count: pushDeliveryRows.filter((row) => row.status === 'queued').length,
+          sent_count: pushDeliveryRows.filter((row) => row.status === 'sent').length,
+          failed_count: pushDeliveryRows.filter((row) => row.status === 'failed').length,
+          skipped_count: pushDeliveryRows.filter((row) => row.status === 'skipped').length,
+        },
+        deliveries: pushDeliveryRows,
+      }),
+    })
+  );
+
+  await page.route('**/api/admin/push-recipients**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        summary: {
+          opted_in_user_count: pushRecipientRows.length,
+          active_token_count: pushRecipientRows.reduce(
+            (sum, row) => sum + Number(row.active_push_token_count || 0),
+            0
+          ),
+          listed_count: pushRecipientRows.length,
+        },
+        recipients: pushRecipientRows,
       }),
     })
   );
@@ -656,6 +751,10 @@ test.describe('Admin dangerous action safety', () => {
 
     await expect(page.locator('#pushTab')).toBeVisible();
     await expect(page.locator('#adminPushControls')).toContainText('활성 푸시 토큰 2개');
+    await expect(page.locator('#adminPushControls')).toContainText('최근 푸시 알림');
+    await expect(page.locator('#adminPushControls')).toContainText('새 독자가 생겼어요');
+    await expect(page.locator('#adminPushControls')).toContainText('수신 동의 사용자');
+    await expect(page.locator('#adminPushControls')).toContainText('글쓴이');
 
     await page.fill('#adminPushTitle', '이번 주 글쓰기 리마인드');
     await page.fill('#adminPushBody', '조용히 남겨둘 문장을 한 편 써보세요.');

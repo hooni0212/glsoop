@@ -566,6 +566,43 @@ test.describe('Notifications API', () => {
 	    expect(queuedTitleRow.title).toBe('(광고) 이번 주 글쓰기 리마인드');
 	    expect(await getQueuedPushPayloads(USERS.commenter)).toHaveLength(0);
 
+    const deliveryListResponse = await request.get('/api/admin/push-deliveries?limit=20', {
+      headers: buildAuthHeaders(USERS.admin),
+    });
+    expect(deliveryListResponse.status()).toBe(200);
+    const deliveryListPayload = await deliveryListResponse.json();
+    expect(deliveryListPayload.summary.queued_count).toBeGreaterThanOrEqual(1);
+    expect(deliveryListPayload.deliveries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          recipient_user_id: USERS.author,
+          title: '(광고) 이번 주 글쓰기 리마인드',
+          type: 'marketing_campaign',
+          campaign_id: campaignPayload.campaign_id,
+          target_path: '/write',
+        }),
+      ])
+    );
+
+    const recipientListResponse = await request.get('/api/admin/push-recipients?limit=20', {
+      headers: buildAuthHeaders(USERS.admin),
+    });
+    expect(recipientListResponse.status()).toBe(200);
+    const recipientListPayload = await recipientListResponse.json();
+    expect(recipientListPayload.summary.opted_in_user_count).toBeGreaterThanOrEqual(1);
+    expect(recipientListPayload.summary.active_token_count).toBeGreaterThanOrEqual(1);
+    expect(recipientListPayload.recipients).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: USERS.author,
+          marketing_push_opt_in: true,
+          active_push_token_count: 1,
+          platforms: expect.arrayContaining(['ios']),
+        }),
+      ])
+    );
+    expect(recipientListPayload.recipients.some((item) => item.id === USERS.commenter)).toBe(false);
+
     const nonAdCampaignResponse = await request.post('/api/admin/marketing-push-campaigns', {
       headers: buildAuthHeaders(USERS.admin),
       data: {

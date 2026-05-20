@@ -264,6 +264,10 @@ body.page-admin .admin-push-history {
   padding: 14px;
 }
 
+body.page-admin .admin-push-wide {
+  grid-column: 1 / -1;
+}
+
 body.page-admin .admin-push-form {
   display: grid;
   gap: 10px;
@@ -352,6 +356,58 @@ body.page-admin .admin-push-actions .gls-btn {
 
 body.page-admin .admin-push-table {
   min-width: 680px;
+}
+
+body.page-admin .admin-push-table--deliveries,
+body.page-admin .admin-push-table--recipients {
+  min-width: 860px;
+}
+
+body.page-admin .admin-push-mini-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+body.page-admin .admin-push-mini-stats span,
+body.page-admin .admin-push-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  border: 1px solid rgba(31, 107, 75, 0.16);
+  background: rgba(245, 252, 247, 0.9);
+  color: var(--gls-admin-accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+body.page-admin .admin-push-status--sent {
+  border-color: rgba(47, 128, 237, 0.18);
+  background: rgba(239, 246, 255, 0.92);
+  color: #2563a7;
+}
+
+body.page-admin .admin-push-status--failed {
+  border-color: rgba(202, 69, 69, 0.2);
+  background: rgba(255, 244, 244, 0.92);
+  color: #b13c3c;
+}
+
+body.page-admin .admin-push-status--skipped {
+  border-color: rgba(116, 103, 89, 0.18);
+  background: rgba(247, 245, 241, 0.92);
+  color: #6f6559;
+}
+
+body.page-admin .admin-push-error {
+  margin-top: 3px;
+  color: #b13c3c;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 body.page-admin :where(.table, .table-sm) {
