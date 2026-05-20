@@ -274,7 +274,7 @@ test.describe('조건부 오후 8시 마케팅 푸시 리마인더', () => {
     expect(new Set(queuedRows.map((row) => row.recipient_user_id))).toEqual(
       new Set([users.eligible])
     );
-    expect(queuedRows[0].title).toBe('(광고) 오늘의 문장, 아직 남기지 않았다면');
+    expect(queuedRows[0].title).toBe('(광고) 오늘의 기록을 아직 남기지 않았다면');
     expect(JSON.parse(queuedRows[0].payload_json)).toMatchObject({
       type: 'marketing_campaign',
       campaign_kind: 'evening_writing_reminder',

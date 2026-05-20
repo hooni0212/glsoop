@@ -75,6 +75,8 @@ async function applyAdminCookie(page, baseURL) {
 
 async function mockAdminBootApis(page, options = {}) {
   let reportStatus = options.initialReportStatus || 'queued';
+  let pushCampaignId = 700;
+  const pushCampaignRows = [...(options.initialPushCampaigns || [])];
   let reportedPostRows = [
     {
       target_post_id: 11,
@@ -336,6 +338,71 @@ async function mockAdminBootApis(page, options = {}) {
     })
   );
 
+  await page.route('**/api/admin/marketing-push-campaigns**', async (route) => {
+    const request = route.request();
+    if (request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          campaigns: pushCampaignRows,
+          audience: {
+            eligible_user_count: 2,
+            eligible_token_count: 2,
+          },
+        }),
+      });
+      return;
+    }
+
+    const body = JSON.parse(request.postData() || '{}');
+    if (typeof options.onMarketingPushCampaign === 'function') {
+      options.onMarketingPushCampaign({ body });
+    }
+
+    if (body.dry_run === true) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          dry_run: true,
+          eligible_user_count: 2,
+          eligible_token_count: 2,
+        }),
+      });
+      return;
+    }
+
+    const campaignId = pushCampaignId;
+    pushCampaignId += 1;
+    pushCampaignRows.unshift({
+      id: campaignId,
+      title: String(body.title || '').startsWith('(광고)')
+        ? body.title
+        : `(광고) ${body.title || '테스트 푸시'}`,
+      body: body.body || '',
+      target_path: body.target_path || '/write',
+      queued_count: 2,
+      dry_run: false,
+      campaign_kind: null,
+      created_at: '2026-05-20T09:00:00.000Z',
+    });
+
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        campaign_id: campaignId,
+        queued_count: 2,
+        eligible_user_count: 2,
+        eligible_token_count: 2,
+      }),
+    });
+  });
+
   await page.route('**/api/admin/safety/reports**', async (route) => {
     const request = route.request();
     const url = request.url();
@@ -571,6 +638,50 @@ test.describe('Admin dangerous action safety', () => {
     await expect(page.locator('#growthAutoClaimResult')).toContainText('실행 완료');
     await expect(page.locator('#growthAutoClaimResult')).toContainText('수령 1건');
     await expect(page.locator('#growthAutoClaimResult')).toContainText('+20 XP');
+  });
+
+  test('previews and queues marketing push from the push admin UI', async ({ page }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+    const calls = [];
+
+    await mockAdminBootApis(page, {
+      onMarketingPushCampaign({ body }) {
+        calls.push(body);
+      },
+    });
+    await applyAdminCookie(page, baseURL);
+
+    await page.goto('/admin');
+    await page.getByRole('button', { name: /푸시/ }).click();
+
+    await expect(page.locator('#pushTab')).toBeVisible();
+    await expect(page.locator('#adminPushControls')).toContainText('활성 푸시 토큰 2개');
+
+    await page.fill('#adminPushTitle', '이번 주 글쓰기 리마인드');
+    await page.fill('#adminPushBody', '조용히 남겨둘 문장을 한 편 써보세요.');
+    await page.click('#adminPushForm button[type="submit"]');
+
+    await expect.poll(() => calls.length).toBe(1);
+    expect(calls[0]).toMatchObject({
+      title: '이번 주 글쓰기 리마인드',
+      body: '조용히 남겨둘 문장을 한 편 써보세요.',
+      target_path: '/write',
+      dry_run: true,
+    });
+    await expect(page.locator('#adminPushControls')).toContainText('대상 확인 완료');
+
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.click('#adminPushSendBtn');
+
+    await expect.poll(() => calls.length).toBe(2);
+    expect(calls[1]).toMatchObject({
+      title: '이번 주 글쓰기 리마인드',
+      body: '조용히 남겨둘 문장을 한 편 써보세요.',
+      target_path: '/write',
+      dry_run: false,
+    });
+    await expect(page.locator('#adminPushControls')).toContainText('(광고) 이번 주 글쓰기 리마인드');
+    await expect(page.locator('#adminPushControls')).toContainText('2');
   });
 
   test('opens admin post detail links with postId query parameter', async ({ page }, testInfo) => {
