@@ -88,6 +88,31 @@ function toTimestamp(value) {
   return Number.isFinite(ms) ? ms : 0;
 }
 
+async function fetchMarketingPushRecipientRows() {
+  return allAsync(
+    `
+    SELECT
+      u.id AS user_id,
+      pt.id AS push_token_id
+    FROM users u
+    JOIN push_tokens pt ON pt.user_id = u.id
+    WHERE COALESCE(u.marketing_push_opt_in, 0) = 1
+      AND COALESCE(u.account_status, 'active') = 'active'
+      AND pt.enabled = 1
+    ORDER BY u.id ASC, pt.last_seen_at DESC, pt.id DESC
+    `
+  );
+}
+
+function buildMarketingPushAudienceSummary(recipientRows) {
+  const rows = Array.isArray(recipientRows) ? recipientRows : [];
+  const uniqueUsers = new Set(rows.map((row) => row.user_id));
+  return {
+    eligible_user_count: uniqueUsers.size,
+    eligible_token_count: rows.length,
+  };
+}
+
 function isV1NotificationRow(row) {
   if (!row || !V1_EVENT_TYPES.has(row.event_type)) return false;
   if (row.event_type === 'system') {
@@ -125,7 +150,7 @@ function buildSingleNotification(row) {
     return {
       id: String(row.id),
       type: 'post_comment',
-      title: row.title || '새 댓글',
+      title: row.title || '새 댓글이 도착했어요',
       body: row.body || '내 글에 새 댓글이 달렸어요.',
       created_at: row.created_at,
       read_at: row.read_at || null,
@@ -141,7 +166,7 @@ function buildSingleNotification(row) {
     return {
       id: String(row.id),
       type: 'comment_reply',
-      title: row.title || '새 답글',
+      title: row.title || '새 답글이 도착했어요',
       body: row.body || '내 댓글에 새 답글이 달렸어요.',
       created_at: row.created_at,
       read_at: row.read_at || null,
@@ -157,7 +182,7 @@ function buildSingleNotification(row) {
     return {
       id: String(row.id),
       type: 'new_follower',
-      title: row.title || '새 팔로워',
+      title: row.title || '새 독자가 생겼어요',
       body: row.body || '새로운 독자가 나를 팔로우했어요.',
       created_at: row.created_at,
       read_at: row.read_at || null,
@@ -453,6 +478,63 @@ router.patch('/marketing-push-consent', authRequired, async (req, res) => {
   }
 });
 
+router.get('/admin/marketing-push-campaigns', authRequired, adminRequired, async (req, res) => {
+  const requestedLimit = Number.parseInt(req.query?.limit, 10);
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.max(1, Math.min(requestedLimit, 50))
+    : 12;
+
+  try {
+    const [campaignRows, recipientRows] = await Promise.all([
+      allAsync(
+        `
+        SELECT
+          id,
+          title,
+          body,
+          target_path,
+          queued_count,
+          dry_run,
+          campaign_key,
+          campaign_kind,
+          scheduled_for_date,
+          created_at
+        FROM marketing_push_campaigns
+        ORDER BY datetime(created_at) DESC, id DESC
+        LIMIT ?
+        `,
+        [limit]
+      ),
+      fetchMarketingPushRecipientRows(),
+    ]);
+
+    return res.json({
+      ok: true,
+      campaigns: campaignRows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        body: row.body,
+        target_path: row.target_path || '/',
+        queued_count: Number(row.queued_count || 0),
+        dry_run: Number(row.dry_run || 0) === 1,
+        campaign_key: row.campaign_key || null,
+        campaign_kind: row.campaign_kind || null,
+        scheduled_for_date: row.scheduled_for_date || null,
+        created_at: row.created_at || null,
+      })),
+      audience: buildMarketingPushAudienceSummary(recipientRows),
+    });
+  } catch (error) {
+    console.error('[admin/marketing-push-campaigns/list] failed:', error);
+    return sendNotificationError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '마케팅 푸시 캠페인 목록 조회 중 오류가 발생했습니다.'
+    );
+  }
+});
+
 router.post('/admin/marketing-push-campaigns', authRequired, adminRequired, async (req, res) => {
   const title = normalizeMarketingTitle(req.body?.title);
   const body = normalizeNullableText(req.body?.body, 180);
@@ -469,27 +551,13 @@ router.post('/admin/marketing-push-campaigns', authRequired, adminRequired, asyn
   }
 
   try {
-    const recipientRows = await allAsync(
-      `
-      SELECT
-        u.id AS user_id,
-        pt.id AS push_token_id
-      FROM users u
-      JOIN push_tokens pt ON pt.user_id = u.id
-      WHERE COALESCE(u.marketing_push_opt_in, 0) = 1
-        AND COALESCE(u.account_status, 'active') = 'active'
-        AND pt.enabled = 1
-      ORDER BY u.id ASC, pt.last_seen_at DESC, pt.id DESC
-      `
-    );
+    const recipientRows = await fetchMarketingPushRecipientRows();
 
     if (dryRun) {
-      const uniqueUsers = new Set(recipientRows.map((row) => row.user_id));
       return res.json({
         ok: true,
         dry_run: true,
-        eligible_user_count: uniqueUsers.size,
-        eligible_token_count: recipientRows.length,
+        ...buildMarketingPushAudienceSummary(recipientRows),
       });
     }
 
@@ -588,6 +656,7 @@ router.post('/admin/marketing-push-campaigns', authRequired, adminRequired, asyn
         campaign_id: campaignId,
         queued_count: queuedCount,
         eligible_user_count: tokenRowsByUser.size,
+        eligible_token_count: recipientRows.length,
       });
     } catch (transactionError) {
       try {

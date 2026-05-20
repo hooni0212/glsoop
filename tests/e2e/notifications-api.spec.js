@@ -473,6 +473,17 @@ test.describe('Notifications API', () => {
     });
     expect(optInResponse.status()).toBe(200);
 
+    const listBeforeResponse = await request.get('/api/admin/marketing-push-campaigns?limit=5', {
+      headers: buildAuthHeaders(USERS.admin),
+    });
+    expect(listBeforeResponse.status()).toBe(200);
+    expect(await listBeforeResponse.json()).toMatchObject({
+      audience: {
+        eligible_user_count: 1,
+        eligible_token_count: 1,
+      },
+    });
+
     const dryRunResponse = await request.post('/api/admin/marketing-push-campaigns', {
       headers: buildAuthHeaders(USERS.admin),
       data: {
@@ -500,6 +511,7 @@ test.describe('Notifications API', () => {
     expect(campaignResponse.status()).toBe(201);
     const campaignPayload = await campaignResponse.json();
     expect(campaignPayload.queued_count).toBe(1);
+    expect(campaignPayload.eligible_token_count).toBe(1);
 
     const authorPayloads = await getQueuedPushPayloads(USERS.author);
     expect(authorPayloads).toEqual(
@@ -527,6 +539,17 @@ test.describe('Notifications API', () => {
 	    );
 	    expect(queuedTitleRow.title).toBe('(광고) 이번 주 글쓰기 리마인드');
 	    expect(await getQueuedPushPayloads(USERS.commenter)).toHaveLength(0);
+
+    const listAfterResponse = await request.get('/api/admin/marketing-push-campaigns?limit=5', {
+      headers: buildAuthHeaders(USERS.admin),
+    });
+    expect(listAfterResponse.status()).toBe(200);
+    const listAfterPayload = await listAfterResponse.json();
+    expect(listAfterPayload.campaigns[0]).toMatchObject({
+      id: campaignPayload.campaign_id,
+      target_path: '/write',
+      queued_count: 1,
+    });
 
 	    const notificationsResponse = await request.get('/api/notifications?limit=30&offset=0', {
 	      headers: buildAuthHeaders(USERS.author),

@@ -6,8 +6,8 @@ const DEFAULT_REMINDER_HOUR_KST = 20;
 const DEFAULT_REMINDER_WINDOW_MINUTES = 55;
 const DEFAULT_RECENT_ACTIVITY_DAYS = 30;
 const DEFAULT_SCHEDULER_INTERVAL_MS = 5 * 60 * 1000;
-const DEFAULT_TITLE = '오늘의 문장, 아직 남기지 않았다면';
-const DEFAULT_BODY = '오후 8시, 짧게라도 한 문장 남겨보세요.';
+const DEFAULT_TITLE = '오늘의 기록을 아직 남기지 않았다면';
+const DEFAULT_BODY = '짧은 문장 하나로 오늘의 마음을 남겨보세요.';
 const DEFAULT_TARGET_PATH = '/write';
 const CAMPAIGN_KIND = 'evening_writing_reminder';
 

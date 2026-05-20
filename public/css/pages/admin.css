@@ -248,6 +248,89 @@ body.page-admin .admin-safety-actions--reported-post {
   min-width: 260px;
 }
 
+body.page-admin .admin-push-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.92fr) minmax(360px, 1.08fr);
+  gap: 16px;
+  align-items: start;
+}
+
+body.page-admin .admin-push-form,
+body.page-admin .admin-push-history {
+  border-radius: 16px;
+  border: 1px solid rgba(61, 52, 36, 0.13);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 8px 18px rgba(39, 28, 14, 0.06);
+  padding: 14px;
+}
+
+body.page-admin .admin-push-form {
+  display: grid;
+  gap: 10px;
+}
+
+body.page-admin .admin-push-form__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(154px, 0.36fr);
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 2px;
+}
+
+body.page-admin .admin-push-summary-card {
+  border-radius: 14px;
+  border: 1px solid rgba(31, 107, 75, 0.16);
+  background: rgba(245, 252, 247, 0.88);
+  padding: 12px;
+}
+
+body.page-admin .admin-push-summary-card strong {
+  display: block;
+  color: var(--gls-admin-accent);
+  font-size: 1.28rem;
+  line-height: 1.15;
+}
+
+body.page-admin .admin-push-target-row {
+  display: grid;
+  grid-template-columns: 96px minmax(140px, 0.7fr) minmax(150px, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+body.page-admin .admin-push-target-row .gls-label {
+  margin: 0;
+}
+
+body.page-admin .admin-push-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(31, 107, 75, 0.18);
+  background: rgba(245, 252, 247, 0.9);
+  color: color-mix(in srgb, var(--gls-admin-accent) 80%, #173826 20%);
+  font-weight: 800;
+}
+
+body.page-admin .admin-push-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+body.page-admin .admin-push-actions .gls-btn {
+  min-width: 112px;
+}
+
+body.page-admin .admin-push-table {
+  min-width: 680px;
+}
+
 body.page-admin :where(.table, .table-sm) {
   margin-bottom: 0;
 }
@@ -667,6 +750,20 @@ body.page-admin :is(
   body.page-admin .growth-auto-claim-controls .gls-input,
   body.page-admin .growth-auto-claim-controls .gls-btn {
     width: 100%;
+  }
+
+  body.page-admin .admin-push-grid,
+  body.page-admin .admin-push-form__header,
+  body.page-admin .admin-push-target-row {
+    grid-template-columns: 1fr;
+  }
+
+  body.page-admin .admin-push-actions {
+    justify-content: stretch;
+  }
+
+  body.page-admin .admin-push-actions .gls-btn {
+    flex: 1 1 120px;
   }
 
   body.page-admin .admin-safety-actions,
