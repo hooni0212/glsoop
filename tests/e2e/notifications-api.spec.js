@@ -199,6 +199,17 @@ test.describe('Notifications API', () => {
   });
 
   test('aggregates post reactions and marks the grouped notification read', async ({ request }) => {
+    const tokenResponse = await request.post('/api/push-tokens', {
+      headers: buildAuthHeaders(USERS.author),
+      data: {
+        token: 'ExponentPushToken[notifications-like-push-e2e]',
+        platform: 'ios',
+        device_id: 'notifications-like-push-device',
+        app_version: '1.0.0',
+      },
+    });
+    expect(tokenResponse.status()).toBe(201);
+
     for (const userId of [USERS.likerA, USERS.likerB]) {
       const likeResponse = await request.post(`/api/posts/${POST_ID}/toggle-like`, {
         headers: buildAuthHeaders(userId),
@@ -226,7 +237,26 @@ test.describe('Notifications API', () => {
     expect(reaction.title).toBe('2명이 내 글에 공감했어요.');
 
     const queuedBeforeRead = await getQueuedPushPayloads(USERS.author);
-    expect(queuedBeforeRead).toHaveLength(0);
+    const reactionPushes = queuedBeforeRead.filter((item) => item.type === 'post_reaction');
+    expect(reactionPushes).toHaveLength(2);
+    expect(reactionPushes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'post_reaction',
+          event_type: 'post_liked',
+          target_path: `/posts/${POST_ID}`,
+          post_id: POST_ID,
+          user_id: USERS.likerA,
+        }),
+        expect.objectContaining({
+          type: 'post_reaction',
+          event_type: 'post_liked',
+          target_path: `/posts/${POST_ID}`,
+          post_id: POST_ID,
+          user_id: USERS.likerB,
+        }),
+      ])
+    );
 
     const readResponse = await request.patch(
       `/api/notifications/${encodeURIComponent(reaction.id)}/read`,
