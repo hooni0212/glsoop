@@ -44,6 +44,18 @@ Glsoop.AdminPage = (function () {
     initialized: false,
   };
 
+  const pushState = {
+    title: '오늘의 기록을 아직 남기지 않았다면',
+    body: '짧은 문장 하나로 오늘의 마음을 남겨보세요.',
+    targetPath: '/write',
+    customTargetPath: '',
+    dryRun: null,
+    audience: null,
+    campaigns: [],
+    initialized: false,
+    sending: false,
+  };
+
   const safetyState = {
     status: 'all',
     limit: 100,
@@ -128,6 +140,12 @@ Glsoop.AdminPage = (function () {
   ];
   const AUTO_CLAIM_LIMIT_MIN = 1;
   const AUTO_CLAIM_LIMIT_MAX = 500;
+  const PUSH_TARGET_PRESETS = [
+    { value: '/write', label: '글쓰기' },
+    { value: '/notifications', label: '알림함' },
+    { value: '/', label: '홈' },
+    { value: 'custom', label: '직접 입력' },
+  ];
 
   const DANGER_CONFIRM_TOKEN = 'DELETE';
   const inFlightDangerActions = new Set();
@@ -147,6 +165,7 @@ Glsoop.AdminPage = (function () {
     const usersBox = document.getElementById('adminUsers');
     const postsBox = document.getElementById('adminPosts');
     const shareSummaryBox = document.getElementById('adminShareSummary');
+    const pushBox = document.getElementById('adminPushControls');
     const safetyReportsBox = document.getElementById('adminSafetyReports');
     const reportedPostsBox = document.getElementById('adminReportedPosts');
 
@@ -156,11 +175,12 @@ Glsoop.AdminPage = (function () {
       !usersBox ||
       !postsBox ||
       !shareSummaryBox ||
+      !pushBox ||
       !safetyReportsBox ||
       !reportedPostsBox
     ) {
       console.error(
-        'adminStatus / adminContent / adminUsers / adminPosts / adminShareSummary / adminSafetyReports / adminReportedPosts 요소를 찾을 수 없습니다.'
+        'adminStatus / adminContent / adminUsers / adminPosts / adminShareSummary / adminPushControls / adminSafetyReports / adminReportedPosts 요소를 찾을 수 없습니다.'
       );
       return;
     }
@@ -195,6 +215,8 @@ Glsoop.AdminPage = (function () {
     await loadQuestCampaigns();
     setupAchievementBackfillButton();
     setupShareSummaryUi(shareSummaryBox);
+    setupPushUi(pushBox);
+    await loadPushCampaigns(pushBox);
   }
 
   function setupThemeControls() {
@@ -1484,6 +1506,329 @@ Glsoop.AdminPage = (function () {
 
   function formatCount(value) {
     return toCount(value).toLocaleString('ko-KR');
+  }
+
+  function normalizeAdminPushTargetPath(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '/write';
+    if (!raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/(auth)')) return '/write';
+    return raw.slice(0, 300);
+  }
+
+  function setupPushUi(pushBox) {
+    if (!pushBox) return;
+    renderPushUi(pushBox);
+
+    const refreshBtn = document.getElementById('adminPushRefreshBtn');
+    if (refreshBtn && refreshBtn.dataset.bound !== 'true') {
+      refreshBtn.dataset.bound = 'true';
+      refreshBtn.addEventListener('click', () => {
+        loadPushCampaigns(pushBox);
+      });
+    }
+
+    if (pushState.initialized) return;
+    pushState.initialized = true;
+
+    pushBox.addEventListener('input', (event) => {
+      if (!event.target.closest?.('#adminPushForm')) return;
+      syncPushStateFromForm(pushBox);
+    });
+
+    pushBox.addEventListener('change', (event) => {
+      if (!event.target.closest?.('#adminPushForm')) return;
+      syncPushStateFromForm(pushBox);
+      if (event.target.id === 'adminPushTargetPreset') {
+        renderPushUi(pushBox);
+      }
+    });
+
+    pushBox.addEventListener('submit', (event) => {
+      if (event.target.id !== 'adminPushForm') return;
+      event.preventDefault();
+      submitPushCampaign(pushBox, { dryRun: true });
+    });
+
+    pushBox.addEventListener('click', (event) => {
+      const target = event.target;
+      if (target.id === 'adminPushSendBtn') {
+        event.preventDefault();
+        submitPushCampaign(pushBox, { dryRun: false });
+      }
+    });
+  }
+
+  function syncPushStateFromForm(pushBox) {
+    const form = pushBox?.querySelector?.('#adminPushForm');
+    if (!form) return;
+
+    const titleInput = form.querySelector('[name="title"]');
+    const bodyInput = form.querySelector('[name="body"]');
+    const presetInput = form.querySelector('[name="target_preset"]');
+    const customTargetInput = form.querySelector('[name="custom_target_path"]');
+    const preset = presetInput?.value || '/write';
+
+    pushState.title = titleInput?.value || '';
+    pushState.body = bodyInput?.value || '';
+    pushState.customTargetPath = customTargetInput?.value || '';
+    pushState.targetPath =
+      preset === 'custom'
+        ? normalizeAdminPushTargetPath(pushState.customTargetPath)
+        : normalizeAdminPushTargetPath(preset);
+  }
+
+  function buildPushTargetSelect() {
+    const selectedPreset = PUSH_TARGET_PRESETS.some((item) => item.value === pushState.targetPath)
+      ? pushState.targetPath
+      : 'custom';
+    return PUSH_TARGET_PRESETS.map(
+      (item) =>
+        `<option value="${escapeHtml(item.value)}" ${
+          selectedPreset === item.value ? 'selected' : ''
+        }>${escapeHtml(item.label)}</option>`
+    ).join('');
+  }
+
+  function buildPushAudienceHtml() {
+    const audience = pushState.dryRun || pushState.audience;
+    if (!audience) {
+      return `
+        <div class="admin-push-summary-card">
+          <p class="gls-text-muted gls-text-small gls-mb-1">현재 대상</p>
+          <strong>대상 확인 전</strong>
+          <p class="gls-text-muted gls-text-small gls-mb-0">발송 전 대상 확인을 먼저 실행하세요.</p>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="admin-push-summary-card">
+        <p class="gls-text-muted gls-text-small gls-mb-1">수신 동의 사용자</p>
+        <strong>${formatCount(audience.eligible_user_count)}명</strong>
+        <p class="gls-text-muted gls-text-small gls-mb-0">활성 푸시 토큰 ${formatCount(
+          audience.eligible_token_count
+        )}개</p>
+      </div>
+    `;
+  }
+
+  function buildPushCampaignRows() {
+    const rows = Array.isArray(pushState.campaigns) ? pushState.campaigns : [];
+    if (!rows.length) {
+      return '<tr><td colspan="5" class="gls-text-muted gls-text-center">최근 발송 예약이 없습니다.</td></tr>';
+    }
+
+    return rows
+      .map((campaign) => {
+        const kind = campaign.campaign_kind === 'evening_writing_reminder' ? '저녁 리마인더' : '수동 발송';
+        return `
+          <tr>
+            <td>
+              <strong>${escapeHtml(campaign.title || '-')}</strong>
+              <div class="gls-text-muted gls-text-small">${escapeHtml(campaign.body || '')}</div>
+            </td>
+            <td><span class="admin-safety-pill">${escapeHtml(kind)}</span></td>
+            <td>${escapeHtml(campaign.target_path || '/')}</td>
+            <td class="gls-text-end">${formatCount(campaign.queued_count)}</td>
+            <td>${escapeHtml(formatAdminDateTime(campaign.created_at))}</td>
+          </tr>
+        `;
+      })
+      .join('');
+  }
+
+  function renderPushUi(pushBox) {
+    if (!pushBox) return;
+    const selectedPreset = PUSH_TARGET_PRESETS.some((item) => item.value === pushState.targetPath)
+      ? pushState.targetPath
+      : 'custom';
+    const customValue =
+      selectedPreset === 'custom' ? pushState.targetPath : pushState.customTargetPath;
+    const dryRunHtml = pushState.dryRun
+      ? `
+        <div class="admin-push-result admin-push-result--success">
+          <strong>대상 확인 완료</strong>
+          <span>${formatCount(pushState.dryRun.eligible_user_count)}명 · 토큰 ${formatCount(
+          pushState.dryRun.eligible_token_count
+        )}개</span>
+        </div>
+      `
+      : '';
+    const disabledAttr = pushState.sending ? 'disabled' : '';
+
+    pushBox.innerHTML = `
+      <div class="admin-push-grid">
+        <form id="adminPushForm" class="admin-push-form">
+          <div class="admin-push-form__header">
+            <div>
+              <p class="gls-text-muted gls-text-small gls-mb-1">수동 마케팅 푸시</p>
+              <h4 class="gls-mb-1">대상 확인 후 발송 예약</h4>
+              <p class="gls-text-muted gls-text-small gls-mb-0">제목에는 발송 시 법적 표기인 (광고)가 자동으로 붙습니다.</p>
+            </div>
+            ${buildPushAudienceHtml()}
+          </div>
+
+          <label class="gls-label" for="adminPushTitle">제목</label>
+          <input
+            id="adminPushTitle"
+            class="gls-input"
+            name="title"
+            maxlength="80"
+            value="${escapeHtml(pushState.title)}"
+            placeholder="오늘의 기록을 아직 남기지 않았다면"
+            ${disabledAttr}
+          />
+
+          <label class="gls-label" for="adminPushBody">본문</label>
+          <textarea
+            id="adminPushBody"
+            class="gls-input"
+            name="body"
+            rows="3"
+            maxlength="180"
+            placeholder="짧은 문장 하나로 오늘의 마음을 남겨보세요."
+            ${disabledAttr}
+          >${escapeHtml(pushState.body)}</textarea>
+
+          <div class="admin-push-target-row">
+            <label class="gls-label" for="adminPushTargetPreset">이동 위치</label>
+            <select id="adminPushTargetPreset" class="gls-select" name="target_preset" ${disabledAttr}>
+              ${buildPushTargetSelect()}
+            </select>
+            <input
+              class="gls-input"
+              name="custom_target_path"
+              value="${escapeHtml(customValue)}"
+              placeholder="/write"
+              ${selectedPreset === 'custom' && !pushState.sending ? '' : 'disabled'}
+            />
+          </div>
+
+          ${dryRunHtml}
+
+          <div class="admin-push-actions">
+            <button class="gls-btn gls-btn-secondary" type="submit" ${disabledAttr}>대상 확인</button>
+            <button class="gls-btn gls-btn-primary" id="adminPushSendBtn" type="button" ${disabledAttr}>${
+              pushState.sending ? '처리 중...' : '발송 예약'
+            }</button>
+          </div>
+        </form>
+
+        <section class="admin-push-history">
+          <div class="gls-flex gls-items-center gls-justify-between gls-gap-2 gls-mb-2">
+            <div>
+              <h4 class="gls-mb-0">최근 발송 예약</h4>
+              <p class="gls-text-muted gls-text-small gls-mb-0">서버 큐에 들어간 최근 캠페인입니다.</p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle gls-mb-0 admin-push-table">
+              <thead>
+                <tr>
+                  <th>내용</th>
+                  <th>종류</th>
+                  <th>이동</th>
+                  <th class="gls-text-end">큐</th>
+                  <th>생성</th>
+                </tr>
+              </thead>
+              <tbody>${buildPushCampaignRows()}</tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  async function loadPushCampaigns(pushBox) {
+    if (!pushBox) return;
+    try {
+      const response = await fetch('/api/admin/marketing-push-campaigns?limit=12', {
+        cache: 'no-store',
+      });
+      const data = await parseJsonSafe(response);
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || '푸시 운영 정보를 불러오지 못했습니다.');
+      }
+      pushState.campaigns = Array.isArray(data.campaigns) ? data.campaigns : [];
+      pushState.audience = data.audience || null;
+      setTabCount('pushTab', pushState.campaigns.length);
+      renderPushUi(pushBox);
+    } catch (error) {
+      console.error(error);
+      pushBox.innerHTML = '<p class="text-danger">푸시 운영 정보를 불러오지 못했습니다.</p>';
+      setTabCount('pushTab', '-');
+    }
+  }
+
+  async function submitPushCampaign(pushBox, options = {}) {
+    if (!pushBox || pushState.sending) return;
+    syncPushStateFromForm(pushBox);
+
+    const title = pushState.title.trim();
+    const body = pushState.body.trim();
+    if (!title || !body) {
+      showAdminNotice('푸시 제목과 본문을 입력하세요.', 'error');
+      return;
+    }
+
+    const dryRun = options.dryRun !== false;
+    if (!dryRun && !pushState.dryRun) {
+      showAdminNotice('발송 예약 전에 대상 확인을 먼저 실행하세요.', 'error');
+      return;
+    }
+    if (!dryRun && pushState.dryRun && Number(pushState.dryRun.eligible_token_count || 0) <= 0) {
+      showAdminNotice('발송 가능한 푸시 토큰이 없습니다.', 'error');
+      return;
+    }
+    if (
+      !dryRun &&
+      !window.confirm(
+        `${formatCount(pushState.dryRun?.eligible_token_count)}개 기기에 푸시를 예약할까요?`
+      )
+    ) {
+      return;
+    }
+
+    pushState.sending = true;
+    renderPushUi(pushBox);
+    try {
+      const response = await fetch('/api/admin/marketing-push-campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          body,
+          target_path: pushState.targetPath,
+          dry_run: dryRun,
+        }),
+      });
+      const data = await parseJsonSafe(response);
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || '푸시 작업에 실패했습니다.');
+      }
+
+      if (dryRun) {
+        pushState.dryRun = {
+          eligible_user_count: data.eligible_user_count || 0,
+          eligible_token_count: data.eligible_token_count || 0,
+        };
+        showAdminNotice('푸시 대상을 확인했습니다.', 'success');
+        renderPushUi(pushBox);
+        return;
+      }
+
+      pushState.dryRun = null;
+      showAdminNotice(`푸시 ${formatCount(data.queued_count)}건을 예약했습니다.`, 'success');
+      await loadPushCampaigns(pushBox);
+    } catch (error) {
+      console.error(error);
+      showAdminNotice(error.message || '푸시 작업 중 오류가 발생했습니다.', 'error');
+      renderPushUi(pushBox);
+    } finally {
+      pushState.sending = false;
+      renderPushUi(pushBox);
+    }
   }
 
   async function fetchMeAsAdmin() {

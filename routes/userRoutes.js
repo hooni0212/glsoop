@@ -361,7 +361,7 @@ router.post('/users/:id/follow', authRequired, async (req, res) => {
           recipientUserId: targetUserId,
           actorUserId: viewerId,
           eventType: ACTIVITY_TYPES.SYSTEM,
-          title: '새 팔로워',
+          title: '새 독자가 생겼어요',
           body: `${actorName}님이 나를 팔로우했어요.`,
           meta: { notification_type: 'new_follower' },
           uniqueKey: `new_follower:${targetUserId}:${viewerId}`,

@@ -72,26 +72,26 @@ function buildActivityCopy({ eventType, actorDisplayName, postTitle }) {
   const actor = actorDisplayName || '누군가';
   if (eventType === ACTIVITY_TYPES.POST_LIKED) {
     return {
-      title: '새 공감',
-      body: `${actor}님이 회원님의 글을 공감했어요.`,
+      title: '내 글에 새 공감이 있어요',
+      body: `${actor}님이 내 글에 공감했어요.`,
     };
   }
   if (eventType === ACTIVITY_TYPES.POST_BOOKMARKED) {
     return {
-      title: '새 북마크',
-      body: `${actor}님이 회원님의 글을 저장했어요.`,
+      title: '내 글이 저장됐어요',
+      body: `${actor}님이 내 글을 보관했어요.`,
     };
   }
   if (eventType === ACTIVITY_TYPES.COMMENT_REPLIED) {
     return {
-      title: '새 답글',
-      body: `${actor}님이 회원님의 댓글에 답글을 남겼어요.`,
+      title: '새 답글이 도착했어요',
+      body: `${actor}님이 내 댓글에 답글을 남겼어요.`,
     };
   }
   if (eventType === ACTIVITY_TYPES.COMMENT_CREATED) {
     return {
-      title: '새 댓글',
-      body: `${actor}님이 "${postTitle || '회원님의 글'}"에 댓글을 남겼어요.`,
+      title: '새 댓글이 도착했어요',
+      body: `${actor}님이 "${postTitle || '내 글'}"에 댓글을 남겼어요.`,
     };
   }
   return {
