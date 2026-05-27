@@ -12,9 +12,6 @@
 
 :root {
   --gls-z-base: 0;
-  --gls-z-header: 10;
-  --gls-z-dropdown: 20;
-  --gls-z-modal: 100;
 }
 
 .AppShell-main {
