@@ -31,9 +31,22 @@ function normalizeInternalTargetPath(value) {
   return trimmed;
 }
 
-function normalizeMarketingTitle(value) {
+function parseBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value !== 'string') return fallback;
+  return ['1', 'true', 'yes', 'y', 'on'].includes(value.trim().toLowerCase());
+}
+
+function stripAdLabel(value) {
+  return String(value || '').replace(/^\(광고\)\s*/u, '').trim();
+}
+
+function normalizeMarketingTitle(value, options = {}) {
   const raw = normalizeNullableText(value, 80) || DEFAULT_TITLE;
-  return raw.startsWith('(광고)') ? raw : `(광고) ${raw}`;
+  const title = stripAdLabel(raw) || DEFAULT_TITLE;
+  return options.includeAdLabel ? `(광고) ${title}` : title;
 }
 
 function serializeMeta(meta) {
@@ -234,8 +247,13 @@ async function queueConditionalEveningMarketingPush(input = {}) {
     };
   }
 
+  const includeAdLabel = parseBoolean(
+    input.includeAdLabel ?? process.env.MARKETING_PUSH_REMINDER_INCLUDE_AD_LABEL,
+    false
+  );
   const title = normalizeMarketingTitle(
-    input.title ?? process.env.MARKETING_PUSH_REMINDER_TITLE ?? DEFAULT_TITLE
+    input.title ?? process.env.MARKETING_PUSH_REMINDER_TITLE ?? DEFAULT_TITLE,
+    { includeAdLabel }
   );
   const body =
     normalizeNullableText(input.body ?? process.env.MARKETING_PUSH_REMINDER_BODY, 180) ||

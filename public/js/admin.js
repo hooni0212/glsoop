@@ -49,9 +49,14 @@ Glsoop.AdminPage = (function () {
     body: '짧은 문장 하나로 오늘의 마음을 남겨보세요.',
     targetPath: '/write',
     customTargetPath: '',
+    includeAdLabel: true,
     dryRun: null,
     audience: null,
     campaigns: [],
+    deliverySummary: null,
+    deliveries: [],
+    recipientSummary: null,
+    recipients: [],
     initialized: false,
     sending: false,
   };
@@ -216,7 +221,7 @@ Glsoop.AdminPage = (function () {
     setupAchievementBackfillButton();
     setupShareSummaryUi(shareSummaryBox);
     setupPushUi(pushBox);
-    await loadPushCampaigns(pushBox);
+    await loadPushDashboard(pushBox);
   }
 
   function setupThemeControls() {
@@ -1523,7 +1528,7 @@ Glsoop.AdminPage = (function () {
     if (refreshBtn && refreshBtn.dataset.bound !== 'true') {
       refreshBtn.dataset.bound = 'true';
       refreshBtn.addEventListener('click', () => {
-        loadPushCampaigns(pushBox);
+        loadPushDashboard(pushBox);
       });
     }
 
@@ -1566,10 +1571,12 @@ Glsoop.AdminPage = (function () {
     const bodyInput = form.querySelector('[name="body"]');
     const presetInput = form.querySelector('[name="target_preset"]');
     const customTargetInput = form.querySelector('[name="custom_target_path"]');
+    const includeAdLabelInput = form.querySelector('[name="include_ad_label"]');
     const preset = presetInput?.value || '/write';
 
     pushState.title = titleInput?.value || '';
     pushState.body = bodyInput?.value || '';
+    pushState.includeAdLabel = includeAdLabelInput?.checked !== false;
     pushState.customTargetPath = customTargetInput?.value || '';
     pushState.targetPath =
       preset === 'custom'
@@ -1637,6 +1644,116 @@ Glsoop.AdminPage = (function () {
       .join('');
   }
 
+  function formatPushStatus(status) {
+    const normalized = String(status || '').toLowerCase();
+    if (normalized === 'queued') return '대기';
+    if (normalized === 'sent') return '발송';
+    if (normalized === 'failed') return '실패';
+    if (normalized === 'skipped') return '제외';
+    return status || '-';
+  }
+
+  function formatPushType(type, eventType) {
+    const normalized = String(type || eventType || '').toLowerCase();
+    if (normalized === 'marketing_campaign') return '마케팅';
+    if (normalized === 'post_reaction' || normalized === 'post_liked') return '좋아요';
+    if (normalized === 'post_comment' || normalized === 'comment_created') return '댓글';
+    if (normalized === 'comment_reply' || normalized === 'comment_replied') return '답글';
+    if (normalized === 'new_follower') return '팔로우';
+    if (normalized === 'admin_operational_alert') return '운영';
+    return normalized || '-';
+  }
+
+  function formatPushPlatforms(platforms) {
+    const list = Array.isArray(platforms) ? platforms.filter(Boolean) : [];
+    if (!list.length) return '-';
+    return list.map((item) => String(item).toUpperCase()).join(', ');
+  }
+
+  function buildAdminUserSummary(user = {}) {
+    const displayName = user.nickname || user.name || `#${user.id || '-'}`;
+    const maskedEmail = maskEmail(user.email || '');
+    return {
+      displayName,
+      secondary: maskedEmail || user.email || '',
+    };
+  }
+
+  function buildPushDeliveryRows() {
+    const rows = Array.isArray(pushState.deliveries) ? pushState.deliveries : [];
+    if (!rows.length) {
+      return '<tr><td colspan="5" class="gls-text-muted gls-text-center">최근 푸시 알림이 없습니다.</td></tr>';
+    }
+
+    return rows
+      .map((delivery) => {
+        const recipient = buildAdminUserSummary(delivery.recipient || {});
+        const status = String(delivery.status || '').toLowerCase();
+        const sentAt = delivery.sent_at || delivery.last_attempt_at || delivery.created_at;
+        return `
+          <tr>
+            <td>
+              <span class="admin-push-status admin-push-status--${escapeHtml(status || 'unknown')}">${escapeHtml(
+          formatPushStatus(status)
+        )}</span>
+              <div class="gls-text-muted gls-text-small">시도 ${formatCount(delivery.attempt_count)}</div>
+            </td>
+            <td>
+              <strong>${escapeHtml(delivery.title || '-')}</strong>
+              <div class="gls-text-muted gls-text-small">${escapeHtml(delivery.body || '')}</div>
+              ${
+                delivery.last_error
+                  ? `<div class="admin-push-error">${escapeHtml(delivery.last_error)}</div>`
+                  : ''
+              }
+            </td>
+            <td>
+              <strong>${escapeHtml(recipient.displayName)}</strong>
+              <div class="gls-text-muted gls-text-small">${escapeHtml(recipient.secondary)}</div>
+            </td>
+            <td>
+              <span class="admin-safety-pill">${escapeHtml(
+                formatPushType(delivery.type, delivery.event_type)
+              )}</span>
+              <div class="gls-text-muted gls-text-small">${escapeHtml(delivery.target_path || '/notifications')}</div>
+            </td>
+            <td>${escapeHtml(formatAdminDateTime(sentAt))}</td>
+          </tr>
+        `;
+      })
+      .join('');
+  }
+
+  function buildPushRecipientRows() {
+    const rows = Array.isArray(pushState.recipients) ? pushState.recipients : [];
+    if (!rows.length) {
+      return '<tr><td colspan="5" class="gls-text-muted gls-text-center">수신 동의 사용자가 없습니다.</td></tr>';
+    }
+
+    return rows
+      .map((recipient) => {
+        const user = buildAdminUserSummary(recipient);
+        return `
+          <tr>
+            <td>
+              <strong>${escapeHtml(user.displayName)}</strong>
+              <div class="gls-text-muted gls-text-small">ID ${escapeHtml(recipient.id || '-')}</div>
+            </td>
+            <td>${escapeHtml(user.secondary || '-')}</td>
+            <td>${escapeHtml(formatAdminDateTime(recipient.marketing_push_opt_in_updated_at))}</td>
+            <td class="gls-text-end">${formatCount(recipient.active_push_token_count)}</td>
+            <td>
+              <strong>${escapeHtml(formatPushPlatforms(recipient.platforms))}</strong>
+              <div class="gls-text-muted gls-text-small">${escapeHtml(
+                formatAdminDateTime(recipient.last_push_token_seen_at)
+              )}</div>
+            </td>
+          </tr>
+        `;
+      })
+      .join('');
+  }
+
   function renderPushUi(pushBox) {
     if (!pushBox) return;
     const selectedPreset = PUSH_TARGET_PRESETS.some((item) => item.value === pushState.targetPath)
@@ -1655,6 +1772,8 @@ Glsoop.AdminPage = (function () {
       `
       : '';
     const disabledAttr = pushState.sending ? 'disabled' : '';
+    const deliverySummary = pushState.deliverySummary || {};
+    const recipientSummary = pushState.recipientSummary || {};
 
     pushBox.innerHTML = `
       <div class="admin-push-grid">
@@ -1663,7 +1782,7 @@ Glsoop.AdminPage = (function () {
             <div>
               <p class="gls-text-muted gls-text-small gls-mb-1">수동 마케팅 푸시</p>
               <h4 class="gls-mb-1">대상 확인 후 발송 예약</h4>
-              <p class="gls-text-muted gls-text-small gls-mb-0">제목에는 발송 시 법적 표기인 (광고)가 자동으로 붙습니다.</p>
+              <p class="gls-text-muted gls-text-small gls-mb-0">광고성 발송이 아니라고 판단되는 경우 표기를 끌 수 있습니다.</p>
             </div>
             ${buildPushAudienceHtml()}
           </div>
@@ -1689,6 +1808,20 @@ Glsoop.AdminPage = (function () {
             placeholder="짧은 문장 하나로 오늘의 마음을 남겨보세요."
             ${disabledAttr}
           >${escapeHtml(pushState.body)}</textarea>
+
+          <label class="admin-push-ad-row">
+            <input
+              class="gls-check-input"
+              type="checkbox"
+              name="include_ad_label"
+              ${pushState.includeAdLabel ? 'checked' : ''}
+              ${disabledAttr}
+            />
+            <span>
+              <strong>(광고) 표기 붙이기</strong>
+              <small>켜면 서버가 제목 맨 앞에 자동으로 붙입니다.</small>
+            </span>
+          </label>
 
           <div class="admin-push-target-row">
             <label class="gls-label" for="adminPushTargetPreset">이동 위치</label>
@@ -1736,23 +1869,97 @@ Glsoop.AdminPage = (function () {
             </table>
           </div>
         </section>
+
+        <section class="admin-push-history admin-push-wide">
+          <div class="gls-flex gls-flex-wrap gls-items-center gls-justify-between gls-gap-2 gls-mb-2">
+            <div>
+              <h4 class="gls-mb-0">최근 푸시 알림</h4>
+              <p class="gls-text-muted gls-text-small gls-mb-0">실제 발송 큐에 들어간 개별 푸시 알림입니다.</p>
+            </div>
+            <div class="admin-push-mini-stats">
+              <span>전체 ${formatCount(deliverySummary.total_count)}</span>
+              <span>대기 ${formatCount(deliverySummary.queued_count)}</span>
+              <span>실패 ${formatCount(deliverySummary.failed_count)}</span>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle gls-mb-0 admin-push-table admin-push-table--deliveries">
+              <thead>
+                <tr>
+                  <th>상태</th>
+                  <th>알림</th>
+                  <th>수신자</th>
+                  <th>종류/이동</th>
+                  <th>시각</th>
+                </tr>
+              </thead>
+              <tbody>${buildPushDeliveryRows()}</tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="admin-push-history admin-push-wide">
+          <div class="gls-flex gls-flex-wrap gls-items-center gls-justify-between gls-gap-2 gls-mb-2">
+            <div>
+              <h4 class="gls-mb-0">수신 동의 사용자</h4>
+              <p class="gls-text-muted gls-text-small gls-mb-0">마케팅 푸시 수신에 동의했고 계정이 활성 상태인 사용자입니다.</p>
+            </div>
+            <div class="admin-push-mini-stats">
+              <span>동의 ${formatCount(recipientSummary.opted_in_user_count)}명</span>
+              <span>활성 토큰 ${formatCount(recipientSummary.active_token_count)}개</span>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle gls-mb-0 admin-push-table admin-push-table--recipients">
+              <thead>
+                <tr>
+                  <th>사용자</th>
+                  <th>이메일</th>
+                  <th>동의일</th>
+                  <th class="gls-text-end">활성 토큰</th>
+                  <th>플랫폼/최근 토큰</th>
+                </tr>
+              </thead>
+              <tbody>${buildPushRecipientRows()}</tbody>
+            </table>
+          </div>
+        </section>
       </div>
     `;
   }
 
-  async function loadPushCampaigns(pushBox) {
+  async function loadPushDashboard(pushBox) {
     if (!pushBox) return;
     try {
-      const response = await fetch('/api/admin/marketing-push-campaigns?limit=12', {
-        cache: 'no-store',
-      });
-      const data = await parseJsonSafe(response);
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || '푸시 운영 정보를 불러오지 못했습니다.');
+      const [campaignResponse, deliveryResponse, recipientResponse] = await Promise.all([
+        fetch('/api/admin/marketing-push-campaigns?limit=12', { cache: 'no-store' }),
+        fetch('/api/admin/push-deliveries?limit=30', { cache: 'no-store' }),
+        fetch('/api/admin/push-recipients?limit=50', { cache: 'no-store' }),
+      ]);
+      const [campaignData, deliveryData, recipientData] = await Promise.all([
+        parseJsonSafe(campaignResponse),
+        parseJsonSafe(deliveryResponse),
+        parseJsonSafe(recipientResponse),
+      ]);
+      if (!campaignResponse.ok || !campaignData.ok) {
+        throw new Error(campaignData.message || '푸시 캠페인 정보를 불러오지 못했습니다.');
       }
-      pushState.campaigns = Array.isArray(data.campaigns) ? data.campaigns : [];
-      pushState.audience = data.audience || null;
-      setTabCount('pushTab', pushState.campaigns.length);
+      if (!deliveryResponse.ok || !deliveryData.ok) {
+        throw new Error(deliveryData.message || '푸시 발송 목록을 불러오지 못했습니다.');
+      }
+      if (!recipientResponse.ok || !recipientData.ok) {
+        throw new Error(recipientData.message || '푸시 수신 동의자 목록을 불러오지 못했습니다.');
+      }
+      pushState.campaigns = Array.isArray(campaignData.campaigns) ? campaignData.campaigns : [];
+      pushState.audience = campaignData.audience || null;
+      pushState.deliveries = Array.isArray(deliveryData.deliveries) ? deliveryData.deliveries : [];
+      pushState.deliverySummary = deliveryData.summary || null;
+      pushState.recipients = Array.isArray(recipientData.recipients) ? recipientData.recipients : [];
+      pushState.recipientSummary = recipientData.summary || null;
+      setTabCount(
+        'pushTab',
+        pushState.recipientSummary?.opted_in_user_count ?? pushState.campaigns.length
+      );
       renderPushUi(pushBox);
     } catch (error) {
       console.error(error);
@@ -1800,6 +2007,7 @@ Glsoop.AdminPage = (function () {
           title,
           body,
           target_path: pushState.targetPath,
+          include_ad_label: pushState.includeAdLabel,
           dry_run: dryRun,
         }),
       });
@@ -1820,7 +2028,7 @@ Glsoop.AdminPage = (function () {
 
       pushState.dryRun = null;
       showAdminNotice(`푸시 ${formatCount(data.queued_count)}건을 예약했습니다.`, 'success');
-      await loadPushCampaigns(pushBox);
+      await loadPushDashboard(pushBox);
     } catch (error) {
       console.error(error);
       showAdminNotice(error.message || '푸시 작업 중 오류가 발생했습니다.', 'error');
