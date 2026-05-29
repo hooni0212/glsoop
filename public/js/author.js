@@ -1247,6 +1247,21 @@ async function handleOpenLatestPost() {
   showUiNotice('아직 바로 읽을 수 있는 최신 글이 없습니다.', 'info', 1800);
 }
 
+function resolveAuthorIdFromLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const queryUserId = params.get('userId');
+  if (queryUserId) return queryUserId;
+
+  const match = window.location.pathname.match(/^\/users\/([^/?#]+)\/?$/);
+  if (!match) return null;
+
+  try {
+    return decodeURIComponent(match[1]);
+  } catch (_error) {
+    return match[1];
+  }
+}
+
 async function initAuthorPage() {
   cacheAuthorDom();
   bindProfileControls();
@@ -1255,8 +1270,7 @@ async function initAuthorPage() {
   setupAuthorSortModal();
   setupInfiniteLoadTrigger();
 
-  const params = new URLSearchParams(window.location.search);
-  const userId = params.get('userId');
+  const userId = resolveAuthorIdFromLocation();
 
   if (!userId) {
     showUiNotice('잘못된 접근입니다. 작가 정보를 찾을 수 없습니다.', 'error', 2200);

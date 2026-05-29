@@ -140,6 +140,10 @@ app.get(['/posts/:id', '/posts/:id/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'html', 'post.html'));
 });
 
+app.get(['/users/:id', '/users/:id/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'html', 'author.html'));
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

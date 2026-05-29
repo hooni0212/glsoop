@@ -185,6 +185,62 @@ function parsePagination(query = {}) {
   return { limit, offset };
 }
 
+function normalizeRecommendationSeed(value) {
+  const parsed = parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.abs(parsed) % 1000000;
+}
+
+function parseExcludedPostIds(value) {
+  const rawValues = (Array.isArray(value) ? value : [value])
+    .flatMap((raw) => String(raw || '').split(','));
+  const ids = [];
+  const seen = new Set();
+
+  for (const raw of rawValues) {
+    const parsed = parseId(raw);
+    if (!parsed || seen.has(parsed)) continue;
+    seen.add(parsed);
+    ids.push(parsed);
+    if (ids.length >= 100) break;
+  }
+
+  return ids;
+}
+
+function buildFeedOrderClause(sort, seed = 0) {
+  if (sort === 'popular') {
+    return 'ORDER BY like_count DESC, p.created_at DESC';
+  }
+
+  if (sort === 'recommended') {
+    const safeSeed = normalizeRecommendationSeed(seed);
+    const seedOffset = (safeSeed * 7919 + 104729) % 1000000;
+    const jitter = `ABS(((p.id * 1103515245 + ${seedOffset}) % 9973)) / 9973.0`;
+    const ageSeconds = "(strftime('%s', 'now') - strftime('%s', p.created_at))";
+    const recencyBoost = `
+      CASE
+        WHEN ${ageSeconds} BETWEEN 0 AND 604800
+          THEN (604800 - ${ageSeconds}) / 86400.0
+        ELSE 0
+      END
+    `;
+
+    return `
+      ORDER BY
+        (
+          IFNULL(lc.like_count, 0) * 10
+          + ${recencyBoost}
+          + (${jitter}) * 4
+        ) DESC,
+        p.created_at DESC,
+        p.id DESC
+    `;
+  }
+
+  return 'ORDER BY p.created_at DESC';
+}
+
 function parseId(value) {
   const num = parseInt(value, 10);
   return Number.isNaN(num) ? null : num;
@@ -1343,8 +1399,10 @@ function handleFeedRequest(req, res) {
   const userId = getOptionalUserId(req);
   const { limit, offset } = parsePagination(req.query);
 
-  const sortParam = String(req.query.sort || 'latest');
-  const sort = sortParam === 'popular' ? 'popular' : 'latest';
+  const sortParam = String(req.query.sort || 'latest').trim().toLowerCase();
+  const sort = ['popular', 'recommended'].includes(sortParam) ? sortParam : 'latest';
+  const recommendationSeed = normalizeRecommendationSeed(req.query.seed);
+  const excludedPostIds = parseExcludedPostIds(req.query.exclude_ids);
 
   const typeParam = String(req.query.type || 'all');
   const feedType = typeParam === 'following' ? 'following' : 'all';
@@ -1462,14 +1520,16 @@ function handleFeedRequest(req, res) {
       params.push(category);
     }
 
+    if (excludedPostIds.length > 0) {
+      conditions.push(`p.id NOT IN (${excludedPostIds.map(() => '?').join(', ')})`);
+      params.push(...excludedPostIds);
+    }
+
     const whereClause = conditions.length
       ? `WHERE ${conditions.join(' AND ')}`
       : '';
 
-    const orderClause =
-      sort === 'popular'
-        ? 'ORDER BY like_count DESC, p.created_at DESC'
-        : 'ORDER BY p.created_at DESC';
+    const orderClause = buildFeedOrderClause(sort, recommendationSeed);
 
     const sql = `
       ${selectClause}
@@ -1501,6 +1561,8 @@ function handleFeedRequest(req, res) {
           context: {
             feed_type: feedType,
             sort,
+            recommendation_seed: sort === 'recommended' ? recommendationSeed : null,
+            excluded_post_ids: excludedPostIds,
             following_count: followingCount,
             tags,
             category: category || null,

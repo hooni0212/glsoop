@@ -267,10 +267,17 @@ body.page-author::after {
 }
 
 #authorFollowBtn.gls-btn-primary,
+#authorFollowBtn.gls-btn-primary.is-active,
 #authorFollowBtn.is-active {
-  --gls-btn-primary-bg: var(--author-accent);
-  --gls-btn-primary-border: var(--author-accent);
-  --gls-btn-primary-text: #f8fff9;
+  color: #f8fff9;
+  border-color: var(--author-accent);
+  background:
+    linear-gradient(
+      128deg,
+      color-mix(in srgb, var(--author-accent) 88%, #0f3328 12%),
+      color-mix(in srgb, var(--author-accent) 72%, #0a2d23 28%)
+    );
+  box-shadow: 0 12px 28px rgba(17, 66, 50, 0.24), var(--gls-glass-inset);
 }
 
 #authorFollowBtn.gls-btn-secondary {
