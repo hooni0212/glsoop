@@ -27,6 +27,36 @@ test.describe('Author CTA flow', () => {
     await expect.poll(() => uxEvents.includes('author_post_open')).toBe(true);
   });
 
+  test('shows an active visible follow button when already following', async ({ page }) => {
+    await mockAuthorPageApis(page, {
+      viewer: {
+        id: 2,
+        is_logged_in: true,
+        is_own_profile: false,
+        is_following: true,
+      },
+    });
+
+    await page.goto('/html/author.html?userId=1');
+
+    const followBtn = page.locator('#authorFollowBtn');
+    await expect(followBtn).toHaveText('팔로잉');
+    await expect(followBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(followBtn).toHaveClass(/gls-btn-primary/);
+    await expect(followBtn).toHaveClass(/is-active/);
+    await expect(followBtn).not.toHaveCSS('background-image', 'none');
+    await expect(followBtn).toHaveCSS('color', 'rgb(248, 255, 249)');
+  });
+
+  test('opens author pages from clean /users/:id target paths', async ({ page }) => {
+    await mockAuthorPageApis(page);
+
+    await page.goto('/users/1');
+
+    await expect(page.locator('#authorFollowBtn')).toHaveText('팔로우');
+    await expect(page.locator('#authorPostsList .author-post-card')).toHaveCount(3);
+  });
+
   test('opens post detail when clicking feed cards', async ({ page }) => {
     const { uxEvents } = await mockAuthorPageApis(page);
 
