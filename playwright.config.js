@@ -48,6 +48,11 @@ module.exports = defineConfig({
       JWT_AUDIENCE: 'glsoop-client',
       RESET_TOKEN_HMAC_SECRET: 'devsecret',
       AUTH_SIGNUP_EMAIL_DRY_RUN: 'true',
+      PHOTO_SAVE_ADS_ENABLED: 'true',
+      PHOTO_SAVE_FREE_DAILY_LIMIT: '1',
+      PHOTO_SAVE_REWARDED_GRANT_TTL_MINUTES: '30',
+      PHOTO_SAVE_ADMOB_ANDROID_REWARDED_UNIT_ID: 'ca-app-pub-test/android-rewarded',
+      PHOTO_SAVE_ADMOB_IOS_REWARDED_UNIT_ID: 'ca-app-pub-test/ios-rewarded',
     },
   },
   projects: [
