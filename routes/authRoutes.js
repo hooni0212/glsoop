@@ -1981,6 +1981,79 @@ router.get('/me/followings', authRequired, (req, res) => {
   );
 });
 
+// 7-1-2) 나를 팔로우 중인 사용자 목록 조회
+router.get('/me/followers', authRequired, (req, res) => {
+  const userId = req.user.id;
+  const conditions = [
+    'f.followee_id = ?',
+    "COALESCE(u.account_status, 'active') = 'active'",
+  ];
+  const params = [userId];
+  appendViewerBlockedAuthorCondition(conditions, params, userId, 'u.id');
+
+  db.all(
+    `
+    SELECT
+      u.id,
+      u.nickname,
+      u.bio,
+      u.about,
+      COALESCE(u.account_status, 'active') AS account_status,
+      f.created_at AS followed_at,
+      (SELECT COUNT(*) FROM follows f2 WHERE f2.followee_id = u.id) AS follower_count,
+      EXISTS (
+        SELECT 1
+        FROM follows f3
+        WHERE f3.follower_id = ?
+          AND f3.followee_id = u.id
+      ) AS is_following
+    FROM follows f
+    INNER JOIN users u ON u.id = f.follower_id
+    WHERE ${conditions.join('\n      AND ')}
+    ORDER BY datetime(f.created_at) DESC, u.id DESC
+    `,
+    [userId, ...params],
+    (err, rows) => {
+      if (err) {
+        console.error(err);
+        return sendAuthError(
+          res,
+          500,
+          'AUTH_FOLLOWERS_FETCH_FAILED',
+          '팔로워 목록을 불러오는 중 오류가 발생했습니다.'
+        );
+      }
+
+      const followers = (rows || []).map((row) => {
+        const nickname =
+          typeof row?.nickname === 'string' && row.nickname.trim()
+            ? row.nickname.trim()
+            : null;
+        const displayName = buildPublicDisplayName(nickname, row?.account_status);
+
+        return {
+          id: row.id,
+          display_name: displayName,
+          name: displayName,
+          nickname,
+          bio: row.bio || null,
+          about: row.about || null,
+          email: null,
+          follower_count: row.follower_count || 0,
+          is_following: Number(row.is_following || 0) === 1,
+          followed_at: row.followed_at || null,
+        };
+      });
+
+      return res.json({
+        ok: true,
+        message: '팔로워 목록을 불러왔습니다.',
+        followers,
+      });
+    }
+  );
+});
+
 // 7-2) 내 정보 수정
 router.put('/me', authRequired, async (req, res) => {
   const userId = req.user.id;

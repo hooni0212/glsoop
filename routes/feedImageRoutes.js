@@ -17,6 +17,7 @@ const {
   createPreviewSession,
   readPreviewSession,
 } = require('../utils/feedPreviewSessions');
+const { buildPublicDisplayName } = require('../utils/accountLifecycle');
 
 const router = express.Router();
 const PREVIEW_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
@@ -29,6 +30,7 @@ const PREVIEW_LETTER_SPACING_RANGE = { min: -0.04, max: 0.08 };
 const PREVIEW_CONTENT_PAGE_MAX_COUNT = 8;
 const PREVIEW_CONTENT_PAGE_MAX_CHARS = 1000;
 const PREVIEW_CONTENT_PAGE_MAX_TOTAL_CHARS = 8000;
+const DEFAULT_PREMIUM_ENTITLEMENT_KEY = 'premium:glsoop';
 
 function dbGetAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -43,6 +45,47 @@ function parsePostId(raw) {
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isInteger(parsed) || parsed <= 0) return null;
   return parsed;
+}
+
+function parseBooleanQueryFlag(raw) {
+  if (raw === undefined || raw === null) return false;
+  const value = String(raw).trim().toLowerCase();
+  return ['1', 'true', 'yes', 'y', 'on'].includes(value);
+}
+
+function getAuthorSignatureEntitlementKeys() {
+  return [
+    process.env.POST_IMAGE_AUTHOR_SIGNATURE_ENTITLEMENT_KEY,
+    process.env.PHOTO_SAVE_PREMIUM_ENTITLEMENT_KEY,
+    DEFAULT_PREMIUM_ENTITLEMENT_KEY,
+  ]
+    .flatMap((value) => String(value || '').split(','))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index);
+}
+
+async function hasAuthorSignatureEntitlement(userId) {
+  if (!userId) return false;
+
+  const keys = getAuthorSignatureEntitlementKeys();
+  if (!keys.length) return false;
+
+  const placeholders = keys.map(() => '?').join(', ');
+  const row = await dbGetAsync(
+    `
+    SELECT 1
+    FROM user_entitlements
+    WHERE user_id = ?
+      AND entitlement_key IN (${placeholders})
+      AND status = 'active'
+      AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
+    LIMIT 1
+    `,
+    [userId, ...keys]
+  );
+
+  return Boolean(row);
 }
 
 function parsePageNumber(raw) {
@@ -476,7 +519,7 @@ router.get('/feed-images/post/:postId', async (req, res) => {
   }
 });
 
-router.get('/feed-images/share/post/:postId', async (req, res) => {
+router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => {
   const postId = parsePostId(req.params.postId);
   if (!postId) {
     return res.status(400).json({
@@ -489,6 +532,9 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
   const scale = normalizeScale(req.query.scale);
   const imageFormat = normalizeImageFormat(req.query.format);
   const page = parsePageNumber(req.query.page);
+  const authorSignatureRequested = parseBooleanQueryFlag(
+    req.query.author_signature ?? req.query.authorSignature
+  );
   if (!page) {
     return res.status(400).json({
       ok: false,
@@ -506,15 +552,19 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
     const post = await dbGetAsync(
       `
       SELECT
-        id,
-        title,
-        content,
-        created_at,
-        category,
-        layout_json,
-        content_pages
-      FROM posts
-      WHERE id = ?
+        p.id,
+        p.user_id,
+        p.title,
+        p.content,
+        p.created_at,
+        p.category,
+        p.layout_json,
+        p.content_pages,
+        u.nickname AS author_nickname,
+        COALESCE(u.account_status, 'active') AS author_account_status
+      FROM posts p
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE p.id = ?
       LIMIT 1
       `,
       [postId]
@@ -527,6 +577,34 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
       });
     }
 
+    let authorSignature = null;
+    if (authorSignatureRequested) {
+      if (!req.user?.id) {
+        return res.status(401).json({
+          ok: false,
+          code: 'AUTH_REQUIRED',
+          message: '작가 서명 이미지는 로그인이 필요합니다.',
+        });
+      }
+
+      const signatureAllowed = await hasAuthorSignatureEntitlement(req.user.id);
+      if (!signatureAllowed) {
+        return res.status(403).json({
+          ok: false,
+          code: 'PREMIUM_REQUIRED',
+          message: '작가 서명 이미지는 글숲 프리미엄 권한이 필요합니다.',
+        });
+      }
+
+      authorSignature = {
+        enabled: true,
+        name: buildPublicDisplayName(
+          post.author_nickname,
+          post.author_account_status
+        ),
+      };
+    }
+
     const rendered = await renderFeedCardImage({
       post,
       templateKey: template,
@@ -534,6 +612,7 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
       renderMode: 'share',
       page: 1,
       imageFormat,
+      authorSignature,
     });
 
     res.set(
@@ -554,6 +633,7 @@ router.get('/feed-images/share/post/:postId', async (req, res) => {
     res.set('X-Feed-Image-Format', rendered.imageFormat || imageFormat);
     res.set('X-Feed-Image-Page', '1');
     res.set('X-Feed-Image-Page-Count', '1');
+    res.set('X-Feed-Image-Author-Signature', authorSignature ? '1' : '0');
     if (rendered.layout) {
       res.set('X-Feed-Image-Layout', rendered.layout);
     }

@@ -130,7 +130,15 @@ async function seedFixtures() {
       [...userIds, ...userIds]
     );
     await dbRun(db, `DELETE FROM comment_likes WHERE user_id IN (${placeholders})`, userIds);
-    await dbRun(db, 'DELETE FROM comments WHERE post_id = ?', [POST_ID]);
+    await dbRun(
+      db,
+      `
+      DELETE FROM comments
+      WHERE post_id = ?
+         OR post_id IN (SELECT id FROM posts WHERE user_id IN (${placeholders}))
+      `,
+      [POST_ID, ...userIds]
+    );
     await dbRun(
       db,
       `DELETE FROM user_blocks
@@ -145,10 +153,34 @@ async function seedFixtures() {
           OR followee_id IN (${placeholders})`,
       [...userIds, ...userIds]
     );
-    await dbRun(db, 'DELETE FROM bookmark_items WHERE post_id = ?', [POST_ID]);
+    await dbRun(
+      db,
+      `
+      DELETE FROM bookmark_items
+      WHERE post_id = ?
+         OR post_id IN (SELECT id FROM posts WHERE user_id IN (${placeholders}))
+      `,
+      [POST_ID, ...userIds]
+    );
     await dbRun(db, `DELETE FROM bookmark_lists WHERE user_id IN (${placeholders})`, userIds);
-    await dbRun(db, 'DELETE FROM likes WHERE post_id = ?', [POST_ID]);
-    await dbRun(db, 'DELETE FROM posts WHERE id = ?', [POST_ID]);
+    await dbRun(
+      db,
+      `
+      DELETE FROM likes
+      WHERE post_id = ?
+         OR post_id IN (SELECT id FROM posts WHERE user_id IN (${placeholders}))
+      `,
+      [POST_ID, ...userIds]
+    );
+    await dbRun(
+      db,
+      `
+      DELETE FROM posts
+      WHERE id = ?
+         OR user_id IN (${placeholders})
+      `,
+      [POST_ID, ...userIds]
+    );
     await dbRun(db, `DELETE FROM users WHERE id IN (${placeholders})`, userIds);
 
     for (const [role, id] of Object.entries(USERS)) {
@@ -187,6 +219,27 @@ async function getQueuedPushPayloads(recipientUserId) {
   );
 
   return rows.map((row) => JSON.parse(row.payload_json || '{}'));
+}
+
+async function getQueuedPushRows(recipientUserId) {
+  const rows = await withDb((db) =>
+    dbAll(
+      db,
+      `
+      SELECT title, body, payload_json
+      FROM push_delivery_queue
+      WHERE recipient_user_id = ?
+      ORDER BY id ASC
+      `,
+      [recipientUserId]
+    )
+  );
+
+  return rows.map((row) => ({
+    title: row.title || null,
+    body: row.body || null,
+    payload: JSON.parse(row.payload_json || '{}'),
+  }));
 }
 
 test.describe('Notifications API', () => {
@@ -254,6 +307,20 @@ test.describe('Notifications API', () => {
           target_path: `/posts/${POST_ID}`,
           post_id: POST_ID,
           user_id: USERS.likerB,
+        }),
+      ])
+    );
+    const queuedBeforeReadRows = await getQueuedPushRows(USERS.author);
+    expect(queuedBeforeReadRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: '내 글에 새 공감이 있어요',
+          body: 'notify_likerA님이 「Notification Fixture」에 공감했어요.',
+          payload: expect.objectContaining({
+            type: 'post_reaction',
+            post_id: POST_ID,
+            user_id: USERS.likerA,
+          }),
         }),
       ])
     );
@@ -357,6 +424,143 @@ test.describe('Notifications API', () => {
         }),
       ])
     );
+  });
+
+  test('lists my followers with follow-back state', async ({ request }) => {
+    const followResponse = await request.post(`/api/users/${USERS.author}/follow`, {
+      headers: buildAuthHeaders(USERS.follower),
+    });
+    expect(followResponse.status()).toBe(200);
+    expect((await followResponse.json()).following).toBe(true);
+
+    const initialListResponse = await request.get('/api/me/followers', {
+      headers: buildAuthHeaders(USERS.author),
+    });
+    expect(initialListResponse.status()).toBe(200);
+    const initialFollowers = (await initialListResponse.json()).followers;
+    expect(initialFollowers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: USERS.follower,
+          display_name: 'notify_follower',
+          is_following: false,
+        }),
+      ])
+    );
+
+    const followBackResponse = await request.post(`/api/users/${USERS.follower}/follow`, {
+      headers: buildAuthHeaders(USERS.author),
+    });
+    expect(followBackResponse.status()).toBe(200);
+    expect((await followBackResponse.json()).following).toBe(true);
+
+    const updatedListResponse = await request.get('/api/me/followers', {
+      headers: buildAuthHeaders(USERS.author),
+    });
+    expect(updatedListResponse.status()).toBe(200);
+    const updatedFollowers = (await updatedListResponse.json()).followers;
+    expect(updatedFollowers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: USERS.follower,
+          display_name: 'notify_follower',
+          is_following: true,
+        }),
+      ])
+    );
+  });
+
+  test('notifies followers when an author publishes a visible post', async ({ request }) => {
+    const tokenResponse = await request.post('/api/push-tokens', {
+      headers: buildAuthHeaders(USERS.follower),
+      data: {
+        token: 'ExponentPushToken[following-new-post-e2e]',
+        platform: 'ios',
+        device_id: 'following-new-post-device',
+        app_version: '1.0.0',
+      },
+    });
+    expect(tokenResponse.status()).toBe(201);
+
+    const followResponse = await request.post(`/api/users/${USERS.author}/follow`, {
+      headers: buildAuthHeaders(USERS.follower),
+    });
+    expect(followResponse.status()).toBe(200);
+    expect((await followResponse.json()).following).toBe(true);
+
+    const createResponse = await request.post('/api/posts', {
+      headers: buildAuthHeaders(USERS.author),
+      data: {
+        title: '팔로잉 새 글 알림',
+        content: '팔로잉한 작가의 새 글 알림을 확인합니다.',
+        category: 'essay',
+        visibility: 'public',
+      },
+    });
+    expect(createResponse.status()).toBe(200);
+    const createdPostId = (await createResponse.json()).post_id;
+    expect(createdPostId).toBeTruthy();
+
+    const listResponse = await request.get('/api/notifications?limit=30&offset=0', {
+      headers: buildAuthHeaders(USERS.follower),
+    });
+    expect(listResponse.status()).toBe(200);
+    const notifications = (await listResponse.json()).notifications;
+    expect(notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'following_new_post',
+          title: 'notify_author님이 새 글을 올렸어요.',
+          body: 'notify_author님이 「팔로잉 새 글 알림」을 남겼어요.',
+          target_path: `/posts/${createdPostId}`,
+          post_id: createdPostId,
+          user_id: USERS.author,
+        }),
+      ])
+    );
+
+    const queuedPayloads = await getQueuedPushPayloads(USERS.follower);
+    expect(queuedPayloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'following_new_post',
+          event_type: 'system',
+          target_path: `/posts/${createdPostId}`,
+          post_id: createdPostId,
+          user_id: USERS.author,
+        }),
+      ])
+    );
+
+    const hiddenResponse = await request.post('/api/posts', {
+      headers: buildAuthHeaders(USERS.author),
+      data: {
+        title: '비공개 새 글 알림 제외',
+        content: '비공개 글은 팔로워 새 글 알림으로 보내지 않습니다.',
+        category: 'essay',
+        visibility: 'private',
+      },
+    });
+    expect(hiddenResponse.status()).toBe(200);
+    const hiddenPostId = (await hiddenResponse.json()).post_id;
+
+    const afterHiddenResponse = await request.get('/api/notifications?limit=30&offset=0', {
+      headers: buildAuthHeaders(USERS.follower),
+    });
+    expect(afterHiddenResponse.status()).toBe(200);
+    const afterHiddenNotifications = (await afterHiddenResponse.json()).notifications;
+    expect(
+      afterHiddenNotifications.some(
+        (item) => item.type === 'following_new_post' && item.post_id === hiddenPostId
+      )
+    ).toBe(false);
+
+    const afterHiddenPayloads = await getQueuedPushPayloads(USERS.follower);
+    expect(
+      afterHiddenPayloads.some(
+        (item) => item.type === 'following_new_post' && item.post_id === hiddenPostId
+      )
+    ).toBe(false);
   });
 
   test('suppresses blocked actor events from creation and notification exposure', async ({ request }) => {

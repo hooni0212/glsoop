@@ -160,7 +160,11 @@ function isV1NotificationRow(row) {
   if (!row || !V1_EVENT_TYPES.has(row.event_type)) return false;
   if (row.event_type === 'system') {
     const notificationType = parseMeta(row.meta_json).notification_type;
-    return notificationType === 'new_follower' || notificationType === 'admin_operational_alert';
+    return (
+      notificationType === 'following_new_post' ||
+      notificationType === 'new_follower' ||
+      notificationType === 'admin_operational_alert'
+    );
   }
   return row.event_type === 'post_liked' || row.event_type === 'comment_created' || row.event_type === 'comment_replied';
 }
@@ -216,6 +220,22 @@ function buildSingleNotification(row) {
       target_path: `/posts/${row.post_id}`,
       post_id: row.post_id || null,
       comment_id: row.comment_id || null,
+      user_id: row.actor_user_id || null,
+      actor_count: 1,
+    };
+  }
+
+  if (row.event_type === 'system' && meta.notification_type === 'following_new_post') {
+    return {
+      id: String(row.id),
+      type: 'following_new_post',
+      title: row.title || '팔로잉한 작가의 새 글이 올라왔어요',
+      body: row.body || '새 글을 읽어보세요.',
+      created_at: row.created_at,
+      read_at: row.read_at || null,
+      target_path: meta.target_path || `/posts/${row.post_id}`,
+      post_id: row.post_id || null,
+      comment_id: null,
       user_id: row.actor_user_id || null,
       actor_count: 1,
     };
