@@ -53,6 +53,9 @@ module.exports = defineConfig({
       PHOTO_SAVE_REWARDED_GRANT_TTL_MINUTES: '30',
       PHOTO_SAVE_ADMOB_ANDROID_REWARDED_UNIT_ID: 'ca-app-pub-test/android-rewarded',
       PHOTO_SAVE_ADMOB_IOS_REWARDED_UNIT_ID: 'ca-app-pub-test/ios-rewarded',
+      PROFILE_PHOTO_PREMIUM_ENTITLEMENT_KEY: 'premium:glsoop',
+      PROFILE_PHOTO_UPLOAD_PREMIUM_REQUIRED: 'true',
+      PROFILE_PHOTO_UPLOAD_DIR: path.posix.join('tmp', 'e2e-profile-photos'),
     },
   },
   projects: [

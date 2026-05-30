@@ -42,6 +42,7 @@ const cosmeticsRoutes = require('./routes/cosmeticsRoutes');
 const monetizationRoutes = require('./routes/monetizationRoutes');
 const monetizationWebhookRoutes = require('./routes/monetizationWebhookRoutes');
 const photoSaveRoutes = require('./routes/photoSaveRoutes');
+const profilePhotoRoutes = require('./routes/profilePhotoRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const adminPageRoutes = require('./routes/adminPageRoutes');
 const authPageRoutes = require('./routes/authPageRoutes');
@@ -131,6 +132,7 @@ app.use('/api', cosmeticsRoutes);
 app.use('/api', monetizationRoutes);
 app.use('/api', monetizationWebhookRoutes);
 app.use('/api', photoSaveRoutes);
+app.use('/api', profilePhotoRoutes);
 app.use('/api/admin', adminRoutes);
 
 // 4. 루트 페이지

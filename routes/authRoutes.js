@@ -62,6 +62,10 @@ const LOGIN_LOCK_WINDOW_MS = 15 * 60 * 1000;
 
 const EMAIL_SEND_FAILURE_STATUS = 503;
 const ACCOUNT_CLOSURE_MODES = new Set(['deactivate', 'delete']);
+const PROFILE_PHOTO_PREMIUM_ENTITLEMENT_KEY =
+  process.env.PROFILE_PHOTO_PREMIUM_ENTITLEMENT_KEY ||
+  process.env.PHOTO_SAVE_PREMIUM_ENTITLEMENT_KEY ||
+  'premium:glsoop';
 
 const dbGet = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -1750,6 +1754,9 @@ router.get('/me', authRequired, (req, res) => {
       nickname,
       bio,
       about,
+      profile_photo_url,
+      profile_photo_thumbnail_url,
+      profile_photo_updated_at,
       email,
       COALESCE(account_status, 'active') AS account_status,
       is_admin,
@@ -1762,11 +1769,20 @@ router.get('/me', authRequired, (req, res) => {
       COALESCE(streak_days, 0) AS streak_days,
       COALESCE(max_streak_days, 0) AS max_streak_days,
       (SELECT COUNT(*) FROM follows f1 WHERE f1.followee_id = users.id) AS follower_count,
-      (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = users.id) AS following_count
+      (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = users.id) AS following_count,
+      EXISTS (
+        SELECT 1
+        FROM user_entitlements ue
+        WHERE ue.user_id = users.id
+          AND ue.entitlement_key = ?
+          AND ue.status = 'active'
+          AND (ue.ends_at IS NULL OR datetime(ue.ends_at) > datetime('now'))
+        LIMIT 1
+      ) AS profile_photo_upload_allowed
     FROM users
     WHERE id = ?
     `,
-    [userId],
+    [PROFILE_PHOTO_PREMIUM_ENTITLEMENT_KEY, userId],
     (err, row) => {
       if (err) {
         console.error(err);
@@ -1785,6 +1801,11 @@ router.get('/me', authRequired, (req, res) => {
         nickname: row.nickname,
         bio: row.bio || null,
         about: row.about || null,
+        profile_photo_url: row.profile_photo_url || null,
+        profile_photo_thumbnail_url: row.profile_photo_thumbnail_url || null,
+        profile_photo_updated_at: row.profile_photo_updated_at || null,
+        profile_photo_upload_allowed: Number(row.profile_photo_upload_allowed || 0) === 1,
+        profile_photo_entitlement_key: PROFILE_PHOTO_PREMIUM_ENTITLEMENT_KEY,
         email: row.email,
         account_status: row.account_status || ACCOUNT_STATUS_ACTIVE,
         is_admin: !!row.is_admin,
@@ -1907,6 +1928,9 @@ router.get('/me/followings', authRequired, (req, res) => {
       u.nickname,
       u.bio,
       u.about,
+      u.profile_photo_url,
+      u.profile_photo_thumbnail_url,
+      u.profile_photo_updated_at,
       COALESCE(u.account_status, 'active') AS account_status,
       (SELECT COUNT(*) FROM follows f2 WHERE f2.followee_id = u.id) AS follower_count
     FROM follows f
@@ -1940,6 +1964,9 @@ router.get('/me/followings', authRequired, (req, res) => {
           nickname,
           bio: row.bio || null,
           about: row.about || null,
+          profile_photo_url: row.profile_photo_url || null,
+          profile_photo_thumbnail_url: row.profile_photo_thumbnail_url || null,
+          profile_photo_updated_at: row.profile_photo_updated_at || null,
           email: null,
           follower_count: row.follower_count || 0,
         };

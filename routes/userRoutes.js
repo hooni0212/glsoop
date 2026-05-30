@@ -122,6 +122,9 @@ async function buildAuthorProfile(authorId) {
       nickname,
       bio,
       about,
+      profile_photo_url,
+      profile_photo_thumbnail_url,
+      profile_photo_updated_at,
       COALESCE(account_status, 'active') AS account_status,
       COALESCE(level, 1) AS level
     FROM users
@@ -306,6 +309,9 @@ router.get('/users/:id/profile', authOptional, async (req, res) => {
         email: null,
         bio: profile.user.bio || null,
         about: profile.user.about || null,
+        profile_photo_url: profile.user.profile_photo_url || null,
+        profile_photo_thumbnail_url: profile.user.profile_photo_thumbnail_url || null,
+        profile_photo_updated_at: profile.user.profile_photo_updated_at || null,
         level: profile.user.level || 1,
         post_count: profile.post_count,
         total_likes: profile.total_likes,
@@ -561,6 +567,8 @@ router.get('/users/:id/posts', authOptional, async (req, res) => {
       (CASE WHEN p.category IN ('poem','essay','short') THEN p.category ELSE 'short' END) AS category,
       p.user_id AS author_id,
       u.nickname AS author_nickname,
+      u.profile_photo_url AS author_profile_photo_url,
+      u.profile_photo_thumbnail_url AS author_profile_photo_thumbnail_url,
       COALESCE(u.account_status, 'active') AS author_account_status,
       (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
       GROUP_CONCAT(DISTINCT h.name) AS hashtags
