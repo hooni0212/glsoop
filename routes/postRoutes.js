@@ -29,7 +29,7 @@ const { completePromptPostQuest, QuestContextError } = require('../utils/questSe
 const { ACTIVITY_TYPES, createActivityEvent } = require('../utils/activityEvents');
 const { logUxEvent } = require('../utils/uxEvents');
 const { sanitizeForStorage } = require('../utils/sanitize');
-const { normalizePublicPostAuthor } = require('../utils/accountLifecycle');
+const { buildPublicDisplayName, normalizePublicPostAuthor } = require('../utils/accountLifecycle');
 const { normalizeUtcDateTime } = require('../utils/dateTime');
 const {
   decoratePostRowsWithRenderImages,
@@ -977,6 +977,68 @@ async function logPostActivationEvents(userId, postId) {
   });
 }
 
+function normalizeNotificationPostTitle(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, 80) : null;
+}
+
+async function notifyFollowersAboutNewPost({ authorId, postId, title, visibility }) {
+  const normalizedVisibility = normalizeVisibility(visibility);
+  if (!postId || !['public', 'followers'].includes(normalizedVisibility)) {
+    return { notified: 0 };
+  }
+
+  const author = await dbGetAsync(
+    `
+    SELECT nickname, COALESCE(account_status, 'active') AS account_status
+    FROM users
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [authorId]
+  );
+  const authorName = buildPublicDisplayName(author?.nickname, author?.account_status);
+  const postTitle = normalizeNotificationPostTitle(title);
+  const followers = await dbAllAsync(
+    `
+    SELECT f.follower_id
+    FROM follows f
+    INNER JOIN users u ON u.id = f.follower_id
+    WHERE f.followee_id = ?
+      AND f.follower_id != ?
+      AND COALESCE(u.account_status, 'active') = 'active'
+    ORDER BY f.created_at ASC, f.follower_id ASC
+    `,
+    [authorId, authorId]
+  );
+
+  let notified = 0;
+  for (const follower of followers || []) {
+    const activity = await createActivityEvent({
+      recipientUserId: follower.follower_id,
+      actorUserId: authorId,
+      eventType: ACTIVITY_TYPES.SYSTEM,
+      postId,
+      title: `${authorName}님이 새 글을 올렸어요.`,
+      body: postTitle
+        ? `${authorName}님이 「${postTitle}」을 남겼어요.`
+        : '팔로잉한 작가의 새 글이 올라왔어요.',
+      meta: {
+        notification_type: 'following_new_post',
+        target_path: `/posts/${postId}`,
+        post_title: postTitle,
+        visibility: normalizedVisibility,
+      },
+      uniqueKey: `following_new_post:${postId}:${follower.follower_id}`,
+    });
+
+    if (activity?.id) notified += 1;
+  }
+
+  return { notified };
+}
+
 const router = express.Router();
 
 // 9-1) 글 작성
@@ -1065,6 +1127,17 @@ router.post('/posts', authRequired, async (req, res) => {
     await logPostActivationEvents(userId, newPostId);
   } catch (growthErr) {
     console.error('post growth/activation 처리 실패:', growthErr);
+  }
+
+  try {
+    await notifyFollowersAboutNewPost({
+      authorId: userId,
+      postId: newPostId,
+      title,
+      visibility,
+    });
+  } catch (notificationErr) {
+    console.error('following new post notification 처리 실패:', notificationErr);
   }
 
   return res.json({
@@ -2007,7 +2080,7 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
   const postId = req.params.id;
   const userId = req.user.id;
 
-  db.get('SELECT user_id FROM posts WHERE id = ?', [postId], (postErr, post) => {
+  db.get('SELECT user_id, title FROM posts WHERE id = ?', [postId], (postErr, post) => {
     if (postErr) {
       console.error(postErr);
       return res.status(500).json({
@@ -2103,6 +2176,7 @@ router.post('/posts/:id/toggle-like', authRequired, (req, res) => {
                       actorUserId: userId,
                       eventType: ACTIVITY_TYPES.POST_LIKED,
                       postId,
+                      postTitle: post.title,
                       uniqueKey: `post_liked:${postId}:${userId}`,
                     });
                   } catch (activityErr) {

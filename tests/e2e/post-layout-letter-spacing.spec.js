@@ -61,6 +61,7 @@ const resetLayoutWriterState = async () => {
   const db = new sqlite3.Database(DB_PATH);
   await dbRun(db, 'DELETE FROM likes WHERE user_id = ?', [USER_ID]);
   await dbRun(db, 'DELETE FROM posts WHERE user_id = ?', [USER_ID]);
+  await dbRun(db, 'DELETE FROM user_entitlements WHERE user_id = ?', [USER_ID]);
   await dbRun(
     db,
     `UPDATE users
@@ -378,6 +379,83 @@ test.describe('Post layout letter spacing', () => {
     expect(pngShareResponse.status()).toBe(200);
     expect(pngShareResponse.headers()['content-type']).toContain('image/png');
     expect(pngShareResponse.headers()['x-feed-image-format']).toBe('png');
+  });
+
+  test('requires premium entitlement for author signature share images', async ({ request }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '작가 서명 렌더 확인',
+        content: '프리미엄 작가 서명 이미지 본문입니다.',
+        category: 'short',
+        layout_json: buildLayoutPayload(),
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    const unauthenticatedResponse = await request.get(
+      `/api/feed-images/share/post/${postId}`,
+      {
+        params: {
+          template: 'paper01',
+          scale: '2',
+          format: 'png',
+          author_signature: '1',
+        },
+      }
+    );
+    expect(unauthenticatedResponse.status()).toBe(401);
+
+    const freeResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
+      headers,
+      params: {
+        template: 'paper01',
+        scale: '2',
+        format: 'png',
+        author_signature: '1',
+      },
+    });
+    expect(freeResponse.status()).toBe(403);
+
+    const db = new sqlite3.Database(DB_PATH);
+    await dbRun(
+      db,
+      `
+      INSERT OR REPLACE INTO user_entitlements (
+        user_id,
+        entitlement_key,
+        status,
+        source,
+        starts_at,
+        ends_at,
+        meta_json,
+        updated_at
+      )
+      VALUES (?, 'premium:glsoop', 'active', 'admin', datetime('now'), datetime('now', '+7 days'), '{}', datetime('now'))
+      `,
+      [USER_ID]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    const signedResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
+      headers,
+      params: {
+        template: 'paper01',
+        scale: '2',
+        format: 'png',
+        author_signature: '1',
+      },
+    });
+    expect(signedResponse.status()).toBe(200);
+    expect(signedResponse.headers()['content-type']).toContain('image/png');
+    expect(signedResponse.headers()['x-feed-image-author-signature']).toBe('1');
+    expect(signedResponse.headers()['x-feed-image-layout']).toContain('author-signature');
   });
 
   test('uses FONT meta for feed and share rendered image font selection', async ({ request }) => {
