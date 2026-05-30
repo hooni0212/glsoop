@@ -359,6 +359,50 @@ test.describe('Notifications API', () => {
     );
   });
 
+  test('lists my followers with follow-back state', async ({ request }) => {
+    const followResponse = await request.post(`/api/users/${USERS.author}/follow`, {
+      headers: buildAuthHeaders(USERS.follower),
+    });
+    expect(followResponse.status()).toBe(200);
+    expect((await followResponse.json()).following).toBe(true);
+
+    const initialListResponse = await request.get('/api/me/followers', {
+      headers: buildAuthHeaders(USERS.author),
+    });
+    expect(initialListResponse.status()).toBe(200);
+    const initialFollowers = (await initialListResponse.json()).followers;
+    expect(initialFollowers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: USERS.follower,
+          display_name: 'notify_follower',
+          is_following: false,
+        }),
+      ])
+    );
+
+    const followBackResponse = await request.post(`/api/users/${USERS.follower}/follow`, {
+      headers: buildAuthHeaders(USERS.author),
+    });
+    expect(followBackResponse.status()).toBe(200);
+    expect((await followBackResponse.json()).following).toBe(true);
+
+    const updatedListResponse = await request.get('/api/me/followers', {
+      headers: buildAuthHeaders(USERS.author),
+    });
+    expect(updatedListResponse.status()).toBe(200);
+    const updatedFollowers = (await updatedListResponse.json()).followers;
+    expect(updatedFollowers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: USERS.follower,
+          display_name: 'notify_follower',
+          is_following: true,
+        }),
+      ])
+    );
+  });
+
   test('suppresses blocked actor events from creation and notification exposure', async ({ request }) => {
     await withDb((db) =>
       dbRun(
