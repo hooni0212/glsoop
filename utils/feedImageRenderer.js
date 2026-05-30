@@ -6,7 +6,7 @@ const { pathToFileURL } = require('node:url');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v26';
+const RENDER_VERSION = 'feed-image-poc-v27';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 const FEED_IMAGE_PAGE_CAP = 24;
 const IMAGE_FORMAT_CONFIG = {
@@ -195,6 +195,8 @@ const SVG_FONT_CONFIG = {
 };
 const SHARE_LOGO_TEXT = '글숲';
 const SHARE_SIGNATURE_OPACITY = 0.74;
+const SHARE_AUTHOR_SIGNATURE_OPACITY = 0.82;
+const SHARE_AUTHOR_SIGNATURE_MAX_CHARS = 28;
 const SHARE_LAYOUT_PRESETS = {
   oneLine: {
     fontSizeRatio: 0.041,
@@ -1162,12 +1164,36 @@ async function getTemplateOutputSize(template, scale = 1) {
   };
 }
 
-function buildRenderVersion({ post, templateKey, scale, renderMode }) {
+function normalizeAuthorSignatureOption(authorSignature) {
+  if (!authorSignature || authorSignature.enabled === false) return null;
+  const normalizedName = normalizePostText(
+    authorSignature.name || authorSignature.authorName || ''
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalizedName) return null;
+
+  const chars = Array.from(normalizedName);
+  const safeName =
+    chars.length > SHARE_AUTHOR_SIGNATURE_MAX_CHARS
+      ? `${chars.slice(0, SHARE_AUTHOR_SIGNATURE_MAX_CHARS - 1).join('')}…`
+      : normalizedName;
+
+  return {
+    enabled: true,
+    name: safeName,
+  };
+}
+
+function buildRenderVersion({ post, templateKey, scale, renderMode, authorSignature = null }) {
+  const normalizedAuthorSignature = normalizeAuthorSignatureOption(authorSignature);
   const payload = JSON.stringify({
     render_version: RENDER_VERSION,
     template: templateKey,
     scale,
     render_mode: normalizeRenderMode(renderMode),
+    author_signature: normalizedAuthorSignature,
     post_id: post?.id,
     title: post?.title || '',
     content: post?.content || '',
@@ -1179,8 +1205,22 @@ function buildRenderVersion({ post, templateKey, scale, renderMode }) {
   return crypto.createHash('sha1').update(payload).digest('hex');
 }
 
-function buildCacheHash({ post, templateKey, scale, renderMode, page = 1, imageFormat = 'webp' }) {
-  const renderVersion = buildRenderVersion({ post, templateKey, scale, renderMode });
+function buildCacheHash({
+  post,
+  templateKey,
+  scale,
+  renderMode,
+  page = 1,
+  imageFormat = 'webp',
+  authorSignature = null,
+}) {
+  const renderVersion = buildRenderVersion({
+    post,
+    templateKey,
+    scale,
+    renderMode,
+    authorSignature,
+  });
   const payload = JSON.stringify({
     render_version: renderVersion,
     page: Math.max(1, Number.parseInt(page, 10) || 1),
@@ -1558,6 +1598,42 @@ function buildSvgBrandSignature({
   `.trim();
 }
 
+function buildSvgAuthorSignature({
+  width,
+  height,
+  authorSignature = null,
+}) {
+  const normalizedSignature = normalizeAuthorSignatureOption(authorSignature);
+  if (!normalizedSignature) return '';
+
+  const fontSizePx = Math.max(13, Math.round(width * 0.023));
+  const maxWidthPx = Math.max(120, Math.round(width * 0.46));
+  const text = clampLineWithEllipsis(
+    normalizedSignature.name,
+    maxWidthPx,
+    fontSizePx,
+    0
+  );
+  const textX = Math.round(width - Math.max(28, width * 0.052));
+  const textY = Math.round(height - Math.max(52, height * 0.078));
+
+  return `
+  <g aria-label="author-signature">
+    <text
+      x="${textX}"
+      y="${textY}"
+      fill="rgba(71, 63, 54, ${SHARE_AUTHOR_SIGNATURE_OPACITY})"
+      font-family="${SVG_FONT_FAMILY}"
+      font-size="${Math.round(fontSizePx * 100) / 100}"
+      font-weight="600"
+      letter-spacing="0.02em"
+      text-anchor="end"
+      text-rendering="optimizeLegibility"
+    >${escapeXml(text)}</text>
+  </g>
+  `.trim();
+}
+
 function buildSvgShareOverlay({
   width,
   height,
@@ -1577,6 +1653,7 @@ function buildSvgShareOverlay({
   bodyBoxOverride = null,
   bodyTextAlignOverride = '',
   brandSignatureOverride = '',
+  authorSignatureOverride = '',
 }) {
   const titleBox = titleBoxOverride || resolveBoxFromPreset(width, height, layoutPreset.title);
   const bodyBox = bodyBoxOverride || resolveBoxFromPreset(width, height, layoutPreset.body);
@@ -1612,6 +1689,7 @@ function buildSvgShareOverlay({
   });
 
   const brandSignature = brandSignatureOverride || buildSvgBrandSignature({ width, height });
+  const authorSignature = authorSignatureOverride || '';
 
   return `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -1623,6 +1701,7 @@ function buildSvgShareOverlay({
   ${bodyGroup.group}
   ${titleGroup.group}
   ${brandSignature}
+  ${authorSignature}
 </svg>
   `.trim();
 }
@@ -1928,6 +2007,7 @@ async function renderShareModeImageBuffer({
   outputHeight,
   scale,
   imageFormat = 'webp',
+  authorSignature = null,
 }) {
   const titleText = normalizePostText(post?.title) || '제목 없음';
   const bodyText = normalizePostText(post?.content) || titleText || ' ';
@@ -2004,6 +2084,11 @@ async function renderShareModeImageBuffer({
       lineHeightRatio: customFooterBox?.line_height || 1.1,
     })
     : '';
+  const authorSignatureOverride = buildSvgAuthorSignature({
+    width: outputWidth,
+    height: outputHeight,
+    authorSignature,
+  });
 
   const svgOverlay = buildSvgShareOverlay({
     width: outputWidth,
@@ -2024,6 +2109,7 @@ async function renderShareModeImageBuffer({
     bodyBoxOverride: hasCustomBodyLayout ? bodyBox : null,
     bodyTextAlignOverride: customBodyBox?.align || '',
     brandSignatureOverride,
+    authorSignatureOverride,
   });
 
   const imageBuffer = await encodeCompositedImage(
@@ -2038,7 +2124,7 @@ async function renderShareModeImageBuffer({
 
   return {
     buffer: imageBuffer,
-    layout: `share-${layoutKey}-font-${font.key}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}`,
+    layout: `share-${layoutKey}-font-${font.key}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}${authorSignatureOverride ? '-author-signature' : ''}`,
   };
 }
 
@@ -2049,6 +2135,7 @@ async function renderFeedImageBuffer({
   renderMode = 'feed',
   page = 1,
   imageFormat = 'webp',
+  authorSignature = null,
 }) {
   const template = TEMPLATE_CONFIG[templateKey] || TEMPLATE_CONFIG.paper01;
   const { width: outputWidth, height: outputHeight } = await getTemplateOutputSize(
@@ -2066,6 +2153,7 @@ async function renderFeedImageBuffer({
       scale,
       page: 1,
       imageFormat,
+      authorSignature,
     });
   }
 
@@ -2133,7 +2221,9 @@ async function renderFeedCardImage({
   renderMode = 'feed',
   page = 1,
   imageFormat = 'webp',
+  authorSignature = null,
 }) {
+  const normalizedAuthorSignature = normalizeAuthorSignatureOption(authorSignature);
   const normalizedTemplate = normalizeTemplateKey(templateKey);
   const normalizedScale = normalizeScale(scale);
   const normalizedRenderMode = normalizeRenderMode(renderMode);
@@ -2147,6 +2237,7 @@ async function renderFeedCardImage({
     renderMode: normalizedRenderMode,
     page: normalizedPage,
     imageFormat: normalizedImageFormat,
+    authorSignature: normalizedAuthorSignature,
   });
   const cachePath = path.join(CACHE_DIR, `${cacheHash}.${imageFormatConfig.extension}`);
   const etag = `"feed-image-${cacheHash}"`;
@@ -2178,6 +2269,7 @@ async function renderFeedCardImage({
       renderMode: normalizedRenderMode,
       page: normalizedPage,
       imageFormat: normalizedImageFormat,
+      authorSignature: normalizedAuthorSignature,
     });
 
     try {

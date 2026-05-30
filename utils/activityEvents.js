@@ -74,7 +74,9 @@ function buildActivityCopy({ eventType, actorDisplayName, postTitle }) {
   if (eventType === ACTIVITY_TYPES.POST_LIKED) {
     return {
       title: '내 글에 새 공감이 있어요',
-      body: `${actor}님이 내 글에 공감했어요.`,
+      body: postTitle
+        ? `${actor}님이 「${postTitle}」에 공감했어요.`
+        : `${actor}님이 내 글에 공감했어요.`,
     };
   }
   if (eventType === ACTIVITY_TYPES.POST_BOOKMARKED) {
@@ -108,6 +110,12 @@ function resolveNotificationType(activity) {
   if (activity.event_type === ACTIVITY_TYPES.COMMENT_REPLIED) return 'comment_reply';
 
   const meta = parseMeta(activity.meta_json);
+  if (
+    activity.event_type === ACTIVITY_TYPES.SYSTEM &&
+    meta?.notification_type === 'following_new_post'
+  ) {
+    return 'following_new_post';
+  }
   if (activity.event_type === ACTIVITY_TYPES.SYSTEM && meta?.notification_type === 'new_follower') {
     return 'new_follower';
   }
@@ -126,6 +134,9 @@ function resolveNotificationTargetPath(activity, notificationType) {
   if (typeof meta?.target_path === 'string' && meta.target_path.startsWith('/')) {
     return meta.target_path;
   }
+  if (notificationType === 'following_new_post' && activity.post_id) {
+    return `/posts/${activity.post_id}`;
+  }
   if (notificationType === 'new_follower' && activity.actor_user_id) {
     return `/users/${activity.actor_user_id}`;
   }
@@ -140,7 +151,8 @@ function isPushEligibleActivity(activity) {
   const meta = parseMeta(activity.meta_json);
   return (
     activity.event_type === ACTIVITY_TYPES.SYSTEM &&
-    (meta?.notification_type === 'new_follower' ||
+    (meta?.notification_type === 'following_new_post' ||
+      meta?.notification_type === 'new_follower' ||
       meta?.notification_type === 'admin_operational_alert')
   );
 }
