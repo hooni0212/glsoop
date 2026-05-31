@@ -1147,7 +1147,6 @@ function ensurePostShareModal() {
       const permalink = buildPostPermalink(post);
       const shareData = {
         title: post?.title || '글숲 글',
-        text: '글숲에서 이 글을 함께 읽어보세요.',
         url: permalink,
       };
 

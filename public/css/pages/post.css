@@ -1568,6 +1568,15 @@ body.page-post .post-share-modal-body {
   gap: 10px;
 }
 
+body.page-post #igExportModal,
+body.page-post #postShareModal {
+  z-index: calc(var(--gls-z-modal, 1100) + 40);
+  padding-top: max(
+    calc(var(--gls-nav-height, 68px) + 16px),
+    clamp(32px, 12vh, 120px)
+  );
+}
+
 body.page-post .post-share-actions {
   display: flex;
   flex-wrap: wrap;

@@ -53,6 +53,17 @@ function parseBooleanQueryFlag(raw) {
   return ['1', 'true', 'yes', 'y', 'on'].includes(value);
 }
 
+function normalizeAuthorSignaturePosition(raw) {
+  const value = String(raw || '')
+    .trim()
+    .replace(/[_\s-]+/g, '')
+    .toLowerCase();
+
+  if (value === 'bottomleft' || value === 'left') return 'bottomLeft';
+  if (value === 'bottomright' || value === 'right') return 'bottomRight';
+  return 'bottomRight';
+}
+
 function getAuthorSignatureEntitlementKeys() {
   return [
     process.env.POST_IMAGE_AUTHOR_SIGNATURE_ENTITLEMENT_KEY,
@@ -535,6 +546,9 @@ router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => 
   const authorSignatureRequested = parseBooleanQueryFlag(
     req.query.author_signature ?? req.query.authorSignature
   );
+  const authorSignaturePosition = normalizeAuthorSignaturePosition(
+    req.query.author_signature_position ?? req.query.authorSignaturePosition
+  );
   if (!page) {
     return res.status(400).json({
       ok: false,
@@ -602,6 +616,7 @@ router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => 
           post.author_nickname,
           post.author_account_status
         ),
+        position: authorSignaturePosition,
       };
     }
 
@@ -634,6 +649,7 @@ router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => 
     res.set('X-Feed-Image-Page', '1');
     res.set('X-Feed-Image-Page-Count', '1');
     res.set('X-Feed-Image-Author-Signature', authorSignature ? '1' : '0');
+    res.set('X-Feed-Image-Author-Signature-Position', authorSignature?.position || 'none');
     if (rendered.layout) {
       res.set('X-Feed-Image-Layout', rendered.layout);
     }
