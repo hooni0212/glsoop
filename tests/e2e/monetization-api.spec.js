@@ -69,6 +69,11 @@ const signAuthToken = ({ id, name, nickname, email, isAdmin = false, isVerified 
     }
   );
 
+const authHeaders = (token) => ({
+  Authorization: `Bearer ${token}`,
+  'x-auth-legacy-now': '0',
+});
+
 const seedMonetizationFixtures = async () => {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   await waitForFile(DB_PATH, 20000);
@@ -137,6 +142,44 @@ const seedMonetizationFixtures = async () => {
     ]
   );
 
+  for (const [storeSku, title, billingPeriod] of [
+    ['glsoop_premium_monthly', '글숲 프리미엄 월간', 'monthly'],
+    ['glsoop_premium_yearly', '글숲 프리미엄 연간', 'yearly'],
+  ]) {
+    await dbRun(
+      db,
+      `INSERT OR IGNORE INTO products (
+        platform,
+        store_sku,
+        product_type,
+        entitlement_key,
+        title,
+        description,
+        season,
+        meta_json,
+        is_active
+      )
+      VALUES (?, ?, ?, ?, ?, ?, NULL, ?, 1)`,
+      [
+        'apple',
+        storeSku,
+        'subscription',
+        'premium:glsoop',
+        title,
+        '광고 없이 사진을 저장하고 프로필 사진과 작가 서명을 사용할 수 있어요.',
+        JSON.stringify({
+          billing_period: billingPeriod,
+          benefits: [
+            'photo_save_ad_free',
+            'post_image_author_signature',
+            'profile_photo_upload',
+            'profile_cosmetics_premium_slots',
+          ],
+        }),
+      ]
+    );
+  }
+
   await dbRun(
     db,
     'DELETE FROM purchases WHERE user_id = ?',
@@ -189,6 +232,20 @@ test.describe('Monetization API', () => {
           entitlement_key: 'pass:2026_spring',
           is_active: 1,
         }),
+        expect.objectContaining({
+          platform: 'apple',
+          store_sku: 'glsoop_premium_monthly',
+          product_type: 'subscription',
+          entitlement_key: 'premium:glsoop',
+          is_active: 1,
+        }),
+        expect.objectContaining({
+          platform: 'apple',
+          store_sku: 'glsoop_premium_yearly',
+          product_type: 'subscription',
+          entitlement_key: 'premium:glsoop',
+          is_active: 1,
+        }),
       ])
     );
   });
@@ -216,9 +273,7 @@ test.describe('Monetization API', () => {
     const txId = `apple-tx-${Date.now()}`;
 
     const response = await request.post('/api/purchases/verify', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: authHeaders(token),
       data: {
         platform: 'apple',
         store_sku: 'pass_2026_spring',
@@ -272,7 +327,7 @@ test.describe('Monetization API', () => {
     const txId = `apple-idempotent-${Date.now()}`;
 
     const first = await request.post('/api/purchases/verify', {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authHeaders(token),
       data: {
         platform: 'apple',
         store_sku: 'pass_2026_spring',
@@ -283,7 +338,7 @@ test.describe('Monetization API', () => {
     expect(first.status()).toBe(200);
 
     const second = await request.post('/api/purchases/verify', {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authHeaders(token),
       data: {
         platform: 'apple',
         store_sku: 'pass_2026_spring',
@@ -316,7 +371,7 @@ test.describe('Monetization API', () => {
     });
 
     const response = await request.post('/api/purchases/verify', {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authHeaders(token),
       data: {
         platform: 'apple',
         store_sku: 'unknown_pass_sku',
@@ -353,7 +408,7 @@ test.describe('Monetization API', () => {
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
     const verifyResponse = await request.post('/api/purchases/verify', {
-      headers: { Authorization: `Bearer ${buyerToken}` },
+      headers: authHeaders(buyerToken),
       data: {
         platform: 'apple',
         store_sku: 'pass_2026_spring',
@@ -364,7 +419,7 @@ test.describe('Monetization API', () => {
     expect(verifyResponse.status()).toBe(200);
 
     const reconcileResponse = await request.post('/api/admin/purchases/reconcile', {
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: authHeaders(adminToken),
       data: {
         platform: 'apple',
         transaction_id: txId,
@@ -427,7 +482,7 @@ test.describe('Monetization API', () => {
     const txId = `apple-admin-refund-${Date.now()}`;
 
     const verifyResponse = await request.post('/api/purchases/verify', {
-      headers: { Authorization: `Bearer ${buyerToken}` },
+      headers: authHeaders(buyerToken),
       data: {
         platform: 'apple',
         store_sku: 'pass_2026_spring',
@@ -438,7 +493,7 @@ test.describe('Monetization API', () => {
     expect(verifyResponse.status()).toBe(200);
 
     const activateResponse = await request.post('/api/admin/purchases/reconcile', {
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: authHeaders(adminToken),
       data: {
         platform: 'apple',
         transaction_id: txId,
@@ -450,7 +505,7 @@ test.describe('Monetization API', () => {
     expect(activateResponse.status()).toBe(200);
 
     const refundResponse = await request.post('/api/admin/purchases/reconcile', {
-      headers: { Authorization: `Bearer ${adminToken}` },
+      headers: authHeaders(adminToken),
       data: {
         platform: 'apple',
         transaction_id: txId,

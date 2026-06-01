@@ -47,6 +47,12 @@ npm-debug.log
 data/**
 !data/.gitkeep
 
+# =========================
+# User generated uploads
+# =========================
+public/uploads/**
+!public/uploads/.gitkeep
+
 # 패치 파일은 커밋하지 않습니다.
 *.patch
 
