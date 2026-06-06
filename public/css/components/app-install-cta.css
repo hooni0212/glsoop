@@ -1,0 +1,162 @@
+.gls-app-install-cta {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid rgba(45, 90, 61, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 254, 250, 0.96);
+  box-shadow: 0 12px 30px rgba(33, 42, 35, 0.18);
+  color: var(--gls-color-text, #26352b);
+  backdrop-filter: blur(14px);
+}
+
+.gls-app-install-cta__icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #2d5a3d;
+  color: #fffefa;
+  font-family: var(--gls-font-serif, serif);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gls-app-install-cta__body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.gls-app-install-cta__title,
+.gls-app-install-cta__copy {
+  margin: 0;
+}
+
+.gls-app-install-cta__title {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.gls-app-install-cta__copy {
+  margin-top: 2px;
+  color: var(--gls-color-text-muted, #657268);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.gls-app-install-cta__action {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #2d5a3d;
+  color: #fffefa;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.gls-app-install-cta__action:hover,
+.gls-app-install-cta__action:focus {
+  color: #fffefa;
+  text-decoration: none;
+}
+
+.gls-app-install-cta__close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gls-color-text-muted, #657268);
+  font-size: 20px;
+  line-height: 1;
+}
+
+@media (min-width: 768px) {
+  .gls-app-install-cta {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .gls-app-install-cta {
+    gap: 8px;
+    min-height: 66px;
+    padding: 9px 10px;
+  }
+
+  .gls-app-install-cta__icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .gls-app-install-cta__title {
+    font-size: 13px;
+  }
+
+  .gls-app-install-cta__copy {
+    font-size: 11.5px;
+  }
+
+  .gls-app-install-cta__action {
+    min-height: 34px;
+    padding-inline: 11px;
+    font-size: 12.5px;
+  }
+
+  .gls-app-install-cta__close {
+    width: 28px;
+    height: 28px;
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 360px) {
+  .gls-app-install-cta {
+    min-height: 58px;
+    padding: 8px 9px;
+  }
+
+  .gls-app-install-cta__icon {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .gls-app-install-cta__title {
+    font-size: 12.5px;
+    line-height: 1.25;
+  }
+
+  .gls-app-install-cta__copy {
+    display: none;
+  }
+
+  .gls-app-install-cta__action {
+    min-height: 32px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+}

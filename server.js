@@ -53,6 +53,26 @@ const app = express();
 // 로컬 개발은 3000, 배포 환경에서는 포트 환경 변수 사용
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+const APPLE_APP_SITE_ASSOCIATION = Object.freeze({
+  applinks: {
+    apps: [],
+    details: [
+      {
+        appID: 'NX3NR9FFKP.com.glsoop.app',
+        paths: [
+          '/',
+          '/index.html',
+          '/explore',
+          '/explore/',
+          '/posts/*',
+          '/users/*',
+          '/html/post.html',
+          '/html/author.html',
+        ],
+      },
+    ],
+  },
+});
 const PUSH_DISPATCH_ENABLED = process.env.PUSH_DISPATCH_ENABLED === 'true';
 const MARKETING_PUSH_REMINDER_ENABLED = process.env.MARKETING_PUSH_REMINDER_ENABLED === 'true';
 const PENDING_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
@@ -110,6 +130,12 @@ app.use(adminPageRoutes);
 app.use(authPageRoutes);
 // support 페이지는 clean URL로만 노출
 app.use(supportPageRoutes);
+
+app.get(['/apple-app-site-association', '/.well-known/apple-app-site-association'], (req, res) => {
+  res.set('Content-Type', 'application/json');
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.send(JSON.stringify(APPLE_APP_SITE_ASSOCIATION));
+});
 
 // 정적 파일 제공
 app.use(express.static(path.join(__dirname, 'public')));
