@@ -653,18 +653,24 @@ body.page-home::after {
 
 @media (max-width: 680px) {
   body.page-home {
-    --section-pad-x: 28px;
-    --carousel-card-min-width: min(260px, calc(100vw - 92px));
+    --gls-nav-height: 76px;
+    --section-pad-x: 18px;
+    --section-pad-top: 18px;
+    --section-pad-bottom: 20px;
+    --carousel-header-gap: 14px;
+    --carousel-gap: 12px;
+    --carousel-card-min-width: min(282px, calc(100vw - 76px));
   }
 
   .page-home .home-hub {
-    padding: 102px 0 68px;
+    padding: 16px 0 72px;
   }
 
   .home-layout {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    align-items: stretch;
+    gap: 12px;
     overflow-x: clip;
   }
 
@@ -680,6 +686,8 @@ body.page-home::after {
   .home-section,
   .home-side-block {
     overflow-x: clip;
+    width: 100%;
+    max-width: 100%;
   }
 
   .home-side-quick[data-home-mobile-quick='1'] {
@@ -703,8 +711,25 @@ body.page-home::after {
   }
 
   .home-hero {
-    padding: 22px;
+    padding: 20px 18px;
     min-height: 0;
+    border-radius: 22px;
+  }
+
+  .home-hero-quote {
+    margin-top: 14px;
+    font-size: 0.94rem;
+    line-height: 1.55;
+  }
+
+  .home-hero-actions {
+    margin-top: 20px;
+    gap: 10px;
+  }
+
+  .home-hero .gls-btn {
+    min-height: 42px;
+    padding-inline: 16px;
   }
 
   .curation-carousel {
@@ -716,8 +741,8 @@ body.page-home::after {
   }
 
   .curation-card {
-    flex-basis: min(260px, calc(100vw - 92px));
-    min-width: min(260px, calc(100vw - 92px));
+    flex-basis: var(--carousel-card-min-width);
+    min-width: var(--carousel-card-min-width);
   }
 
   .home-hero-copy {
@@ -725,7 +750,30 @@ body.page-home::after {
   }
 
   .home-hero-meta {
-    margin-top: 16px;
+    margin-top: 14px;
+    gap: 6px;
+  }
+
+  .home-hero-chip {
+    min-height: 28px;
+    padding-inline: 10px;
+    font-size: 0.74rem;
+  }
+
+  .home-side-block {
+    padding: 16px;
+  }
+
+  .home-side-links {
+    gap: 8px;
+  }
+
+  .home-section-header {
+    gap: 10px;
+  }
+
+  .home-section-link {
+    flex: 0 0 auto;
   }
 
   .home-side-collapse-toggle {
