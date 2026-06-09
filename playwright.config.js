@@ -56,6 +56,7 @@ module.exports = defineConfig({
       PROFILE_PHOTO_PREMIUM_ENTITLEMENT_KEY: 'premium:glsoop',
       PROFILE_PHOTO_UPLOAD_PREMIUM_REQUIRED: 'true',
       PROFILE_PHOTO_UPLOAD_DIR: path.posix.join('tmp', 'e2e-profile-photos'),
+      MONETIZATION_WEBHOOK_SECRET: 'e2e-webhook-secret',
     },
   },
   projects: [

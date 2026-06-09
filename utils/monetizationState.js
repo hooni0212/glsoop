@@ -78,6 +78,7 @@ function isMissingMonetizationTableError(error) {
   return (
     message.includes('no such table: purchases') ||
     message.includes('no such table: products') ||
+    message.includes('no such table: subscription_ownerships') ||
     message.includes('no such table: user_entitlements')
   );
 }
@@ -108,26 +109,61 @@ async function reconcileMonetizationState(options = {}) {
       userParams
     );
 
+    const expiredOwnershipResult = await runAsync(
+      `
+      UPDATE subscription_ownerships
+      SET status = 'expired',
+          updated_at = CURRENT_TIMESTAMP
+      WHERE status = 'active'
+        AND expires_at IS NOT NULL
+        AND datetime(expires_at) <= datetime('now')
+        ${buildUserFilter('user_id', hasUserFilter)}
+      `,
+      userParams
+    );
+
     const activePurchaseRows = await allAsync(
       `
       SELECT
-        p.user_id AS user_id,
-        pr.entitlement_key AS entitlement_key,
-        MIN(p.purchased_at) AS starts_at,
+        active_sources.user_id AS user_id,
+        active_sources.entitlement_key AS entitlement_key,
+        MIN(active_sources.starts_at) AS starts_at,
         CASE
-          WHEN SUM(CASE WHEN p.expires_at IS NULL THEN 1 ELSE 0 END) > 0 THEN NULL
-          ELSE MAX(p.expires_at)
+          WHEN SUM(CASE WHEN active_sources.ends_at IS NULL THEN 1 ELSE 0 END) > 0 THEN NULL
+          ELSE MAX(active_sources.ends_at)
         END AS ends_at
-      FROM purchases p
-      JOIN products pr
-        ON pr.platform = p.platform
-       AND pr.store_sku = p.store_sku
-      WHERE p.status = 'active'
-        AND (p.expires_at IS NULL OR datetime(p.expires_at) > datetime('now'))
-        ${buildUserFilter('p.user_id', hasUserFilter)}
-      GROUP BY p.user_id, pr.entitlement_key
+      FROM (
+        SELECT
+          p.user_id AS user_id,
+          pr.entitlement_key AS entitlement_key,
+          p.purchased_at AS starts_at,
+          p.expires_at AS ends_at
+        FROM purchases p
+        JOIN products pr
+          ON pr.platform = p.platform
+         AND pr.store_sku = p.store_sku
+        WHERE p.status = 'active'
+          AND (p.expires_at IS NULL OR datetime(p.expires_at) > datetime('now'))
+          ${buildUserFilter('p.user_id', hasUserFilter)}
+
+        UNION ALL
+
+        SELECT
+          so.user_id AS user_id,
+          pr.entitlement_key AS entitlement_key,
+          so.created_at AS starts_at,
+          so.expires_at AS ends_at
+        FROM subscription_ownerships so
+        JOIN products pr
+          ON pr.platform = so.platform
+         AND pr.store_sku = so.store_sku
+        WHERE so.status = 'active'
+          AND (so.expires_at IS NULL OR datetime(so.expires_at) > datetime('now'))
+          ${buildUserFilter('so.user_id', hasUserFilter)}
+      ) active_sources
+      GROUP BY active_sources.user_id, active_sources.entitlement_key
       `,
-      userParams
+      [...userParams, ...userParams]
     );
 
     let activatedEntitlements = 0;
@@ -183,6 +219,17 @@ async function reconcileMonetizationState(options = {}) {
             AND p.status = 'active'
             AND (p.expires_at IS NULL OR datetime(p.expires_at) > datetime('now'))
         )
+        AND NOT EXISTS (
+          SELECT 1
+          FROM subscription_ownerships so
+          JOIN products pr
+            ON pr.platform = so.platform
+           AND pr.store_sku = so.store_sku
+          WHERE so.user_id = ue.user_id
+            AND pr.entitlement_key = ue.entitlement_key
+            AND so.status = 'active'
+            AND (so.expires_at IS NULL OR datetime(so.expires_at) > datetime('now'))
+        )
       `,
       userParams
     );
@@ -191,6 +238,7 @@ async function reconcileMonetizationState(options = {}) {
 
     return {
       expired_purchases: Number(expiredPurchaseResult?.changes || 0),
+      expired_subscription_ownerships: Number(expiredOwnershipResult?.changes || 0),
       activated_entitlements: activatedEntitlements,
       deactivated_entitlements: Number(deactivatedEntitlementResult?.changes || 0),
     };

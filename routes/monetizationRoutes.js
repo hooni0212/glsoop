@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const express = require('express');
 
 const db = require('../db');
@@ -58,6 +59,19 @@ function normalizeString(value, maxLength = 200) {
   return trimmed;
 }
 
+function normalizeStringValue(value, maxLength = 200) {
+  if (value === null || value === undefined) return null;
+  return normalizeString(String(value), maxLength);
+}
+
+function normalizeEnvironment(value) {
+  const normalized = normalizeStringValue(value, 40)?.toLowerCase();
+  if (!normalized) return 'unknown';
+  if (normalized === 'prod') return 'production';
+  if (normalized === 'testflight') return 'sandbox';
+  return normalized;
+}
+
 function normalizePlatform(value) {
   const normalized = normalizeString(value, 20)?.toLowerCase();
   if (!normalized || !ALLOWED_PLATFORMS.has(normalized)) return null;
@@ -80,6 +94,37 @@ function serializeRawPayload(payload) {
   } catch (error) {
     return null;
   }
+}
+
+function uuidFromHex(hex) {
+  const normalized = String(hex || '').replace(/[^a-f0-9]/gi, '').padEnd(32, '0').slice(0, 32);
+  const bytes = normalized.match(/.{1,2}/g)?.map((part) => Number.parseInt(part, 16)) || [];
+  if (bytes.length !== 16 || bytes.some((byte) => !Number.isFinite(byte))) {
+    return null;
+  }
+
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const nextHex = bytes.map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return [
+    nextHex.slice(0, 8),
+    nextHex.slice(8, 12),
+    nextHex.slice(12, 16),
+    nextHex.slice(16, 20),
+    nextHex.slice(20, 32),
+  ].join('-');
+}
+
+function buildAppAccountToken(userId) {
+  const secret =
+    normalizeString(process.env.MONETIZATION_APP_ACCOUNT_TOKEN_SECRET, 500) ||
+    normalizeString(process.env.JWT_SECRET, 500) ||
+    'glsoop-local-iap-account-token';
+  const digest = crypto
+    .createHmac('sha256', secret)
+    .update(`glsoop:iap:account:${userId}`)
+    .digest('hex');
+  return uuidFromHex(digest);
 }
 
 function parseVerifyPayload(body = {}) {
@@ -112,6 +157,24 @@ function parseVerifyPayload(body = {}) {
 
   const clientMeta =
     body.client_meta && typeof body.client_meta === 'object' ? body.client_meta : null;
+  const originalTransactionId =
+    normalizeStringValue(body.original_transaction_id, 255) ||
+    normalizeStringValue(clientMeta?.original_transaction_id, 255) ||
+    normalizeStringValue(clientMeta?.originalTransactionId, 255) ||
+    normalizeStringValue(clientMeta?.originalTransactionIdentifierIOS, 255);
+  const appAccountToken =
+    normalizeStringValue(body.app_account_token, 255) ||
+    normalizeStringValue(body.appAccountToken, 255) ||
+    normalizeStringValue(clientMeta?.app_account_token, 255) ||
+    normalizeStringValue(clientMeta?.appAccountToken, 255);
+  const environment = normalizeEnvironment(
+    body.environment || clientMeta?.environment || clientMeta?.environmentIOS
+  );
+  const webOrderLineItemId =
+    normalizeStringValue(body.web_order_line_item_id, 255) ||
+    normalizeStringValue(body.webOrderLineItemId, 255) ||
+    normalizeStringValue(clientMeta?.web_order_line_item_id, 255) ||
+    normalizeStringValue(clientMeta?.webOrderLineItemId, 255);
 
   return {
     platform,
@@ -120,6 +183,10 @@ function parseVerifyPayload(body = {}) {
     purchase_token: purchaseToken,
     receipt_data: receiptData,
     client_meta: clientMeta,
+    original_transaction_id: originalTransactionId,
+    app_account_token: appAccountToken,
+    environment,
+    web_order_line_item_id: webOrderLineItemId,
   };
 }
 
@@ -131,6 +198,7 @@ function mapPurchaseRow(row) {
     status: row.status,
     purchased_at: row.purchased_at,
     expires_at: row.expires_at || null,
+    ownership_id: row.ownership_id || null,
   };
 }
 
@@ -157,6 +225,11 @@ async function findPurchaseByIdentifier(platform, transactionId, purchaseToken) 
         status,
         purchased_at,
         expires_at,
+        original_transaction_id,
+        app_account_token,
+        environment,
+        web_order_line_item_id,
+        ownership_id,
         raw_json
       FROM purchases
       WHERE platform = ? AND transaction_id = ?
@@ -178,6 +251,11 @@ async function findPurchaseByIdentifier(platform, transactionId, purchaseToken) 
         status,
         purchased_at,
         expires_at,
+        original_transaction_id,
+        app_account_token,
+        environment,
+        web_order_line_item_id,
+        ownership_id,
         raw_json
       FROM purchases
       WHERE platform = ? AND purchase_token = ?
@@ -188,6 +266,174 @@ async function findPurchaseByIdentifier(platform, transactionId, purchaseToken) 
   }
 
   return null;
+}
+
+function isSubscriptionProduct(product) {
+  return String(product?.product_type || '').toLowerCase() === 'subscription';
+}
+
+function resolveSubscriptionIdentity(parsed, verifyDecision, product) {
+  if (!isSubscriptionProduct(product)) return null;
+
+  return {
+    platform: parsed.platform,
+    store_sku: parsed.store_sku,
+    environment: normalizeEnvironment(verifyDecision.environment || parsed.environment),
+    original_transaction_id:
+      normalizeStringValue(verifyDecision.original_transaction_id, 255) ||
+      parsed.original_transaction_id ||
+      parsed.transaction_id ||
+      parsed.purchase_token,
+    app_account_token:
+      normalizeStringValue(verifyDecision.app_account_token, 255) ||
+      parsed.app_account_token,
+    web_order_line_item_id:
+      normalizeStringValue(verifyDecision.web_order_line_item_id, 255) ||
+      parsed.web_order_line_item_id,
+    latest_transaction_id:
+      normalizeStringValue(verifyDecision.transaction_id, 255) ||
+      parsed.transaction_id ||
+      null,
+  };
+}
+
+async function findSubscriptionOwnership(identity) {
+  if (!identity?.original_transaction_id) return null;
+
+  return dbGet(
+    `
+    SELECT
+      id,
+      user_id,
+      platform,
+      store_sku,
+      environment,
+      original_transaction_id,
+      app_account_token,
+      status,
+      first_transaction_id,
+      latest_transaction_id,
+      expires_at,
+      raw_json
+    FROM subscription_ownerships
+    WHERE platform = ?
+      AND environment = ?
+      AND store_sku = ?
+      AND original_transaction_id = ?
+    LIMIT 1
+    `,
+    [
+      identity.platform,
+      identity.environment,
+      identity.store_sku,
+      identity.original_transaction_id,
+    ]
+  );
+}
+
+async function upsertSubscriptionOwnership({
+  userId,
+  identity,
+  purchaseStatus,
+  expiresAt,
+  purchaseId,
+  verifyDecision,
+}) {
+  if (!identity?.original_transaction_id) return null;
+
+  const existing = await findSubscriptionOwnership(identity);
+  const ownershipRawJson = mergeMonetizationRawJson(existing?.raw_json, {
+    source: 'purchases/verify',
+    purchase_id: purchaseId || null,
+    verification_mode: verifyDecision.verify_mode,
+    purchase_status: purchaseStatus,
+    latest_transaction_id: identity.latest_transaction_id || null,
+    web_order_line_item_id: identity.web_order_line_item_id || null,
+    verification: verifyDecision.verification || null,
+  });
+
+  await dbRun(
+    `
+    INSERT INTO subscription_ownerships (
+      user_id,
+      platform,
+      store_sku,
+      environment,
+      original_transaction_id,
+      app_account_token,
+      status,
+      first_transaction_id,
+      latest_transaction_id,
+      expires_at,
+      raw_json
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(platform, environment, store_sku, original_transaction_id)
+    DO UPDATE SET
+      user_id = excluded.user_id,
+      app_account_token = COALESCE(excluded.app_account_token, subscription_ownerships.app_account_token),
+      status = CASE
+        WHEN subscription_ownerships.status = 'active' AND excluded.status = 'pending'
+          THEN subscription_ownerships.status
+        ELSE excluded.status
+      END,
+      latest_transaction_id = COALESCE(excluded.latest_transaction_id, subscription_ownerships.latest_transaction_id),
+      expires_at = CASE
+        WHEN subscription_ownerships.status = 'active' AND excluded.status = 'pending'
+          THEN subscription_ownerships.expires_at
+        ELSE excluded.expires_at
+      END,
+      raw_json = excluded.raw_json,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE subscription_ownerships.user_id = excluded.user_id
+    `,
+    [
+      userId,
+      identity.platform,
+      identity.store_sku,
+      identity.environment,
+      identity.original_transaction_id,
+      identity.app_account_token,
+      purchaseStatus,
+      identity.latest_transaction_id,
+      identity.latest_transaction_id,
+      expiresAt,
+      ownershipRawJson,
+    ]
+  );
+
+  const latestOwnership = await findSubscriptionOwnership(identity);
+  if (latestOwnership && latestOwnership.user_id !== userId) {
+    const error = new Error('subscription ownership belongs to another account');
+    error.code = 'SUBSCRIPTION_OWNED_BY_OTHER_ACCOUNT';
+    throw error;
+  }
+  return latestOwnership;
+}
+
+async function attachOwnershipToPurchase({ purchaseId, identity, ownershipId }) {
+  if (!purchaseId || !identity) return;
+
+  await dbRun(
+    `
+    UPDATE purchases
+    SET
+      original_transaction_id = COALESCE(?, original_transaction_id),
+      app_account_token = COALESCE(?, app_account_token),
+      environment = ?,
+      web_order_line_item_id = COALESCE(?, web_order_line_item_id),
+      ownership_id = COALESCE(?, ownership_id)
+    WHERE id = ?
+    `,
+    [
+      identity.original_transaction_id || null,
+      identity.app_account_token || null,
+      identity.environment || 'unknown',
+      identity.web_order_line_item_id || null,
+      ownershipId || null,
+      purchaseId,
+    ]
+  );
 }
 
 router.get('/store/catalog', async (req, res) => {
@@ -275,6 +521,23 @@ router.get('/entitlements/me', authRequired, async (req, res) => {
   }
 });
 
+router.get('/iap/account-token', authRequired, async (req, res) => {
+  const token = buildAppAccountToken(req.user.id);
+  if (!token) {
+    return sendMonetizationError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '앱 계정 토큰 생성 중 오류가 발생했습니다.'
+    );
+  }
+
+  return res.json({
+    ok: true,
+    app_account_token: token,
+  });
+});
+
 router.post('/purchases/verify', authRequired, async (req, res) => {
   const parsed = parseVerifyPayload(req.body || {});
   if (parsed.error) {
@@ -319,6 +582,33 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
       });
     }
 
+    const subscriptionIdentity = resolveSubscriptionIdentity(
+      parsed,
+      verifyDecision,
+      product
+    );
+    let existingOwnership = null;
+    if (subscriptionIdentity) {
+      if (!subscriptionIdentity.original_transaction_id) {
+        return sendMonetizationError(
+          res,
+          400,
+          'SUBSCRIPTION_IDENTITY_REQUIRED',
+          '구독 결제의 원거래 식별자를 확인하지 못했습니다.'
+        );
+      }
+
+      existingOwnership = await findSubscriptionOwnership(subscriptionIdentity);
+      if (existingOwnership && existingOwnership.user_id !== userId) {
+        return sendMonetizationError(
+          res,
+          409,
+          'SUBSCRIPTION_OWNED_BY_OTHER_ACCOUNT',
+          '이 Apple 구독은 이미 다른 글숲 계정에 연결되어 있습니다. 해당 계정으로 로그인하거나 Apple 구독 관리에서 상태를 확인해주세요.'
+        );
+      }
+    }
+
     const existingPurchase = await findPurchaseByIdentifier(
       parsed.platform,
       parsed.transaction_id,
@@ -355,17 +645,45 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
         const updateResult = await dbRun(
           `
           UPDATE purchases
-          SET status = ?, expires_at = ?, raw_json = ?
+          SET
+            status = ?,
+            expires_at = ?,
+            original_transaction_id = COALESCE(?, original_transaction_id),
+            app_account_token = COALESCE(?, app_account_token),
+            environment = ?,
+            web_order_line_item_id = COALESCE(?, web_order_line_item_id),
+            raw_json = ?
           WHERE id = ?
           `,
           [
             verifyDecision.purchase_status,
             nextExpiresAt,
+            subscriptionIdentity?.original_transaction_id || null,
+            subscriptionIdentity?.app_account_token || null,
+            subscriptionIdentity?.environment || parsed.environment || 'unknown',
+            subscriptionIdentity?.web_order_line_item_id || null,
             promotedRawJson,
             existingPurchase.id,
           ]
         );
         didUpdateExistingPurchase = Number(updateResult?.changes || 0) > 0;
+      }
+
+      let ownership = existingOwnership;
+      if (subscriptionIdentity) {
+        ownership = await upsertSubscriptionOwnership({
+          userId,
+          identity: subscriptionIdentity,
+          purchaseStatus: verifyDecision.purchase_status,
+          expiresAt: verifyDecision.expires_at || existingPurchase.expires_at || null,
+          purchaseId: existingPurchase.id,
+          verifyDecision,
+        });
+        await attachOwnershipToPurchase({
+          purchaseId: existingPurchase.id,
+          identity: subscriptionIdentity,
+          ownershipId: ownership?.id || null,
+        });
       }
 
       await reconcileMonetizationState({ userId });
@@ -406,9 +724,12 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
       verification_mode: verifyDecision.verify_mode,
       submitted_at: purchasedAtIso,
       purchase_status: verifyDecision.purchase_status,
+      subscription_identity: subscriptionIdentity || null,
       verification: verifyDecision.verification || null,
     });
 
+    let purchaseId = null;
+    let ownershipId = null;
     await dbRun('BEGIN IMMEDIATE');
     try {
       const insertPurchase = await dbRun(
@@ -422,9 +743,13 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
           status,
           purchased_at,
           expires_at,
+          original_transaction_id,
+          app_account_token,
+          environment,
+          web_order_line_item_id,
           raw_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           userId,
@@ -435,14 +760,37 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
           verifyDecision.purchase_status,
           purchasedAtIso,
           expiresAtIso,
+          subscriptionIdentity?.original_transaction_id || null,
+          subscriptionIdentity?.app_account_token || null,
+          subscriptionIdentity?.environment || parsed.environment || 'unknown',
+          subscriptionIdentity?.web_order_line_item_id || null,
           rawJson,
         ]
       );
+      purchaseId = insertPurchase.lastID;
+
+      if (subscriptionIdentity) {
+        const ownership = await upsertSubscriptionOwnership({
+          userId,
+          identity: subscriptionIdentity,
+          purchaseStatus: verifyDecision.purchase_status,
+          expiresAt: expiresAtIso,
+          purchaseId,
+          verifyDecision,
+        });
+        ownershipId = ownership?.id || null;
+        await attachOwnershipToPurchase({
+          purchaseId,
+          identity: subscriptionIdentity,
+          ownershipId,
+        });
+      }
 
       const entitlementMeta = serializeRawPayload({
         source: 'iap',
         verification_mode: verifyDecision.verify_mode,
-        purchase_id: insertPurchase.lastID,
+        purchase_id: purchaseId,
+        ownership_id: ownershipId,
         store_sku: parsed.store_sku,
         platform: parsed.platform,
       });
@@ -525,6 +873,14 @@ router.post('/purchases/verify', authRequired, async (req, res) => {
         safeStatus,
         safeCode,
         error.message || '결제 검증 중 오류가 발생했습니다.'
+      );
+    }
+    if (error?.code === 'SUBSCRIPTION_OWNED_BY_OTHER_ACCOUNT') {
+      return sendMonetizationError(
+        res,
+        409,
+        'SUBSCRIPTION_OWNED_BY_OTHER_ACCOUNT',
+        '이 Apple 구독은 이미 다른 글숲 계정에 연결되어 있습니다. 해당 계정으로 로그인하거나 Apple 구독 관리에서 상태를 확인해주세요.'
       );
     }
     if (error?.code === 'SQLITE_CONSTRAINT') {
