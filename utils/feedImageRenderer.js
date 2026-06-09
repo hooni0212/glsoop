@@ -197,6 +197,7 @@ const SHARE_LOGO_TEXT = '글숲';
 const SHARE_SIGNATURE_OPACITY = 0.74;
 const SHARE_AUTHOR_SIGNATURE_OPACITY = 0.82;
 const SHARE_AUTHOR_SIGNATURE_MAX_CHARS = 28;
+const SHARE_AUTHOR_SIGNATURE_DEFAULT_POSITION = 'bottomRight';
 const SHARE_LAYOUT_PRESETS = {
   oneLine: {
     fontSizeRatio: 0.041,
@@ -1183,7 +1184,26 @@ function normalizeAuthorSignatureOption(authorSignature) {
   return {
     enabled: true,
     name: safeName,
+    position: normalizeAuthorSignaturePosition(
+      authorSignature.position || authorSignature.authorSignaturePosition
+    ),
   };
+}
+
+function normalizeAuthorSignaturePosition(value) {
+  const normalized = String(value || '')
+    .trim()
+    .replace(/[_\s-]+/g, '')
+    .toLowerCase();
+
+  if (normalized === 'bottomleft' || normalized === 'left') {
+    return 'bottomLeft';
+  }
+  if (normalized === 'bottomright' || normalized === 'right') {
+    return 'bottomRight';
+  }
+
+  return SHARE_AUTHOR_SIGNATURE_DEFAULT_POSITION;
 }
 
 function buildRenderVersion({ post, templateKey, scale, renderMode, authorSignature = null }) {
@@ -1614,8 +1634,13 @@ function buildSvgAuthorSignature({
     fontSizePx,
     0
   );
-  const textX = Math.round(width - Math.max(28, width * 0.052));
+  const horizontalInset = Math.max(28, width * 0.052);
+  const textX =
+    normalizedSignature.position === 'bottomLeft'
+      ? Math.round(horizontalInset)
+      : Math.round(width - horizontalInset);
   const textY = Math.round(height - Math.max(52, height * 0.078));
+  const textAnchor = normalizedSignature.position === 'bottomLeft' ? 'start' : 'end';
 
   return `
   <g aria-label="author-signature">
@@ -1627,7 +1652,7 @@ function buildSvgAuthorSignature({
       font-size="${Math.round(fontSizePx * 100) / 100}"
       font-weight="600"
       letter-spacing="0.02em"
-      text-anchor="end"
+      text-anchor="${textAnchor}"
       text-rendering="optimizeLegibility"
     >${escapeXml(text)}</text>
   </g>
@@ -2009,6 +2034,7 @@ async function renderShareModeImageBuffer({
   imageFormat = 'webp',
   authorSignature = null,
 }) {
+  const normalizedAuthorSignature = normalizeAuthorSignatureOption(authorSignature);
   const titleText = normalizePostText(post?.title) || '제목 없음';
   const bodyText = normalizePostText(post?.content) || titleText || ' ';
   const font = resolvePostFont(post?.content);
@@ -2087,8 +2113,11 @@ async function renderShareModeImageBuffer({
   const authorSignatureOverride = buildSvgAuthorSignature({
     width: outputWidth,
     height: outputHeight,
-    authorSignature,
+    authorSignature: normalizedAuthorSignature,
   });
+  const authorSignatureLayout = authorSignatureOverride
+    ? `-author-signature-${normalizedAuthorSignature?.position || SHARE_AUTHOR_SIGNATURE_DEFAULT_POSITION}`
+    : '';
 
   const svgOverlay = buildSvgShareOverlay({
     width: outputWidth,
@@ -2124,7 +2153,7 @@ async function renderShareModeImageBuffer({
 
   return {
     buffer: imageBuffer,
-    layout: `share-${layoutKey}-font-${font.key}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}${authorSignatureOverride ? '-author-signature' : ''}`,
+    layout: `share-${layoutKey}-font-${font.key}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}${authorSignatureLayout}`,
   };
 }
 

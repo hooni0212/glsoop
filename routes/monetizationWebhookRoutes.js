@@ -39,6 +39,19 @@ function normalizeString(raw, maxLength = 255) {
   return trimmed;
 }
 
+function normalizeStringValue(raw, maxLength = 255) {
+  if (raw === null || raw === undefined) return null;
+  return normalizeString(String(raw), maxLength);
+}
+
+function normalizeEnvironment(raw) {
+  const normalized = normalizeStringValue(raw, 40)?.toLowerCase();
+  if (!normalized) return 'unknown';
+  if (normalized === 'prod') return 'production';
+  if (normalized === 'testflight') return 'sandbox';
+  return normalized;
+}
+
 function safeStringify(value) {
   try {
     return JSON.stringify(value);
@@ -313,10 +326,53 @@ function parseWebhookEvent(provider, rawBody) {
         'transaction_id',
         'transactionId',
         'decoded_transaction.transactionId',
+      ]) || ''
+    ),
+    255
+  );
+
+  const originalTransactionId = normalizeString(
+    String(
+      pickFirstValue(payload, [
+        'original_transaction_id',
+        'originalTransactionId',
         'decoded_transaction.originalTransactionId',
       ]) || ''
     ),
     255
+  );
+
+  const appAccountToken = normalizeString(
+    String(
+      pickFirstValue(payload, [
+        'app_account_token',
+        'appAccountToken',
+        'decoded_transaction.appAccountToken',
+      ]) || ''
+    ),
+    255
+  );
+
+  const environment = normalizeEnvironment(
+    pickFirstValue(payload, [
+      'environment',
+      'decoded_transaction.environment',
+      'data.environment',
+    ])
+  );
+
+  const storeSku = normalizeString(
+    String(
+      pickFirstValue(payload, [
+        'store_sku',
+        'product_id',
+        'productId',
+        'decoded_transaction.productId',
+        'decoded_data.subscriptionNotification.subscriptionId',
+        'decoded_data.oneTimeProductNotification.sku',
+      ]) || ''
+    ),
+    120
   );
 
   const purchaseToken = normalizeString(
@@ -374,6 +430,10 @@ function parseWebhookEvent(provider, rawBody) {
     event_type: eventTypeCandidate || null,
     payload_json: payloadJson,
     transaction_id: transactionId || null,
+    original_transaction_id: originalTransactionId || null,
+    app_account_token: appAccountToken || null,
+    environment,
+    store_sku: storeSku || null,
     purchase_token: purchaseToken || null,
     purchase_status: purchaseStatus || null,
     expires_at: expiresAt || null,
@@ -442,6 +502,10 @@ async function fetchPurchaseByIdentifiers(transactionId, purchaseToken) {
         p.user_id,
         p.platform,
         p.store_sku,
+        p.ownership_id,
+        p.original_transaction_id,
+        p.app_account_token,
+        p.environment,
         p.status,
         p.expires_at,
         p.raw_json,
@@ -467,6 +531,10 @@ async function fetchPurchaseByIdentifiers(transactionId, purchaseToken) {
         p.user_id,
         p.platform,
         p.store_sku,
+        p.ownership_id,
+        p.original_transaction_id,
+        p.app_account_token,
+        p.environment,
         p.status,
         p.expires_at,
         p.raw_json,
@@ -486,12 +554,106 @@ async function fetchPurchaseByIdentifiers(transactionId, purchaseToken) {
   return null;
 }
 
+async function fetchOwnershipByOriginalTransaction({
+  provider,
+  originalTransactionId,
+  storeSku,
+  environment,
+}) {
+  if (!originalTransactionId) return null;
+
+  const params = [provider, originalTransactionId];
+  const storeSkuClause = storeSku ? 'AND so.store_sku = ?' : '';
+  if (storeSku) params.push(storeSku);
+
+  const environmentClause =
+    environment && environment !== 'unknown'
+      ? 'AND so.environment IN (?, ?)'
+      : '';
+  if (environment && environment !== 'unknown') {
+    params.push(environment, 'unknown');
+  }
+
+  const ownership = await dbGet(
+    `
+    SELECT
+      so.id,
+      so.user_id,
+      so.platform,
+      so.store_sku,
+      so.environment,
+      so.original_transaction_id,
+      so.app_account_token,
+      so.status,
+      so.expires_at,
+      so.raw_json,
+      pr.entitlement_key
+    FROM subscription_ownerships so
+    LEFT JOIN products pr
+      ON pr.platform = so.platform
+     AND pr.store_sku = so.store_sku
+    WHERE so.platform = ?
+      AND so.original_transaction_id = ?
+      ${storeSkuClause}
+      ${environmentClause}
+    ORDER BY
+      CASE WHEN so.environment = ? THEN 0 ELSE 1 END,
+      so.updated_at DESC,
+      so.id DESC
+    LIMIT 1
+    `,
+    [...params, environment || 'unknown']
+  );
+
+  if (!ownership) return null;
+
+  const latestPurchase = await dbGet(
+    `
+    SELECT
+      p.id,
+      p.user_id,
+      p.platform,
+      p.store_sku,
+      p.ownership_id,
+      p.original_transaction_id,
+      p.app_account_token,
+      p.environment,
+      p.status,
+      p.expires_at,
+      p.raw_json
+    FROM purchases p
+    WHERE p.ownership_id = ?
+    ORDER BY p.id DESC
+    LIMIT 1
+    `,
+    [ownership.id]
+  );
+
+  return {
+    ...(latestPurchase || {}),
+    id: latestPurchase?.id || null,
+    user_id: ownership.user_id,
+    platform: ownership.platform,
+    store_sku: ownership.store_sku,
+    ownership_id: ownership.id,
+    original_transaction_id: ownership.original_transaction_id,
+    app_account_token: ownership.app_account_token,
+    environment: ownership.environment,
+    status: latestPurchase?.status || ownership.status,
+    expires_at: latestPurchase?.expires_at || ownership.expires_at || null,
+    raw_json: latestPurchase?.raw_json || ownership.raw_json,
+    entitlement_key: ownership.entitlement_key,
+    matched_by_ownership: true,
+  };
+}
+
 async function finalizeWebhookEvent({
   provider,
   eventId,
   processState,
   processMessage,
   purchaseId,
+  ownershipId,
   userId,
 }) {
   await dbRun(
@@ -501,6 +663,7 @@ async function finalizeWebhookEvent({
       process_state = ?,
       process_message = ?,
       purchase_id = ?,
+      ownership_id = ?,
       user_id = ?,
       processed_at = CURRENT_TIMESTAMP
     WHERE provider = ? AND event_id = ?
@@ -509,6 +672,7 @@ async function finalizeWebhookEvent({
       processState,
       processMessage || null,
       purchaseId || null,
+      ownershipId || null,
       userId || null,
       provider,
       eventId,
@@ -546,12 +710,16 @@ async function handleWebhook(provider, req, res) {
         event_type,
         payload_json,
         transaction_id,
+        original_transaction_id,
+        app_account_token,
+        environment,
+        store_sku,
         purchase_token,
         purchase_status,
         expires_at,
         process_state
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'received')
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'received')
       `,
       [
         parsed.provider,
@@ -559,6 +727,10 @@ async function handleWebhook(provider, req, res) {
         parsed.event_type,
         parsed.payload_json,
         parsed.transaction_id,
+        parsed.original_transaction_id,
+        parsed.app_account_token,
+        parsed.environment,
+        parsed.store_sku,
         parsed.purchase_token,
         parsed.purchase_status,
         parsed.expires_at,
@@ -578,10 +750,18 @@ async function handleWebhook(provider, req, res) {
       });
     }
 
-    const purchase = await fetchPurchaseByIdentifiers(
+    let purchase = await fetchPurchaseByIdentifiers(
       parsed.transaction_id,
       parsed.purchase_token
     );
+    if (!purchase && parsed.original_transaction_id) {
+      purchase = await fetchOwnershipByOriginalTransaction({
+        provider: parsed.provider,
+        originalTransactionId: parsed.original_transaction_id,
+        storeSku: parsed.store_sku,
+        environment: parsed.environment,
+      });
+    }
 
     if (!purchase) {
       const ignoreMessage = '결제 레코드를 찾을 수 없어 이벤트를 보류했습니다.';
@@ -603,6 +783,9 @@ async function handleWebhook(provider, req, res) {
           provider: parsed.provider,
           event_id: parsed.event_id,
           transaction_id: parsed.transaction_id,
+          original_transaction_id: parsed.original_transaction_id,
+          environment: parsed.environment,
+          store_sku: parsed.store_sku,
           purchase_token: parsed.purchase_token,
           event_type: parsed.event_type,
         },
@@ -629,21 +812,79 @@ async function handleWebhook(provider, req, res) {
         event_type: parsed.event_type,
         purchase_status: parsed.purchase_status,
         expires_at: parsed.expires_at,
+        transaction_id: parsed.transaction_id,
+        original_transaction_id: parsed.original_transaction_id,
+        app_account_token: parsed.app_account_token,
+        environment: parsed.environment,
+        store_sku: parsed.store_sku,
         received_at: new Date().toISOString(),
       },
     });
 
-    await dbRun(
-      `
-      UPDATE purchases
-      SET
-        status = ?,
-        expires_at = ?,
-        raw_json = ?
-      WHERE id = ?
-      `,
-      [nextStatus, nextExpiresAt, webhookRawJson, purchase.id]
-    );
+    if (purchase.id) {
+      await dbRun(
+        `
+        UPDATE purchases
+        SET
+          status = ?,
+          expires_at = ?,
+          original_transaction_id = COALESCE(?, original_transaction_id),
+          app_account_token = COALESCE(?, app_account_token),
+          environment = ?,
+          raw_json = ?
+        WHERE id = ?
+        `,
+        [
+          nextStatus,
+          nextExpiresAt,
+          parsed.original_transaction_id || null,
+          parsed.app_account_token || null,
+          parsed.environment || purchase.environment || 'unknown',
+          webhookRawJson,
+          purchase.id,
+        ]
+      );
+    }
+
+    if (purchase.ownership_id) {
+      const ownershipRawJson = mergeMonetizationRawJson(purchase.raw_json, {
+        webhook: {
+          provider: parsed.provider,
+          event_id: parsed.event_id,
+          event_type: parsed.event_type,
+          purchase_status: parsed.purchase_status,
+          expires_at: parsed.expires_at,
+          transaction_id: parsed.transaction_id,
+          original_transaction_id: parsed.original_transaction_id,
+          app_account_token: parsed.app_account_token,
+          environment: parsed.environment,
+          store_sku: parsed.store_sku,
+          received_at: new Date().toISOString(),
+        },
+      });
+
+      await dbRun(
+        `
+        UPDATE subscription_ownerships
+        SET
+          status = ?,
+          expires_at = ?,
+          latest_transaction_id = COALESCE(?, latest_transaction_id),
+          app_account_token = COALESCE(?, app_account_token),
+          raw_json = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        `,
+        [
+          nextStatus,
+          nextExpiresAt,
+          parsed.transaction_id || null,
+          parsed.app_account_token || null,
+          ownershipRawJson,
+          purchase.ownership_id,
+        ]
+      );
+    }
 
     const summary = await reconcileMonetizationState({ userId: purchase.user_id });
 
@@ -653,6 +894,7 @@ async function handleWebhook(provider, req, res) {
       processState: 'processed',
       processMessage: '웹훅 이벤트 처리가 완료되었습니다.',
       purchaseId: purchase.id,
+      ownershipId: purchase.ownership_id,
       userId: purchase.user_id,
     });
 
@@ -676,6 +918,7 @@ async function handleWebhook(provider, req, res) {
         event_id: parsed.event_id,
         event_type: parsed.event_type,
         state: 'processed',
+        matched_by_ownership: Boolean(purchase.matched_by_ownership),
       },
       purchase: {
         id: purchase.id,

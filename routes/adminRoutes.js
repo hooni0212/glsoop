@@ -1293,10 +1293,14 @@ router.post('/purchases/reconcile', async (req, res) => {
       p.store_sku,
       p.transaction_id,
       p.purchase_token,
+      p.original_transaction_id,
+      p.environment,
+      p.ownership_id,
       p.status,
       p.purchased_at,
       p.expires_at,
       p.raw_json,
+      pr.product_type,
       pr.entitlement_key
     FROM purchases p
     LEFT JOIN products pr
@@ -1374,6 +1378,39 @@ router.post('/purchases/reconcile', async (req, res) => {
       `,
       [parsed.status, nextExpiresAt, reconciledRawJson, purchase.id]
     );
+
+    if (purchase.ownership_id && purchase.product_type === 'subscription') {
+      const ownershipRawJson = mergeMonetizationRawJson(purchase.raw_json, {
+        admin_reconcile: {
+          actor_user_id: req.user?.id || null,
+          source: parsed.source,
+          reason: parsed.reason,
+          status: parsed.status,
+          expires_at: nextExpiresAt,
+          reconciled_at: new Date().toISOString(),
+        },
+      });
+
+      await runAsync(
+        `
+        UPDATE subscription_ownerships
+        SET
+          status = ?,
+          expires_at = ?,
+          latest_transaction_id = COALESCE(?, latest_transaction_id),
+          raw_json = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        `,
+        [
+          parsed.status,
+          nextExpiresAt,
+          purchase.transaction_id || null,
+          ownershipRawJson,
+          purchase.ownership_id,
+        ]
+      );
+    }
 
     const summary = await reconcileMonetizationState({ userId: purchase.user_id });
 

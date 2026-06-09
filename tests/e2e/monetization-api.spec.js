@@ -12,6 +12,7 @@ const E2E_JWT_AUDIENCE = 'glsoop-client';
 const TEST_USER_ID = 9901;
 const TEST_USER_REFUND_ID = 9902;
 const ADMIN_USER_ID = 9903;
+const TEST_USER_SECOND_ID = 9904;
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -96,6 +97,20 @@ const seedMonetizationFixtures = async () => {
       'Buyer Refund Fixture',
       'buyer_refund_fixture',
       'buyer-refund-fixture@glsoop.test',
+      'password',
+      0,
+      1,
+    ]
+  );
+  await dbRun(
+    db,
+    `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      TEST_USER_SECOND_ID,
+      'Buyer Second Fixture',
+      'buyer_second_fixture',
+      'buyer-second-fixture@glsoop.test',
       'password',
       0,
       1,
@@ -192,6 +207,16 @@ const seedMonetizationFixtures = async () => {
   );
   await dbRun(
     db,
+    'DELETE FROM purchases WHERE user_id = ?',
+    [TEST_USER_SECOND_ID]
+  );
+  await dbRun(
+    db,
+    'DELETE FROM subscription_ownerships WHERE user_id IN (?, ?, ?)',
+    [TEST_USER_ID, TEST_USER_REFUND_ID, TEST_USER_SECOND_ID]
+  );
+  await dbRun(
+    db,
     'DELETE FROM user_entitlements WHERE user_id = ?',
     [TEST_USER_ID]
   );
@@ -200,10 +225,46 @@ const seedMonetizationFixtures = async () => {
     'DELETE FROM user_entitlements WHERE user_id = ?',
     [TEST_USER_REFUND_ID]
   );
+  await dbRun(
+    db,
+    'DELETE FROM user_entitlements WHERE user_id = ?',
+    [TEST_USER_SECOND_ID]
+  );
+  await dbRun(
+    db,
+    `DELETE FROM monetization_webhook_events
+     WHERE event_id LIKE 'e2e-%'
+        OR user_id IN (?, ?, ?)`,
+    [TEST_USER_ID, TEST_USER_REFUND_ID, TEST_USER_SECOND_ID]
+  );
 
   await dbRun(db, 'PRAGMA foreign_keys = ON');
   await new Promise((resolve) => db.close(resolve));
 };
+
+function buildPremiumVerifyBody({ txId, originalTxId, storeSku = 'glsoop_premium_monthly' }) {
+  return {
+    platform: 'apple',
+    store_sku: storeSku,
+    transaction_id: txId,
+    original_transaction_id: originalTxId,
+    app_account_token: '11111111-2222-5333-8444-555555555555',
+    environment: 'sandbox',
+    receipt_data: JSON.stringify({
+      productId: storeSku,
+      transactionId: txId,
+      originalTransactionId: originalTxId,
+      appAccountToken: '11111111-2222-5333-8444-555555555555',
+      environment: 'sandbox',
+    }),
+    client_meta: {
+      source: 'e2e',
+      original_transaction_id: originalTxId,
+      app_account_token: '11111111-2222-5333-8444-555555555555',
+      environment: 'sandbox',
+    },
+  };
+}
 
 test.describe('Monetization API', () => {
   test.beforeEach(async ({}, testInfo) => {
@@ -259,6 +320,34 @@ test.describe('Monetization API', () => {
       ok: false,
       code: 'AUTH_REQUIRED',
     });
+  });
+
+  test('returns a stable app account token for StoreKit account binding', async ({
+    request,
+  }) => {
+    const token = signAuthToken({
+      id: TEST_USER_ID,
+      name: 'Buyer Fixture',
+      nickname: 'buyer_fixture',
+      email: 'buyer-fixture@glsoop.test',
+    });
+
+    const first = await request.get('/api/iap/account-token', {
+      headers: authHeaders(token),
+    });
+    const second = await request.get('/api/iap/account-token', {
+      headers: authHeaders(token),
+    });
+
+    expect(first.status()).toBe(200);
+    expect(second.status()).toBe(200);
+    const firstPayload = await first.json();
+    const secondPayload = await second.json();
+    expect(firstPayload.ok).toBe(true);
+    expect(firstPayload.app_account_token).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
+    expect(firstPayload.app_account_token).toBe(secondPayload.app_account_token);
   });
 
   test('accepts verify request in pending mode and creates inactive entitlement', async ({
@@ -360,6 +449,215 @@ test.describe('Monetization API', () => {
     await new Promise((resolve) => db.close(resolve));
 
     expect(countRow.cnt).toBe(1);
+  });
+
+  test('keeps one subscription ownership across renewal transaction ids for the same account', async ({
+    request,
+  }) => {
+    const token = signAuthToken({
+      id: TEST_USER_ID,
+      name: 'Buyer Fixture',
+      nickname: 'buyer_fixture',
+      email: 'buyer-fixture@glsoop.test',
+    });
+    const originalTxId = `apple-original-renewal-${Date.now()}`;
+    const firstTxId = `${originalTxId}-tx-1`;
+    const renewalTxId = `${originalTxId}-tx-2`;
+
+    const first = await request.post('/api/purchases/verify', {
+      headers: authHeaders(token),
+      data: buildPremiumVerifyBody({ txId: firstTxId, originalTxId }),
+    });
+    expect(first.status()).toBe(200);
+
+    const second = await request.post('/api/purchases/verify', {
+      headers: authHeaders(token),
+      data: buildPremiumVerifyBody({ txId: renewalTxId, originalTxId }),
+    });
+    expect(second.status()).toBe(200);
+    const secondPayload = await second.json();
+    expect(secondPayload.ok).toBe(true);
+    expect(secondPayload.purchase).toMatchObject({
+      store_sku: 'glsoop_premium_monthly',
+      status: 'pending',
+    });
+
+    const db = new sqlite3.Database(DB_PATH);
+    const ownershipRow = await dbGet(
+      db,
+      `SELECT user_id, status, first_transaction_id, latest_transaction_id
+       FROM subscription_ownerships
+       WHERE platform = ? AND environment = ? AND store_sku = ? AND original_transaction_id = ?
+       LIMIT 1`,
+      ['apple', 'sandbox', 'glsoop_premium_monthly', originalTxId]
+    );
+    const purchaseCountRow = await dbGet(
+      db,
+      `SELECT COUNT(*) AS cnt
+       FROM purchases
+       WHERE platform = ? AND store_sku = ? AND original_transaction_id = ?`,
+      ['apple', 'glsoop_premium_monthly', originalTxId]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(ownershipRow).toMatchObject({
+      user_id: TEST_USER_ID,
+      status: 'pending',
+      first_transaction_id: firstTxId,
+      latest_transaction_id: renewalTxId,
+    });
+    expect(purchaseCountRow.cnt).toBe(2);
+  });
+
+  test('blocks restoring the same Apple subscription chain into another account', async ({
+    request,
+  }) => {
+    const firstUserToken = signAuthToken({
+      id: TEST_USER_ID,
+      name: 'Buyer Fixture',
+      nickname: 'buyer_fixture',
+      email: 'buyer-fixture@glsoop.test',
+    });
+    const secondUserToken = signAuthToken({
+      id: TEST_USER_SECOND_ID,
+      name: 'Buyer Second Fixture',
+      nickname: 'buyer_second_fixture',
+      email: 'buyer-second-fixture@glsoop.test',
+    });
+    const originalTxId = `apple-original-conflict-${Date.now()}`;
+    const firstTxId = `${originalTxId}-tx-1`;
+    const secondTxId = `${originalTxId}-tx-2`;
+
+    const first = await request.post('/api/purchases/verify', {
+      headers: authHeaders(firstUserToken),
+      data: buildPremiumVerifyBody({ txId: firstTxId, originalTxId }),
+    });
+    expect(first.status()).toBe(200);
+
+    const second = await request.post('/api/purchases/verify', {
+      headers: authHeaders(secondUserToken),
+      data: buildPremiumVerifyBody({ txId: secondTxId, originalTxId }),
+    });
+    expect(second.status()).toBe(409);
+    const secondPayload = await second.json();
+    expect(secondPayload).toMatchObject({
+      ok: false,
+      code: 'SUBSCRIPTION_OWNED_BY_OTHER_ACCOUNT',
+    });
+
+    const db = new sqlite3.Database(DB_PATH);
+    const secondPurchaseRow = await dbGet(
+      db,
+      'SELECT COUNT(*) AS cnt FROM purchases WHERE transaction_id = ?',
+      [secondTxId]
+    );
+    const ownershipRow = await dbGet(
+      db,
+      `SELECT user_id
+       FROM subscription_ownerships
+       WHERE platform = ? AND environment = ? AND store_sku = ? AND original_transaction_id = ?
+       LIMIT 1`,
+      ['apple', 'sandbox', 'glsoop_premium_monthly', originalTxId]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(secondPurchaseRow.cnt).toBe(0);
+    expect(ownershipRow.user_id).toBe(TEST_USER_ID);
+  });
+
+  test('matches Apple webhook by original transaction id and expires premium entitlement', async ({
+    request,
+  }) => {
+    const buyerToken = signAuthToken({
+      id: TEST_USER_ID,
+      name: 'Buyer Fixture',
+      nickname: 'buyer_fixture',
+      email: 'buyer-fixture@glsoop.test',
+    });
+    const adminToken = signAuthToken({
+      id: ADMIN_USER_ID,
+      name: 'Admin Fixture',
+      nickname: 'admin_fixture',
+      email: 'admin-fixture@glsoop.test',
+      isAdmin: true,
+    });
+    const originalTxId = `apple-original-webhook-${Date.now()}`;
+    const firstTxId = `${originalTxId}-tx-1`;
+    const webhookTxId = `${originalTxId}-tx-webhook`;
+    const activeUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const expiredAt = new Date(Date.now() - 60 * 1000).toISOString();
+
+    const verifyResponse = await request.post('/api/purchases/verify', {
+      headers: authHeaders(buyerToken),
+      data: buildPremiumVerifyBody({ txId: firstTxId, originalTxId }),
+    });
+    expect(verifyResponse.status()).toBe(200);
+
+    const activateResponse = await request.post('/api/admin/purchases/reconcile', {
+      headers: authHeaders(adminToken),
+      data: {
+        platform: 'apple',
+        transaction_id: firstTxId,
+        status: 'active',
+        expires_at: activeUntil,
+        source: 'admin',
+        reason: 'e2e activate subscription before webhook',
+      },
+    });
+    expect(activateResponse.status()).toBe(200);
+
+    const webhookResponse = await request.post('/api/monetization/webhooks/apple', {
+      headers: {
+        'x-monetization-webhook-secret': 'e2e-webhook-secret',
+      },
+      data: {
+        notificationUUID: `e2e-apple-webhook-${Date.now()}`,
+        notificationType: 'EXPIRED',
+        transactionId: webhookTxId,
+        originalTransactionId: originalTxId,
+        productId: 'glsoop_premium_monthly',
+        environment: 'sandbox',
+        expires_at: expiredAt,
+      },
+    });
+    expect(webhookResponse.status()).toBe(200);
+    const webhookPayload = await webhookResponse.json();
+    expect(webhookPayload.ok).toBe(true);
+    expect(webhookPayload.event).toMatchObject({
+      state: 'processed',
+      matched_by_ownership: true,
+    });
+
+    const db = new sqlite3.Database(DB_PATH);
+    const ownershipRow = await dbGet(
+      db,
+      `SELECT status, latest_transaction_id
+       FROM subscription_ownerships
+       WHERE platform = ? AND environment = ? AND store_sku = ? AND original_transaction_id = ?
+       LIMIT 1`,
+      ['apple', 'sandbox', 'glsoop_premium_monthly', originalTxId]
+    );
+    const purchaseRow = await dbGet(
+      db,
+      'SELECT status FROM purchases WHERE transaction_id = ? LIMIT 1',
+      [firstTxId]
+    );
+    const entitlementRow = await dbGet(
+      db,
+      `SELECT status, source
+       FROM user_entitlements
+       WHERE user_id = ? AND entitlement_key = ?
+       LIMIT 1`,
+      [TEST_USER_ID, 'premium:glsoop']
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(ownershipRow).toMatchObject({
+      status: 'expired',
+      latest_transaction_id: webhookTxId,
+    });
+    expect(purchaseRow.status).toBe('expired');
+    expect(entitlementRow).toMatchObject({ status: 'inactive', source: 'iap' });
   });
 
   test('returns RESOURCE_NOT_FOUND for unknown sku', async ({ request }) => {

@@ -137,6 +137,111 @@ function pickFirstValue(source, paths = []) {
   return null;
 }
 
+function normalizeIdentityString(raw, maxLength = 255) {
+  if (raw === null || raw === undefined) return null;
+  const trimmed = String(raw).trim();
+  if (!trimmed || trimmed.length > maxLength) return null;
+  return trimmed;
+}
+
+function normalizeIdentityEnvironment(raw) {
+  const normalized = normalizeIdentityString(raw, 40)?.toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'prod') return 'production';
+  if (normalized === 'testflight') return 'sandbox';
+  return normalized;
+}
+
+function extractStoreIdentity(source = {}) {
+  const identity = {
+    transaction_id: normalizeIdentityString(
+      pickFirstValue(source, [
+        'transactionId',
+        'transaction_id',
+        'id',
+        'webOrderLineItemId',
+      ])
+    ),
+    original_transaction_id: normalizeIdentityString(
+      pickFirstValue(source, [
+        'originalTransactionId',
+        'original_transaction_id',
+        'originalTransactionIdentifierIOS',
+        'original_transaction_identifier_ios',
+        'originalTransactionID',
+      ])
+    ),
+    app_account_token: normalizeIdentityString(
+      pickFirstValue(source, [
+        'appAccountToken',
+        'app_account_token',
+        'applicationUsername',
+        'application_username',
+      ])
+    ),
+    environment: normalizeIdentityEnvironment(
+      pickFirstValue(source, ['environment', 'environmentIOS', 'storeEnvironment'])
+    ),
+    web_order_line_item_id: normalizeIdentityString(
+      pickFirstValue(source, ['webOrderLineItemId', 'web_order_line_item_id'])
+    ),
+  };
+
+  return identity;
+}
+
+function mergeStoreIdentity(...sources) {
+  return sources.reduce(
+    (merged, source) => {
+      if (!source || typeof source !== 'object') return merged;
+      const identity = extractStoreIdentity(source);
+      return {
+        transaction_id: merged.transaction_id || identity.transaction_id,
+        original_transaction_id:
+          merged.original_transaction_id || identity.original_transaction_id,
+        app_account_token: merged.app_account_token || identity.app_account_token,
+        environment: merged.environment || identity.environment,
+        web_order_line_item_id:
+          merged.web_order_line_item_id || identity.web_order_line_item_id,
+      };
+    },
+    {
+      transaction_id: null,
+      original_transaction_id: null,
+      app_account_token: null,
+      environment: null,
+      web_order_line_item_id: null,
+    }
+  );
+}
+
+function attachPurchaseIdentity(decision, parsedPayload = {}) {
+  const parsedIdentity = mergeStoreIdentity(parsedPayload, parsedPayload.client_meta);
+  const decisionIdentity = mergeStoreIdentity(decision, decision?.verification?.identifiers);
+  const identity = {
+    transaction_id:
+      decisionIdentity.transaction_id ||
+      parsedIdentity.transaction_id ||
+      normalizeIdentityString(parsedPayload.transaction_id),
+    original_transaction_id:
+      decisionIdentity.original_transaction_id || parsedIdentity.original_transaction_id,
+    app_account_token:
+      decisionIdentity.app_account_token || parsedIdentity.app_account_token,
+    environment: decisionIdentity.environment || parsedIdentity.environment || null,
+    web_order_line_item_id:
+      decisionIdentity.web_order_line_item_id || parsedIdentity.web_order_line_item_id,
+  };
+
+  return {
+    ...decision,
+    ...identity,
+    verification: {
+      ...(decision?.verification || {}),
+      identifiers: identity,
+    },
+  };
+}
+
 function safeParseJson(raw) {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim();
@@ -252,6 +357,7 @@ function inspectAppleReceipt(rawPayload, nowIso) {
     };
   }
 
+  const identity = extractStoreIdentity(payload);
   const revokedAtIso = toIsoDateTime(
     pickFirstValue(payload, [
       'revocationDate',
@@ -300,11 +406,13 @@ function inspectAppleReceipt(rawPayload, nowIso) {
     purchase_status: purchaseStatus,
     purchased_at: purchasedAtIso,
     expires_at: expiresAtIso,
+    ...identity,
     verification: {
       source: 'receipt_inspect',
       platform: 'apple',
       payload_source,
       revoked_at: revokedAtIso,
+      identifiers: identity,
     },
   };
 }
@@ -574,6 +682,7 @@ function inspectAppleLivePayload(rawPayload, nowIso) {
     });
   }
 
+  const identity = extractStoreIdentity(payload);
   const purchasedAtIso =
     toIsoDateTime(
       pickFirstValue(payload, [
@@ -608,11 +717,13 @@ function inspectAppleLivePayload(rawPayload, nowIso) {
     expires_at: expiresAtIso,
     product_id: pickFirstValue(payload, ['productId', 'product_id']),
     bundle_id: pickFirstValue(payload, ['bundleId', 'bundle_id']),
+    ...identity,
     verification: {
       source: 'live_verify',
       provider: 'apple',
       payload_source,
       revoked_at: revokedAtIso,
+      identifiers: identity,
     },
   };
 }
@@ -716,6 +827,11 @@ async function verifyApplePurchase(parsedPayload = {}, nowIso) {
     purchase_status: inspected.purchase_status,
     purchased_at: inspected.purchased_at || nowIso,
     expires_at: inspected.expires_at || null,
+    transaction_id: inspected.transaction_id || parsedPayload.transaction_id || null,
+    original_transaction_id: inspected.original_transaction_id || null,
+    app_account_token: inspected.app_account_token || null,
+    environment: inspected.environment || config.environment,
+    web_order_line_item_id: inspected.web_order_line_item_id || null,
     verification: {
       ...inspected.verification,
       environment: config.environment,
@@ -1071,6 +1187,11 @@ function buildReceiptInspectDecision(parsedPayload = {}, nowIso, verifyMode) {
     purchase_status: inspected.purchase_status,
     purchased_at: inspected.purchased_at || nowIso,
     expires_at: inspected.expires_at || null,
+    transaction_id: inspected.transaction_id || null,
+    original_transaction_id: inspected.original_transaction_id || null,
+    app_account_token: inspected.app_account_token || null,
+    environment: inspected.environment || null,
+    web_order_line_item_id: inspected.web_order_line_item_id || null,
     verification: {
       ...inspected.verification,
       receipt_source: receipt.source,
@@ -1140,9 +1261,10 @@ async function resolveVerifyDecision(parsedPayload = {}, options = {}) {
     process.env.MONETIZATION_VERIFY_MODE || 'pending_only'
   );
   const nowIso = new Date().toISOString();
+  let decision = null;
 
   if (verifyMode === 'auto_active') {
-    return {
+    decision = {
       verify_mode: verifyMode,
       purchase_status: 'active',
       purchased_at: nowIso,
@@ -1153,15 +1275,18 @@ async function resolveVerifyDecision(parsedPayload = {}, options = {}) {
       },
       success_message: '결제가 확인되었습니다.',
     };
+    return attachPurchaseIdentity(decision, parsedPayload);
   }
 
   if (verifyMode === 'receipt_inspect') {
-    return buildReceiptInspectDecision(parsedPayload, nowIso, verifyMode);
+    decision = buildReceiptInspectDecision(parsedPayload, nowIso, verifyMode);
+    return attachPurchaseIdentity(decision, parsedPayload);
   }
 
   if (verifyMode === 'live_verify') {
     try {
-      return await resolveLiveVerifyDecision(parsedPayload, options, nowIso);
+      decision = await resolveLiveVerifyDecision(parsedPayload, options, nowIso);
+      return attachPurchaseIdentity(decision, parsedPayload);
     } catch (error) {
       if (!(error instanceof PurchaseVerificationError)) {
         throw new PurchaseVerificationError({
@@ -1183,11 +1308,12 @@ async function resolveVerifyDecision(parsedPayload = {}, options = {}) {
       const fallbackMode = normalizeLiveFallbackMode(
         process.env.MONETIZATION_VERIFY_LIVE_FALLBACK_MODE || 'receipt_inspect'
       );
-      return applyLiveFallback(parsedPayload, nowIso, fallbackMode, error);
+      decision = applyLiveFallback(parsedPayload, nowIso, fallbackMode, error);
+      return attachPurchaseIdentity(decision, parsedPayload);
     }
   }
 
-  return {
+  decision = {
     verify_mode: verifyMode,
     purchase_status: 'pending',
     purchased_at: nowIso,
@@ -1198,6 +1324,7 @@ async function resolveVerifyDecision(parsedPayload = {}, options = {}) {
     },
     success_message: '결제 검증 요청이 접수되었습니다.',
   };
+  return attachPurchaseIdentity(decision, parsedPayload);
 }
 
 module.exports = {

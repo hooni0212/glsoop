@@ -381,7 +381,7 @@ test.describe('Post layout letter spacing', () => {
     expect(pngShareResponse.headers()['x-feed-image-format']).toBe('png');
   });
 
-  test('requires premium entitlement for author signature share images', async ({ request }) => {
+  test('requires premium entitlement for author signature share images', async ({ request, playwright }, testInfo) => {
     const token = await loginAsLayoutWriter(request);
     const headers = { Authorization: `Bearer ${token}` };
 
@@ -399,18 +399,25 @@ test.describe('Post layout letter spacing', () => {
     const createBody = await createResponse.json();
     const postId = createBody.post_id;
 
-    const unauthenticatedResponse = await request.get(
-      `/api/feed-images/share/post/${postId}`,
-      {
-        params: {
-          template: 'paper01',
-          scale: '2',
-          format: 'png',
-          author_signature: '1',
-        },
-      }
-    );
-    expect(unauthenticatedResponse.status()).toBe(401);
+    const anonymousRequest = await playwright.request.newContext({
+      baseURL: testInfo.project.use.baseURL || 'http://127.0.0.1:3100',
+    });
+    try {
+      const unauthenticatedResponse = await anonymousRequest.get(
+        `/api/feed-images/share/post/${postId}`,
+        {
+          params: {
+            template: 'paper01',
+            scale: '2',
+            format: 'png',
+            author_signature: '1',
+          },
+        }
+      );
+      expect(unauthenticatedResponse.status()).toBe(401);
+    } finally {
+      await anonymousRequest.dispose();
+    }
 
     const freeResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
       headers,
@@ -455,7 +462,23 @@ test.describe('Post layout letter spacing', () => {
     expect(signedResponse.status()).toBe(200);
     expect(signedResponse.headers()['content-type']).toContain('image/png');
     expect(signedResponse.headers()['x-feed-image-author-signature']).toBe('1');
-    expect(signedResponse.headers()['x-feed-image-layout']).toContain('author-signature');
+    expect(signedResponse.headers()['x-feed-image-author-signature-position']).toBe('bottomRight');
+    expect(signedResponse.headers()['x-feed-image-layout']).toContain('author-signature-bottomRight');
+
+    const leftPositionResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
+      headers,
+      params: {
+        template: 'paper01',
+        scale: '2',
+        format: 'png',
+        author_signature: '1',
+        author_signature_position: 'bottomLeft',
+      },
+    });
+    expect(leftPositionResponse.status()).toBe(200);
+    expect(leftPositionResponse.headers()['x-feed-image-author-signature']).toBe('1');
+    expect(leftPositionResponse.headers()['x-feed-image-author-signature-position']).toBe('bottomLeft');
+    expect(leftPositionResponse.headers()['x-feed-image-layout']).toContain('author-signature-bottomLeft');
   });
 
   test('uses FONT meta for feed and share rendered image font selection', async ({ request }) => {
