@@ -562,6 +562,155 @@ body.page-admin .quest-ops-step--warn {
   background: rgba(255, 250, 235, 0.88);
 }
 
+body.page-admin .writing-campaign-admin {
+  display: grid;
+  gap: 14px;
+}
+
+body.page-admin .writing-campaign-admin-hero,
+body.page-admin .writing-campaign-admin-today,
+body.page-admin .writing-campaign-admin-push {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(31, 107, 75, 0.16);
+  background: rgba(245, 252, 247, 0.84);
+}
+
+body.page-admin .writing-campaign-admin-stat {
+  min-width: 86px;
+  min-height: 64px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 18px;
+  border: 1px solid rgba(31, 107, 75, 0.18);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+body.page-admin .writing-campaign-admin-stat span {
+  color: var(--gls-admin-accent);
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+
+body.page-admin .writing-campaign-admin-stat small {
+  color: var(--gls-admin-muted);
+  font-weight: 800;
+}
+
+body.page-admin .writing-campaign-admin-progress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 10px 0;
+}
+
+body.page-admin .writing-campaign-admin-step {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 2px solid rgba(61, 52, 36, 0.18);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--gls-admin-muted);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+body.page-admin .writing-campaign-admin-step--completed {
+  border-color: var(--gls-admin-accent);
+  background: var(--gls-admin-accent);
+  color: #fff;
+}
+
+body.page-admin .writing-campaign-admin-step--current {
+  border-color: var(--gls-admin-accent);
+  background: rgba(236, 249, 241, 0.96);
+  color: var(--gls-admin-accent);
+}
+
+body.page-admin .writing-campaign-admin-push {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+body.page-admin .writing-campaign-admin-push__actions {
+  min-width: min(100%, 260px);
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+body.page-admin .writing-campaign-admin-push-result {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(31, 107, 75, 0.18);
+  background: rgba(245, 252, 247, 0.92);
+  color: var(--gls-admin-accent);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+body.page-admin .writing-campaign-admin-push-result span {
+  display: block;
+  color: var(--gls-admin-muted);
+  font-weight: 700;
+}
+
+body.page-admin .writing-campaign-admin-topic-details {
+  border-radius: 14px;
+  border: 1px solid rgba(61, 52, 36, 0.1);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 12px 14px;
+}
+
+body.page-admin .writing-campaign-admin-topic-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--gls-admin-text);
+  cursor: pointer;
+  font-weight: 900;
+  list-style: none;
+}
+
+body.page-admin .writing-campaign-admin-topic-summary::-webkit-details-marker {
+  display: none;
+}
+
+body.page-admin .writing-campaign-admin-topic-summary::before {
+  content: '▸';
+  color: var(--gls-admin-accent);
+  font-size: 0.82rem;
+  transition: transform 0.15s ease;
+}
+
+body.page-admin .writing-campaign-admin-topic-details[open] .writing-campaign-admin-topic-summary::before {
+  transform: rotate(90deg);
+}
+
+body.page-admin .writing-campaign-admin-topic-details[open] .table-responsive {
+  margin-top: 12px;
+}
+
+body.page-admin .writing-campaign-admin-table {
+  min-width: 720px;
+}
+
+body.page-admin .writing-campaign-admin-table__today {
+  background: rgba(245, 252, 247, 0.88);
+}
+
 body.page-admin .quest-ops-step__index {
   width: 34px;
   height: 34px;
@@ -817,6 +966,33 @@ body.page-admin :is(
     flex: 1 1 0;
   }
 
+  body.page-admin .admin-push-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.page-admin .admin-push-form,
+  body.page-admin .admin-push-history {
+    min-width: 0;
+  }
+
+  body.page-admin .admin-push-form__header,
+  body.page-admin .admin-push-target-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body.page-admin .admin-push-ad-row {
+    grid-template-columns: 32px minmax(0, 1fr);
+    align-items: center;
+  }
+
+  body.page-admin .admin-push-actions {
+    justify-content: stretch;
+  }
+
+  body.page-admin .admin-push-actions .gls-btn {
+    flex: 1 1 120px;
+  }
+
   body.page-admin .growth-auto-claim-panel__header {
     grid-template-columns: 1fr;
   }
@@ -831,18 +1007,25 @@ body.page-admin :is(
     width: 100%;
   }
 
-  body.page-admin .admin-push-grid,
-  body.page-admin .admin-push-form__header,
-  body.page-admin .admin-push-target-row {
+  body.page-admin .writing-campaign-admin-hero,
+  body.page-admin .writing-campaign-admin-today,
+  body.page-admin .writing-campaign-admin-push {
     grid-template-columns: 1fr;
   }
 
-  body.page-admin .admin-push-actions {
-    justify-content: stretch;
+  body.page-admin .writing-campaign-admin-push__actions {
+    justify-items: stretch;
   }
 
-  body.page-admin .admin-push-actions .gls-btn {
-    flex: 1 1 120px;
+  body.page-admin .writing-campaign-admin-push__actions > .gls-flex {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  body.page-admin .writing-campaign-admin-push__actions .gls-btn {
+    min-width: 0;
+    width: 100%;
   }
 
   body.page-admin .admin-safety-actions,

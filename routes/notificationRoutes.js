@@ -62,7 +62,7 @@ function normalizeNullableText(value, maxLength = 500) {
 }
 
 function normalizeInternalTargetPath(value) {
-  const trimmed = normalizeNullableText(value, 300);
+  const trimmed = normalizeNullableText(value, 1200);
   if (!trimmed) return '/';
   if (!trimmed.startsWith('/') || trimmed.startsWith('//')) return '/';
   if (trimmed.startsWith('/(auth)')) return '/';
@@ -92,6 +92,24 @@ function serializeMeta(meta) {
   } catch {
     return null;
   }
+}
+
+function normalizeOptionalJsonPayload(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return serializeMeta(parsed) || null;
+    } catch {
+      return trimmed.slice(0, 2000);
+    }
+  }
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return serializeMeta(value);
+  }
+  return null;
 }
 
 function toTimestamp(value) {
@@ -798,6 +816,15 @@ router.post('/admin/marketing-push-campaigns', authRequired, adminRequired, asyn
   const body = normalizeNullableText(req.body?.body, 180);
   const targetPath = normalizeInternalTargetPath(req.body?.target_path ?? req.body?.targetPath);
   const dryRun = parseBoolean(req.body?.dry_run);
+  const campaignKey = normalizeNullableText(req.body?.campaign_key ?? req.body?.campaignKey, 160);
+  const campaignKind = normalizeNullableText(req.body?.campaign_kind ?? req.body?.campaignKind, 80);
+  const scheduledForDate = normalizeNullableText(
+    req.body?.scheduled_for_date ?? req.body?.scheduledForDate,
+    20
+  );
+  const targetRuleJson = normalizeOptionalJsonPayload(
+    req.body?.target_rule_json ?? req.body?.targetRuleJson
+  );
 
   if (!title || !body) {
     return sendNotificationError(
@@ -823,18 +850,51 @@ router.post('/admin/marketing-push-campaigns', authRequired, adminRequired, asyn
     try {
       const campaign = await runAsync(
         `
-        INSERT INTO marketing_push_campaigns (
+        INSERT OR IGNORE INTO marketing_push_campaigns (
           title,
           body,
           target_path,
           created_by_user_id,
           queued_count,
-          dry_run
+          dry_run,
+          campaign_key,
+          campaign_kind,
+          scheduled_for_date,
+          target_rule_json
         )
-        VALUES (?, ?, ?, ?, 0, 0)
+        VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, ?)
         `,
-        [title, body, targetPath, req.user?.id || null]
+        [
+          title,
+          body,
+          targetPath,
+          req.user?.id || null,
+          campaignKey,
+          campaignKind,
+          scheduledForDate,
+          targetRuleJson,
+        ]
       );
+      if (campaignKey && Number(campaign?.changes || 0) === 0) {
+        const existing = await getAsync(
+          `
+          SELECT id, queued_count
+          FROM marketing_push_campaigns
+          WHERE campaign_key = ?
+          LIMIT 1
+          `,
+          [campaignKey]
+        );
+        await runAsync('COMMIT');
+        return res.json({
+          ok: true,
+          skipped: true,
+          reason: 'already_queued',
+          campaign_id: existing?.id || null,
+          queued_count: Number(existing?.queued_count || 0),
+          ...buildMarketingPushAudienceSummary(recipientRows),
+        });
+      }
       const campaignId = campaign.lastID;
       let queuedCount = 0;
       const tokenRowsByUser = new Map();
@@ -865,6 +925,8 @@ router.post('/admin/marketing-push-campaigns', authRequired, adminRequired, asyn
             serializeMeta({
               notification_type: 'marketing_campaign',
               campaign_id: campaignId,
+              campaign_kind: campaignKind,
+              campaign_key: campaignKey,
               target_path: targetPath,
             }),
           ]
@@ -895,6 +957,8 @@ router.post('/admin/marketing-push-campaigns', authRequired, adminRequired, asyn
                 type: 'marketing_campaign',
                 event_type: 'system',
                 campaign_id: campaignId,
+                campaign_kind: campaignKind,
+                campaign_key: campaignKey,
                 target_path: targetPath,
               }),
             ]
