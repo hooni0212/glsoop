@@ -555,13 +555,6 @@ router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => 
       message: '잘못된 페이지 번호입니다.',
     });
   }
-  if (page > 1) {
-    return res.status(404).json({
-      ok: false,
-      message: '공유 이미지는 첫 페이지 한 장만 지원합니다.',
-    });
-  }
-
   try {
     const post = await dbGetAsync(
       `
@@ -620,12 +613,24 @@ router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => 
       };
     }
 
+    const manifest = await getFeedCardImageManifest({
+      post,
+      templateKey: template,
+      scale,
+    });
+    if (page > manifest.pageCount) {
+      return res.status(404).json({
+        ok: false,
+        message: '해당 이미지 페이지를 찾을 수 없습니다.',
+      });
+    }
+
     const rendered = await renderFeedCardImage({
       post,
       templateKey: template,
       scale,
       renderMode: 'share',
-      page: 1,
+      page,
       imageFormat,
       authorSignature,
     });
@@ -646,8 +651,9 @@ router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => 
     res.set('X-Feed-Image-Template', rendered.template || template);
     res.set('X-Feed-Image-Scale', String(rendered.scale || scale));
     res.set('X-Feed-Image-Format', rendered.imageFormat || imageFormat);
-    res.set('X-Feed-Image-Page', '1');
-    res.set('X-Feed-Image-Page-Count', '1');
+    res.set('X-Feed-Image-Page', String(rendered.page || page));
+    res.set('X-Feed-Image-Page-Count', String(manifest.pageCount));
+    res.set('X-Feed-Image-Truncated', manifest.isTruncated ? '1' : '0');
     res.set('X-Feed-Image-Author-Signature', authorSignature ? '1' : '0');
     res.set('X-Feed-Image-Author-Signature-Position', authorSignature?.position || 'none');
     if (rendered.layout) {
