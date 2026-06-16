@@ -21,9 +21,13 @@ const {
   mapOperationalAlert,
 } = require('../utils/adminOperationalAlerts');
 const {
+  DAILY_WRITING_CAMPAIGN_KEY,
   DAILY_WRITING_PROMPTS,
   getDailyWritingCampaignProgressSteps,
   getDailyWritingCampaignStatus,
+  getWritingEventDefinition,
+  getWritingEventProgressSteps,
+  getWritingEventStatus,
 } = require('../utils/dailyWritingCampaign');
 
 const router = express.Router();
@@ -31,6 +35,45 @@ const router = express.Router();
 function normalizeAdminPassword(body = {}) {
   const value = body.admin_password ?? body.adminPassword ?? body.password;
   return typeof value === 'string' ? value : '';
+}
+
+function normalizeWritingEventKey(input) {
+  const value = typeof input === 'string' ? input.trim() : '';
+  return value.slice(0, 160);
+}
+
+function buildWritingEventAdminPayload(status, prompts, message) {
+  return {
+    ok: true,
+    message,
+    campaign: {
+      key: status.campaignKey,
+      title: status.title,
+      subtitle: status.subtitle,
+      total_days: status.totalDays,
+      current_day: status.currentDay,
+      completed_days: status.completedDays,
+      remaining_days: status.remainingDays,
+      progress_percent: status.progressPercent,
+      local_date_key: status.localDateKey,
+      write_path: status.writePath,
+    },
+    today_prompt: {
+      ...status.prompt,
+      write_path: status.writePath,
+    },
+    prompts,
+    progress_steps: getWritingEventProgressSteps(status),
+    push_preset: {
+      title: `${status.currentDay}일차 오늘의 글감이 열렸어요`,
+      body: `${status.prompt.title} - ${status.prompt.body}`,
+      target_path: status.writePath,
+      include_ad_label: false,
+      campaign_kind: status.pushCampaignKind || 'writing_event_prompt',
+      campaign_key: `${status.campaignKey}:${status.localDateKey}`,
+      scheduled_for_date: status.localDateKey,
+    },
+  };
 }
 
 async function verifyAdminPasswordForDangerAction(req, res) {
@@ -288,38 +331,13 @@ router.get('/growth/operations/health', async (req, res) => {
 router.get('/writing-campaigns/monthly-project', async (req, res) => {
   try {
     const status = getDailyWritingCampaignStatus();
-    const steps = getDailyWritingCampaignProgressSteps(status);
-    return res.json({
-      ok: true,
-      message: '글숲 한달 글쓰기 프로젝트 정보를 불러왔습니다.',
-      campaign: {
-        key: status.campaignKey,
-        title: status.title,
-        subtitle: status.subtitle,
-        total_days: status.totalDays,
-        current_day: status.currentDay,
-        completed_days: status.completedDays,
-        remaining_days: status.remainingDays,
-        progress_percent: status.progressPercent,
-        local_date_key: status.localDateKey,
-        write_path: status.writePath,
-      },
-      today_prompt: {
-        ...status.prompt,
-        write_path: status.writePath,
-      },
-      prompts: DAILY_WRITING_PROMPTS,
-      progress_steps: steps,
-      push_preset: {
-        title: `${status.currentDay}일차 오늘의 글감이 열렸어요`,
-        body: `${status.prompt.title} - ${status.prompt.body}`,
-        target_path: status.writePath,
-        include_ad_label: false,
-        campaign_kind: 'daily_writing_project_prompt',
-        campaign_key: `${status.campaignKey}:${status.localDateKey}`,
-        scheduled_for_date: status.localDateKey,
-      },
-    });
+    return res.json(
+      buildWritingEventAdminPayload(
+        status,
+        DAILY_WRITING_PROMPTS,
+        '글숲 한달 글쓰기 프로젝트 정보를 불러왔습니다.'
+      )
+    );
   } catch (error) {
     console.error('[admin/writing-campaigns/monthly-project] failed:', error);
     return sendAdminError(
@@ -327,6 +345,29 @@ router.get('/writing-campaigns/monthly-project', async (req, res) => {
       500,
       'INTERNAL_ERROR',
       '글쓰기 프로젝트 정보를 불러오는 중 오류가 발생했습니다.'
+    );
+  }
+});
+
+router.get('/writing-events/:eventKey', async (req, res) => {
+  const eventKey = normalizeWritingEventKey(req.params.eventKey || DAILY_WRITING_CAMPAIGN_KEY);
+  const event = getWritingEventDefinition(eventKey);
+  if (!event) {
+    return sendAdminError(res, 404, 'WRITING_EVENT_NOT_FOUND', '해당 글쓰기 이벤트를 찾을 수 없습니다.');
+  }
+
+  try {
+    const status = getWritingEventStatus(event.key);
+    return res.json(
+      buildWritingEventAdminPayload(status, event.prompts, '글쓰기 이벤트 정보를 불러왔습니다.')
+    );
+  } catch (error) {
+    console.error('[admin/writing-events/:eventKey] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '글쓰기 이벤트 정보를 불러오는 중 오류가 발생했습니다.'
     );
   }
 });

@@ -44,6 +44,10 @@ const {
   isSafetyValidationError,
   parseSafetyRequestPayload,
 } = require('../utils/safety');
+const {
+  buildWritingEventContext,
+  getWritingEventDefinition,
+} = require('../utils/dailyWritingCampaign');
 
 const ALLOWED_CATEGORIES = ['poem', 'essay', 'short'];
 const ALLOWED_VISIBILITIES = ['public', 'followers', 'unlisted', 'private'];
@@ -911,6 +915,88 @@ const saveHashtagsAsync = (postId, hashtags) =>
     });
   });
 
+function normalizeContextText(value, maxLength = 160) {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim();
+  if (!normalized) return null;
+  return normalized.slice(0, maxLength);
+}
+
+function parseWritingEventContext(body = {}) {
+  const raw =
+    body.writing_event_context ||
+    body.writingEventContext ||
+    body.campaign_context ||
+    body.campaignContext ||
+    null;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+
+  const eventKey = normalizeContextText(raw.event_key ?? raw.eventKey ?? raw.campaign_key ?? raw.campaignKey);
+  const promptKey = normalizeContextText(raw.prompt_key ?? raw.promptKey ?? raw.campaignPromptKey);
+  if (!eventKey || !promptKey) return null;
+
+  const event = getWritingEventDefinition(eventKey);
+  if (!event) {
+    const error = new Error('유효하지 않은 글쓰기 이벤트입니다.');
+    error.status = 400;
+    error.code = 'INVALID_WRITING_EVENT';
+    throw error;
+  }
+
+  const context = buildWritingEventContext(eventKey, promptKey);
+  if (!context) {
+    const error = new Error('유효하지 않은 글쓰기 이벤트 주제입니다.');
+    error.status = 400;
+    error.code = 'INVALID_WRITING_EVENT_PROMPT';
+    throw error;
+  }
+
+  return context;
+}
+
+async function saveWritingEventContextForPost(postId, userId, context) {
+  if (!postId || !userId || !context) return null;
+
+  await dbRunAsync(
+    `
+      INSERT INTO post_writing_event_contexts (
+        post_id,
+        user_id,
+        event_key,
+        event_title,
+        prompt_key,
+        prompt_day,
+        prompt_title,
+        prompt_body,
+        source
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(post_id) DO UPDATE SET
+        event_key = excluded.event_key,
+        event_title = excluded.event_title,
+        prompt_key = excluded.prompt_key,
+        prompt_day = excluded.prompt_day,
+        prompt_title = excluded.prompt_title,
+        prompt_body = excluded.prompt_body,
+        source = excluded.source,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [
+      postId,
+      userId,
+      context.eventKey,
+      context.eventTitle,
+      context.promptKey,
+      context.promptDay,
+      context.promptTitle,
+      context.promptBody,
+      context.source,
+    ]
+  );
+
+  return context;
+}
+
 async function rollbackQuietly() {
   try {
     await dbRunAsync('ROLLBACK;');
@@ -1051,6 +1137,7 @@ router.post('/posts', authRequired, async (req, res) => {
   const layoutInput = parseLayoutInputFromBody(req.body);
   const contentPagesInput = parseContentPagesInput(req.body);
   const questContext = req.body?.quest_context || null;
+  let writingEventContext = null;
 
   if (!normalizedCategory) return;
   if (contentPagesInput.error) {
@@ -1063,6 +1150,15 @@ router.post('/posts', authRequired, async (req, res) => {
     return res.status(400).json({
       ok: false,
       message: LAYOUT_VALIDATION_ERROR_MESSAGE,
+    });
+  }
+  try {
+    writingEventContext = parseWritingEventContext(req.body);
+  } catch (contextError) {
+    return res.status(contextError.status || 400).json({
+      ok: false,
+      code: contextError.code || 'INVALID_WRITING_EVENT_CONTEXT',
+      message: contextError.message || '글쓰기 이벤트 정보가 올바르지 않습니다.',
     });
   }
 
@@ -1105,6 +1201,7 @@ router.post('/posts', authRequired, async (req, res) => {
     if (questContext) {
       questCompletion = await completePromptPostQuest(userId, newPostId, questContext);
     }
+    await saveWritingEventContextForPost(newPostId, userId, writingEventContext);
 
     await dbRunAsync('COMMIT;');
   } catch (err) {

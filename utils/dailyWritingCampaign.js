@@ -249,6 +249,24 @@ const DAILY_WRITING_PROMPTS = [
   },
 ];
 
+const WRITING_EVENT_DEFINITIONS = [
+  {
+    key: DAILY_WRITING_CAMPAIGN_KEY,
+    title: DAILY_WRITING_CAMPAIGN_TITLE,
+    subtitle: DAILY_WRITING_CAMPAIGN_SUBTITLE,
+    totalDays: DAILY_WRITING_CAMPAIGN_TOTAL_DAYS,
+    startLocalDate: CAMPAIGN_START_LOCAL_DATE,
+    prompts: DAILY_WRITING_PROMPTS,
+    source: 'daily_writing_project',
+    promptLabel: '오늘의 글감',
+    pushCampaignKind: 'daily_writing_project_prompt',
+  },
+];
+
+const WRITING_EVENT_BY_KEY = new Map(
+  WRITING_EVENT_DEFINITIONS.map((event) => [event.key, event])
+);
+
 function formatKstDateKey(now = new Date()) {
   return new Date(now.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
 }
@@ -259,17 +277,32 @@ function parseLocalDateMs(value) {
   return Date.UTC(year, month - 1, day);
 }
 
-function getCampaignDay(now = new Date()) {
-  const startMs = parseLocalDateMs(CAMPAIGN_START_LOCAL_DATE);
-  const currentMs = parseLocalDateMs(formatKstDateKey(now));
-  const diffDays = Math.floor((currentMs - startMs) / DAY_MS);
-  return ((diffDays % DAILY_WRITING_CAMPAIGN_TOTAL_DAYS) + DAILY_WRITING_CAMPAIGN_TOTAL_DAYS) %
-    DAILY_WRITING_CAMPAIGN_TOTAL_DAYS;
+function getWritingEventDefinition(eventKey = DAILY_WRITING_CAMPAIGN_KEY) {
+  return WRITING_EVENT_BY_KEY.get(eventKey) || null;
 }
 
-function buildDailyWritingPromptWritePath(status = getDailyWritingCampaignStatus()) {
+function getDefaultWritingEventDefinition() {
+  return getWritingEventDefinition(DAILY_WRITING_CAMPAIGN_KEY);
+}
+
+function getWritingEventPrompt(eventKey, promptKey) {
+  const event = getWritingEventDefinition(eventKey);
+  if (!event || !promptKey) return null;
+  return event.prompts.find((prompt) => prompt.key === promptKey) || null;
+}
+
+function getEventDayIndex(event, now = new Date()) {
+  const totalDays = Math.max(1, Number(event?.totalDays) || event?.prompts?.length || 1);
+  const startMs = parseLocalDateMs(event?.startLocalDate || CAMPAIGN_START_LOCAL_DATE);
+  const currentMs = parseLocalDateMs(formatKstDateKey(now));
+  const diffDays = Math.floor((currentMs - startMs) / DAY_MS);
+  return ((diffDays % totalDays) + totalDays) % totalDays;
+}
+
+function buildWritingEventPromptWritePath(status = getDefaultWritingEventStatus()) {
   const prompt = status.prompt;
   const params = new URLSearchParams({
+    campaignKey: status.campaignKey,
     campaignPromptKey: prompt.key,
     promptTitle: prompt.title,
     promptBody: prompt.body,
@@ -282,38 +315,79 @@ function buildDailyWritingPromptWritePath(status = getDailyWritingCampaignStatus
   return `/write?${params.toString()}`;
 }
 
-function getDailyWritingCampaignStatus(now = new Date()) {
-  const promptIndex = getCampaignDay(now);
-  const prompt = DAILY_WRITING_PROMPTS[promptIndex] || DAILY_WRITING_PROMPTS[0];
+function getWritingEventStatus(eventKey = DAILY_WRITING_CAMPAIGN_KEY, now = new Date()) {
+  const event = getWritingEventDefinition(eventKey);
+  if (!event) return null;
+
+  const promptIndex = getEventDayIndex(event, now);
+  const prompt = event.prompts[promptIndex] || event.prompts[0];
   const currentDay = prompt.day;
   const completedDays = Math.max(0, currentDay - 1);
-  const progressPercent = Math.round((currentDay / DAILY_WRITING_CAMPAIGN_TOTAL_DAYS) * 100);
+  const totalDays = Math.max(1, Number(event.totalDays) || event.prompts.length);
+  const progressPercent = Math.round((currentDay / totalDays) * 100);
   const status = {
-    campaignKey: DAILY_WRITING_CAMPAIGN_KEY,
-    title: DAILY_WRITING_CAMPAIGN_TITLE,
-    subtitle: DAILY_WRITING_CAMPAIGN_SUBTITLE,
-    totalDays: DAILY_WRITING_CAMPAIGN_TOTAL_DAYS,
+    campaignKey: event.key,
+    title: event.title,
+    subtitle: event.subtitle,
+    totalDays,
     currentDay,
     completedDays,
     prompt,
     progressPercent,
-    remainingDays: Math.max(0, DAILY_WRITING_CAMPAIGN_TOTAL_DAYS - currentDay),
+    remainingDays: Math.max(0, totalDays - currentDay),
     localDateKey: formatKstDateKey(now),
+    promptLabel: event.promptLabel || '오늘의 글감',
+    pushCampaignKind: event.pushCampaignKind || 'writing_event_prompt',
   };
 
   return {
     ...status,
-    writePath: buildDailyWritingPromptWritePath(status),
+    writePath: buildWritingEventPromptWritePath(status),
   };
 }
 
-function getDailyWritingCampaignProgressSteps(status = getDailyWritingCampaignStatus()) {
-  return DAILY_WRITING_PROMPTS.map((prompt) => {
+function getDefaultWritingEventStatus(now = new Date()) {
+  return getWritingEventStatus(DAILY_WRITING_CAMPAIGN_KEY, now);
+}
+
+function getWritingEventProgressSteps(status = getDefaultWritingEventStatus()) {
+  const event = getWritingEventDefinition(status?.campaignKey);
+  if (!event) return [];
+
+  return event.prompts.map((prompt) => {
     let state = 'upcoming';
     if (prompt.day < status.currentDay) state = 'completed';
     if (prompt.day === status.currentDay) state = 'current';
     return { ...prompt, state };
   });
+}
+
+function buildWritingEventContext(eventKey, promptKey) {
+  const event = getWritingEventDefinition(eventKey);
+  const prompt = getWritingEventPrompt(eventKey, promptKey);
+  if (!event || !prompt) return null;
+
+  return {
+    eventKey: event.key,
+    eventTitle: event.title,
+    promptKey: prompt.key,
+    promptDay: prompt.day,
+    promptTitle: prompt.title,
+    promptBody: prompt.body,
+    source: event.source || 'writing_event',
+  };
+}
+
+function buildDailyWritingPromptWritePath(status = getDailyWritingCampaignStatus()) {
+  return buildWritingEventPromptWritePath(status);
+}
+
+function getDailyWritingCampaignStatus(now = new Date()) {
+  return getDefaultWritingEventStatus(now);
+}
+
+function getDailyWritingCampaignProgressSteps(status = getDailyWritingCampaignStatus()) {
+  return getWritingEventProgressSteps(status);
 }
 
 module.exports = {
@@ -322,7 +396,16 @@ module.exports = {
   DAILY_WRITING_CAMPAIGN_SUBTITLE,
   DAILY_WRITING_CAMPAIGN_TOTAL_DAYS,
   DAILY_WRITING_PROMPTS,
+  WRITING_EVENT_DEFINITIONS,
+  buildWritingEventContext,
   buildDailyWritingPromptWritePath,
+  buildWritingEventPromptWritePath,
   getDailyWritingCampaignProgressSteps,
   getDailyWritingCampaignStatus,
+  getDefaultWritingEventDefinition,
+  getDefaultWritingEventStatus,
+  getWritingEventDefinition,
+  getWritingEventProgressSteps,
+  getWritingEventPrompt,
+  getWritingEventStatus,
 };
