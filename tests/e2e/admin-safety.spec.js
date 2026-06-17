@@ -277,6 +277,60 @@ async function mockAdminBootApis(page, options = {}) {
     })
   );
 
+  await page.route('**/api/admin/writing-campaigns/monthly-project', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        campaign: {
+          key: 'glsoop-monthly-writing-project-prototype',
+          title: '글숲 한달 글쓰기 프로젝트',
+          subtitle: '매일 하나의 글감으로 30일 동안 글을 쌓아가요.',
+          total_days: 30,
+          current_day: 2,
+          completed_days: 1,
+          remaining_days: 28,
+          progress_percent: 7,
+          local_date_key: '2026-06-15',
+          write_path: '/write?campaignPromptKey=day-02-window',
+        },
+        today_prompt: {
+          key: 'day-02-window',
+          day: 2,
+          title: '창밖에서 시작된 생각',
+          body: '지금 보이는 풍경이나 지나간 장면에서 떠오른 생각을 적어보세요.',
+          defaultCategory: 'essay',
+          suggestedHashtags: ['창밖', '관찰', '일상'],
+          write_path: '/write?campaignPromptKey=day-02-window',
+        },
+        prompts: Array.from({ length: 30 }, (_, index) => ({
+          key: `day-${String(index + 1).padStart(2, '0')}`,
+          day: index + 1,
+          title: index === 1 ? '창밖에서 시작된 생각' : `${index + 1}일차 주제`,
+          body: '주제 설명',
+          defaultCategory: 'essay',
+          suggestedHashtags: ['글숲프로젝트'],
+        })),
+        progress_steps: Array.from({ length: 30 }, (_, index) => ({
+          key: `day-${String(index + 1).padStart(2, '0')}`,
+          day: index + 1,
+          title: `${index + 1}일차 주제`,
+          state: index === 0 ? 'completed' : index === 1 ? 'current' : 'upcoming',
+        })),
+        push_preset: {
+          title: '2일차 오늘의 글감이 열렸어요',
+          body: '창밖에서 시작된 생각 - 지금 보이는 풍경이나 지나간 장면에서 떠오른 생각을 적어보세요.',
+          target_path: '/write?campaignPromptKey=day-02-window',
+          include_ad_label: false,
+          campaign_kind: 'daily_writing_project_prompt',
+          campaign_key: 'glsoop-monthly-writing-project-prototype:2026-06-15',
+          scheduled_for_date: '2026-06-15',
+        },
+      }),
+    })
+  );
+
   await page.route('**/api/admin/growth/operations/health', (route) =>
     route.fulfill({
       status: 200,
@@ -733,6 +787,47 @@ test.describe('Admin dangerous action safety', () => {
     await expect(page.locator('#growthAutoClaimResult')).toContainText('실행 완료');
     await expect(page.locator('#growthAutoClaimResult')).toContainText('수령 1건');
     await expect(page.locator('#growthAutoClaimResult')).toContainText('+20 XP');
+  });
+
+  test('shows daily writing project and queues its prompt push from quests admin UI', async ({ page }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+    const calls = [];
+
+    await mockAdminBootApis(page, {
+      onMarketingPushCampaign({ body }) {
+        calls.push(body);
+      },
+    });
+    await applyAdminCookie(page, baseURL);
+
+    await page.goto('/admin');
+    await page.getByRole('button', { name: /퀘스트/ }).click();
+
+    await expect(page.locator('#writingCampaignProject')).toContainText('글숲 한달 글쓰기 프로젝트');
+    await expect(page.locator('#writingCampaignProject')).toContainText('30일 주제 목록');
+    await expect(page.locator('#writingCampaignProject')).toContainText('오늘 주제 푸시');
+
+    await page.click('#writingCampaignPushPreviewBtn');
+
+    await expect.poll(() => calls.length).toBe(1);
+    expect(calls[0]).toMatchObject({
+      include_ad_label: false,
+      dry_run: true,
+      campaign_kind: 'daily_writing_project_prompt',
+    });
+    expect(calls[0].target_path).toContain('/write?campaignPromptKey=');
+    await expect(page.locator('#writingCampaignProject')).toContainText('대상 확인 완료');
+
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.click('#writingCampaignPushSendBtn');
+
+    await expect.poll(() => calls.length).toBe(2);
+    expect(calls[1]).toMatchObject({
+      include_ad_label: false,
+      dry_run: false,
+      campaign_kind: 'daily_writing_project_prompt',
+    });
+    expect(calls[1].campaign_key).toContain('glsoop-monthly-writing-project-prototype');
   });
 
   test('previews and queues marketing push from the push admin UI', async ({ page }, testInfo) => {

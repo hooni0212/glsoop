@@ -29,6 +29,9 @@ Glsoop.AdminPage = (function () {
     campaignItems: [],
     operationalAlerts: [],
     operationalHealth: null,
+    writingCampaign: null,
+    writingCampaignPushDryRun: null,
+    writingCampaignPushSending: false,
     autoClaimLimit: 100,
     autoClaimResult: null,
   };
@@ -215,6 +218,7 @@ Glsoop.AdminPage = (function () {
     setupSafetyUi(safetyReportsBox, reportedPostsBox);
     await loadSafetyDashboard(safetyReportsBox, reportedPostsBox);
     setupGrowthOperationalControls();
+    await loadWritingCampaignProject();
     await loadGrowthOperationalStatus();
     await loadQuestTemplates();
     await loadQuestCampaigns();
@@ -1627,7 +1631,12 @@ Glsoop.AdminPage = (function () {
 
     return rows
       .map((campaign) => {
-        const kind = campaign.campaign_kind === 'evening_writing_reminder' ? '저녁 리마인더' : '수동 발송';
+        const kind =
+          campaign.campaign_kind === 'evening_writing_reminder'
+            ? '저녁 리마인더'
+            : campaign.campaign_kind === 'daily_writing_project_prompt'
+              ? '한달 글쓰기'
+              : '수동 발송';
         return `
           <tr>
             <td>
@@ -2641,6 +2650,291 @@ Glsoop.AdminPage = (function () {
       bindCampaignEvents();
       box.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+
+    const writingCampaignRefreshBtn = document.getElementById('writingCampaignRefreshBtn');
+    if (writingCampaignRefreshBtn && writingCampaignRefreshBtn.dataset.bound !== 'true') {
+      writingCampaignRefreshBtn.dataset.bound = 'true';
+      writingCampaignRefreshBtn.addEventListener('click', () => {
+        loadWritingCampaignProject();
+      });
+    }
+  }
+
+  async function loadWritingCampaignProject() {
+    const box = document.getElementById('writingCampaignProject');
+    if (!box) return;
+    box.innerHTML = '<p class="gls-text-muted">글쓰기 프로젝트 정보를 불러오는 중입니다...</p>';
+
+    try {
+      const res = await fetch('/api/admin/writing-campaigns/monthly-project', {
+        cache: 'no-store',
+      });
+      const data = await parseJsonSafe(res);
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || '글쓰기 프로젝트 정보를 불러오지 못했습니다.');
+      }
+
+      questState.writingCampaign = data;
+      box.innerHTML = buildWritingCampaignProject();
+      bindWritingCampaignProjectEvents();
+    } catch (err) {
+      console.error(err);
+      box.innerHTML = '<p class="text-danger">글쓰기 프로젝트 정보를 불러오지 못했습니다.</p>';
+    }
+  }
+
+  function buildWritingCampaignProject() {
+    const data = questState.writingCampaign || {};
+    const campaign = data.campaign || {};
+    const todayPrompt = data.today_prompt || {};
+    const prompts = Array.isArray(data.prompts) ? data.prompts : [];
+    const steps = Array.isArray(data.progress_steps) ? data.progress_steps : [];
+    const preset = data.push_preset || {};
+    const dryRun = questState.writingCampaignPushDryRun;
+    const sending = questState.writingCampaignPushSending;
+    const disabledAttr = sending ? 'disabled' : '';
+    const dryRunHtml = dryRun
+      ? `
+        <div class="writing-campaign-admin-push-result">
+          <strong>대상 확인 완료</strong>
+          <span>${formatCount(dryRun.eligible_user_count)}명 · 토큰 ${formatCount(
+          dryRun.eligible_token_count
+        )}개</span>
+        </div>
+      `
+      : '<p class="gls-text-muted gls-text-small gls-mb-0">발송 예약 전 대상 확인을 먼저 실행하세요.</p>';
+
+    return `
+      <div class="writing-campaign-admin">
+        <section class="writing-campaign-admin-hero">
+          <div>
+            <p class="gls-text-muted gls-text-small gls-mb-1">${escapeHtml(campaign.local_date_key || '')}</p>
+            <h4 class="gls-mb-1">${escapeHtml(campaign.title || '글숲 한달 글쓰기 프로젝트')}</h4>
+            <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(campaign.subtitle || '')}</p>
+          </div>
+          <div class="writing-campaign-admin-stat">
+            <span>${formatCount(campaign.current_day)}/${formatCount(campaign.total_days)}</span>
+            <small>${formatCount(campaign.progress_percent)}%</small>
+          </div>
+        </section>
+
+        <section class="writing-campaign-admin-progress">
+          ${buildWritingCampaignAdminSteps(steps)}
+        </section>
+
+        <section class="writing-campaign-admin-today">
+          <div>
+            <p class="gls-text-muted gls-text-small gls-mb-1">오늘의 주제 · ${formatCount(todayPrompt.day)}일차</p>
+            <h5 class="gls-mb-1">${escapeHtml(todayPrompt.title || '')}</h5>
+            <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(todayPrompt.body || '')}</p>
+          </div>
+          <a class="gls-btn gls-btn-secondary gls-btn-sm" href="${escapeHtml(todayPrompt.write_path || campaign.write_path || '/write')}" target="_blank" rel="noopener">글쓰기 링크 열기</a>
+        </section>
+
+        <section class="writing-campaign-admin-push">
+          <div>
+            <p class="gls-text-muted gls-text-small gls-mb-1">오늘 주제 푸시</p>
+            <h5 class="gls-mb-1">${escapeHtml(preset.title || '')}</h5>
+            <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(preset.body || '')}</p>
+            <p class="gls-text-muted gls-text-small gls-mb-0">이동: ${escapeHtml(preset.target_path || '/write')}</p>
+          </div>
+          <div class="writing-campaign-admin-push__actions">
+            ${dryRunHtml}
+            <div class="gls-flex gls-gap-2 gls-flex-wrap">
+              <button class="gls-btn gls-btn-secondary gls-btn-sm" id="writingCampaignPushPreviewBtn" type="button" ${disabledAttr}>
+                대상 확인
+              </button>
+              <button class="gls-btn gls-btn-primary gls-btn-sm" id="writingCampaignPushSendBtn" type="button" ${disabledAttr}>
+                ${sending ? '처리 중...' : '푸시 예약'}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <details class="writing-campaign-admin-topic-details">
+          <summary class="writing-campaign-admin-topic-summary">
+            <span>30일 주제 목록</span>
+            <span class="quest-ops-pill">총 ${formatCount(prompts.length)}개</span>
+          </summary>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle gls-mb-0 writing-campaign-admin-table">
+              <thead>
+                <tr>
+                  <th>일차</th>
+                  <th>주제</th>
+                  <th>카테고리</th>
+                  <th>태그</th>
+                </tr>
+              </thead>
+              <tbody>${buildWritingCampaignPromptRows(prompts, campaign.current_day)}</tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+    `;
+  }
+
+  function buildWritingCampaignAdminSteps(steps) {
+    const safeSteps = Array.isArray(steps) ? steps : [];
+    if (!safeSteps.length) {
+      return '<p class="gls-text-muted gls-text-small gls-mb-0">진행 단계가 없습니다.</p>';
+    }
+
+    return safeSteps
+      .map((step) => {
+        const state = String(step.state || 'upcoming');
+        return `
+          <span class="writing-campaign-admin-step writing-campaign-admin-step--${escapeHtml(state)}" title="${escapeHtml(step.title || '')}">
+            ${state === 'completed' ? '✓' : formatCount(step.day)}
+          </span>
+        `;
+      })
+      .join('');
+  }
+
+  function buildWritingCampaignPromptRows(prompts, currentDay) {
+    const rows = Array.isArray(prompts) ? prompts : [];
+    if (!rows.length) {
+      return '<tr><td colspan="4" class="gls-text-muted gls-text-center">등록된 주제가 없습니다.</td></tr>';
+    }
+
+    return rows
+      .map((prompt) => {
+        const isToday = Number(prompt.day) === Number(currentDay);
+        const tags = Array.isArray(prompt.suggestedHashtags)
+          ? prompt.suggestedHashtags
+          : Array.isArray(prompt.suggested_hashtags)
+            ? prompt.suggested_hashtags
+            : [];
+        return `
+          <tr class="${isToday ? 'writing-campaign-admin-table__today' : ''}">
+            <td>
+              <strong>${formatCount(prompt.day)}일차</strong>
+              ${isToday ? '<div class="quest-ops-pill">오늘</div>' : ''}
+            </td>
+            <td>
+              <strong>${escapeHtml(prompt.title || '')}</strong>
+              <div class="gls-text-muted gls-text-small">${escapeHtml(prompt.body || '')}</div>
+            </td>
+            <td>${escapeHtml(prompt.defaultCategory || prompt.default_category || '-')}</td>
+            <td>${escapeHtml(tags.join(', ') || '-')}</td>
+          </tr>
+        `;
+      })
+      .join('');
+  }
+
+  function bindWritingCampaignProjectEvents() {
+    const box = document.getElementById('writingCampaignProject');
+    if (!box) return;
+    box.querySelector('#writingCampaignPushPreviewBtn')?.addEventListener('click', (event) => {
+      submitWritingCampaignPush(true, event.currentTarget);
+    });
+    box.querySelector('#writingCampaignPushSendBtn')?.addEventListener('click', (event) => {
+      submitWritingCampaignPush(false, event.currentTarget);
+    });
+  }
+
+  async function submitWritingCampaignPush(dryRun, triggerEl) {
+    const data = questState.writingCampaign || {};
+    const preset = data.push_preset || {};
+    if (!preset.title || !preset.body) {
+      showAdminNotice('오늘 주제 푸시 프리셋을 찾을 수 없습니다.', 'error');
+      return;
+    }
+
+    if (!dryRun && !questState.writingCampaignPushDryRun) {
+      showAdminNotice('푸시 예약 전에 대상 확인을 먼저 실행하세요.', 'error');
+      return;
+    }
+    if (
+      !dryRun &&
+      questState.writingCampaignPushDryRun &&
+      Number(questState.writingCampaignPushDryRun.eligible_token_count || 0) <= 0
+    ) {
+      showAdminNotice('발송 가능한 푸시 토큰이 없습니다.', 'error');
+      return;
+    }
+    if (
+      !dryRun &&
+      !window.confirm(
+        `${formatCount(
+          questState.writingCampaignPushDryRun?.eligible_token_count
+        )}개 기기에 오늘 주제 푸시를 예약할까요?`
+      )
+    ) {
+      return;
+    }
+
+    const originalText = triggerEl?.textContent || '';
+    questState.writingCampaignPushSending = true;
+    if (triggerEl) {
+      triggerEl.disabled = true;
+      triggerEl.textContent = dryRun ? '확인 중...' : '예약 중...';
+    }
+    const box = document.getElementById('writingCampaignProject');
+    if (box) box.innerHTML = buildWritingCampaignProject();
+    bindWritingCampaignProjectEvents();
+
+    try {
+      const res = await fetch('/api/admin/marketing-push-campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: preset.title,
+          body: preset.body,
+          target_path: preset.target_path || '/write',
+          include_ad_label: preset.include_ad_label === true,
+          dry_run: Boolean(dryRun),
+          campaign_key: preset.campaign_key,
+          campaign_kind: preset.campaign_kind,
+          scheduled_for_date: preset.scheduled_for_date,
+          target_rule_json: {
+            source: 'writing_campaign_admin',
+            campaign_key: data.campaign?.key || null,
+            local_date_key: data.campaign?.local_date_key || null,
+            prompt_key: data.today_prompt?.key || null,
+            prompt_day: data.today_prompt?.day || null,
+          },
+        }),
+      });
+      const result = await parseJsonSafe(res);
+      if (!res.ok || !result.ok) {
+        throw new Error(result.message || '오늘 주제 푸시 작업에 실패했습니다.');
+      }
+
+      if (dryRun) {
+        questState.writingCampaignPushDryRun = {
+          eligible_user_count: result.eligible_user_count || 0,
+          eligible_token_count: result.eligible_token_count || 0,
+        };
+        showAdminNotice('오늘 주제 푸시 대상을 확인했습니다.', 'success');
+      } else {
+        questState.writingCampaignPushDryRun = null;
+        showAdminNotice(
+          result.skipped
+            ? '이미 오늘 주제 푸시가 예약되어 있습니다.'
+            : `오늘 주제 푸시 ${formatCount(result.queued_count)}건을 예약했습니다.`,
+          'success'
+        );
+        const pushBox = document.getElementById('adminPushControls');
+        if (pushBox) await loadPushDashboard(pushBox);
+      }
+    } catch (err) {
+      console.error(err);
+      showAdminNotice(err.message || '오늘 주제 푸시 처리 중 오류가 발생했습니다.', 'error');
+    } finally {
+      questState.writingCampaignPushSending = false;
+      if (triggerEl && document.body.contains(triggerEl)) {
+        triggerEl.disabled = false;
+        triggerEl.textContent = originalText;
+      }
+      const nextBox = document.getElementById('writingCampaignProject');
+      if (nextBox) {
+        nextBox.innerHTML = buildWritingCampaignProject();
+        bindWritingCampaignProjectEvents();
+      }
+    }
   }
 
   async function loadGrowthOperationalStatus() {

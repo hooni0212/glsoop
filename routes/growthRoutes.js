@@ -17,6 +17,7 @@ const {
   getRewardCosmeticPayload,
 } = require('../utils/questRewardClaimService');
 const { normalizeUtcDateTime } = require('../utils/dateTime');
+const { DAILY_WRITING_CAMPAIGN_KEY } = require('../utils/dailyWritingCampaign');
 const db = require('../db');
 
 function sendGrowthError(res, status, code, message) {
@@ -173,7 +174,83 @@ async function fetchGrowthTopPosts(limit = 3) {
   );
 }
 
+function normalizeEventKey(input) {
+  const value = typeof input === 'string' ? input.trim() : '';
+  return value.slice(0, 160);
+}
+
+async function fetchUserWritingEventPosts(userId, eventKey, limit = 12) {
+  const parsedLimit = Number(limit);
+  const safeLimit = Number.isFinite(parsedLimit) && parsedLimit > 0
+    ? Math.min(30, Math.floor(parsedLimit))
+    : 12;
+
+  return allAsync(
+    `
+      SELECT
+        p.id,
+        p.title,
+        p.content,
+        p.category,
+        p.created_at,
+        ctx.event_key,
+        ctx.event_title,
+        ctx.prompt_key,
+        ctx.prompt_day,
+        ctx.prompt_title,
+        ctx.prompt_body
+      FROM post_writing_event_contexts ctx
+      JOIN posts p ON p.id = ctx.post_id
+      WHERE ctx.user_id = ?
+        AND ctx.event_key = ?
+      ORDER BY COALESCE(ctx.prompt_day, 9999) ASC, datetime(p.created_at) ASC, p.id ASC
+      LIMIT ?
+    `,
+    [userId, eventKey, safeLimit]
+  );
+}
+
+function mapWritingEventPosts(posts = []) {
+  return posts.map((item) => ({
+    id: item.id,
+    title: item.title || '제목 없는 글',
+    excerpt: buildPostExcerpt(item.content, 86),
+    category: normalizeTopPostCategory(item.category),
+    created_at: item.created_at ? normalizeUtcDateTime(item.created_at) : null,
+    event_key: item.event_key,
+    event_title: item.event_title || null,
+    prompt_key: item.prompt_key,
+    prompt_day: Number(item.prompt_day) || null,
+    prompt_title: item.prompt_title || null,
+    prompt_body: item.prompt_body || null,
+  }));
+}
+
 const router = express.Router();
+
+router.get('/writing-events/:eventKey/me/posts', authRequired, async (req, res) => {
+  const eventKey = normalizeEventKey(req.params.eventKey || DAILY_WRITING_CAMPAIGN_KEY);
+  if (!eventKey) {
+    return sendGrowthError(res, 400, 'INVALID_EVENT_KEY', '글쓰기 이벤트 키가 올바르지 않습니다.');
+  }
+
+  try {
+    const posts = await fetchUserWritingEventPosts(req.user.id, eventKey, req.query.limit || 12);
+    return res.json({
+      ok: true,
+      event_key: eventKey,
+      posts: mapWritingEventPosts(posts),
+    });
+  } catch (error) {
+    console.error('writing event posts error:', error);
+    return sendGrowthError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '글쓰기 이벤트 글 목록을 불러오지 못했습니다.'
+    );
+  }
+});
 
 router.get('/growth/dashboard', authRequired, async (req, res) => {
   try {
