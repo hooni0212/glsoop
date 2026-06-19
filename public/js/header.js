@@ -61,6 +61,7 @@ async function updateHeader() {
 
       // 상단 계정 UI에 사용자 이름 표시 (예: "홍길동님")
       applyAccountName(data);
+      refreshNotificationBadge();
     } else {
       // 응답은 200이지만 data.ok가 false → 로그인 실패로 간주
       setNodeGroupVisibility(beforeEls, true);
@@ -158,6 +159,8 @@ function buildAccountMenus() {
 
     const menuItems = [];
     const mypageItem = createMenuAnchor('/html/mypage.html', '마이페이지');
+    const notificationsItem = createMenuAnchor('/notifications', '알림');
+    decorateNotificationLink(notificationsItem);
     const growthItem = createMenuAnchor('/html/growth.html', '성장');
     const editorItem = createMenuAnchor('/html/editor.html', '글쓰기');
 
@@ -174,7 +177,7 @@ function buildAccountMenus() {
       handleLogout();
     });
 
-    menuItems.push(mypageItem, growthItem, editorItem, divider, logoutItem);
+    menuItems.push(mypageItem, notificationsItem, growthItem, editorItem, divider, logoutItem);
 
     menuItems.forEach((item) => {
       item.addEventListener('click', () => closeAccountMenu());
@@ -224,9 +227,18 @@ function createMenuAnchor(href, label) {
   return anchor;
 }
 
+function decorateNotificationLink(link) {
+  link.classList.add('notification-nav-link');
+  link.innerHTML = `
+    <span>알림</span>
+    <span class="notification-unread-badge gls-hidden" data-notification-unread aria-label="읽지 않은 알림 0개">0</span>
+  `;
+}
+
 function createMobileNavItems() {
   const items = [
     { href: '/html/mypage.html', label: '마이페이지' },
+    { href: '/notifications', label: '알림', notification: true },
     { href: '/html/growth.html', label: '성장' },
     { href: '/html/editor.html', label: '글쓰기' },
   ];
@@ -238,12 +250,35 @@ function createMobileNavItems() {
     const link = document.createElement('a');
     link.className = 'nav-link nav-link-compact w-100 text-start';
     link.href = item.href;
-    link.textContent = item.label;
+    if (item.notification) {
+      decorateNotificationLink(link);
+    } else {
+      link.textContent = item.label;
+    }
 
     li.appendChild(link);
     return li;
   });
 }
+
+async function refreshNotificationBadge() {
+  try {
+    const res = await fetch('/api/notifications?limit=1&offset=0', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok) return;
+    const count = Math.max(0, Number(data.unread_count) || 0);
+    document.querySelectorAll('[data-notification-unread]').forEach((badge) => {
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.classList.toggle('gls-hidden', count <= 0);
+      badge.setAttribute('aria-label', `읽지 않은 알림 ${count}개`);
+    });
+  } catch (error) {
+    // Header state must not fail when the notification request is unavailable.
+  }
+}
+
+window.glsoopRefreshNotificationBadge = refreshNotificationBadge;
 
 function setupMobileNavCloseBehavior() {
   const navbarNav = document.getElementById('navbarNav');

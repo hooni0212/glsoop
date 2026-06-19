@@ -251,6 +251,25 @@ test.describe('Notifications API', () => {
     await seedFixtures();
   });
 
+  test('serves the desktop notification inbox', async ({ request }) => {
+    const response = await request.get('/notifications');
+    expect(response.status()).toBe(200);
+    expect(await response.text()).toContain('id="notificationsList"');
+  });
+
+  test('renders notifications in the desktop inbox', async ({ page, request }) => {
+    const likeResponse = await request.post(`/api/posts/${POST_ID}/toggle-like`, {
+      headers: buildAuthHeaders(USERS.likerA),
+    });
+    expect(likeResponse.status()).toBe(200);
+
+    await page.setExtraHTTPHeaders(buildAuthHeaders(USERS.author));
+    await page.goto('/notifications');
+    await expect(page.locator('#notificationsList .notification-row')).toHaveCount(1);
+    await expect(page.locator('#notificationsList')).toContainText('내 글에 공감했어요');
+    await expect(page.locator('[data-notification-unread]').first()).toContainText('1');
+  });
+
   test('aggregates post reactions and marks the grouped notification read', async ({ request }) => {
     const tokenResponse = await request.post('/api/push-tokens', {
       headers: buildAuthHeaders(USERS.author),

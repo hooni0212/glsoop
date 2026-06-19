@@ -178,6 +178,10 @@ app.get(['/write', '/write/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'html', 'editor.html'));
 });
 
+app.get(['/notifications', '/notifications/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'html', 'notifications.html'));
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
