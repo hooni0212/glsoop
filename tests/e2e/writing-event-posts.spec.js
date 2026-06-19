@@ -138,6 +138,31 @@ test.describe('Writing event post contexts', () => {
     expect(payload.progress_steps).toHaveLength(DAILY_WRITING_PROMPTS.length);
   });
 
+  test('renders the writing project across home, editor, and growth pages', async ({
+    page,
+    request,
+  }, testInfo) => {
+    await page.goto('/');
+    await expect(page.locator('#homeWritingCampaign')).toBeVisible();
+    await expect(page.locator('#homeWritingCampaign')).toContainText('글숲 한달 글쓰기 프로젝트');
+
+    const statusResponse = await request.get(
+      `/api/writing-events/${encodeURIComponent(DAILY_WRITING_CAMPAIGN_KEY)}`
+    );
+    const status = await statusResponse.json();
+    await page.setExtraHTTPHeaders(buildAuthHeaders(getProjectUserId(testInfo)));
+    await page.goto(status.today_prompt.write_path);
+    await expect(page.locator('#editorWritingCampaign')).toBeVisible();
+    await expect(page.locator('#editorWritingCampaign')).toContainText(status.today_prompt.title);
+    await expect(page.locator('#categorySelect')).toHaveValue(status.today_prompt.defaultCategory);
+
+    await page.goto('/html/growth.html');
+    await expect(page.locator('#growthWritingCampaignTitle')).toHaveText(
+      '글숲 한달 글쓰기 프로젝트'
+    );
+    await expect(page.locator('#growthWritingCampaign')).toContainText(status.today_prompt.title);
+  });
+
   test('stores campaign prompt context and lists my event posts', async ({ request }, testInfo) => {
     const headers = buildAuthHeaders(getProjectUserId(testInfo));
     const prompt = DAILY_WRITING_PROMPTS[1];
