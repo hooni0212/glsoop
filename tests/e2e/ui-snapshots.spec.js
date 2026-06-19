@@ -2,7 +2,10 @@ const { test } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
-const jwt = require('jsonwebtoken');
+const {
+  E2E_SESSION_PASSWORD_HASH,
+  loginWithSession,
+} = require('./session-auth');
 
 const REPO_ROOT = process.cwd();
 const SNAPSHOT_ROOT = process.env.GLSOOP_SNAPSHOT_ROOT
@@ -22,7 +25,10 @@ const LATEST_ROOT = path.join(SNAPSHOT_ROOT, 'latest');
 const DB_PATH = process.env.DB_PATH
   ? path.resolve(REPO_ROOT, process.env.DB_PATH)
   : path.join(REPO_ROOT, 'tmp', 'e2e_playwright.sqlite');
-const SEED_READY_FILE = path.join(path.dirname(DB_PATH), '.ui-snapshots-seed-ready');
+const SEED_READY_FILE = path.join(
+  path.dirname(DB_PATH),
+  `.${path.basename(DB_PATH)}.ui-snapshots-seed-ready`
+);
 const BASE_STYLE = '*{transition:none!important;animation:none!important;caret-color:transparent!important;}';
 
 const guestPages = [
@@ -83,6 +89,9 @@ const seedTestData = async () => {
   await dbRun(db, 'PRAGMA foreign_keys = OFF');
 
   const tablesToClear = [
+    'auth_sessions',
+    'auth_login_state',
+    'auth_login_events',
     'bookmark_items',
     'bookmark_lists',
     'likes',
@@ -117,13 +126,13 @@ const seedTestData = async () => {
     db,
     `INSERT INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, ?, ?)` ,
-    [1, 'Admin', '관리자', 'admin@glsoop.test', 'password', 1, 1]
+    [1, 'Admin', '관리자', 'admin@glsoop.test', E2E_SESSION_PASSWORD_HASH, 1, 1]
   );
   await dbRun(
     db,
     `INSERT INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, ?, ?)` ,
-    [2, 'User', '일반사용자', 'user@glsoop.test', 'password', 0, 1]
+    [2, 'User', '일반사용자', 'user@glsoop.test', E2E_SESSION_PASSWORD_HASH, 0, 1]
   );
 
   await dbRun(
@@ -437,23 +446,6 @@ const captureExtraSnapshot = async ({
   manifest.push({ key, file: relativeFile });
 };
 
-const applyAuthCookie = async (page, baseURL, payload) => {
-  const token = jwt.sign(payload, 'devsecret', {
-    algorithm: 'HS256',
-    issuer: 'glsoop',
-    audience: 'glsoop-client',
-    expiresIn: '7d',
-  });
-
-  await page.context().addCookies([
-    {
-      name: 'token',
-      value: token,
-      url: baseURL,
-    },
-  ]);
-};
-
 test.describe('UI snapshot tour', () => {
   test.setTimeout(120 * 1000);
   test('visit main pages and capture snapshots', async ({ page }, testInfo) => {
@@ -465,7 +457,12 @@ test.describe('UI snapshot tour', () => {
       await seedTestData();
       fs.writeFileSync(SEED_READY_FILE, `${Date.now()}`, 'utf8');
     } else {
-      await waitForSeedReady();
+      try {
+        await waitForSeedReady();
+      } catch (error) {
+        await seedTestData();
+        fs.writeFileSync(SEED_READY_FILE, `${Date.now()}`, 'utf8');
+      }
     }
 
     const modes = [
@@ -499,7 +496,9 @@ test.describe('UI snapshot tour', () => {
     for (const mode of modes) {
       await page.context().clearCookies();
       if (mode.auth) {
-        await applyAuthCookie(page, baseURL, mode.auth);
+        await loginWithSession(page, mode.auth.email, {
+          ip: mode.name === 'admin' ? '198.51.100.217' : '198.51.100.216',
+        });
       }
 
       const logPath = buildSnapshotPath(RUN_ROOT, projectName, mode.name, 'console-errors.txt');

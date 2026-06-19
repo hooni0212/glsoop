@@ -2,11 +2,10 @@ const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
-const jwt = require('jsonwebtoken');
-const E2E_JWT_SECRET = 'devsecret';
-const E2E_JWT_ALGORITHM = 'HS256';
-const E2E_JWT_ISSUER = 'glsoop';
-const E2E_JWT_AUDIENCE = 'glsoop-client';
+const {
+  E2E_SESSION_PASSWORD_HASH,
+  loginWithApiSession,
+} = require('./session-auth');
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -45,44 +44,43 @@ const waitForFile = async (filePath, timeoutMs = 10000) => {
   }
 };
 
-const signAuthToken = ({ id, name, nickname, email, isAdmin = false, isVerified = true }) =>
-  jwt.sign(
-    {
-      id,
-      name,
-      nickname,
-      email,
-      isAdmin,
-      isVerified,
-    },
-    E2E_JWT_SECRET,
-    {
-      algorithm: E2E_JWT_ALGORITHM,
-      issuer: E2E_JWT_ISSUER,
-      audience: E2E_JWT_AUDIENCE,
-      expiresIn: '1h',
-    }
-  );
-
 const seedShareFixtures = async () => {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   await waitForFile(DB_PATH, 20000);
 
   const db = new sqlite3.Database(DB_PATH);
   await dbRun(db, 'PRAGMA foreign_keys = OFF');
+  await dbRun(db, 'DELETE FROM auth_sessions WHERE user_id IN (?, ?)', [9601, 9602]);
+  await dbRun(db, 'DELETE FROM auth_login_state WHERE user_id IN (?, ?)', [9601, 9602]);
 
   await dbRun(
     db,
     `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [9601, 'Admin Share', 'admin_share', 'admin-share@glsoop.test', 'password', 1, 1]
+    [
+      9601,
+      'Admin Share',
+      'admin_share',
+      'admin-share@glsoop.test',
+      E2E_SESSION_PASSWORD_HASH,
+      1,
+      1,
+    ]
   );
 
   await dbRun(
     db,
     `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [9602, 'Writer Share', 'writer_share', 'writer-share@glsoop.test', 'password', 0, 1]
+    [
+      9602,
+      'Writer Share',
+      'writer_share',
+      'writer-share@glsoop.test',
+      E2E_SESSION_PASSWORD_HASH,
+      0,
+      1,
+    ]
   );
 
   await dbRun(
@@ -163,11 +161,8 @@ test.describe('Share events API', () => {
   });
 
   test('records share event with authenticated user', async ({ request }) => {
-    const token = signAuthToken({
-      id: 9602,
-      name: 'Writer Share',
-      nickname: 'writer_share',
-      email: 'writer-share@glsoop.test',
+    const { token } = await loginWithApiSession(request, 'writer-share@glsoop.test', {
+      ip: '198.51.100.211',
     });
 
     const response = await request.post('/api/share-events', {
@@ -202,13 +197,11 @@ test.describe('Share events API', () => {
   });
 
   test('returns admin summary for authenticated admin', async ({ request }) => {
-    const adminToken = signAuthToken({
-      id: 9601,
-      name: 'Admin Share',
-      nickname: 'admin_share',
-      email: 'admin-share@glsoop.test',
-      isAdmin: true,
-    });
+    const { token: adminToken } = await loginWithApiSession(
+      request,
+      'admin-share@glsoop.test',
+      { ip: '198.51.100.212' }
+    );
 
     const response = await request.get('/api/admin/share-events/summary', {
       headers: {
@@ -233,13 +226,11 @@ test.describe('Share events API', () => {
   });
 
   test('returns INVALID_REQUEST for invalid admin summary query', async ({ request }) => {
-    const adminToken = signAuthToken({
-      id: 9601,
-      name: 'Admin Share',
-      nickname: 'admin_share',
-      email: 'admin-share@glsoop.test',
-      isAdmin: true,
-    });
+    const { token: adminToken } = await loginWithApiSession(
+      request,
+      'admin-share@glsoop.test',
+      { ip: '198.51.100.213' }
+    );
 
     const response = await request.get('/api/admin/share-events/summary', {
       headers: {

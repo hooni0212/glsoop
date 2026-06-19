@@ -2,12 +2,10 @@ const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
-const jwt = require('jsonwebtoken');
-
-const E2E_JWT_SECRET = 'devsecret';
-const E2E_JWT_ALGORITHM = 'HS256';
-const E2E_JWT_ISSUER = 'glsoop';
-const E2E_JWT_AUDIENCE = 'glsoop-client';
+const {
+  E2E_SESSION_PASSWORD_HASH,
+  loginWithApiSession,
+} = require('./session-auth');
 
 const ADMIN_USER_ID = 9751;
 const USER_A_ID = 9752;
@@ -50,51 +48,66 @@ const waitForFile = async (filePath, timeoutMs = 10000) => {
   }
 };
 
-const signAuthToken = ({ id, name, nickname, email, isAdmin = false, isVerified = true }) =>
-  jwt.sign(
-    {
-      id,
-      name,
-      nickname,
-      email,
-      isAdmin,
-      isVerified,
-    },
-    E2E_JWT_SECRET,
-    {
-      algorithm: E2E_JWT_ALGORITHM,
-      issuer: E2E_JWT_ISSUER,
-      audience: E2E_JWT_AUDIENCE,
-      expiresIn: '1h',
-    }
-  );
-
 const seedUxFixtures = async () => {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   await waitForFile(DB_PATH, 20000);
 
   const db = new sqlite3.Database(DB_PATH);
   await dbRun(db, 'PRAGMA foreign_keys = OFF');
+  await dbRun(db, 'DELETE FROM auth_sessions WHERE user_id IN (?, ?, ?)', [
+    ADMIN_USER_ID,
+    USER_A_ID,
+    USER_B_ID,
+  ]);
+  await dbRun(db, 'DELETE FROM auth_login_state WHERE user_id IN (?, ?, ?)', [
+    ADMIN_USER_ID,
+    USER_A_ID,
+    USER_B_ID,
+  ]);
 
   await dbRun(
     db,
     `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [ADMIN_USER_ID, 'Admin UX', 'admin_ux', 'admin-ux@glsoop.test', 'password', 1, 1]
+    [
+      ADMIN_USER_ID,
+      'Admin UX',
+      'admin_ux',
+      'admin-ux@glsoop.test',
+      E2E_SESSION_PASSWORD_HASH,
+      1,
+      1,
+    ]
   );
 
   await dbRun(
     db,
     `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [USER_A_ID, 'User A UX', 'user_a_ux', 'user-a-ux@glsoop.test', 'password', 0, 1]
+    [
+      USER_A_ID,
+      'User A UX',
+      'user_a_ux',
+      'user-a-ux@glsoop.test',
+      E2E_SESSION_PASSWORD_HASH,
+      0,
+      1,
+    ]
   );
 
   await dbRun(
     db,
     `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [USER_B_ID, 'User B UX', 'user_b_ux', 'user-b-ux@glsoop.test', 'password', 0, 1]
+    [
+      USER_B_ID,
+      'User B UX',
+      'user_b_ux',
+      'user-b-ux@glsoop.test',
+      E2E_SESSION_PASSWORD_HASH,
+      0,
+      1,
+    ]
   );
 
   await dbRun(
@@ -211,12 +224,8 @@ test.describe('UX events API', () => {
 
     await new Promise((resolve) => db.close(resolve));
 
-    const adminToken = signAuthToken({
-      id: ADMIN_USER_ID,
-      name: 'Admin UX',
-      nickname: 'admin_ux',
-      email: 'admin-ux@glsoop.test',
-      isAdmin: true,
+    const { token: adminToken } = await loginWithApiSession(request, 'admin-ux@glsoop.test', {
+      ip: '198.51.100.214',
     });
 
     const response = await request.get('/api/admin/ux-events/summary', {
@@ -267,12 +276,8 @@ test.describe('UX events API', () => {
   });
 
   test('rejects non-admin summary access', async ({ request }) => {
-    const userToken = signAuthToken({
-      id: USER_A_ID,
-      name: 'User A UX',
-      nickname: 'user_a_ux',
-      email: 'user-a-ux@glsoop.test',
-      isAdmin: false,
+    const { token: userToken } = await loginWithApiSession(request, 'user-a-ux@glsoop.test', {
+      ip: '198.51.100.215',
     });
 
     const response = await request.get('/api/admin/ux-events/summary', {
