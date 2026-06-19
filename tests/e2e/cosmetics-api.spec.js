@@ -314,6 +314,38 @@ test.describe('Cosmetics API', () => {
     });
   });
 
+  test('desktop profile customizer saves and renders equipped cosmetics', async ({ page }) => {
+    const userAToken = signAuthToken({
+      id: USER_A_ID,
+      name: 'Writer Cosmetic A',
+      nickname: 'writer_cosmetic_a',
+      email: 'writer-cosmetic-a@glsoop.test',
+    });
+    await page.setExtraHTTPHeaders(buildAuthHeaders(userAToken));
+    await page.goto('/profile-customize');
+
+    await expect(page.locator('#profileCustomizeEditor')).toContainText('프로필 배경');
+    await expect(
+      page.locator('[data-profile-action="background"][data-profile-key="background_writer_grove"]')
+    ).toHaveClass(/is-selected/);
+
+    await page.locator('[data-profile-action="primary"][data-profile-key="badge_default_seedling"]').click();
+    const saveResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/api/me/profile-cosmetics') && response.request().method() === 'PUT'
+    );
+    await page.locator('#profileCustomizeSave').click();
+    expect((await saveResponsePromise).status()).toBe(200);
+    await expect(page.locator('#profileCustomizeSaveState')).toHaveText('저장됨');
+
+    await page.goto(`/users/${USER_A_ID}`);
+    await expect(page.locator('#authorProfileCard')).toHaveAttribute(
+      'data-cosmetic-background',
+      'background_writer_grove'
+    );
+    await expect(page.locator('#authorShowcaseBadges span')).toHaveCount(1);
+    await expect(page.locator('#authorCosmeticStickers')).toContainText('✨');
+  });
+
   test('cleared primary badge persists after cosmetics refresh and public profile fetch', async ({
     request,
   }) => {

@@ -137,6 +137,9 @@ function cacheAuthorDom() {
   dom.about = document.getElementById('authorAbout');
   dom.aboutToggle = document.getElementById('authorBioToggleBtn');
   dom.growthBadge = document.getElementById('authorGrowthBadge');
+  dom.profileCard = document.getElementById('authorProfileCard');
+  dom.cosmeticStickers = document.getElementById('authorCosmeticStickers');
+  dom.showcaseBadges = document.getElementById('authorShowcaseBadges');
 
   dom.postCount = document.getElementById('authorPostCount');
   dom.likeCount = document.getElementById('authorLikeCount');
@@ -833,6 +836,7 @@ async function loadAuthorProfile(authorId) {
     if (dom.nickname) {
       dom.nickname.textContent = nickname;
     }
+    applyAuthorCosmetics(user.profile_cosmetics || null);
     if (dom.avatar) {
       dom.avatar.textContent = nickname.charAt(0) || '🌿';
     }
@@ -879,6 +883,58 @@ async function loadAuthorProfile(authorId) {
     showUiNotice(error.message || '작가 정보를 불러오는 중 오류가 발생했습니다.', 'error', 2800);
     setFeedState('error');
     throw error;
+  }
+}
+
+function getAuthorBackgroundPalette(key) {
+  if (key === 'background_writer_grove') return ['#EAF5EE', '#C7E3D0', '#2F7250'];
+  if (key === 'background_deep_forest') return ['#DCEFE5', '#8DBB9E', '#215E43'];
+  if (key === 'background_prompt_letters') return ['#FFF1E8', '#E8F0FF', '#8A5B4B'];
+  return ['#F8F5EC', '#E8F1E8', '#5D6F5C'];
+}
+
+function applyAuthorCosmetics(profile) {
+  const cosmetics = profile && typeof profile === 'object' ? profile : {};
+  const primaryBadge = cosmetics.primary_badge || null;
+  const background = cosmetics.profile_background || null;
+  const showcase = Array.isArray(cosmetics.showcase_badges) ? cosmetics.showcase_badges : [];
+  const stickers = Array.isArray(cosmetics.header_stickers) ? cosmetics.header_stickers : [];
+
+  if (dom.profileCard) {
+    const palette = getAuthorBackgroundPalette(background?.key);
+    dom.profileCard.style.setProperty('--author-cosmetic-bg', palette[0]);
+    dom.profileCard.style.setProperty('--author-cosmetic-border', palette[1]);
+    dom.profileCard.style.setProperty('--author-cosmetic-accent', palette[2]);
+    dom.profileCard.dataset.cosmeticBackground = background?.key || 'background_default_paper';
+  }
+
+  if (dom.nickname && primaryBadge) {
+    const badge = document.createElement('span');
+    badge.className = 'author-primary-cosmetic-badge';
+    badge.textContent = primaryBadge.icon_emoji || '🏅';
+    badge.title = primaryBadge.name || '대표 배지';
+    badge.setAttribute('aria-label', `대표 배지 ${primaryBadge.name || ''}`.trim());
+    dom.nickname.appendChild(badge);
+  }
+
+  if (dom.cosmeticStickers) {
+    dom.cosmeticStickers.innerHTML = stickers
+      .map((entry) => {
+        const slot = ['tl', 'tr', 'br'].includes(entry?.slot) ? entry.slot : 'tr';
+        const sticker = entry?.sticker || {};
+        return `<span class="author-cosmetic-sticker is-${slot}" title="${escapeHtml(sticker.name || '프로필 스티커')}">${escapeHtml(sticker.icon_emoji || '✨')}</span>`;
+      })
+      .join('');
+  }
+
+  if (dom.showcaseBadges) {
+    dom.showcaseBadges.innerHTML = showcase
+      .slice(0, 6)
+      .map(
+        (badge) => `<span title="${escapeHtml(badge.name || '배지')}">${escapeHtml(badge.icon_emoji || '🏅')}</span>`
+      )
+      .join('');
+    dom.showcaseBadges.classList.toggle('gls-hidden', showcase.length === 0);
   }
 }
 

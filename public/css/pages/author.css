@@ -122,6 +122,49 @@ body.page-author::after {
     )
   );
   overflow: auto;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--author-cosmetic-bg, var(--author-paper)) 88%, #fff), var(--author-cosmetic-bg, var(--author-paper)));
+  border-color: var(--author-cosmetic-border, var(--author-border));
+}
+
+.author-cosmetic-stickers {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.author-cosmetic-sticker {
+  position: absolute;
+  font-size: 1.55rem;
+  filter: drop-shadow(0 5px 8px rgba(31, 42, 34, 0.14));
+}
+
+.author-cosmetic-sticker.is-tl { top: 12px; left: 12px; }
+.author-cosmetic-sticker.is-tr { top: 12px; right: 12px; }
+.author-cosmetic-sticker.is-br { right: 12px; bottom: 12px; }
+
+.author-primary-cosmetic-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 1rem;
+  vertical-align: middle;
+}
+
+.author-showcase-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.author-showcase-badges span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--author-cosmetic-border, var(--author-border));
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.65);
 }
 
 .author-profile-card .card-body {

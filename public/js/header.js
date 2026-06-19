@@ -162,6 +162,7 @@ function buildAccountMenus() {
     const notificationsItem = createMenuAnchor('/notifications', '알림');
     decorateNotificationLink(notificationsItem);
     const growthItem = createMenuAnchor('/html/growth.html', '성장');
+    const customizeItem = createMenuAnchor('/profile-customize', '프로필 꾸미기');
     const editorItem = createMenuAnchor('/html/editor.html', '글쓰기');
 
     const divider = document.createElement('hr');
@@ -177,7 +178,15 @@ function buildAccountMenus() {
       handleLogout();
     });
 
-    menuItems.push(mypageItem, notificationsItem, growthItem, editorItem, divider, logoutItem);
+    menuItems.push(
+      mypageItem,
+      notificationsItem,
+      growthItem,
+      customizeItem,
+      editorItem,
+      divider,
+      logoutItem
+    );
 
     menuItems.forEach((item) => {
       item.addEventListener('click', () => closeAccountMenu());
@@ -240,6 +249,7 @@ function createMobileNavItems() {
     { href: '/html/mypage.html', label: '마이페이지' },
     { href: '/notifications', label: '알림', notification: true },
     { href: '/html/growth.html', label: '성장' },
+    { href: '/profile-customize', label: '프로필 꾸미기' },
     { href: '/html/editor.html', label: '글쓰기' },
   ];
 

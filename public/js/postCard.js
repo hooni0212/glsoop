@@ -50,6 +50,14 @@ function buildAuthorDisplay(post) {
   return maskedEmail ? `${baseName} (${maskedEmail})` : baseName;
 }
 
+function buildAuthorPrimaryBadge(post) {
+  const badge = post?.author_profile_cosmetics?.primary_badge;
+  if (!badge) return '';
+  const emoji = badge.icon_emoji || '🏅';
+  const name = badge.name || '대표 배지';
+  return `<span class="gls-author-cosmetic" title="${escapeHtml(name)}" aria-label="대표 배지 ${escapeHtml(name)}">${escapeHtml(emoji)}</span>`;
+}
+
 /**
  * 공통: 글 내용 + 폰트 메타 파싱
  * - post.content 안에 <!--FONT:serif--> 같은 메타가 있으면 분리
@@ -585,7 +593,7 @@ function buildStandardPostCardHTML(post, options = {}) {
         <!-- 상단 메타 영역: 작성자 + 액션 (북마크/공감) -->
         <div class="gls-flex gls-justify-between gls-items-center gls-mb-2 post-header-row">
           <span class="gls-author-badge">
-            ${escapeHtml(author)}
+            ${escapeHtml(author)} ${buildAuthorPrimaryBadge(post)}
           </span>
           ${
             showEngagementActions
