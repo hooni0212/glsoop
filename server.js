@@ -174,6 +174,22 @@ app.get(['/users/:id', '/users/:id/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'html', 'author.html'));
 });
 
+app.get(['/write', '/write/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'html', 'editor.html'));
+});
+
+app.get(['/notifications', '/notifications/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'html', 'notifications.html'));
+});
+
+app.get(['/profile-customize', '/profile-customize/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'html', 'profile-customize.html'));
+});
+
+app.get(['/drafts', '/drafts/', '/write-drafts', '/write-drafts/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'html', 'drafts.html'));
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

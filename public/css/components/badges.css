@@ -15,6 +15,14 @@
   -webkit-backdrop-filter: blur(var(--gls-blur-ui, 10px));
 }
 
+.gls-author-cosmetic {
+  display: inline-block;
+  margin-left: 3px;
+  font-size: 0.95em;
+  line-height: 1;
+  vertical-align: -0.06em;
+}
+
 .gls-category-badge.gls-category-poem {
   background: #f3ecff;
   color: #5c2d91;

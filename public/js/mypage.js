@@ -650,6 +650,12 @@ async function loadMyPage() {
         </div>
 
         <div class="mpd-profile-actions">
+          <a
+            class="gls-btn gls-btn-secondary gls-btn-sm"
+            href="/profile-customize"
+          >
+            프로필 꾸미기
+          </a>
           <button
             type="button"
             class="gls-btn gls-btn-ghost gls-btn-sm mpd-profile-edit-btn"

@@ -1,0 +1,39 @@
+body.page-drafts { min-height: 100vh; }
+.page-drafts .drafts-main { padding: clamp(96px, 11vw, 124px) 0 72px; }
+.page-drafts .drafts-shell { max-width: 920px; }
+
+.page-drafts .drafts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: clamp(24px, 4vw, 36px);
+  margin-bottom: 22px;
+}
+
+.page-drafts .drafts-eyebrow { margin: 0 0 6px; color: var(--gls-color-primary, #1f6b4b); font-size: 0.76rem; font-weight: 800; letter-spacing: 0.14em; }
+.page-drafts .drafts-header h1 { margin: 0 0 6px; font-family: var(--gls-font-serif, 'Hahmlet', serif); font-size: clamp(1.7rem, 4vw, 2.3rem); }
+.page-drafts .drafts-header p:last-child { margin: 0; color: var(--gls-color-text-muted, #6f675c); }
+.page-drafts .drafts-header-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+.page-drafts .drafts-list { display: grid; gap: 14px; }
+
+.page-drafts .draft-card { padding: 22px 24px; }
+.page-drafts .draft-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.page-drafts .draft-card__head p { margin: 0 0 5px; color: var(--gls-color-primary, #1f6b4b); font-size: 0.76rem; font-weight: 700; }
+.page-drafts .draft-card__head h2 { margin: 0; font-size: 1.12rem; }
+.page-drafts .draft-card__head time { flex: 0 0 auto; color: var(--gls-color-text-muted, #6f675c); font-size: 0.78rem; }
+.page-drafts .draft-card__preview { margin: 14px 0; color: var(--gls-color-text-muted, #6f675c); line-height: 1.65; }
+.page-drafts .draft-card__campaign { display: inline-block; padding: 5px 9px; border-radius: 999px; color: var(--gls-color-primary, #1f6b4b); background: color-mix(in srgb, var(--gls-color-primary, #1f6b4b) 8%, #fff); font-size: 0.75rem; font-weight: 700; }
+.page-drafts .draft-card__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.page-drafts .drafts-state,
+.page-drafts .drafts-empty { padding: 52px 24px; text-align: center; color: var(--gls-color-text-muted, #6f675c); }
+.page-drafts .drafts-state.is-error { color: #a33d32; }
+.page-drafts .drafts-empty strong { display: block; margin-bottom: 6px; color: var(--gls-color-text, #25221f); }
+.page-drafts .drafts-empty p { margin-bottom: 18px; }
+
+@media (max-width: 575.98px) {
+  .page-drafts .drafts-header { align-items: stretch; flex-direction: column; }
+  .page-drafts .drafts-header-actions .gls-btn { flex: 1; }
+  .page-drafts .draft-card__head { flex-direction: column; }
+  .page-drafts .draft-card__actions .gls-btn { flex: 1; }
+}

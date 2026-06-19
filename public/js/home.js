@@ -6,6 +6,8 @@ const HomeCuration = (() => {
   const RECENT_DAYS = 30;
   const SECTION_LIMIT = 6;
   const SIDEBAR_EXCERPT_MAX = 62;
+  const WRITING_EVENT_KEY = 'glsoop-monthly-writing-project-prototype';
+  const WRITING_CAMPAIGN_DISMISS_PREFIX = 'glsoop:writing-campaign-notice-dismissed';
 
   const state = {
     popular: [],
@@ -32,6 +34,75 @@ const HomeCuration = (() => {
 
     setupRandomButtons();
     setupMobileHomeSide();
+    loadWritingCampaign().catch((error) => {
+      console.error('글쓰기 프로젝트 로드 실패:', error);
+    });
+  }
+
+  function writingCampaignDismissKey(eventKey, localDateKey) {
+    return `${WRITING_CAMPAIGN_DISMISS_PREFIX}:${eventKey}:${localDateKey}`;
+  }
+
+  function isWritingCampaignDismissed(eventKey, localDateKey) {
+    try {
+      return localStorage.getItem(writingCampaignDismissKey(eventKey, localDateKey)) === '1';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function dismissWritingCampaign(eventKey, localDateKey) {
+    try {
+      localStorage.setItem(writingCampaignDismissKey(eventKey, localDateKey), '1');
+    } catch (error) {
+      // Storage can be unavailable in private browsing; hiding still works for this page.
+    }
+    document.getElementById('homeWritingCampaign')?.classList.add('gls-hidden');
+  }
+
+  async function loadWritingCampaign() {
+    const mount = document.getElementById('homeWritingCampaign');
+    if (!mount) return;
+
+    const res = await fetch(`/api/writing-events/${encodeURIComponent(WRITING_EVENT_KEY)}`, {
+      cache: 'no-store',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok || !data.event || !data.today_prompt) return;
+
+    const event = data.event;
+    const prompt = data.today_prompt;
+    if (isWritingCampaignDismissed(event.key, event.local_date_key)) return;
+
+    const progress = Math.max(0, Math.min(100, Number(event.progress_percent) || 0));
+    mount.innerHTML = `
+      <div class="home-writing-campaign__head">
+        <div>
+          <p class="home-writing-campaign__eyebrow">${escapeHtml(`${prompt.day}일차 · ${event.prompt_label || '오늘의 글감'}`)}</p>
+          <h2>${escapeHtml(event.title || '글숲 한달 글쓰기 프로젝트')}</h2>
+          <p>${escapeHtml(event.subtitle || '')}</p>
+        </div>
+        <button type="button" class="home-writing-campaign__dismiss" id="homeWritingCampaignDismiss" aria-label="오늘 하루 글쓰기 프로젝트 숨기기">오늘은 숨기기</button>
+      </div>
+      <div class="home-writing-campaign__prompt">
+        <div>
+          <strong>${escapeHtml(prompt.title || '')}</strong>
+          <p>${escapeHtml(prompt.body || '')}</p>
+        </div>
+        <a class="gls-btn gls-btn-primary" href="${escapeHtml(prompt.write_path || event.write_path || '/write')}">이 주제로 쓰기</a>
+      </div>
+      <div class="home-writing-campaign__progress" aria-label="프로젝트 진행률 ${progress}%">
+        <span style="width: ${progress}%"></span>
+      </div>
+      <div class="home-writing-campaign__meta">
+        <span>${escapeHtml(`${event.current_day}/${event.total_days}일`)}</span>
+        <a href="/html/growth.html#writing-campaign">진행 기록 보기</a>
+      </div>
+    `;
+    mount.classList.remove('gls-hidden');
+    document.getElementById('homeWritingCampaignDismiss')?.addEventListener('click', () => {
+      dismissWritingCampaign(event.key, event.local_date_key);
+    });
   }
 
   async function loadCuration() {

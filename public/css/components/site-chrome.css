@@ -381,6 +381,27 @@ body[class*='-theme'] .navbar .gls-btn:focus-visible {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset;
 }
 
+.notification-nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notification-unread-badge {
+  display: inline-grid;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: #c65c48;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .account-menu-logout {
   color: color-mix(in srgb, var(--gls-color-text, #1f2a2b) 92%, #c07a7a 8%);
 }

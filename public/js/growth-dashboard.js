@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
 
 const VALID_ACHIEVEMENT_FILTERS = new Set(['all', 'in_progress', 'completed', 'locked']);
 const VALID_MOBILE_PANELS = new Set(['forest', 'achievements']);
+const WRITING_EVENT_KEY = 'glsoop-monthly-writing-project-prototype';
 
 const claimInFlight = new Set();
 let noticeTimer = null;
@@ -88,8 +89,97 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   renderInitialLoadingState();
-  await loadGrowthDashboard({ showLoading: false, fallback: true });
+  await Promise.all([
+    loadGrowthDashboard({ showLoading: false, fallback: true }),
+    loadWritingCampaign(),
+  ]);
 });
+
+async function loadWritingCampaign() {
+  const mount = document.getElementById('growthWritingCampaign');
+  if (!mount) return;
+
+  try {
+    const [eventResponse, postsResponse] = await Promise.all([
+      fetch(`/api/writing-events/${encodeURIComponent(WRITING_EVENT_KEY)}`, { cache: 'no-store' }),
+      fetch(`/api/writing-events/${encodeURIComponent(WRITING_EVENT_KEY)}/me/posts?limit=30`, {
+        cache: 'no-store',
+      }),
+    ]);
+    const eventData = await eventResponse.json().catch(() => ({}));
+    const postsData = await postsResponse.json().catch(() => ({}));
+    if (!eventResponse.ok || !eventData.ok) {
+      throw new Error(eventData.message || '글쓰기 프로젝트를 불러오지 못했습니다.');
+    }
+
+    renderWritingCampaign(eventData, postsResponse.ok && postsData.ok ? postsData.posts : []);
+  } catch (error) {
+    console.error(error);
+    mount.innerHTML = '<p class="gls-text-muted gls-mb-0">글쓰기 프로젝트를 불러오지 못했습니다.</p>';
+  }
+}
+
+function renderWritingCampaign(data, posts = []) {
+  const mount = document.getElementById('growthWritingCampaign');
+  if (!mount) return;
+  const event = data.event || {};
+  const prompt = data.today_prompt || {};
+  const steps = Array.isArray(data.progress_steps) ? data.progress_steps : [];
+  const postByPromptKey = new Map(
+    (Array.isArray(posts) ? posts : []).map((post) => [String(post.prompt_key || ''), post])
+  );
+  const progress = Math.max(0, Math.min(100, Number(event.progress_percent) || 0));
+  const completedCount = postByPromptKey.size;
+  const stepHtml = steps
+    .map((step) => {
+      const post = postByPromptKey.get(String(step.key || ''));
+      const state = post ? 'written' : String(step.state || 'upcoming');
+      const label = post ? `${step.day}일차 작성 완료` : `${step.day}일차 ${step.title || ''}`;
+      return post
+        ? `<a class="growth-writing-campaign__step is-${state}" href="/posts/${encodeURIComponent(post.id)}" title="${escapeHtml(label)}">${escapeHtml(step.day)}</a>`
+        : `<span class="growth-writing-campaign__step is-${state}" title="${escapeHtml(label)}">${escapeHtml(step.day)}</span>`;
+    })
+    .join('');
+  const postsHtml = (Array.isArray(posts) ? posts : [])
+    .map(
+      (post) => `
+        <a class="growth-writing-campaign__post" href="/posts/${encodeURIComponent(post.id)}">
+          <span>${escapeHtml(`${post.prompt_day || '-'}일차`)}</span>
+          <strong>${escapeHtml(post.title || '제목 없는 글')}</strong>
+          <small>${escapeHtml(post.prompt_title || '')}</small>
+        </a>
+      `
+    )
+    .join('');
+
+  mount.innerHTML = `
+    <div class="growth-writing-campaign__header">
+      <div>
+        <p class="gls-text-muted gls-text-small gls-mb-1">30개의 글감으로 쌓는 기록</p>
+        <h3 class="growth-section-title gls-mb-1" id="growthWritingCampaignTitle">${escapeHtml(event.title || '글숲 한달 글쓰기 프로젝트')}</h3>
+        <p class="gls-text-muted gls-mb-0">${escapeHtml(event.subtitle || '')}</p>
+      </div>
+      <div class="growth-writing-campaign__score">
+        <strong>${escapeHtml(`${event.current_day || 0}/${event.total_days || 30}`)}</strong>
+        <span>작성 ${completedCount}개</span>
+      </div>
+    </div>
+    <div class="growth-writing-campaign__bar" aria-label="날짜 진행률 ${progress}%"><span style="width:${progress}%"></span></div>
+    <div class="growth-writing-campaign__steps" aria-label="30일 글감 목록">${stepHtml}</div>
+    <div class="growth-writing-campaign__today">
+      <div>
+        <p>${escapeHtml(`${prompt.day || event.current_day || '-'}일차 · ${event.prompt_label || '오늘의 글감'}`)}</p>
+        <h4>${escapeHtml(prompt.title || '')}</h4>
+        <span>${escapeHtml(prompt.body || '')}</span>
+      </div>
+      <a class="gls-btn gls-btn-primary" href="${escapeHtml(prompt.write_path || event.write_path || '/write')}">오늘 주제로 쓰기</a>
+    </div>
+    <div class="growth-writing-campaign__posts">
+      <h4>내 프로젝트 글</h4>
+      ${postsHtml || '<p class="gls-text-muted gls-mb-0">아직 프로젝트로 작성한 글이 없습니다.</p>'}
+    </div>
+  `;
+}
 
 function setSectionLoading(sectionId, isLoading) {
   const section = document.getElementById(sectionId);

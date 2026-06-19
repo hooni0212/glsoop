@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>알림 | 글숲</title>
+  <link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;600;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body class="page-notifications">
+  <nav class="navbar navbar-expand-lg navbar-dark custom-navbar fixed-top nav-height">
+    <div class="gls-container">
+      <a class="navbar-brand" href="/index.html">글숲</a>
+      <button class="navbar-toggler" type="button" data-gls-toggle="nav" aria-controls="navbarNav" aria-expanded="false">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav gls-ms-auto before-login">
+          <li class="nav-item"><a class="nav-link" href="/html/login.html">로그인</a></li>
+          <li class="nav-item"><a class="nav-link" href="/html/signup.html">회원가입</a></li>
+        </ul>
+        <ul class="navbar-nav gls-ms-auto after-login is-hidden"></ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="notifications-main AppShell-main">
+    <div class="gls-container notifications-shell PageContainer">
+      <header class="notifications-header CardSoft">
+        <div>
+          <p class="notifications-eyebrow">MY NEWS</p>
+          <h1>알림</h1>
+          <p>댓글, 답글, 공감과 새 독자 소식을 한곳에서 확인합니다.</p>
+        </div>
+        <button class="gls-btn gls-btn-secondary" id="notificationsReadAll" type="button">모두 읽음</button>
+      </header>
+
+      <section class="notifications-list CardSoft" id="notificationsList" aria-live="polite" aria-busy="true">
+        <p class="notifications-state">알림을 불러오는 중입니다...</p>
+      </section>
+
+      <div class="notifications-more gls-hidden" id="notificationsMoreWrap">
+        <button class="gls-btn gls-btn-secondary" id="notificationsMore" type="button">알림 더 보기</button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="custom-footer">
+    <div class="gls-container gls-text-center">
+      <div class="footer-brand">글숲</div>
+      <p class="footer-subtitle gls-mb-0">마음을 나누는 작은 숲</p>
+    </div>
+  </footer>
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/theme.js" defer></script>
+  <script src="/js/header.js"></script>
+  <script src="/js/analytics.js"></script>
+  <script src="/js/notifications.js"></script>
+</body>
+</html>
