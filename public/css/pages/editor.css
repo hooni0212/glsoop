@@ -57,6 +57,12 @@
   gap: 8px;
 }
 
+.editor-heading-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .editor-notice {
   border: 1px solid var(--gls-ghost-border, rgba(34, 44, 68, 0.15));
   border-radius: 12px;

@@ -7,7 +7,9 @@
 // - 새 글 작성 / 기존 글 수정(POST / PUT) 처리
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const DRAFT_KEY_PREFIX = 'glsoop:editor:draft:v1';
+  const DRAFT_KEY_PREFIX = 'glsoop:editor:drafts:v2';
+  const LEGACY_DRAFT_KEY_PREFIX = 'glsoop:editor:draft:v1';
+  const DRAFT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   const DRAFT_SAVE_DEBOUNCE_MS = 900;
   const PREVIEW_SESSION_DEBOUNCE_MS = 450;
 
@@ -88,6 +90,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const pageParams = new URLSearchParams(window.location.search);
   const postId = pageParams.get('postId');
+  const requestedDraftId = String(pageParams.get('draftId') || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+  const generatedDraftId =
+    typeof window.crypto?.randomUUID === 'function'
+      ? window.crypto.randomUUID()
+      : `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const draftId = postId ? `edit-${postId}` : requestedDraftId || generatedDraftId;
+  if (!postId && !requestedDraftId) {
+    pageParams.set('draftId', draftId);
+    window.history.replaceState(null, '', `${window.location.pathname}?${pageParams.toString()}`);
+  }
   const writingEventContext = !postId && pageParams.get('campaignKey') && pageParams.get('campaignPromptKey')
     ? {
         eventKey: pageParams.get('campaignKey'),
@@ -101,9 +113,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     : null;
   let isEditMode = Boolean(postId);
-  const draftStorageKey = isEditMode
-    ? `${DRAFT_KEY_PREFIX}:edit:${postId}`
-    : `${DRAFT_KEY_PREFIX}:new`;
+  let draftStorageKey = null;
+  let legacyDraftStorageKey = null;
+  let authNamespace = null;
 
   // 1. 로그인 상태 확인
   try {
@@ -129,8 +141,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // 200이면 통과 (필요하면 여기서 사용자 정보 사용 가능)
-    // const me = await res.json();
+    const me = await res.json().catch(() => ({}));
+    if (!me.ok) {
+      redirectToLogin('invalid_session');
+      return;
+    }
+    const userId = Number(me.id);
+    authNamespace = Number.isInteger(userId) && userId > 0
+      ? `user:${userId}`
+      : `email:${String(me.email || 'session').trim().toLowerCase()}`;
+    draftStorageKey = isEditMode
+      ? `${DRAFT_KEY_PREFIX}:${authNamespace}:edit:${postId}`
+      : `${DRAFT_KEY_PREFIX}:${authNamespace}:create:${draftId}`;
+    legacyDraftStorageKey = isEditMode
+      ? `${LEGACY_DRAFT_KEY_PREFIX}:edit:${postId}`
+      : `${LEGACY_DRAFT_KEY_PREFIX}:new`;
   } catch (e) {
     console.error(e);
     if (!openEditorAuthGate('network_error')) {
@@ -1541,7 +1566,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function clearEditorDraft() {
     try {
-      localStorage.removeItem(draftStorageKey);
+      if (draftStorageKey) localStorage.removeItem(draftStorageKey);
+      if (legacyDraftStorageKey) localStorage.removeItem(legacyDraftStorageKey);
     } catch (error) {
       // storage 접근 제한 환경은 무시
     }
@@ -1549,11 +1575,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function readEditorDraftPayload() {
     try {
-      const raw = localStorage.getItem(draftStorageKey);
+      let raw = draftStorageKey ? localStorage.getItem(draftStorageKey) : null;
+      let migratedLegacy = false;
+      if (!raw && legacyDraftStorageKey) {
+        raw = localStorage.getItem(legacyDraftStorageKey);
+        migratedLegacy = Boolean(raw);
+      }
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object') return null;
       if (!parsed.state || typeof parsed.state !== 'object') return null;
+      if (parsed.expires_at && Date.parse(parsed.expires_at) <= Date.now()) {
+        clearEditorDraft();
+        return null;
+      }
+      if (migratedLegacy && draftStorageKey) {
+        const migrated = {
+          ...parsed,
+          version: 2,
+          draft_id: draftId,
+          auth_namespace: authNamespace,
+          expires_at: new Date(Date.now() + DRAFT_TTL_MS).toISOString(),
+        };
+        localStorage.setItem(draftStorageKey, JSON.stringify(migrated));
+        localStorage.removeItem(legacyDraftStorageKey);
+        return migrated;
+      }
       return parsed;
     } catch (error) {
       return null;
@@ -1630,16 +1677,49 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.setItem(
         draftStorageKey,
         JSON.stringify({
-          version: 1,
+          version: 2,
+          draft_id: draftId,
+          auth_namespace: authNamespace,
           mode: isEditMode ? 'edit' : 'create',
           post_id: postId ? Number(postId) || null : null,
           saved_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + DRAFT_TTL_MS).toISOString(),
+          writing_event_context: writingEventContext,
           state: snapshot,
         })
       );
+      pruneEditorDraftStorage();
     } catch (error) {
       // storage 접근 제한 환경은 무시
     }
+  }
+
+  function pruneEditorDraftStorage() {
+    if (!authNamespace) return;
+    const prefix = `${DRAFT_KEY_PREFIX}:${authNamespace}:`;
+    const stored = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith(prefix)) continue;
+      try {
+        const payload = JSON.parse(localStorage.getItem(key) || 'null');
+        const savedAt = Date.parse(payload?.saved_at || '') || 0;
+        const expiresAt = Date.parse(payload?.expires_at || '') || savedAt + DRAFT_TTL_MS;
+        if (!payload?.state || !savedAt || expiresAt <= Date.now()) {
+          localStorage.removeItem(key);
+          index -= 1;
+          continue;
+        }
+        stored.push({ key, savedAt });
+      } catch (error) {
+        localStorage.removeItem(key);
+        index -= 1;
+      }
+    }
+    stored
+      .sort((a, b) => b.savedAt - a.savedAt)
+      .slice(30)
+      .forEach((item) => localStorage.removeItem(item.key));
   }
 
   function scheduleEditorDraftSave() {
@@ -1829,6 +1909,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!hasUnsavedChanges || isSaving || isNavigatingAfterSave) {
       return;
     }
+    saveEditorDraftNow();
     event.preventDefault();
     event.returnValue = '';
   });

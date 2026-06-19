@@ -163,6 +163,7 @@ function buildAccountMenus() {
     decorateNotificationLink(notificationsItem);
     const growthItem = createMenuAnchor('/html/growth.html', '성장');
     const customizeItem = createMenuAnchor('/profile-customize', '프로필 꾸미기');
+    const draftsItem = createMenuAnchor('/drafts', '임시저장');
     const editorItem = createMenuAnchor('/html/editor.html', '글쓰기');
 
     const divider = document.createElement('hr');
@@ -183,6 +184,7 @@ function buildAccountMenus() {
       notificationsItem,
       growthItem,
       customizeItem,
+      draftsItem,
       editorItem,
       divider,
       logoutItem
@@ -250,6 +252,7 @@ function createMobileNavItems() {
     { href: '/notifications', label: '알림', notification: true },
     { href: '/html/growth.html', label: '성장' },
     { href: '/profile-customize', label: '프로필 꾸미기' },
+    { href: '/drafts', label: '임시저장' },
     { href: '/html/editor.html', label: '글쓰기' },
   ];
 
