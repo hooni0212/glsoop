@@ -17,7 +17,12 @@ const {
   getRewardCosmeticPayload,
 } = require('../utils/questRewardClaimService');
 const { normalizeUtcDateTime } = require('../utils/dateTime');
-const { DAILY_WRITING_CAMPAIGN_KEY } = require('../utils/dailyWritingCampaign');
+const {
+  DAILY_WRITING_CAMPAIGN_KEY,
+  getWritingEventDefinition,
+  getWritingEventProgressSteps,
+  getWritingEventStatus,
+} = require('../utils/dailyWritingCampaign');
 const db = require('../db');
 
 function sendGrowthError(res, status, code, message) {
@@ -227,6 +232,43 @@ function mapWritingEventPosts(posts = []) {
 }
 
 const router = express.Router();
+
+router.get('/writing-events/:eventKey', (req, res) => {
+  const eventKey = normalizeEventKey(req.params.eventKey || DAILY_WRITING_CAMPAIGN_KEY);
+  const event = eventKey ? getWritingEventDefinition(eventKey) : null;
+  if (!event) {
+    return sendGrowthError(
+      res,
+      404,
+      'WRITING_EVENT_NOT_FOUND',
+      '해당 글쓰기 이벤트를 찾을 수 없습니다.'
+    );
+  }
+
+  const status = getWritingEventStatus(event.key);
+  return res.json({
+    ok: true,
+    event: {
+      key: status.campaignKey,
+      title: status.title,
+      subtitle: status.subtitle,
+      total_days: status.totalDays,
+      current_day: status.currentDay,
+      completed_days: status.completedDays,
+      remaining_days: status.remainingDays,
+      progress_percent: status.progressPercent,
+      local_date_key: status.localDateKey,
+      prompt_label: status.promptLabel,
+      write_path: status.writePath,
+    },
+    today_prompt: {
+      ...status.prompt,
+      write_path: status.writePath,
+    },
+    prompts: event.prompts,
+    progress_steps: getWritingEventProgressSteps(status),
+  });
+});
 
 router.get('/writing-events/:eventKey/me/posts', authRequired, async (req, res) => {
   const eventKey = normalizeEventKey(req.params.eventKey || DAILY_WRITING_CAMPAIGN_KEY);

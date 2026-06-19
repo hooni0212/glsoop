@@ -88,6 +88,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const pageParams = new URLSearchParams(window.location.search);
   const postId = pageParams.get('postId');
+  const writingEventContext = !postId && pageParams.get('campaignKey') && pageParams.get('campaignPromptKey')
+    ? {
+        eventKey: pageParams.get('campaignKey'),
+        promptKey: pageParams.get('campaignPromptKey'),
+        promptDay: pageParams.get('promptDay'),
+        promptTitle: pageParams.get('promptTitle') || '',
+        promptBody: pageParams.get('promptBody') || '',
+        promptCategory: pageParams.get('promptCategory') || '',
+        promptTags: pageParams.get('promptTags') || '',
+        promptSource: pageParams.get('promptSource') || '',
+      }
+    : null;
   let isEditMode = Boolean(postId);
   const draftStorageKey = isEditMode
     ? `${DRAFT_KEY_PREFIX}:edit:${postId}`
@@ -195,6 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 에디터 상단 에러 영역 (Bootstrap alert 등)
   const editorAlertEl = document.getElementById('editorAlert');
+  const editorWritingCampaignEl = document.getElementById('editorWritingCampaign');
 
   // 폰트 키 → 실제 font-family 매핑
   const FONT_MAP = {
@@ -1728,6 +1741,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   } else {
     // 새 글 모드 → 초기 미리보기 & 글자 수 표시
+    if (writingEventContext) {
+      if (categorySelectEl && ['poem', 'essay', 'short'].includes(writingEventContext.promptCategory)) {
+        categorySelectEl.value = writingEventContext.promptCategory;
+      }
+      writingEventContext.promptTags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .forEach((tag) => addTag(tag, { requireHash: false, markDirty: false }));
+      if (editorWritingCampaignEl) {
+        editorWritingCampaignEl.innerHTML = `
+          <p>${escapeHtml(`${writingEventContext.promptDay || '-'}일차 · ${writingEventContext.promptSource || '글쓰기 프로젝트'}`)}</p>
+          <strong>${escapeHtml(writingEventContext.promptTitle)}</strong>
+          <span>${escapeHtml(writingEventContext.promptBody)}</span>
+        `;
+        editorWritingCampaignEl.classList.remove('gls-hidden');
+      }
+      quill.root.dataset.placeholder = writingEventContext.promptBody || '이 글감에서 떠오른 문장을 적어 보세요.';
+    }
     updateCharCounter(0); // 200/200
     updatePreview();
   }
@@ -1872,6 +1904,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           hashtags: hashtagsRaw, // ✅ 서버로 해시태그 문자열 함께 전송
           category: selectedCategory,
           layout_json: buildLayoutPayloadForSave(manualLayoutState),
+          ...(writingEventContext && !isEditMode
+            ? {
+                writing_event_context: {
+                  event_key: writingEventContext.eventKey,
+                  prompt_key: writingEventContext.promptKey,
+                },
+              }
+            : {}),
         }),
       });
 

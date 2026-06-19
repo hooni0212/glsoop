@@ -123,6 +123,21 @@ test.describe('Writing event post contexts', () => {
     await seedUser(getProjectUserId(testInfo));
   });
 
+  test('exposes the current writing event for desktop clients', async ({ request }) => {
+    const response = await request.get(
+      `/api/writing-events/${encodeURIComponent(DAILY_WRITING_CAMPAIGN_KEY)}`
+    );
+    expect(response.status()).toBe(200);
+    const payload = await response.json();
+    expect(payload.ok).toBe(true);
+    expect(payload.event).toMatchObject({
+      key: DAILY_WRITING_CAMPAIGN_KEY,
+      total_days: DAILY_WRITING_PROMPTS.length,
+    });
+    expect(payload.today_prompt.write_path).toContain('campaignPromptKey=');
+    expect(payload.progress_steps).toHaveLength(DAILY_WRITING_PROMPTS.length);
+  });
+
   test('stores campaign prompt context and lists my event posts', async ({ request }, testInfo) => {
     const headers = buildAuthHeaders(getProjectUserId(testInfo));
     const prompt = DAILY_WRITING_PROMPTS[1];
