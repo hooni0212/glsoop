@@ -64,7 +64,7 @@ test.describe('Growth mobile priority layout', () => {
     test.skip(testInfo.project.name !== 'mobile-chrome', 'Mobile only');
   });
 
-  test('prioritizes quest flow and persists mobile panel selection', async ({ page }) => {
+  test('prioritizes quest flow and persists the achievement filter', async ({ page }) => {
     await page.route('**/api/me', (route) =>
       route.fulfill({
         status: 200,
@@ -100,29 +100,26 @@ test.describe('Growth mobile priority layout', () => {
 
     const positions = await page.evaluate(() => {
       const quest = document.getElementById('growthQuestSection')?.getBoundingClientRect()?.top ?? 99999;
-      const panels = document.getElementById('growthMobilePanelsSection')?.getBoundingClientRect()?.top ?? 99999;
+      const achievements = document
+        .getElementById('growthAchievementListSection')
+        ?.getBoundingClientRect()?.top ?? 99999;
       const summary = document.getElementById('growthSummarySection')?.getBoundingClientRect()?.top ?? 99999;
-      return { quest, panels, summary };
+      return { quest, achievements, summary };
     });
-    expect(positions.quest).toBeLessThan(positions.panels);
-    expect(positions.panels).toBeLessThan(positions.summary);
+    expect(positions.quest).toBeLessThan(positions.achievements);
+    expect(positions.achievements).toBeLessThan(positions.summary);
 
-    const achievementsTab = page.locator('#growthViewTabs .growth-view-tab[data-view="achievements"]');
-    await achievementsTab.click();
-    await expect(achievementsTab).toHaveClass(/is-active/);
+    const completedFilter = page.locator('#achievementFilters [data-filter="completed"]');
+    await completedFilter.click();
+    await expect(completedFilter).toHaveClass(/is-active/);
 
-    await expect(page.locator('#growthForestSection')).toHaveClass(/is-mobile-hidden/);
-    await expect(page.locator('#growthAchievementListSection')).not.toHaveClass(/is-mobile-hidden/);
-
-    const storedPanel = await page.evaluate(() =>
-      window.localStorage.getItem('glsoop:growth:mobile-panel')
+    const storedFilter = await page.evaluate(() =>
+      window.localStorage.getItem('glsoop:growth:achievement-filter')
     );
-    expect(storedPanel).toBe('achievements');
+    expect(storedFilter).toBe('completed');
 
     await page.reload();
-    await expect(page.locator('#growthViewTabs .growth-view-tab[data-view="achievements"]')).toHaveClass(
-      /is-active/
-    );
-    await expect(page.locator('#growthForestSection')).toHaveClass(/is-mobile-hidden/);
+    await expect(page.locator('#achievementFilters [data-filter="completed"]')).toHaveClass(/is-active/);
+    await expect(page.locator('#growthAchievementListSection')).toBeVisible();
   });
 });
