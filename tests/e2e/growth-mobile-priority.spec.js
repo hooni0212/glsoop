@@ -61,7 +61,7 @@ const dashboardPayload = {
 
 test.describe('Growth mobile priority layout', () => {
   test.beforeEach(async ({}, testInfo) => {
-    test.skip(testInfo.project.name !== 'mobile-chrome', 'Mobile only');
+    test.skip(!testInfo.project.name.startsWith('mobile-'), 'Mobile only');
   });
 
   test('prioritizes quest flow and persists the achievement filter', async ({ page }) => {
@@ -120,6 +120,20 @@ test.describe('Growth mobile priority layout', () => {
 
     await page.reload();
     await expect(page.locator('#achievementFilters [data-filter="completed"]')).toHaveClass(/is-active/);
-    await expect(page.locator('#growthAchievementListSection')).toBeVisible();
+    const achievementSection = page.locator('#growthAchievementListSection');
+    await expect(achievementSection).toBeVisible();
+    await achievementSection.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(0);
+
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          Math.ceil(window.scrollY + window.innerHeight) >= document.documentElement.scrollHeight - 2
+        )
+      )
+      .toBe(true);
   });
 });

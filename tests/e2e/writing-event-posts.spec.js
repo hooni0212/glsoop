@@ -228,6 +228,8 @@ test.describe('Writing event post contexts', () => {
     await page.locator('#saveBtn').click();
     const createResponse = await createResponsePromise;
     expect(createResponse.status()).toBe(200);
+    const createPayload = await createResponse.json();
+    expect(createPayload.post_id).toBeTruthy();
     expect(createResponse.request().postDataJSON()).toMatchObject({
       title: '브라우저에서 완성한 프로젝트 글',
       category: status.today_prompt.defaultCategory,
@@ -259,6 +261,14 @@ test.describe('Writing event post contexts', () => {
         }),
       ])
     );
+
+    await page.goto('/html/growth.html');
+    const campaign = page.locator('#growthWritingCampaign');
+    await expect(campaign).toContainText('작성 1개');
+    await expect(campaign).toContainText('브라우저에서 완성한 프로젝트 글');
+    await expect(
+      campaign.locator(`a[href="/posts/${createPayload.post_id}"]`)
+    ).toHaveCount(2);
   });
 
   test('stores campaign prompt context and lists my event posts', async ({ request }, testInfo) => {

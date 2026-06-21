@@ -50,7 +50,10 @@ test.describe('Desktop draft manager', () => {
     page.on('dialog', (dialog) => dialog.accept());
   });
 
-  test('keeps multiple drafts and lets the user delete one', async ({ page }) => {
+  test('keeps multiple drafts across reconnection and lets the user delete one', async ({
+    page,
+    context,
+  }) => {
     await page.goto('/write?draftId=first-draft');
     await page.locator('#postTitle').fill('첫 번째 임시글');
     await page.locator('#categorySelect').selectOption('essay');
@@ -67,15 +70,18 @@ test.describe('Desktop draft manager', () => {
       Object.keys(localStorage).filter((key) => key.includes('glsoop:editor:drafts:v2:user:26801:create:')).length === 2
     );
 
-    await page.goto('/drafts');
-    await expect(page.locator('.draft-card')).toHaveCount(2);
-    await expect(page.locator('#draftsList')).toContainText('첫 번째 임시글');
-    await expect(page.locator('#draftsList')).toContainText('두 번째 임시글');
+    await page.close();
+    const reconnectedPage = await context.newPage();
+    reconnectedPage.on('dialog', (dialog) => dialog.accept());
+    await reconnectedPage.goto('/drafts');
+    await expect(reconnectedPage.locator('.draft-card')).toHaveCount(2);
+    await expect(reconnectedPage.locator('#draftsList')).toContainText('첫 번째 임시글');
+    await expect(reconnectedPage.locator('#draftsList')).toContainText('두 번째 임시글');
 
-    const firstCard = page.locator('.draft-card').filter({ hasText: '첫 번째 임시글' });
+    const firstCard = reconnectedPage.locator('.draft-card').filter({ hasText: '첫 번째 임시글' });
     await firstCard.locator('[data-delete-draft]').click();
-    await expect(page.locator('.draft-card')).toHaveCount(1);
-    await expect(page.locator('#draftsList')).not.toContainText('첫 번째 임시글');
+    await expect(reconnectedPage.locator('.draft-card')).toHaveCount(1);
+    await expect(reconnectedPage.locator('#draftsList')).not.toContainText('첫 번째 임시글');
   });
 
   test('resumes a campaign draft with its content and prompt context', async ({ page }) => {

@@ -67,6 +67,17 @@ const dbRun = (db, sql, params = []) =>
     });
   });
 
+const dbGet = (db, sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(row || null);
+    });
+  });
+
 const waitForFile = async (filePath, timeoutMs = 5000) => {
   const start = Date.now();
   while (!fs.existsSync(filePath)) {
@@ -79,6 +90,30 @@ const waitForFile = async (filePath, timeoutMs = 5000) => {
 
 const waitForSeedReady = async (timeoutMs = 30000) => {
   await waitForFile(SEED_READY_FILE, timeoutMs);
+};
+
+const snapshotSeedIsValid = async () => {
+  await waitForFile(DB_PATH);
+  const db = new sqlite3.Database(DB_PATH);
+  try {
+    const row = await dbGet(
+      db,
+      `SELECT
+         COUNT(*) AS user_count,
+         SUM(CASE WHEN id = 1 AND email = 'admin@glsoop.test' AND pw = ? AND is_admin = 1 THEN 1 ELSE 0 END) AS admin_count,
+         SUM(CASE WHEN id = 2 AND email = 'user@glsoop.test' AND pw = ? AND is_admin = 0 THEN 1 ELSE 0 END) AS member_count
+       FROM users
+       WHERE id IN (1, 2)`,
+      [E2E_SESSION_PASSWORD_HASH, E2E_SESSION_PASSWORD_HASH]
+    );
+    return (
+      Number(row?.user_count) === 2 &&
+      Number(row?.admin_count) === 1 &&
+      Number(row?.member_count) === 1
+    );
+  } finally {
+    await new Promise((resolve) => db.close(resolve));
+  }
 };
 
 const seedTestData = async () => {
@@ -460,6 +495,10 @@ test.describe('UI snapshot tour', () => {
       try {
         await waitForSeedReady();
       } catch (error) {
+        await seedTestData();
+        fs.writeFileSync(SEED_READY_FILE, `${Date.now()}`, 'utf8');
+      }
+      if (!(await snapshotSeedIsValid())) {
         await seedTestData();
         fs.writeFileSync(SEED_READY_FILE, `${Date.now()}`, 'utf8');
       }

@@ -384,6 +384,25 @@ test.describe('Cosmetics API', () => {
     );
     await expect(page.locator('#authorShowcaseBadges span')).toHaveCount(1);
     await expect(page.locator('#authorCosmeticStickers')).toContainText('✨');
+    await expect(page.locator('.author-primary-cosmetic-badge')).toBeVisible();
+
+    await page.goto('/html/mypage.html');
+    await expect(page.getByRole('link', { name: '프로필 꾸미기' })).toBeVisible();
+
+    await page.goto('/profile-customize');
+    await page.locator('[data-profile-action="primary"][data-profile-key=""]').click();
+    const clearResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/api/me/profile-cosmetics') && response.request().method() === 'PUT'
+    );
+    await page.locator('#profileCustomizeSave').click();
+    expect((await clearResponsePromise).status()).toBe(200);
+    await page.reload();
+    await expect(
+      page.locator('[data-profile-action="primary"][data-profile-key=""]')
+    ).toHaveClass(/is-selected/);
+
+    await page.goto(`/users/${USER_A_ID}`);
+    await expect(page.locator('.author-primary-cosmetic-badge')).toHaveCount(0);
   });
 
   test('cleared primary badge persists after cosmetics refresh and public profile fetch', async ({

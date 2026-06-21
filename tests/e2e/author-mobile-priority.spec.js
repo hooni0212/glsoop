@@ -3,7 +3,7 @@ const { mockAuthorPageApis } = require('./author-test-utils');
 
 test.describe('Author mobile priority layout', () => {
   test.beforeEach(async ({}, testInfo) => {
-    test.skip(testInfo.project.name !== 'mobile-chrome', 'Mobile only');
+    test.skip(!testInfo.project.name.startsWith('mobile-'), 'Mobile only');
   });
 
   test('shows hero + dual CTA within first viewport and supports bio collapse toggle', async ({ page }) => {
