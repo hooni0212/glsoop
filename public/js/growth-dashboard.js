@@ -228,7 +228,7 @@ function applyGrowthViewPanel(panel, options = {}) {
   if (achievementSection) {
     achievementSection.classList.toggle(
       'is-mobile-hidden',
-      isMobile && selectedMobilePanel !== 'achievements'
+      isMobile && Boolean(forestSection) && selectedMobilePanel !== 'achievements'
     );
   }
 

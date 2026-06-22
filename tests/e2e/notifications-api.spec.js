@@ -3,6 +3,10 @@ const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const sqlite3 = require('sqlite3').verbose();
+const {
+  E2E_SESSION_PASSWORD_HASH,
+  loginWithSession,
+} = require('./session-auth');
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -108,6 +112,8 @@ async function seedFixtures() {
 
   await withDb(async (db) => {
     await dbRun(db, 'PRAGMA foreign_keys = OFF');
+    await dbRun(db, `DELETE FROM auth_sessions WHERE user_id IN (${placeholders})`, userIds);
+    await dbRun(db, `DELETE FROM auth_login_state WHERE user_id IN (${placeholders})`, userIds);
     await dbRun(
       db,
       `DELETE FROM push_delivery_queue
@@ -188,7 +194,13 @@ async function seedFixtures() {
         db,
         `INSERT INTO users (id, name, nickname, email, pw, is_admin, is_verified)
          VALUES (?, ?, ?, ?, ?, 0, 1)`,
-        [id, `Notification ${role}`, `notify_${role}`, `${role}@notifications.glsoop.test`, 'password']
+        [
+          id,
+          `Notification ${role}`,
+          `notify_${role}`,
+          `${role}@notifications.glsoop.test`,
+          E2E_SESSION_PASSWORD_HASH,
+        ]
       );
     }
 
@@ -263,11 +275,79 @@ test.describe('Notifications API', () => {
     });
     expect(likeResponse.status()).toBe(200);
 
-    await page.setExtraHTTPHeaders(buildAuthHeaders(USERS.author));
+    await loginWithSession(page, 'author@notifications.glsoop.test', {
+      ip: '198.51.100.205',
+    });
     await page.goto('/notifications');
     await expect(page.locator('#notificationsList .notification-row')).toHaveCount(1);
     await expect(page.locator('#notificationsList')).toContainText('내 글에 공감했어요');
     await expect(page.locator('[data-notification-unread]').first()).toContainText('1');
+  });
+
+  test('marks a clicked notification read before navigating to its target', async ({
+    page,
+    request,
+  }) => {
+    const likeResponse = await request.post(`/api/posts/${POST_ID}/toggle-like`, {
+      headers: buildAuthHeaders(USERS.likerA),
+    });
+    expect(likeResponse.status()).toBe(200);
+    await loginWithSession(page, 'author@notifications.glsoop.test', {
+      ip: '198.51.100.206',
+    });
+
+    await page.goto('/notifications');
+    const row = page.locator('#notificationsList .notification-row').first();
+    await expect(row).toHaveClass(/is-unread/);
+    const readResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/notifications/post_reaction%3A20811/read') &&
+        response.request().method() === 'PATCH'
+    );
+    await row.click();
+    expect((await readResponsePromise).status()).toBe(200);
+    await expect(page).toHaveURL(`/posts/${POST_ID}`);
+
+    const listResponse = await request.get('/api/notifications?limit=30&offset=0', {
+      headers: buildAuthHeaders(USERS.author),
+    });
+    const payload = await listResponse.json();
+    expect(payload.unread_count).toBe(0);
+    expect(payload.notifications.find((item) => item.type === 'post_reaction').read_at).toBeTruthy();
+  });
+
+  test('marks every notification read from the desktop inbox', async ({ page, request }) => {
+    const likeResponse = await request.post(`/api/posts/${POST_ID}/toggle-like`, {
+      headers: buildAuthHeaders(USERS.likerA),
+    });
+    expect(likeResponse.status()).toBe(200);
+    const commentResponse = await request.post(`/api/posts/${POST_ID}/comments`, {
+      headers: buildAuthHeaders(USERS.commenter),
+      data: { content: '모두 읽음 동작을 확인하는 댓글입니다.' },
+    });
+    expect(commentResponse.status()).toBe(201);
+    await loginWithSession(page, 'author@notifications.glsoop.test', {
+      ip: '198.51.100.207',
+    });
+
+    await page.goto('/notifications');
+    await expect(page.locator('#notificationsList .notification-row')).toHaveCount(2);
+    await expect(page.locator('#notificationsList .notification-row.is-unread')).toHaveCount(2);
+    const readAllResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/activity/read-all') && response.request().method() === 'POST'
+    );
+    await page.locator('#notificationsReadAll').click();
+    expect((await readAllResponsePromise).status()).toBe(200);
+
+    await expect(page.locator('#notificationsList .notification-row.is-unread')).toHaveCount(0);
+    await expect(page.locator('#notificationsList .notification-row__dot')).toHaveCount(0);
+    await expect(page.locator('[data-notification-unread]').first()).toBeHidden();
+
+    const listResponse = await request.get('/api/notifications?limit=30&offset=0', {
+      headers: buildAuthHeaders(USERS.author),
+    });
+    expect((await listResponse.json()).unread_count).toBe(0);
   });
 
   test('aggregates post reactions and marks the grouped notification read', async ({ request }) => {

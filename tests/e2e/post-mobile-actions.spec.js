@@ -46,7 +46,7 @@ const relatedPosts = [
 
 test.describe('Post mobile action priority', () => {
   test.beforeEach(async ({}, testInfo) => {
-    test.skip(testInfo.project.name !== 'mobile-chrome', 'Mobile only');
+    test.skip(!testInfo.project.name.startsWith('mobile-'), 'Mobile only');
   });
 
   test('keeps action dock safe and wires like/bookmark/share actions', async ({ page }) => {

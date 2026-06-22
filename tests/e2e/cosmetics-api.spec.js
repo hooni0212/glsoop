@@ -4,6 +4,10 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const {
+  E2E_SESSION_PASSWORD_HASH,
+  loginWithSession,
+} = require('./session-auth');
 
 const E2E_JWT_SECRET = 'devsecret';
 const E2E_JWT_ALGORITHM = 'HS256';
@@ -109,26 +113,60 @@ const seedCosmeticFixtures = async () => {
 
   const db = new sqlite3.Database(DB_PATH);
   await dbRun(db, 'PRAGMA foreign_keys = OFF');
+  await dbRun(db, 'DELETE FROM auth_sessions WHERE user_id IN (?, ?, ?)', [
+    ADMIN_ID,
+    USER_A_ID,
+    USER_B_ID,
+  ]);
+  await dbRun(db, 'DELETE FROM auth_login_state WHERE user_id IN (?, ?, ?)', [
+    ADMIN_ID,
+    USER_A_ID,
+    USER_B_ID,
+  ]);
 
   await dbRun(
     db,
     `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [ADMIN_ID, 'Admin Cosmetic', 'admin_cosmetic', 'admin-cosmetic@glsoop.test', 'password', 1, 1]
+    [
+      ADMIN_ID,
+      'Admin Cosmetic',
+      'admin_cosmetic',
+      'admin-cosmetic@glsoop.test',
+      E2E_SESSION_PASSWORD_HASH,
+      1,
+      1,
+    ]
   );
 
   await dbRun(
     db,
     `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [USER_A_ID, 'Writer Cosmetic A', 'writer_cosmetic_a', 'writer-cosmetic-a@glsoop.test', 'password', 0, 1]
+    [
+      USER_A_ID,
+      'Writer Cosmetic A',
+      'writer_cosmetic_a',
+      'writer-cosmetic-a@glsoop.test',
+      E2E_SESSION_PASSWORD_HASH,
+      0,
+      1,
+    ]
   );
 
   await dbRun(
     db,
     `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [USER_B_ID, 'Writer Cosmetic B', 'writer_cosmetic_b', 'writer-cosmetic-b@glsoop.test', 'password', 0, 1]
+    [
+      USER_B_ID,
+      'Writer Cosmetic B',
+      'writer_cosmetic_b',
+      'writer-cosmetic-b@glsoop.test',
+      E2E_SESSION_PASSWORD_HASH,
+      0,
+      1,
+    ]
   );
 
   await dbRun(
@@ -315,13 +353,9 @@ test.describe('Cosmetics API', () => {
   });
 
   test('desktop profile customizer saves and renders equipped cosmetics', async ({ page }) => {
-    const userAToken = signAuthToken({
-      id: USER_A_ID,
-      name: 'Writer Cosmetic A',
-      nickname: 'writer_cosmetic_a',
-      email: 'writer-cosmetic-a@glsoop.test',
+    await loginWithSession(page, 'writer-cosmetic-a@glsoop.test', {
+      ip: '198.51.100.208',
     });
-    await page.setExtraHTTPHeaders(buildAuthHeaders(userAToken));
     await page.goto('/profile-customize');
 
     await expect(page.locator('#profileCustomizeEditor')).toContainText('프로필 배경');
@@ -337,6 +371,12 @@ test.describe('Cosmetics API', () => {
     expect((await saveResponsePromise).status()).toBe(200);
     await expect(page.locator('#profileCustomizeSaveState')).toHaveText('저장됨');
 
+    await page.reload();
+    await expect(
+      page.locator('[data-profile-action="primary"][data-profile-key="badge_default_seedling"]')
+    ).toHaveClass(/is-selected/);
+    await expect(page.locator('#profileCustomizeSave')).toBeDisabled();
+
     await page.goto(`/users/${USER_A_ID}`);
     await expect(page.locator('#authorProfileCard')).toHaveAttribute(
       'data-cosmetic-background',
@@ -344,6 +384,25 @@ test.describe('Cosmetics API', () => {
     );
     await expect(page.locator('#authorShowcaseBadges span')).toHaveCount(1);
     await expect(page.locator('#authorCosmeticStickers')).toContainText('✨');
+    await expect(page.locator('.author-primary-cosmetic-badge')).toBeVisible();
+
+    await page.goto('/html/mypage.html');
+    await expect(page.getByRole('link', { name: '프로필 꾸미기' })).toBeVisible();
+
+    await page.goto('/profile-customize');
+    await page.locator('[data-profile-action="primary"][data-profile-key=""]').click();
+    const clearResponsePromise = page.waitForResponse(
+      (response) => response.url().includes('/api/me/profile-cosmetics') && response.request().method() === 'PUT'
+    );
+    await page.locator('#profileCustomizeSave').click();
+    expect((await clearResponsePromise).status()).toBe(200);
+    await page.reload();
+    await expect(
+      page.locator('[data-profile-action="primary"][data-profile-key=""]')
+    ).toHaveClass(/is-selected/);
+
+    await page.goto(`/users/${USER_A_ID}`);
+    await expect(page.locator('.author-primary-cosmetic-badge')).toHaveCount(0);
   });
 
   test('cleared primary badge persists after cosmetics refresh and public profile fetch', async ({
