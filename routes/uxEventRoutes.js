@@ -6,6 +6,7 @@ const {
   normalizeText,
   normalizePropertiesJson,
 } = require('../utils/uxEvents');
+const { classifyUserAgent } = require('../utils/deviceAnalytics');
 
 const router = express.Router();
 
@@ -91,6 +92,8 @@ router.post('/ux-events', authOptional, async (req, res) => {
     );
   }
 
+  const device = classifyUserAgent(req.get('user-agent'));
+
   try {
     await logUxEvent({
       user_id: req.user?.id || null,
@@ -101,6 +104,8 @@ router.post('/ux-events', authOptional, async (req, res) => {
       page_path: pagePath,
       referrer,
       properties_json: propertiesJson,
+      device_class: device.deviceClass,
+      platform_family: device.platformFamily,
     });
 
     return res.status(202).json({

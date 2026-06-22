@@ -1242,6 +1242,16 @@ function parseUxEventSummaryQuery(query = {}) {
     typeof query.event_name === 'string' ? query.event_name.trim().toLowerCase() : '';
   const sourceRaw = typeof query.source === 'string' ? query.source.trim().toLowerCase() : 'all';
   const userType = parseEnum(query.user_type, ['all', 'authenticated', 'anonymous'], 'all');
+  const deviceClass = parseEnum(
+    query.device_class,
+    ['all', 'desktop', 'mobile', 'tablet', 'unknown'],
+    'all'
+  );
+  const platformFamily = parseEnum(
+    query.platform_family,
+    ['all', 'ios', 'android', 'windows', 'macos', 'linux', 'chromeos', 'unknown'],
+    'all'
+  );
   const topLimit = parseBoundedInt(query.top_limit, 10, 1, 100);
   const dailyLimit = parseBoundedInt(query.daily_limit, 30, 1, 120);
 
@@ -1269,6 +1279,17 @@ function parseUxEventSummaryQuery(query = {}) {
     return { error: 'user_type은 all, authenticated, anonymous 중 하나여야 합니다.' };
   }
 
+  if (!deviceClass) {
+    return { error: 'device_class는 all, desktop, mobile, tablet, unknown 중 하나여야 합니다.' };
+  }
+
+  if (!platformFamily) {
+    return {
+      error:
+        'platform_family는 all, ios, android, windows, macos, linux, chromeos, unknown 중 하나여야 합니다.',
+    };
+  }
+
   if (topLimit === null) {
     return { error: 'top_limit은 1~100 범위여야 합니다.' };
   }
@@ -1283,6 +1304,8 @@ function parseUxEventSummaryQuery(query = {}) {
     eventName: eventNameRaw || null,
     source: sourceRaw || 'all',
     userType,
+    deviceClass,
+    platformFamily,
     topLimit,
     dailyLimit,
   };
@@ -2025,7 +2048,17 @@ router.get('/ux-events/summary', async (req, res) => {
     return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
   }
 
-  const { from, to, eventName, source, userType, topLimit, dailyLimit } = parsed;
+  const {
+    from,
+    to,
+    eventName,
+    source,
+    userType,
+    deviceClass,
+    platformFamily,
+    topLimit,
+    dailyLimit,
+  } = parsed;
   const where = [];
   const params = [];
 
@@ -2050,6 +2083,14 @@ router.get('/ux-events/summary', async (req, res) => {
   } else if (userType === 'anonymous') {
     where.push('ue.user_id IS NULL');
   }
+  if (deviceClass !== 'all') {
+    where.push('ue.device_class = ?');
+    params.push(deviceClass);
+  }
+  if (platformFamily !== 'all') {
+    where.push('ue.platform_family = ?');
+    params.push(platformFamily);
+  }
 
   const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
@@ -2073,66 +2114,100 @@ router.get('/ux-events/summary', async (req, res) => {
   } else if (userType === 'anonymous') {
     p0Where.push('user_id IS NULL');
   }
+  if (deviceClass !== 'all') {
+    p0Where.push('device_class = ?');
+    p0Params.push(deviceClass);
+  }
+  if (platformFamily !== 'all') {
+    p0Where.push('platform_family = ?');
+    p0Params.push(platformFamily);
+  }
   const p0WhereClause = p0Where.length > 0 ? `WHERE ${p0Where.join(' AND ')}` : '';
 
   try {
-    const [summaryRow, byEvent, bySource, byDay, p0Base] = await Promise.all([
-      getAsync(
-        `SELECT
-           COUNT(*) AS total_count,
-           COUNT(DISTINCT CASE WHEN ue.user_id IS NOT NULL THEN ue.user_id END) AS unique_user_count,
-           COUNT(DISTINCT CASE WHEN ue.session_id IS NOT NULL THEN ue.session_id END) AS unique_session_count,
-           SUM(CASE WHEN ue.user_id IS NULL THEN 1 ELSE 0 END) AS anonymous_count
-         FROM ux_events ue
-         ${whereClause}`,
-        params
-      ),
-      allAsync(
-        `SELECT ue.event_name, COUNT(*) AS event_count
-         FROM ux_events ue
-         ${whereClause}
-         GROUP BY ue.event_name
-         ORDER BY event_count DESC, ue.event_name ASC
-         LIMIT ?`,
-        [...params, topLimit]
-      ),
-      allAsync(
-        `SELECT ue.source, COUNT(*) AS event_count
-         FROM ux_events ue
-         ${whereClause}
-         GROUP BY ue.source
-         ORDER BY event_count DESC, ue.source ASC
-         LIMIT ?`,
-        [...params, topLimit]
-      ),
-      allAsync(
-        `SELECT
-           date(ue.created_at) AS day,
-           COUNT(*) AS total_count,
-           COUNT(DISTINCT CASE WHEN ue.user_id IS NOT NULL THEN ue.user_id END) AS unique_user_count
-         FROM ux_events ue
-         ${whereClause}
-         GROUP BY date(ue.created_at)
-         ORDER BY day DESC
-         LIMIT ?`,
-        [...params, dailyLimit]
-      ),
-      getAsync(
-        `SELECT
-           COUNT(DISTINCT CASE WHEN event_name = 'verify_email_success' AND user_id IS NOT NULL THEN user_id END) AS verify_success_user_count,
-           COUNT(DISTINCT CASE WHEN event_name = 'first_post_created_24h' AND user_id IS NOT NULL THEN user_id END) AS first_post_24h_user_count,
-           SUM(CASE WHEN event_name = 'verify_email_submit' THEN 1 ELSE 0 END) AS verify_submit_count,
-           SUM(CASE WHEN event_name = 'verify_email_error' THEN 1 ELSE 0 END) AS verify_error_count,
-           SUM(CASE WHEN event_name = 'post_create_submit' THEN 1 ELSE 0 END) AS post_submit_count,
-           SUM(CASE WHEN event_name = 'post_create_error' THEN 1 ELSE 0 END) AS post_error_count,
-           SUM(CASE WHEN event_name = 'signup_success_pending_created' THEN 1 ELSE 0 END) AS signup_pending_count,
-           SUM(CASE WHEN event_name = 'login_success' THEN 1 ELSE 0 END) AS login_success_count,
-           SUM(CASE WHEN event_name = 'post_create_success' THEN 1 ELSE 0 END) AS post_create_success_count
-         FROM ux_events
-         ${p0WhereClause}`,
-        p0Params
-      ),
-    ]);
+    const [summaryRow, byEvent, bySource, byDevice, byPlatform, byDay, p0Base] =
+      await Promise.all([
+        getAsync(
+          `SELECT
+             COUNT(*) AS total_count,
+             COUNT(DISTINCT CASE WHEN ue.user_id IS NOT NULL THEN ue.user_id END) AS unique_user_count,
+             COUNT(DISTINCT CASE WHEN ue.session_id IS NOT NULL THEN ue.session_id END) AS unique_session_count,
+             SUM(CASE WHEN ue.user_id IS NULL THEN 1 ELSE 0 END) AS anonymous_count
+           FROM ux_events ue
+           ${whereClause}`,
+          params
+        ),
+        allAsync(
+          `SELECT ue.event_name, COUNT(*) AS event_count
+           FROM ux_events ue
+           ${whereClause}
+           GROUP BY ue.event_name
+           ORDER BY event_count DESC, ue.event_name ASC
+           LIMIT ?`,
+          [...params, topLimit]
+        ),
+        allAsync(
+          `SELECT ue.source, COUNT(*) AS event_count
+           FROM ux_events ue
+           ${whereClause}
+           GROUP BY ue.source
+           ORDER BY event_count DESC, ue.source ASC
+           LIMIT ?`,
+          [...params, topLimit]
+        ),
+        allAsync(
+          `SELECT
+             ue.device_class,
+             COUNT(*) AS event_count,
+             COUNT(DISTINCT CASE WHEN ue.session_id IS NOT NULL THEN ue.session_id END) AS unique_session_count,
+             COUNT(DISTINCT CASE WHEN ue.user_id IS NOT NULL THEN ue.user_id END) AS unique_user_count
+           FROM ux_events ue
+           ${whereClause}
+           GROUP BY ue.device_class
+           ORDER BY unique_session_count DESC, event_count DESC, ue.device_class ASC`,
+          params
+        ),
+        allAsync(
+          `SELECT
+             ue.platform_family,
+             COUNT(*) AS event_count,
+             COUNT(DISTINCT CASE WHEN ue.session_id IS NOT NULL THEN ue.session_id END) AS unique_session_count,
+             COUNT(DISTINCT CASE WHEN ue.user_id IS NOT NULL THEN ue.user_id END) AS unique_user_count
+           FROM ux_events ue
+           ${whereClause}
+           GROUP BY ue.platform_family
+           ORDER BY unique_session_count DESC, event_count DESC, ue.platform_family ASC`,
+          params
+        ),
+        allAsync(
+          `SELECT
+             date(ue.created_at) AS day,
+             COUNT(*) AS total_count,
+             COUNT(DISTINCT CASE WHEN ue.session_id IS NOT NULL THEN ue.session_id END) AS unique_session_count,
+             COUNT(DISTINCT CASE WHEN ue.user_id IS NOT NULL THEN ue.user_id END) AS unique_user_count
+           FROM ux_events ue
+           ${whereClause}
+           GROUP BY date(ue.created_at)
+           ORDER BY day DESC
+           LIMIT ?`,
+          [...params, dailyLimit]
+        ),
+        getAsync(
+          `SELECT
+             COUNT(DISTINCT CASE WHEN event_name = 'verify_email_success' AND user_id IS NOT NULL THEN user_id END) AS verify_success_user_count,
+             COUNT(DISTINCT CASE WHEN event_name = 'first_post_created_24h' AND user_id IS NOT NULL THEN user_id END) AS first_post_24h_user_count,
+             SUM(CASE WHEN event_name = 'verify_email_submit' THEN 1 ELSE 0 END) AS verify_submit_count,
+             SUM(CASE WHEN event_name = 'verify_email_error' THEN 1 ELSE 0 END) AS verify_error_count,
+             SUM(CASE WHEN event_name = 'post_create_submit' THEN 1 ELSE 0 END) AS post_submit_count,
+             SUM(CASE WHEN event_name = 'post_create_error' THEN 1 ELSE 0 END) AS post_error_count,
+             SUM(CASE WHEN event_name = 'signup_success_pending_created' THEN 1 ELSE 0 END) AS signup_pending_count,
+             SUM(CASE WHEN event_name = 'login_success' THEN 1 ELSE 0 END) AS login_success_count,
+             SUM(CASE WHEN event_name = 'post_create_success' THEN 1 ELSE 0 END) AS post_create_success_count
+           FROM ux_events
+           ${p0WhereClause}`,
+          p0Params
+        ),
+      ]);
 
     const verifySuccessCount = Number(p0Base?.verify_success_user_count || 0);
     const firstPost24hCount = Number(p0Base?.first_post_24h_user_count || 0);
@@ -2157,6 +2232,8 @@ router.get('/ux-events/summary', async (req, res) => {
         event_name: eventName,
         source,
         user_type: userType,
+        device_class: deviceClass,
+        platform_family: platformFamily,
       },
       summary: {
         total_count: Number(summaryRow?.total_count || 0),
@@ -2184,6 +2261,8 @@ router.get('/ux-events/summary', async (req, res) => {
       },
       by_event: byEvent || [],
       by_source: bySource || [],
+      by_device: byDevice || [],
+      by_platform: byPlatform || [],
       daily: byDay || [],
     });
   } catch (error) {
