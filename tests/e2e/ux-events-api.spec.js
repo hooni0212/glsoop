@@ -201,6 +201,47 @@ test.describe('UX events API', () => {
     });
   });
 
+  test('records one automatic page view for a web page visit', async ({ page }) => {
+    const sessionId = 'sess_ux_page_view';
+    await page.addInitScript((fixedSessionId) => {
+      window.sessionStorage.setItem('glsoop:analytics:session_id', fixedSessionId);
+      window.localStorage.setItem('glsoop:analytics:anonymous_id', 'anon_ux_page_view');
+    }, sessionId);
+
+    const [response] = await Promise.all([
+      page.waitForResponse((candidate) => {
+        return (
+          candidate.url().endsWith('/api/ux-events') && candidate.request().method() === 'POST'
+        );
+      }),
+      page.goto('/'),
+    ]);
+    expect(response.status()).toBe(202);
+
+    const db = new sqlite3.Database(DB_PATH);
+    const row = await dbGet(
+      db,
+      `SELECT event_name, session_id, anonymous_id, page_path, properties_json,
+              device_class, platform_family
+       FROM ux_events
+       WHERE session_id = ? AND event_name = 'page_view'
+       ORDER BY id DESC
+       LIMIT 1`,
+      [sessionId]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(row).toMatchObject({
+      event_name: 'page_view',
+      session_id: sessionId,
+      anonymous_id: 'anon_ux_page_view',
+      page_path: '/',
+      device_class: 'desktop',
+    });
+    expect(['macos', 'windows', 'linux', 'chromeos']).toContain(row.platform_family);
+    expect(JSON.parse(row.properties_json)).toMatchObject({ document_title: expect.any(String) });
+  });
+
   test('classifies desktop, tablet, and automated user agents without storing raw values', async ({ request }) => {
     const cases = [
       {
