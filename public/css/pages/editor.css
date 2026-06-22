@@ -26,10 +26,41 @@
   -webkit-backdrop-filter: blur(var(--gls-surface-glass-blur, var(--gls-glass-blur)));
 }
 
+.page-editor .editor-writing-campaign {
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--gls-color-primary, #1f6b4b) 28%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--gls-color-primary, #1f6b4b) 7%, #fff);
+}
+
+.page-editor .editor-writing-campaign p,
+.page-editor .editor-writing-campaign strong,
+.page-editor .editor-writing-campaign span { display: block; }
+
+.page-editor .editor-writing-campaign p {
+  margin: 0 0 4px;
+  color: var(--gls-color-primary, #1f6b4b);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.page-editor .editor-writing-campaign strong { margin-bottom: 4px; }
+
+.page-editor .editor-writing-campaign span {
+  color: var(--gls-color-text-muted, #6f675c);
+  font-size: 0.9rem;
+}
+
 .editor-notice-region {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.editor-heading-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .editor-notice {

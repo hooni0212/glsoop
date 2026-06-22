@@ -96,7 +96,8 @@
 
       <div class="author-page-main-row MainGrid has-aside is-aside-left gls-items-start">
         <aside class="author-left-col MainGrid-aside">
-          <div class="card author-profile-card CardSoft gls-surface-panel gls-surface-veil">
+          <div class="card author-profile-card CardSoft gls-surface-panel gls-surface-veil" id="authorProfileCard">
+            <div class="author-cosmetic-stickers" id="authorCosmeticStickers" aria-hidden="true"></div>
             <div class="card-body gls-flex gls-flex-col">
               <div class="author-card-header">
                 <span class="author-card-title">작가 아이덴티티</span>
@@ -130,6 +131,8 @@
                 </div>
                 <p id="authorAbout" class="author-about-text gls-mb-0"></p>
               </div>
+
+              <div class="author-showcase-badges gls-hidden" id="authorShowcaseBadges" aria-label="대표 배지"></div>
 
               <div class="author-stats-card">
                 <div class="author-label gls-text-small gls-mb-2">작가 활동 요약</div>
@@ -171,12 +174,12 @@
                     최신 글 바로읽기
                   </button>
                   <a
-                    href="/html/mypage.html"
+                    href="/profile-customize"
                     class="gls-btn gls-btn-ghost gls-btn-block author-profile-action gls-hidden"
                     id="authorProfileActionBtn"
                     aria-label="내 프로필로 이동"
                   >
-                    내 프로필
+                    프로필 꾸미기
                   </a>
                 </div>
                 <p class="gls-text-muted gls-text-small gls-mb-0 gls-mt-2" id="authorFollowHint">

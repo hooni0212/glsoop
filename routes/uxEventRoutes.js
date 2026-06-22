@@ -6,6 +6,7 @@ const {
   normalizeText,
   normalizePropertiesJson,
 } = require('../utils/uxEvents');
+const { resolveUxEventClient } = require('../utils/deviceAnalytics');
 
 const router = express.Router();
 
@@ -91,16 +92,25 @@ router.post('/ux-events', authOptional, async (req, res) => {
     );
   }
 
+  const client = resolveUxEventClient({
+    clientType: req.get('x-glsoop-client'),
+    deviceClass: req.get('x-glsoop-device-class'),
+    platformFamily: req.get('x-glsoop-platform'),
+    userAgent: req.get('user-agent'),
+  });
+
   try {
     await logUxEvent({
       user_id: req.user?.id || null,
       event_name: eventName,
-      source: 'web_client',
+      source: client.source,
       session_id: sessionId,
       anonymous_id: anonymousId,
       page_path: pagePath,
       referrer,
       properties_json: propertiesJson,
+      device_class: client.deviceClass,
+      platform_family: client.platformFamily,
     });
 
     return res.status(202).json({

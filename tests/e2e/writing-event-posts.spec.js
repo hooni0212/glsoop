@@ -7,6 +7,10 @@ const {
   DAILY_WRITING_CAMPAIGN_KEY,
   DAILY_WRITING_PROMPTS,
 } = require('../../utils/dailyWritingCampaign');
+const {
+  E2E_SESSION_PASSWORD_HASH,
+  loginWithSession,
+} = require('./session-auth');
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -98,6 +102,8 @@ async function seedUser(userId) {
   const email = getProjectUserEmail(userId);
   await withDb(async (db) => {
     await dbRun(db, 'PRAGMA foreign_keys = OFF');
+    await dbRun(db, 'DELETE FROM auth_sessions WHERE user_id = ?', [userId]);
+    await dbRun(db, 'DELETE FROM auth_login_state WHERE user_id = ?', [userId]);
     await dbRun(
       db,
       `DELETE FROM post_writing_event_contexts
@@ -111,7 +117,7 @@ async function seedUser(userId) {
       db,
       `INSERT INTO users (id, name, nickname, email, pw, is_admin, is_verified, account_status)
        VALUES (?, ?, ?, ?, ?, 0, 1, 'active')`,
-      [userId, 'Writing Event User', 'writing_event_user', email, 'password']
+      [userId, 'Writing Event User', 'writing_event_user', email, E2E_SESSION_PASSWORD_HASH]
     );
     await dbRun(db, 'PRAGMA foreign_keys = ON');
   });
@@ -121,6 +127,148 @@ test.describe('Writing event post contexts', () => {
   test.beforeEach(async ({}, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop-chrome', 'API coverage runs once.');
     await seedUser(getProjectUserId(testInfo));
+  });
+
+  test('exposes the current writing event for desktop clients', async ({ request }) => {
+    const response = await request.get(
+      `/api/writing-events/${encodeURIComponent(DAILY_WRITING_CAMPAIGN_KEY)}`
+    );
+    expect(response.status()).toBe(200);
+    const payload = await response.json();
+    expect(payload.ok).toBe(true);
+    expect(payload.event).toMatchObject({
+      key: DAILY_WRITING_CAMPAIGN_KEY,
+      total_days: DAILY_WRITING_PROMPTS.length,
+    });
+    expect(payload.today_prompt.write_path).toContain('campaignPromptKey=');
+    expect(payload.progress_steps).toHaveLength(DAILY_WRITING_PROMPTS.length);
+  });
+
+  test('renders the writing project across home, editor, and growth pages', async ({
+    page,
+    request,
+  }, testInfo) => {
+    await page.goto('/');
+    await expect(page.locator('#homeWritingCampaign')).toBeVisible();
+    await expect(page.locator('#homeWritingCampaign')).toContainText('글숲 한달 글쓰기 프로젝트');
+
+    const statusResponse = await request.get(
+      `/api/writing-events/${encodeURIComponent(DAILY_WRITING_CAMPAIGN_KEY)}`
+    );
+    const status = await statusResponse.json();
+    await loginWithSession(page, getProjectUserEmail(getProjectUserId(testInfo)), {
+      ip: '198.51.100.202',
+    });
+    await page.goto(status.today_prompt.write_path);
+    await expect(page.locator('#editorWritingCampaign')).toBeVisible();
+    await expect(page.locator('#editorWritingCampaign')).toContainText(status.today_prompt.title);
+    await expect(page.locator('#categorySelect')).toHaveValue(status.today_prompt.defaultCategory);
+
+    await page.goto('/html/growth.html');
+    await expect(page.locator('#growthWritingCampaignTitle')).toHaveText(
+      '글숲 한달 글쓰기 프로젝트'
+    );
+    await expect(page.locator('#growthWritingCampaign')).toContainText(status.today_prompt.title);
+  });
+
+  test('opens today prompt from home and remembers dismissing it for the day', async ({
+    page,
+    request,
+  }, testInfo) => {
+    const statusResponse = await request.get(
+      `/api/writing-events/${encodeURIComponent(DAILY_WRITING_CAMPAIGN_KEY)}`
+    );
+    const status = await statusResponse.json();
+    await loginWithSession(page, getProjectUserEmail(getProjectUserId(testInfo)), {
+      ip: '198.51.100.203',
+    });
+
+    await page.goto('/');
+    const campaign = page.locator('#homeWritingCampaign');
+    await expect(campaign).toBeVisible();
+    await campaign.getByRole('link', { name: '이 주제로 쓰기' }).click();
+    await expect(page).toHaveURL(/\/write\?.*campaignPromptKey=/);
+    await expect(page.locator('#editorWritingCampaign')).toContainText(status.today_prompt.title);
+
+    await page.goto('/');
+    await page.locator('#homeWritingCampaignDismiss').click();
+    await expect(campaign).toBeHidden();
+    const dismissKey = `glsoop:writing-campaign-notice-dismissed:${status.event.key}:${status.event.local_date_key}`;
+    expect(await page.evaluate((key) => localStorage.getItem(key), dismissKey)).toBe('1');
+
+    await page.reload();
+    await expect(campaign).toBeHidden();
+  });
+
+  test('publishes a campaign post through the editor and clears its draft', async ({
+    page,
+    request,
+  }, testInfo) => {
+    const userId = getProjectUserId(testInfo);
+    const headers = buildAuthHeaders(userId);
+    const statusResponse = await request.get(
+      `/api/writing-events/${encodeURIComponent(DAILY_WRITING_CAMPAIGN_KEY)}`
+    );
+    const status = await statusResponse.json();
+    await loginWithSession(page, getProjectUserEmail(userId), { ip: '198.51.100.204' });
+    page.on('dialog', (dialog) => dialog.accept());
+
+    await page.goto(status.today_prompt.write_path);
+    await page.locator('#postTitle').fill('브라우저에서 완성한 프로젝트 글');
+    await page.locator('.ql-editor').fill('홈의 오늘 글감에서 시작해 완성한 본문입니다.');
+    const draftKeyPrefix = `glsoop:editor:drafts:v2:user:${userId}:create:`;
+    await page.waitForFunction(
+      (prefix) => Object.keys(localStorage).some((key) => key.startsWith(prefix)),
+      draftKeyPrefix
+    );
+
+    const createResponsePromise = page.waitForResponse(
+      (response) => response.url().endsWith('/api/posts') && response.request().method() === 'POST'
+    );
+    await page.locator('#saveBtn').click();
+    const createResponse = await createResponsePromise;
+    expect(createResponse.status()).toBe(200);
+    const createPayload = await createResponse.json();
+    expect(createPayload.post_id).toBeTruthy();
+    expect(createResponse.request().postDataJSON()).toMatchObject({
+      title: '브라우저에서 완성한 프로젝트 글',
+      category: status.today_prompt.defaultCategory,
+      writing_event_context: {
+        event_key: DAILY_WRITING_CAMPAIGN_KEY,
+        prompt_key: status.today_prompt.key,
+      },
+    });
+    await expect(page).toHaveURL('/html/mypage.html');
+    expect(
+      await page.evaluate(
+        (prefix) => Object.keys(localStorage).filter((key) => key.startsWith(prefix)),
+        draftKeyPrefix
+      )
+    ).toHaveLength(0);
+
+    const listResponse = await request.get(
+      `/api/writing-events/${encodeURIComponent(DAILY_WRITING_CAMPAIGN_KEY)}/me/posts`,
+      { headers }
+    );
+    expect(listResponse.status()).toBe(200);
+    const listPayload = await listResponse.json();
+    expect(listPayload.posts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: '브라우저에서 완성한 프로젝트 글',
+          prompt_key: status.today_prompt.key,
+          prompt_day: status.today_prompt.day,
+        }),
+      ])
+    );
+
+    await page.goto('/html/growth.html');
+    const campaign = page.locator('#growthWritingCampaign');
+    await expect(campaign).toContainText('작성 1개');
+    await expect(campaign).toContainText('브라우저에서 완성한 프로젝트 글');
+    await expect(
+      campaign.locator(`a[href="/posts/${createPayload.post_id}"]`)
+    ).toHaveCount(2);
   });
 
   test('stores campaign prompt context and lists my event posts', async ({ request }, testInfo) => {

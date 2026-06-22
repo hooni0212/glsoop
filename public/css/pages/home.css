@@ -60,6 +60,101 @@ body.page-home::after {
   gap: var(--gls-section-gap, clamp(22px, 2.8vw, 36px));
 }
 
+.home-writing-campaign {
+  padding: clamp(22px, 3vw, 32px);
+  border: 1px solid color-mix(in srgb, var(--gls-home-accent) 28%, var(--gls-home-border));
+  background:
+    radial-gradient(circle at 92% 12%, rgba(197, 117, 43, 0.12), transparent 32%),
+    var(--gls-home-paper);
+}
+
+.home-writing-campaign__head,
+.home-writing-campaign__prompt,
+.home-writing-campaign__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.home-writing-campaign__eyebrow {
+  margin: 0 0 6px;
+  color: var(--gls-home-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.home-writing-campaign h2 {
+  margin: 0 0 6px;
+  font-family: var(--gls-font-serif, 'Hahmlet', serif);
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+}
+
+.home-writing-campaign__head p:not(.home-writing-campaign__eyebrow),
+.home-writing-campaign__prompt p {
+  margin: 0;
+  color: var(--gls-color-text-muted, #6f675c);
+}
+
+.home-writing-campaign__dismiss {
+  border: 0;
+  background: transparent;
+  color: var(--gls-color-text-muted, #6f675c);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.home-writing-campaign__prompt {
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--gls-home-accent) 7%, #fff);
+}
+
+.home-writing-campaign__prompt strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.home-writing-campaign__progress {
+  height: 7px;
+  margin-top: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(31, 107, 75, 0.14);
+}
+
+.home-writing-campaign__progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gls-home-accent);
+}
+
+.home-writing-campaign__meta {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: var(--gls-color-text-muted, #6f675c);
+}
+
+.home-writing-campaign__meta a {
+  color: var(--gls-home-accent);
+  font-weight: 700;
+}
+
+@media (max-width: 767.98px) {
+  .home-writing-campaign__head,
+  .home-writing-campaign__prompt {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .home-writing-campaign__prompt .gls-btn {
+    width: 100%;
+  }
+}
+
 .home-hero {
   position: relative;
   overflow: hidden;

@@ -1,0 +1,96 @@
+body.page-profile-customize { min-height: 100vh; }
+
+.page-profile-customize .profile-customize-main { padding: clamp(96px, 11vw, 124px) 0 132px; }
+.page-profile-customize .profile-customize-shell { max-width: 1180px; }
+
+.page-profile-customize .profile-customize-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: clamp(24px, 4vw, 36px);
+  margin-bottom: 22px;
+}
+
+.page-profile-customize .profile-customize-eyebrow { margin: 0 0 6px; color: var(--gls-color-primary, #1f6b4b); font-size: 0.76rem; font-weight: 800; letter-spacing: 0.14em; }
+.page-profile-customize .profile-customize-header h1 { margin: 0 0 6px; font-family: var(--gls-font-serif, 'Hahmlet', serif); font-size: clamp(1.7rem, 4vw, 2.3rem); }
+.page-profile-customize .profile-customize-header p:last-child { margin: 0; color: var(--gls-color-text-muted, #6f675c); }
+
+.page-profile-customize .profile-customize-grid { display: grid; grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.6fr); gap: 22px; align-items: start; }
+.page-profile-customize .profile-customize-preview { position: sticky; top: calc(var(--gls-nav-height, 84px) + 18px); padding: 22px; }
+.page-profile-customize .profile-customize-editor { overflow: hidden; }
+
+.page-profile-customize .profile-preview-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 350px;
+  padding: 30px 24px 22px;
+  border: 1px solid var(--preview-border);
+  border-radius: 24px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--preview-bg) 86%, #fff), var(--preview-bg));
+  box-shadow: 0 18px 34px rgba(36, 45, 38, 0.12);
+}
+
+.page-profile-customize .profile-preview-lines { position: absolute; inset: 0; opacity: 0.22; background: repeating-linear-gradient(0deg, transparent 0 31px, var(--preview-border) 32px 33px); pointer-events: none; }
+.page-profile-customize .profile-preview-kicker { position: relative; margin: 0 0 14px; color: var(--preview-accent); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.12em; }
+.page-profile-customize .profile-preview-name { position: relative; display: flex; align-items: center; gap: 9px; font-size: 1.2rem; }
+.page-profile-customize .profile-preview-avatar { display: grid; width: 46px; height: 46px; place-items: center; border: 1px solid var(--preview-border); border-radius: 16px; background: rgba(255,255,255,0.72); font-weight: 800; }
+.page-profile-customize .profile-preview-copy { position: relative; min-height: 72px; margin: 24px 0; color: var(--gls-color-text-muted, #6f675c); line-height: 1.65; }
+.page-profile-customize .profile-preview-showcase { position: relative; display: flex; min-height: 36px; gap: 6px; flex-wrap: wrap; }
+.page-profile-customize .profile-preview-showcase span { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--preview-border); border-radius: 10px; background: rgba(255,255,255,0.66); }
+.page-profile-customize .profile-preview-meta { position: relative; display: flex; gap: 14px; margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--preview-border); color: var(--gls-color-text-muted, #6f675c); font-size: 0.8rem; }
+.page-profile-customize .profile-preview-sticker { position: absolute; z-index: 2; font-size: 1.7rem; filter: drop-shadow(0 5px 8px rgba(0,0,0,0.1)); }
+.page-profile-customize .profile-preview-sticker.is-tl { top: 12px; left: 12px; }
+.page-profile-customize .profile-preview-sticker.is-tr { top: 12px; right: 12px; }
+.page-profile-customize .profile-preview-sticker.is-br { right: 12px; bottom: 12px; }
+.page-profile-customize .profile-preview-background-name { margin: 14px 0 0; text-align: center; color: var(--gls-color-text-muted, #6f675c); font-size: 0.85rem; }
+
+.page-profile-customize .profile-option-section { padding: 26px; border-bottom: 1px solid var(--gls-color-border, #ded6ca); }
+.page-profile-customize .profile-option-section:last-child { border-bottom: 0; }
+.page-profile-customize .profile-option-section__head { margin-bottom: 16px; }
+.page-profile-customize .profile-option-section__head h2 { margin: 0 0 4px; font-size: 1.05rem; }
+.page-profile-customize .profile-option-section__head p { margin: 0; color: var(--gls-color-text-muted, #6f675c); font-size: 0.86rem; }
+.page-profile-customize .profile-option-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.page-profile-customize .profile-option-grid.is-background { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.page-profile-customize .profile-option-grid.is-sticker { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.page-profile-customize .profile-option { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 70px; padding: 11px; border: 1px solid var(--gls-color-border, #ded6ca); border-radius: 14px; background: rgba(255,255,255,0.55); color: inherit; text-align: left; }
+.page-profile-customize .profile-option:hover,
+.page-profile-customize .profile-option:focus-visible { border-color: var(--gls-color-primary, #1f6b4b); outline: none; }
+.page-profile-customize .profile-option.is-selected { border-color: var(--gls-color-primary, #1f6b4b); background: color-mix(in srgb, var(--gls-color-primary, #1f6b4b) 7%, #fff); box-shadow: 0 0 0 1px var(--gls-color-primary, #1f6b4b); }
+.page-profile-customize .profile-option-emoji,
+.page-profile-customize .profile-option-swatch { flex: 0 0 auto; display: grid; width: 38px; height: 38px; place-items: center; border-radius: 11px; font-size: 1.2rem; }
+.page-profile-customize .profile-option-emoji { background: rgba(255,255,255,0.8); }
+.page-profile-customize .profile-option-swatch { border: 1px solid var(--swatch-b); background: linear-gradient(135deg, var(--swatch-a), var(--swatch-b)); }
+.page-profile-customize .profile-option-copy { min-width: 0; }
+.page-profile-customize .profile-option-copy strong,
+.page-profile-customize .profile-option-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-profile-customize .profile-option-copy strong { font-size: 0.84rem; }
+.page-profile-customize .profile-option-copy small { margin-top: 2px; color: var(--gls-color-text-muted, #6f675c); font-size: 0.72rem; }
+.page-profile-customize .profile-option-check { position: absolute; top: 6px; right: 7px; color: var(--gls-color-primary, #1f6b4b); opacity: 0; font-weight: 800; }
+.page-profile-customize .profile-option.is-selected .profile-option-check { opacity: 1; }
+.page-profile-customize .profile-sticker-slot + .profile-sticker-slot { margin-top: 18px; }
+.page-profile-customize .profile-sticker-slot h3 { margin: 0 0 9px; font-size: 0.88rem; }
+.page-profile-customize .profile-customize-state,
+.page-profile-customize .profile-customize-empty { margin: 0; padding: 44px 24px; color: var(--gls-color-text-muted, #6f675c); text-align: center; }
+.page-profile-customize .profile-customize-state.is-error { color: #a33d32; }
+
+.page-profile-customize .profile-customize-save-dock { position: fixed; z-index: 1040; left: 50%; bottom: 18px; display: flex; width: min(720px, calc(100% - 28px)); transform: translateX(-50%); align-items: center; justify-content: space-between; gap: 20px; padding: 14px 16px 14px 20px; border: 1px solid var(--gls-color-border, #ded6ca); border-radius: 18px; background: rgba(255,252,246,0.94); box-shadow: 0 18px 44px rgba(34,29,21,0.18); backdrop-filter: blur(14px); }
+.page-profile-customize .profile-customize-save-dock strong,
+.page-profile-customize .profile-customize-save-dock span { display: block; }
+.page-profile-customize .profile-customize-save-dock span { color: var(--gls-color-text-muted, #6f675c); font-size: 0.8rem; }
+
+@media (max-width: 991.98px) {
+  .page-profile-customize .profile-customize-grid { grid-template-columns: 1fr; }
+  .page-profile-customize .profile-customize-preview { position: static; }
+}
+
+@media (max-width: 575.98px) {
+  .page-profile-customize .profile-customize-header { align-items: flex-start; flex-direction: column; }
+  .page-profile-customize .profile-customize-header .gls-btn { width: 100%; }
+  .page-profile-customize .profile-option-grid,
+  .page-profile-customize .profile-option-grid.is-background,
+  .page-profile-customize .profile-option-grid.is-sticker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .page-profile-customize .profile-customize-save-dock { align-items: stretch; flex-direction: column; }
+  .page-profile-customize .profile-customize-save-dock .gls-btn { width: 100%; }
+}

@@ -88,6 +88,7 @@ test.describe('Legacy token deprecation', () => {
     const response = await request.get('/api/me', {
       headers: {
         Authorization: `Bearer ${token}`,
+        'x-auth-legacy-now': '2026-03-01T00:00:00+09:00',
       },
     });
 

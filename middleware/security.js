@@ -57,6 +57,11 @@ const corsOptions = {
 };
 
 const baseCspDirectives = {
+  // WebKit applies upgrade-insecure-requests to localhost as well, which breaks
+  // local HTTP assets. Keep the production HTTPS hardening without making the
+  // development server unusable in Safari/WebKit.
+  upgradeInsecureRequests: isProduction ? [] : null,
+
   // 기본: 같은 origin만
   defaultSrc: ["'self'"],
 

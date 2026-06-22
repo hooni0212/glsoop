@@ -91,16 +91,23 @@ const resetSessionState = async () => {
   await dbRun(db, 'DELETE FROM password_reset_tokens WHERE user_id = ?', [USER_ID]);
   await dbRun(
     db,
-    `UPDATE users
-     SET pw = ?,
-         reset_token = NULL,
-         reset_expires = NULL,
-         remember_login_enabled = 0,
-         account_status = 'active',
-         deactivated_at = NULL,
-         scheduled_purge_at = NULL
-     WHERE id = ?`,
-    [passwordHash, USER_ID]
+    `INSERT INTO users (
+       id, name, nickname, email, pw, is_admin, is_verified,
+       remember_login_enabled, account_status, deactivated_at, scheduled_purge_at
+     )
+     VALUES (?, ?, ?, ?, ?, 0, 1, 0, 'active', NULL, NULL)
+     ON CONFLICT(id) DO UPDATE SET
+       name = excluded.name,
+       nickname = excluded.nickname,
+       email = excluded.email,
+       pw = excluded.pw,
+       reset_token = NULL,
+       reset_expires = NULL,
+       remember_login_enabled = 0,
+       account_status = 'active',
+       deactivated_at = NULL,
+       scheduled_purge_at = NULL`,
+    [USER_ID, 'Auth Session User', 'auth_session_user', USER_EMAIL, passwordHash]
   );
   await dbRun(db, 'DELETE FROM likes WHERE user_id = ?', [USER_ID]);
   await dbRun(db, 'DELETE FROM posts WHERE user_id = ?', [USER_ID]);

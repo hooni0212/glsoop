@@ -1,4 +1,5 @@
 const db = require('../db');
+const { normalizeDeviceClass, normalizePlatformFamily } = require('./deviceAnalytics');
 
 const EVENT_NAME_PATTERN = /^[a-z0-9_]+$/;
 const MAX_EVENT_NAME_LENGTH = 64;
@@ -87,15 +88,31 @@ async function logUxEvent(payload = {}) {
   const propertiesJson = normalizePropertiesJson(
     payload.propertiesJson || payload.properties_json || payload.properties
   );
+  const deviceClass = normalizeDeviceClass(payload.deviceClass || payload.device_class);
+  const platformFamily = normalizePlatformFamily(
+    payload.platformFamily || payload.platform_family
+  );
 
   const userIdRaw = payload.userId ?? payload.user_id ?? null;
   const userId = normalizeUserId(userIdRaw);
 
   const result = await dbRun(
     `INSERT INTO ux_events
-      (user_id, event_name, source, session_id, anonymous_id, page_path, referrer, properties_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [userId, eventName, source, sessionId, anonymousId, pagePath, referrer, propertiesJson]
+      (user_id, event_name, source, session_id, anonymous_id, page_path, referrer, properties_json,
+       device_class, platform_family)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId,
+      eventName,
+      source,
+      sessionId,
+      anonymousId,
+      pagePath,
+      referrer,
+      propertiesJson,
+      deviceClass,
+      platformFamily,
+    ]
   );
 
   return {

@@ -74,5 +74,11 @@ module.exports = defineConfig({
         viewport: { width: 390, height: 844 },
       },
     },
+    {
+      name: 'mobile-webkit',
+      use: {
+        ...devices['iPhone 13'],
+      },
+    },
   ],
 });

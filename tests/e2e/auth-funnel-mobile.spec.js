@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Auth funnel on mobile', () => {
   test.beforeEach(async ({}, testInfo) => {
-    test.skip(testInfo.project.name !== 'mobile-chrome', 'Mobile only');
+    test.skip(!testInfo.project.name.startsWith('mobile-'), 'Mobile only');
   });
 
   test('renders login form first in initial viewport', async ({ page }) => {
