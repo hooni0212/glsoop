@@ -7,6 +7,7 @@ const {
   normalizePurchaseStatus,
   reconcileMonetizationState,
 } = require('../utils/monetizationState');
+const { getEffectiveEntitlement } = require('../utils/entitlements');
 
 const router = express.Router();
 
@@ -899,15 +900,7 @@ async function handleWebhook(provider, req, res) {
     });
 
     const entitlement = purchase.entitlement_key
-      ? await dbGet(
-          `
-          SELECT entitlement_key, status, starts_at, ends_at, source
-          FROM user_entitlements
-          WHERE user_id = ? AND entitlement_key = ?
-          LIMIT 1
-          `,
-          [purchase.user_id, purchase.entitlement_key]
-        )
+      ? await getEffectiveEntitlement(purchase.user_id, purchase.entitlement_key)
       : null;
 
     return res.json({

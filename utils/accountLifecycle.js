@@ -165,6 +165,11 @@ async function purgeUserAccount(userId, options = {}) {
       ['user_profile_photos', 'DELETE FROM user_profile_photos WHERE user_id = ?', [userId]],
       ['user_profile_backgrounds', 'DELETE FROM user_profile_backgrounds WHERE user_id = ?', [userId]],
       ['user_cosmetics', 'DELETE FROM user_cosmetics WHERE user_id = ?', [userId]],
+      [
+        'user_entitlement_grants',
+        'DELETE FROM user_entitlement_grants WHERE user_id = ?',
+        [userId],
+      ],
       ['user_entitlements', 'DELETE FROM user_entitlements WHERE user_id = ?', [userId]],
       ['user_consent_events', 'DELETE FROM user_consent_events WHERE user_id = ?', [userId]],
       ['ux_events', 'DELETE FROM ux_events WHERE user_id = ?', [userId]],

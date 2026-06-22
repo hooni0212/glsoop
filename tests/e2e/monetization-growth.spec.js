@@ -109,6 +109,7 @@ const seedGrowthMonetizationFixtures = async () => {
   );
 
   await dbRun(db, 'DELETE FROM user_entitlements WHERE user_id = ?', [PLAYER_ID]);
+  await dbRun(db, 'DELETE FROM user_entitlement_grants WHERE user_id = ?', [PLAYER_ID]);
   await dbRun(
     db,
     `DELETE FROM user_cosmetics
@@ -386,6 +387,28 @@ test.describe('Monetization + Growth entitlement lock', () => {
       status: 'active',
       source: 'admin',
     });
+
+    const db = new sqlite3.Database(DB_PATH);
+    const grant = await dbGet(
+      db,
+      `SELECT status, source, ends_at
+       FROM user_entitlement_grants
+       WHERE user_id = ? AND entitlement_key = ? AND source = 'admin'
+       LIMIT 1`,
+      [PLAYER_ID, REQUIRED_ENTITLEMENT]
+    );
+    const iapEntitlement = await dbGet(
+      db,
+      `SELECT id
+       FROM user_entitlements
+       WHERE user_id = ? AND entitlement_key = ?
+       LIMIT 1`,
+      [PLAYER_ID, REQUIRED_ENTITLEMENT]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(grant).toMatchObject({ status: 'active', source: 'admin', ends_at: null });
+    expect(iapEntitlement).toBeUndefined();
   });
 
   test('admin can auto-claim completed rewards after season ends', async ({ request }) => {
