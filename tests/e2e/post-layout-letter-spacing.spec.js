@@ -62,6 +62,7 @@ const resetLayoutWriterState = async () => {
   await dbRun(db, 'DELETE FROM likes WHERE user_id = ?', [USER_ID]);
   await dbRun(db, 'DELETE FROM posts WHERE user_id = ?', [USER_ID]);
   await dbRun(db, 'DELETE FROM user_entitlements WHERE user_id = ?', [USER_ID]);
+  await dbRun(db, 'DELETE FROM user_entitlement_grants WHERE user_id = ?', [USER_ID]);
   await dbRun(
     db,
     `UPDATE users
@@ -434,17 +435,17 @@ test.describe('Post layout letter spacing', () => {
     await dbRun(
       db,
       `
-      INSERT OR REPLACE INTO user_entitlements (
+      INSERT OR REPLACE INTO user_entitlement_grants (
         user_id,
         entitlement_key,
-        status,
         source,
+        status,
         starts_at,
         ends_at,
         meta_json,
         updated_at
       )
-      VALUES (?, 'premium:glsoop', 'active', 'admin', datetime('now'), datetime('now', '+7 days'), '{}', datetime('now'))
+      VALUES (?, 'premium:glsoop', 'admin', 'active', datetime('now'), datetime('now', '+7 days'), '{}', datetime('now'))
       `,
       [USER_ID]
     );

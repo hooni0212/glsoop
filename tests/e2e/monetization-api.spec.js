@@ -232,6 +232,11 @@ const seedMonetizationFixtures = async () => {
   );
   await dbRun(
     db,
+    'DELETE FROM user_entitlement_grants WHERE user_id IN (?, ?, ?)',
+    [TEST_USER_ID, TEST_USER_REFUND_ID, TEST_USER_SECOND_ID]
+  );
+  await dbRun(
+    db,
     `DELETE FROM monetization_webhook_events
      WHERE event_id LIKE 'e2e-%'
         OR user_id IN (?, ?, ?)`,
@@ -606,6 +611,16 @@ test.describe('Monetization API', () => {
     });
     expect(activateResponse.status()).toBe(200);
 
+    const grantResponse = await request.post('/api/admin/entitlements/grant', {
+      headers: authHeaders(adminToken),
+      data: {
+        user_id: TEST_USER_ID,
+        entitlement_key: 'premium:glsoop',
+        source: 'admin',
+      },
+    });
+    expect(grantResponse.status()).toBe(200);
+
     const webhookResponse = await request.post('/api/monetization/webhooks/apple', {
       headers: {
         'x-monetization-webhook-secret': 'e2e-webhook-secret',
@@ -626,6 +641,11 @@ test.describe('Monetization API', () => {
     expect(webhookPayload.event).toMatchObject({
       state: 'processed',
       matched_by_ownership: true,
+    });
+    expect(webhookPayload.entitlement).toMatchObject({
+      entitlement_key: 'premium:glsoop',
+      status: 'active',
+      source: 'admin',
     });
 
     const db = new sqlite3.Database(DB_PATH);
@@ -650,6 +670,14 @@ test.describe('Monetization API', () => {
        LIMIT 1`,
       [TEST_USER_ID, 'premium:glsoop']
     );
+    const grantRow = await dbGet(
+      db,
+      `SELECT status, source, ends_at
+       FROM user_entitlement_grants
+       WHERE user_id = ? AND entitlement_key = ? AND source = 'admin'
+       LIMIT 1`,
+      [TEST_USER_ID, 'premium:glsoop']
+    );
     await new Promise((resolve) => db.close(resolve));
 
     expect(ownershipRow).toMatchObject({
@@ -658,6 +686,22 @@ test.describe('Monetization API', () => {
     });
     expect(purchaseRow.status).toBe('expired');
     expect(entitlementRow).toMatchObject({ status: 'inactive', source: 'iap' });
+    expect(grantRow).toMatchObject({ status: 'active', source: 'admin', ends_at: null });
+
+    const entitlementsResponse = await request.get('/api/entitlements/me', {
+      headers: authHeaders(buyerToken),
+    });
+    expect(entitlementsResponse.status()).toBe(200);
+    await expect(entitlementsResponse.json()).resolves.toMatchObject({
+      ok: true,
+      entitlements: expect.arrayContaining([
+        expect.objectContaining({
+          entitlement_key: 'premium:glsoop',
+          status: 'active',
+          source: 'admin',
+        }),
+      ]),
+    });
   });
 
   test('returns RESOURCE_NOT_FOUND for unknown sku', async ({ request }) => {

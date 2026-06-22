@@ -105,18 +105,22 @@ const seedPhotoSaveFixtures = async () => {
     TEST_USER_ID,
     TEST_PREMIUM_USER_ID,
   ]);
+  await dbRun(db, 'DELETE FROM user_entitlement_grants WHERE user_id IN (?, ?)', [
+    TEST_USER_ID,
+    TEST_PREMIUM_USER_ID,
+  ]);
   await dbRun(
     db,
-    `INSERT OR REPLACE INTO user_entitlements (
+    `INSERT OR REPLACE INTO user_entitlement_grants (
       user_id,
       entitlement_key,
-      status,
       source,
+      status,
       starts_at,
       ends_at,
       meta_json
     )
-    VALUES (?, 'premium:glsoop', 'active', 'admin', CURRENT_TIMESTAMP, NULL, '{}')`,
+    VALUES (?, 'premium:glsoop', 'admin', 'active', CURRENT_TIMESTAMP, NULL, '{}')`,
     [TEST_PREMIUM_USER_ID]
   );
 

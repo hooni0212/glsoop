@@ -7,6 +7,7 @@ const {
   mergeMonetizationRawJson,
   reconcileMonetizationState,
 } = require('../utils/monetizationState');
+const { listEffectiveEntitlements } = require('../utils/entitlements');
 const {
   PurchaseVerificationError,
   resolveVerifyDecision,
@@ -489,21 +490,7 @@ router.get('/store/catalog', async (req, res) => {
 router.get('/entitlements/me', authRequired, async (req, res) => {
   try {
     await reconcileMonetizationState({ userId: req.user.id });
-
-    const rows = await dbAll(
-      `
-      SELECT
-        entitlement_key,
-        status,
-        starts_at,
-        ends_at,
-        source
-      FROM user_entitlements
-      WHERE user_id = ?
-      ORDER BY entitlement_key ASC
-      `,
-      [req.user.id]
-    );
+    const rows = await listEffectiveEntitlements(req.user.id);
 
     return res.json({
       ok: true,

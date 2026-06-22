@@ -8,6 +8,7 @@ const sharp = require('sharp');
 
 const db = require('../db');
 const { authRequired } = require('../middleware/auth');
+const { hasActiveEntitlement } = require('../utils/entitlements');
 
 const router = express.Router();
 
@@ -88,20 +89,7 @@ function mapProfilePhoto(row) {
 
 async function hasActivePremium(userId) {
   if (!premiumRequired) return true;
-
-  const row = await dbGet(
-    `
-    SELECT 1 AS present
-    FROM user_entitlements
-    WHERE user_id = ?
-      AND entitlement_key = ?
-      AND status = 'active'
-      AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
-    LIMIT 1
-    `,
-    [userId, premiumEntitlementKey]
-  );
-  return Boolean(row?.present);
+  return hasActiveEntitlement(userId, premiumEntitlementKey);
 }
 
 async function fetchCurrentProfilePhoto(userId) {
