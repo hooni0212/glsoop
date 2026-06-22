@@ -2147,7 +2147,11 @@ router.get('/ux-events/summary', async (req, res) => {
           [...params, topLimit]
         ),
         allAsync(
-          `SELECT ue.source, COUNT(*) AS event_count
+          `SELECT
+             ue.source,
+             COUNT(*) AS event_count,
+             COUNT(DISTINCT CASE WHEN ue.session_id IS NOT NULL THEN ue.session_id END) AS unique_session_count,
+             COUNT(DISTINCT CASE WHEN ue.user_id IS NOT NULL THEN ue.user_id END) AS unique_user_count
            FROM ux_events ue
            ${whereClause}
            GROUP BY ue.source

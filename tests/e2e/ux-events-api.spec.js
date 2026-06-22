@@ -242,6 +242,63 @@ test.describe('UX events API', () => {
     expect(JSON.parse(row.properties_json)).toMatchObject({ document_title: expect.any(String) });
   });
 
+  test('records native app events with explicit app source and platform dimensions', async ({ request }) => {
+    const cases = [
+      {
+        sessionId: 'sess_native_ios',
+        headers: {
+          'X-Glsoop-Client': 'native_app',
+          'X-Glsoop-Platform': 'ios',
+          'X-Glsoop-Device-Class': 'mobile',
+        },
+        deviceClass: 'mobile',
+        platformFamily: 'ios',
+      },
+      {
+        sessionId: 'sess_native_android_tablet',
+        headers: {
+          'X-Glsoop-Client': 'native_app',
+          'X-Glsoop-Platform': 'android',
+          'X-Glsoop-Device-Class': 'tablet',
+        },
+        deviceClass: 'tablet',
+        platformFamily: 'android',
+      },
+    ];
+
+    for (const item of cases) {
+      const response = await request.post('/api/ux-events', {
+        headers: item.headers,
+        data: {
+          event_name: 'native_app_open',
+          session_id: item.sessionId,
+          anonymous_id: `anon_${item.sessionId}`,
+          page_path: '/(tabs)',
+        },
+      });
+      expect(response.status()).toBe(202);
+    }
+
+    const db = new sqlite3.Database(DB_PATH);
+    for (const item of cases) {
+      const row = await dbGet(
+        db,
+        `SELECT source, device_class, platform_family
+         FROM ux_events
+         WHERE session_id = ?
+         ORDER BY id DESC
+         LIMIT 1`,
+        [item.sessionId]
+      );
+      expect(row).toMatchObject({
+        source: 'native_client',
+        device_class: item.deviceClass,
+        platform_family: item.platformFamily,
+      });
+    }
+    await new Promise((resolve) => db.close(resolve));
+  });
+
   test('classifies desktop, tablet, and automated user agents without storing raw values', async ({ request }) => {
     const cases = [
       {

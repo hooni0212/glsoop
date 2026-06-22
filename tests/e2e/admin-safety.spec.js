@@ -465,6 +465,20 @@ async function mockAdminBootApis(page, options = {}) {
             unique_session_count: 3,
             anonymous_count: 4,
           },
+          by_source: [
+            {
+              source: 'native_client',
+              event_count: 18,
+              unique_session_count: 2,
+              unique_user_count: 1,
+            },
+            {
+              source: 'web_client',
+              event_count: 12,
+              unique_session_count: 1,
+              unique_user_count: 1,
+            },
+          ],
           by_device: [
             {
               device_class: 'mobile',
@@ -831,8 +845,10 @@ test.describe('Admin dangerous action safety', () => {
     await expect(page.locator('#adminDeviceAnalytics')).toContainText('고유 세션');
     await expect(page.locator('#adminDeviceAnalytics')).toContainText('모바일');
     await expect(page.locator('#adminDeviceAnalytics')).toContainText('iOS/iPadOS');
+    await expect(page.locator('#adminDeviceAnalytics')).toContainText('네이티브 앱');
     await expect(page.locator('#adminDeviceAnalytics')).toContainText('66.7%');
 
+    await page.selectOption('#adminDeviceSource', 'native_client');
     await page.selectOption('#adminDeviceClass', 'mobile');
     await page.selectOption('#adminPlatformFamily', 'ios');
     await page.selectOption('#adminDeviceUserType', 'authenticated');
@@ -840,6 +856,7 @@ test.describe('Admin dangerous action safety', () => {
 
     await expect.poll(() => analyticsRequests.length).toBeGreaterThanOrEqual(2);
     const appliedRequest = analyticsRequests.at(-1);
+    expect(appliedRequest.searchParams.get('source')).toBe('native_client');
     expect(appliedRequest.searchParams.get('device_class')).toBe('mobile');
     expect(appliedRequest.searchParams.get('platform_family')).toBe('ios');
     expect(appliedRequest.searchParams.get('user_type')).toBe('authenticated');

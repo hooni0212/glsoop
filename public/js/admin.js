@@ -50,6 +50,7 @@ Glsoop.AdminPage = (function () {
   const deviceAnalyticsState = {
     from: '',
     to: '',
+    source: 'all',
     deviceClass: 'all',
     platformFamily: 'all',
     userType: 'all',
@@ -1541,6 +1542,16 @@ Glsoop.AdminPage = (function () {
       '  <label>종료일<input type="date" class="gls-input gls-input-sm" id="adminDeviceTo" value="' +
         escapeHtml(deviceAnalyticsState.to) +
         '"></label>',
+      '  <label>접속 경로<select class="gls-select gls-select-sm" id="adminDeviceSource">' +
+        buildAdminSelectOptions(
+          [
+            ['all', '전체'],
+            ['web_client', '웹'],
+            ['native_client', '네이티브 앱'],
+          ],
+          deviceAnalyticsState.source
+        ) +
+        '</select></label>',
       '  <label>기기<select class="gls-select gls-select-sm" id="adminDeviceClass">' +
         buildAdminSelectOptions(
           [
@@ -1598,6 +1609,10 @@ Glsoop.AdminPage = (function () {
   function applyDeviceAnalyticsFilters(filterBox) {
     deviceAnalyticsState.from = filterBox.querySelector('#adminDeviceFrom')?.value?.trim() || '';
     deviceAnalyticsState.to = filterBox.querySelector('#adminDeviceTo')?.value?.trim() || '';
+    deviceAnalyticsState.source = normalizeAdminFilterValue(
+      filterBox.querySelector('#adminDeviceSource')?.value,
+      ['all', 'web_client', 'native_client']
+    );
     deviceAnalyticsState.deviceClass = normalizeAdminFilterValue(
       filterBox.querySelector('#adminDeviceClass')?.value,
       ['all', 'desktop', 'mobile', 'tablet', 'unknown']
@@ -1620,6 +1635,7 @@ Glsoop.AdminPage = (function () {
   function resetDeviceAnalyticsFilters() {
     deviceAnalyticsState.from = '';
     deviceAnalyticsState.to = '';
+    deviceAnalyticsState.source = 'all';
     deviceAnalyticsState.deviceClass = 'all';
     deviceAnalyticsState.platformFamily = 'all';
     deviceAnalyticsState.userType = 'all';
@@ -1630,6 +1646,7 @@ Glsoop.AdminPage = (function () {
 
     try {
       const params = new URLSearchParams({
+        source: deviceAnalyticsState.source,
         device_class: deviceAnalyticsState.deviceClass,
         platform_family: deviceAnalyticsState.platformFamily,
         user_type: deviceAnalyticsState.userType,
@@ -1678,6 +1695,7 @@ Glsoop.AdminPage = (function () {
 
   function renderDeviceAnalyticsHtml(payload) {
     const summary = payload?.summary || {};
+    const bySource = Array.isArray(payload?.by_source) ? payload.by_source : [];
     const byDevice = Array.isArray(payload?.by_device) ? payload.by_device : [];
     const byPlatform = Array.isArray(payload?.by_platform) ? payload.by_platform : [];
     const daily = Array.isArray(payload?.daily) ? payload.daily : [];
@@ -1686,6 +1704,10 @@ Glsoop.AdminPage = (function () {
       0
     );
     const totalPlatformSessions = byPlatform.reduce(
+      (sum, row) => sum + toCount(row?.unique_session_count),
+      0
+    );
+    const totalSourceSessions = bySource.reduce(
       (sum, row) => sum + toCount(row?.unique_session_count),
       0
     );
@@ -1703,6 +1725,9 @@ Glsoop.AdminPage = (function () {
     const platformRows = byPlatform
       .map((row) => buildDeviceAnalyticsRow(row, 'platform_family', totalPlatformSessions))
       .join('');
+    const sourceRows = bySource
+      .map((row) => buildDeviceAnalyticsRow(row, 'source', totalSourceSessions))
+      .join('');
     const dailyRows = daily
       .map((row) => {
         return (
@@ -1719,6 +1744,7 @@ Glsoop.AdminPage = (function () {
     return [
       '<div class="admin-share-summary-grid gls-mb-3">' + cardsHtml + '</div>',
       '<div class="admin-share-table-grid">',
+      buildDeviceAnalyticsTable('접속 경로별', '접속 경로', sourceRows),
       buildDeviceAnalyticsTable('기기 유형별', '기기', deviceRows),
       buildDeviceAnalyticsTable('운영체제별', '운영체제', platformRows),
       '</div>',
@@ -1772,6 +1798,8 @@ Glsoop.AdminPage = (function () {
       macos: 'macOS',
       linux: 'Linux',
       chromeos: 'ChromeOS',
+      web_client: '웹',
+      native_client: '네이티브 앱',
       unknown: '알 수 없음',
     };
     const sessionCount = toCount(row?.unique_session_count);

@@ -67,8 +67,36 @@ function classifyUserAgent(value) {
   return { deviceClass: 'unknown', platformFamily: 'unknown' };
 }
 
+function resolveUxEventClient({ clientType, deviceClass, platformFamily, userAgent } = {}) {
+  const normalizedClientType =
+    typeof clientType === 'string' ? clientType.trim().toLowerCase() : '';
+  const normalizedPlatform = normalizePlatformFamily(platformFamily);
+
+  if (
+    normalizedClientType === 'native_app' &&
+    (normalizedPlatform === 'ios' || normalizedPlatform === 'android')
+  ) {
+    const normalizedDevice = normalizeDeviceClass(deviceClass);
+    return {
+      source: 'native_client',
+      deviceClass:
+        normalizedDevice === 'mobile' || normalizedDevice === 'tablet'
+          ? normalizedDevice
+          : 'mobile',
+      platformFamily: normalizedPlatform,
+    };
+  }
+
+  const classified = classifyUserAgent(userAgent);
+  return {
+    source: 'web_client',
+    ...classified,
+  };
+}
+
 module.exports = {
   classifyUserAgent,
   normalizeDeviceClass,
   normalizePlatformFamily,
+  resolveUxEventClient,
 };
