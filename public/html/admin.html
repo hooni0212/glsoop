@@ -126,6 +126,10 @@
               <span class="admin-tab-label">공유</span>
               <span class="admin-tab-count" data-tab-count="shareSummaryTab">-</span>
             </button>
+            <button class="nav-link" data-target="deviceAnalyticsTab" type="button">
+              <span class="admin-tab-label">접속 환경</span>
+              <span class="admin-tab-count" data-tab-count="deviceAnalyticsTab">-</span>
+            </button>
             <button class="nav-link" data-target="pushTab" type="button">
               <span class="admin-tab-label">푸시</span>
               <span class="admin-tab-count" data-tab-count="pushTab">-</span>
@@ -285,6 +289,26 @@
                   </div>
                   <div id="adminShareSummary">
                     <p class="gls-text-muted">공유 이벤트 통계를 불러오는 중입니다...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tab-panel gls-hidden" id="deviceAnalyticsTab">
+              <div class="admin-panel card glass-card gls-mb-4">
+                <div class="card-body">
+                  <div class="gls-flex gls-flex-wrap gls-gap-2 gls-items-center gls-justify-between gls-mb-3 sticky-admin-toolbar">
+                    <div>
+                      <h3 class="gls-mb-0">접속 환경</h3>
+                      <p class="gls-text-muted gls-text-small gls-mb-0">기기 유형과 운영체제별 접속 분포를 확인하세요.</p>
+                    </div>
+                    <div class="admin-filter-group" id="adminDeviceAnalyticsFilters"></div>
+                  </div>
+                  <p class="admin-device-privacy-note gls-text-small gls-mb-3">
+                    User-Agent 기반 추정치입니다. 이 접속 통계에는 원본 User-Agent를 별도 저장하지 않으며 사용자별 기기 정보도 표시하지 않습니다.
+                  </p>
+                  <div id="adminDeviceAnalytics">
+                    <p class="gls-text-muted">접속 환경 통계를 불러오는 중입니다...</p>
                   </div>
                 </div>
               </div>

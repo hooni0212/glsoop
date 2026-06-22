@@ -47,6 +47,15 @@ Glsoop.AdminPage = (function () {
     initialized: false,
   };
 
+  const deviceAnalyticsState = {
+    from: '',
+    to: '',
+    deviceClass: 'all',
+    platformFamily: 'all',
+    userType: 'all',
+    initialized: false,
+  };
+
   const pushState = {
     title: '오늘의 기록을 아직 남기지 않았다면',
     body: '짧은 문장 하나로 오늘의 마음을 남겨보세요.',
@@ -173,6 +182,7 @@ Glsoop.AdminPage = (function () {
     const usersBox = document.getElementById('adminUsers');
     const postsBox = document.getElementById('adminPosts');
     const shareSummaryBox = document.getElementById('adminShareSummary');
+    const deviceAnalyticsBox = document.getElementById('adminDeviceAnalytics');
     const pushBox = document.getElementById('adminPushControls');
     const safetyReportsBox = document.getElementById('adminSafetyReports');
     const reportedPostsBox = document.getElementById('adminReportedPosts');
@@ -183,12 +193,13 @@ Glsoop.AdminPage = (function () {
       !usersBox ||
       !postsBox ||
       !shareSummaryBox ||
+      !deviceAnalyticsBox ||
       !pushBox ||
       !safetyReportsBox ||
       !reportedPostsBox
     ) {
       console.error(
-        'adminStatus / adminContent / adminUsers / adminPosts / adminShareSummary / adminPushControls / adminSafetyReports / adminReportedPosts 요소를 찾을 수 없습니다.'
+        'adminStatus / adminContent / adminUsers / adminPosts / adminShareSummary / adminDeviceAnalytics / adminPushControls / adminSafetyReports / adminReportedPosts 요소를 찾을 수 없습니다.'
       );
       return;
     }
@@ -224,6 +235,7 @@ Glsoop.AdminPage = (function () {
     await loadQuestCampaigns();
     setupAchievementBackfillButton();
     setupShareSummaryUi(shareSummaryBox);
+    setupDeviceAnalyticsUi(deviceAnalyticsBox);
     setupPushUi(pushBox);
     await loadPushDashboard(pushBox);
   }
@@ -1493,6 +1505,287 @@ Glsoop.AdminPage = (function () {
       '  </div>',
       '</section>',
     ].join('');
+  }
+
+  function setupDeviceAnalyticsUi(deviceAnalyticsBox) {
+    const filterBox = document.getElementById('adminDeviceAnalyticsFilters');
+    if (!deviceAnalyticsBox || !filterBox || deviceAnalyticsState.initialized) return;
+
+    deviceAnalyticsState.initialized = true;
+    renderDeviceAnalyticsFilters(filterBox);
+
+    filterBox.addEventListener('submit', (e) => {
+      if (e.target.id !== 'adminDeviceAnalyticsForm') return;
+      e.preventDefault();
+      applyDeviceAnalyticsFilters(filterBox);
+      loadDeviceAnalytics(deviceAnalyticsBox);
+    });
+
+    filterBox.addEventListener('click', (e) => {
+      if (e.target.id !== 'adminDeviceReset') return;
+      e.preventDefault();
+      resetDeviceAnalyticsFilters();
+      renderDeviceAnalyticsFilters(filterBox);
+      loadDeviceAnalytics(deviceAnalyticsBox);
+    });
+
+    loadDeviceAnalytics(deviceAnalyticsBox);
+  }
+
+  function renderDeviceAnalyticsFilters(filterBox) {
+    filterBox.innerHTML = [
+      '<form id="adminDeviceAnalyticsForm" class="admin-toolbar admin-share-toolbar">',
+      '  <label>시작일<input type="date" class="gls-input gls-input-sm" id="adminDeviceFrom" value="' +
+        escapeHtml(deviceAnalyticsState.from) +
+        '"></label>',
+      '  <label>종료일<input type="date" class="gls-input gls-input-sm" id="adminDeviceTo" value="' +
+        escapeHtml(deviceAnalyticsState.to) +
+        '"></label>',
+      '  <label>기기<select class="gls-select gls-select-sm" id="adminDeviceClass">' +
+        buildAdminSelectOptions(
+          [
+            ['all', '전체'],
+            ['desktop', '데스크탑'],
+            ['mobile', '모바일'],
+            ['tablet', '태블릿'],
+            ['unknown', '알 수 없음'],
+          ],
+          deviceAnalyticsState.deviceClass
+        ) +
+        '</select></label>',
+      '  <label>운영체제<select class="gls-select gls-select-sm" id="adminPlatformFamily">' +
+        buildAdminSelectOptions(
+          [
+            ['all', '전체'],
+            ['ios', 'iOS/iPadOS'],
+            ['android', 'Android'],
+            ['windows', 'Windows'],
+            ['macos', 'macOS'],
+            ['linux', 'Linux'],
+            ['chromeos', 'ChromeOS'],
+            ['unknown', '알 수 없음'],
+          ],
+          deviceAnalyticsState.platformFamily
+        ) +
+        '</select></label>',
+      '  <label>사용자<select class="gls-select gls-select-sm" id="adminDeviceUserType">' +
+        buildAdminSelectOptions(
+          [
+            ['all', '전체'],
+            ['authenticated', '로그인'],
+            ['anonymous', '비로그인'],
+          ],
+          deviceAnalyticsState.userType
+        ) +
+        '</select></label>',
+      '  <div class="admin-share-toolbar__actions">',
+      '    <button class="gls-btn gls-btn-primary gls-btn-sm" type="submit" id="adminDeviceApply">적용</button>',
+      '    <button class="gls-btn gls-btn-secondary gls-btn-sm" type="button" id="adminDeviceReset">초기화</button>',
+      '  </div>',
+      '</form>',
+    ].join('');
+  }
+
+  function buildAdminSelectOptions(options, selected) {
+    return options
+      .map(([value, label]) => {
+        const selectedAttr = value === selected ? ' selected' : '';
+        return '<option value="' + value + '"' + selectedAttr + '>' + label + '</option>';
+      })
+      .join('');
+  }
+
+  function applyDeviceAnalyticsFilters(filterBox) {
+    deviceAnalyticsState.from = filterBox.querySelector('#adminDeviceFrom')?.value?.trim() || '';
+    deviceAnalyticsState.to = filterBox.querySelector('#adminDeviceTo')?.value?.trim() || '';
+    deviceAnalyticsState.deviceClass = normalizeAdminFilterValue(
+      filterBox.querySelector('#adminDeviceClass')?.value,
+      ['all', 'desktop', 'mobile', 'tablet', 'unknown']
+    );
+    deviceAnalyticsState.platformFamily = normalizeAdminFilterValue(
+      filterBox.querySelector('#adminPlatformFamily')?.value,
+      ['all', 'ios', 'android', 'windows', 'macos', 'linux', 'chromeos', 'unknown']
+    );
+    deviceAnalyticsState.userType = normalizeAdminFilterValue(
+      filterBox.querySelector('#adminDeviceUserType')?.value,
+      ['all', 'authenticated', 'anonymous']
+    );
+  }
+
+  function normalizeAdminFilterValue(value, allowed) {
+    const normalized = String(value || 'all').trim().toLowerCase();
+    return allowed.includes(normalized) ? normalized : 'all';
+  }
+
+  function resetDeviceAnalyticsFilters() {
+    deviceAnalyticsState.from = '';
+    deviceAnalyticsState.to = '';
+    deviceAnalyticsState.deviceClass = 'all';
+    deviceAnalyticsState.platformFamily = 'all';
+    deviceAnalyticsState.userType = 'all';
+  }
+
+  async function loadDeviceAnalytics(deviceAnalyticsBox) {
+    deviceAnalyticsBox.innerHTML = '<p class="gls-text-muted">접속 환경 통계를 불러오는 중입니다...</p>';
+
+    try {
+      const params = new URLSearchParams({
+        device_class: deviceAnalyticsState.deviceClass,
+        platform_family: deviceAnalyticsState.platformFamily,
+        user_type: deviceAnalyticsState.userType,
+        top_limit: '10',
+        daily_limit: '30',
+      });
+      if (deviceAnalyticsState.from) params.set('from', deviceAnalyticsState.from);
+      if (deviceAnalyticsState.to) params.set('to', deviceAnalyticsState.to);
+
+      const response = await fetch('/api/admin/ux-events/summary?' + params.toString(), {
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        alert('로그인이 필요한 페이지입니다.');
+        window.location.href = '/html/login.html?next=/admin';
+        return;
+      }
+
+      if (response.status === 403) {
+        alert('관리자 권한이 필요합니다.');
+        window.location.href = '/index.html';
+        return;
+      }
+
+      if (!response.ok || !payload.ok) {
+        setTabCount('deviceAnalyticsTab', '-');
+        const message =
+          typeof payload.message === 'string'
+            ? payload.message
+            : '접속 환경 통계를 불러오지 못했습니다.';
+        deviceAnalyticsBox.innerHTML = '<p class="text-danger">' + escapeHtml(message) + '</p>';
+        return;
+      }
+
+      setTabCount('deviceAnalyticsTab', Number(payload?.summary?.unique_session_count || 0));
+      deviceAnalyticsBox.innerHTML = renderDeviceAnalyticsHtml(payload);
+    } catch (error) {
+      console.error('device analytics 로드 실패:', error);
+      setTabCount('deviceAnalyticsTab', '-');
+      deviceAnalyticsBox.innerHTML =
+        '<p class="text-danger">접속 환경 통계를 불러오는 중 오류가 발생했습니다.</p>';
+    }
+  }
+
+  function renderDeviceAnalyticsHtml(payload) {
+    const summary = payload?.summary || {};
+    const byDevice = Array.isArray(payload?.by_device) ? payload.by_device : [];
+    const byPlatform = Array.isArray(payload?.by_platform) ? payload.by_platform : [];
+    const daily = Array.isArray(payload?.daily) ? payload.daily : [];
+    const totalDeviceSessions = byDevice.reduce(
+      (sum, row) => sum + toCount(row?.unique_session_count),
+      0
+    );
+    const totalPlatformSessions = byPlatform.reduce(
+      (sum, row) => sum + toCount(row?.unique_session_count),
+      0
+    );
+
+    const cardsHtml = [
+      buildShareMetricCard('총 이벤트', formatCount(summary.total_count), '필터 조건 전체'),
+      buildShareMetricCard('고유 세션', formatCount(summary.unique_session_count), '탭 배지 기준'),
+      buildShareMetricCard('로그인 사용자', formatCount(summary.unique_user_count), '고유 회원 기준'),
+      buildShareMetricCard('비로그인 이벤트', formatCount(summary.anonymous_count), '사용자 식별값 없음'),
+    ].join('');
+
+    const deviceRows = byDevice
+      .map((row) => buildDeviceAnalyticsRow(row, 'device_class', totalDeviceSessions))
+      .join('');
+    const platformRows = byPlatform
+      .map((row) => buildDeviceAnalyticsRow(row, 'platform_family', totalPlatformSessions))
+      .join('');
+    const dailyRows = daily
+      .map((row) => {
+        return (
+          '<tr>' +
+          '<td>' + escapeHtml(row?.day || '-') + '</td>' +
+          '<td class="gls-text-end">' + formatCount(row?.unique_session_count) + '</td>' +
+          '<td class="gls-text-end">' + formatCount(row?.unique_user_count) + '</td>' +
+          '<td class="gls-text-end">' + formatCount(row?.total_count) + '</td>' +
+          '</tr>'
+        );
+      })
+      .join('');
+
+    return [
+      '<div class="admin-share-summary-grid gls-mb-3">' + cardsHtml + '</div>',
+      '<div class="admin-share-table-grid">',
+      buildDeviceAnalyticsTable('기기 유형별', '기기', deviceRows),
+      buildDeviceAnalyticsTable('운영체제별', '운영체제', platformRows),
+      '</div>',
+      '<section class="admin-share-table-card card glass-card gls-mt-3">',
+      '  <div class="card-body">',
+      '    <h5 class="gls-mb-2">일별 추이</h5>',
+      '    <div class="table-responsive">',
+      '      <table class="table table-sm align-middle">',
+      '        <thead><tr><th>일자</th><th class="gls-text-end">세션</th><th class="gls-text-end">로그인 사용자</th><th class="gls-text-end">이벤트</th></tr></thead>',
+      '        <tbody>' +
+        (dailyRows ||
+          '<tr><td colspan="4" class="gls-text-muted gls-text-center">데이터가 없습니다.</td></tr>') +
+        '</tbody>',
+      '      </table>',
+      '    </div>',
+      '  </div>',
+      '</section>',
+    ].join('');
+  }
+
+  function buildDeviceAnalyticsTable(title, dimensionLabel, rows) {
+    return [
+      '<section class="admin-share-table-card card glass-card">',
+      '  <div class="card-body">',
+      '    <h5 class="gls-mb-2">' + escapeHtml(title) + '</h5>',
+      '    <div class="table-responsive">',
+      '      <table class="table table-sm align-middle">',
+      '        <thead><tr><th>' +
+        escapeHtml(dimensionLabel) +
+        '</th><th class="gls-text-end">세션</th><th class="gls-text-end">비율</th><th class="gls-text-end">이벤트</th><th class="gls-text-end">회원</th></tr></thead>',
+      '        <tbody>' +
+        (rows ||
+          '<tr><td colspan="5" class="gls-text-muted gls-text-center">데이터가 없습니다.</td></tr>') +
+        '</tbody>',
+      '      </table>',
+      '    </div>',
+      '  </div>',
+      '</section>',
+    ].join('');
+  }
+
+  function buildDeviceAnalyticsRow(row, dimensionKey, totalSessions) {
+    const rawValue = String(row?.[dimensionKey] || 'unknown').toLowerCase();
+    const labels = {
+      desktop: '데스크탑',
+      mobile: '모바일',
+      tablet: '태블릿',
+      ios: 'iOS/iPadOS',
+      android: 'Android',
+      windows: 'Windows',
+      macos: 'macOS',
+      linux: 'Linux',
+      chromeos: 'ChromeOS',
+      unknown: '알 수 없음',
+    };
+    const sessionCount = toCount(row?.unique_session_count);
+    const rate = totalSessions > 0 ? ((sessionCount * 100) / totalSessions).toFixed(1) : '0.0';
+
+    return (
+      '<tr>' +
+      '<td>' + escapeHtml(labels[rawValue] || rawValue) + '</td>' +
+      '<td class="gls-text-end">' + formatCount(sessionCount) + '</td>' +
+      '<td class="gls-text-end">' + escapeHtml(rate) + '%</td>' +
+      '<td class="gls-text-end">' + formatCount(row?.event_count) + '</td>' +
+      '<td class="gls-text-end">' + formatCount(row?.unique_user_count) + '</td>' +
+      '</tr>'
+    );
   }
 
   function buildShareMetricCard(title, value, hint) {

@@ -450,6 +450,62 @@ async function mockAdminBootApis(page, options = {}) {
     })
   );
 
+  await page.route('**/api/admin/ux-events/summary**', (route) => {
+    const requestUrl = new URL(route.request().url());
+    options.onDeviceAnalyticsRequest?.({ requestUrl });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(
+        options.deviceAnalyticsPayload || {
+          ok: true,
+          summary: {
+            total_count: 30,
+            unique_user_count: 2,
+            unique_session_count: 3,
+            anonymous_count: 4,
+          },
+          by_device: [
+            {
+              device_class: 'mobile',
+              event_count: 20,
+              unique_session_count: 2,
+              unique_user_count: 1,
+            },
+            {
+              device_class: 'desktop',
+              event_count: 10,
+              unique_session_count: 1,
+              unique_user_count: 1,
+            },
+          ],
+          by_platform: [
+            {
+              platform_family: 'ios',
+              event_count: 20,
+              unique_session_count: 2,
+              unique_user_count: 1,
+            },
+            {
+              platform_family: 'macos',
+              event_count: 10,
+              unique_session_count: 1,
+              unique_user_count: 1,
+            },
+          ],
+          daily: [
+            {
+              day: '2026-06-22',
+              total_count: 30,
+              unique_session_count: 3,
+              unique_user_count: 2,
+            },
+          ],
+        }
+      ),
+    });
+  });
+
   await page.route('**/api/admin/push-deliveries**', (route) =>
     route.fulfill({
       status: 200,
@@ -754,6 +810,39 @@ test.describe('Admin dangerous action safety', () => {
     await expect(page.locator('#adminReportedPosts')).toContainText('신고자');
     await expect(page.locator('#adminReportedPosts')).toContainText('5');
     await expect(page.locator('#adminReportedPosts')).toContainText('삭제');
+  });
+
+  test('renders aggregate device analytics and applies device filters', async ({ page }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+    const analyticsRequests = [];
+
+    await mockAdminBootApis(page, {
+      onDeviceAnalyticsRequest({ requestUrl }) {
+        analyticsRequests.push(requestUrl);
+      },
+    });
+    await applyAdminCookie(page, baseURL);
+
+    await page.goto('/admin');
+    await page.getByRole('button', { name: /접속 환경/ }).click();
+
+    await expect(page.locator('#deviceAnalyticsTab')).toBeVisible();
+    await expect(page.locator('#deviceAnalyticsTab')).toContainText('원본 User-Agent');
+    await expect(page.locator('#adminDeviceAnalytics')).toContainText('고유 세션');
+    await expect(page.locator('#adminDeviceAnalytics')).toContainText('모바일');
+    await expect(page.locator('#adminDeviceAnalytics')).toContainText('iOS/iPadOS');
+    await expect(page.locator('#adminDeviceAnalytics')).toContainText('66.7%');
+
+    await page.selectOption('#adminDeviceClass', 'mobile');
+    await page.selectOption('#adminPlatformFamily', 'ios');
+    await page.selectOption('#adminDeviceUserType', 'authenticated');
+    await page.click('#adminDeviceApply');
+
+    await expect.poll(() => analyticsRequests.length).toBeGreaterThanOrEqual(2);
+    const appliedRequest = analyticsRequests.at(-1);
+    expect(appliedRequest.searchParams.get('device_class')).toBe('mobile');
+    expect(appliedRequest.searchParams.get('platform_family')).toBe('ios');
+    expect(appliedRequest.searchParams.get('user_type')).toBe('authenticated');
   });
 
   test('runs expired reward auto-claim from the quests admin UI', async ({ page }, testInfo) => {
