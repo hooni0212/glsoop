@@ -110,6 +110,18 @@ const seedUxFixtures = async () => {
     ]
   );
 
+  for (const userId of [ADMIN_USER_ID, USER_A_ID, USER_B_ID]) {
+    const sid = `ux-events-session-${userId}`;
+    await dbRun(db, 'DELETE FROM auth_sessions WHERE sid = ?', [sid]);
+    await dbRun(
+      db,
+      `INSERT INTO auth_sessions
+         (sid, user_id, remember_me, created_at, last_seen_at, expires_at)
+       VALUES (?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, datetime('now', '+1 day'))`,
+      [sid, userId]
+    );
+  }
+
   await dbRun(
     db,
     `DELETE FROM ux_events
@@ -149,8 +161,12 @@ test.describe('UX events API', () => {
     });
   });
 
-  test('records ux event without auth token', async ({ request }) => {
+  test('records ux event with server-classified device dimensions', async ({ request }) => {
     const response = await request.post('/api/ux-events', {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1',
+      },
       data: {
         event_name: 'signup_view',
         session_id: 'sess_ux_guest',
@@ -167,7 +183,8 @@ test.describe('UX events API', () => {
     const db = new sqlite3.Database(DB_PATH);
     const row = await dbGet(
       db,
-      `SELECT user_id, event_name, source, session_id, anonymous_id, page_path
+      `SELECT user_id, event_name, source, session_id, anonymous_id, page_path,
+              device_class, platform_family
        FROM ux_events
        WHERE session_id = ?
        ORDER BY id DESC
@@ -183,7 +200,166 @@ test.describe('UX events API', () => {
       session_id: 'sess_ux_guest',
       anonymous_id: 'anon_ux_guest',
       page_path: '/html/signup.html',
+      device_class: 'mobile',
+      platform_family: 'ios',
     });
+  });
+
+  test('records one automatic page view for a web page visit', async ({ page }) => {
+    const sessionId = 'sess_ux_page_view';
+    await page.addInitScript((fixedSessionId) => {
+      window.sessionStorage.setItem('glsoop:analytics:session_id', fixedSessionId);
+      window.localStorage.setItem('glsoop:analytics:anonymous_id', 'anon_ux_page_view');
+    }, sessionId);
+
+    const [response] = await Promise.all([
+      page.waitForResponse((candidate) => {
+        return (
+          candidate.url().endsWith('/api/ux-events') && candidate.request().method() === 'POST'
+        );
+      }),
+      page.goto('/'),
+    ]);
+    expect(response.status()).toBe(202);
+
+    const db = new sqlite3.Database(DB_PATH);
+    const row = await dbGet(
+      db,
+      `SELECT event_name, session_id, anonymous_id, page_path, properties_json,
+              device_class, platform_family
+       FROM ux_events
+       WHERE session_id = ? AND event_name = 'page_view'
+       ORDER BY id DESC
+       LIMIT 1`,
+      [sessionId]
+    );
+    await new Promise((resolve) => db.close(resolve));
+
+    expect(row).toMatchObject({
+      event_name: 'page_view',
+      session_id: sessionId,
+      anonymous_id: 'anon_ux_page_view',
+      page_path: '/',
+      device_class: 'desktop',
+    });
+    expect(['macos', 'windows', 'linux', 'chromeos']).toContain(row.platform_family);
+    expect(JSON.parse(row.properties_json)).toMatchObject({ document_title: expect.any(String) });
+  });
+
+  test('records native app events with explicit app source and platform dimensions', async ({ request }) => {
+    const cases = [
+      {
+        sessionId: 'sess_native_ios',
+        headers: {
+          'X-Glsoop-Client': 'native_app',
+          'X-Glsoop-Platform': 'ios',
+          'X-Glsoop-Device-Class': 'mobile',
+        },
+        deviceClass: 'mobile',
+        platformFamily: 'ios',
+      },
+      {
+        sessionId: 'sess_native_android_tablet',
+        headers: {
+          'X-Glsoop-Client': 'native_app',
+          'X-Glsoop-Platform': 'android',
+          'X-Glsoop-Device-Class': 'tablet',
+        },
+        deviceClass: 'tablet',
+        platformFamily: 'android',
+      },
+    ];
+
+    for (const item of cases) {
+      const response = await request.post('/api/ux-events', {
+        headers: item.headers,
+        data: {
+          event_name: 'native_app_open',
+          session_id: item.sessionId,
+          anonymous_id: `anon_${item.sessionId}`,
+          page_path: '/(tabs)',
+        },
+      });
+      expect(response.status()).toBe(202);
+    }
+
+    const db = new sqlite3.Database(DB_PATH);
+    for (const item of cases) {
+      const row = await dbGet(
+        db,
+        `SELECT source, device_class, platform_family
+         FROM ux_events
+         WHERE session_id = ?
+         ORDER BY id DESC
+         LIMIT 1`,
+        [item.sessionId]
+      );
+      expect(row).toMatchObject({
+        source: 'native_client',
+        device_class: item.deviceClass,
+        platform_family: item.platformFamily,
+      });
+    }
+    await new Promise((resolve) => db.close(resolve));
+  });
+
+  test('classifies desktop, tablet, and automated user agents without storing raw values', async ({ request }) => {
+    const cases = [
+      {
+        sessionId: 'sess_ux_desktop',
+        userAgent:
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/137.0.0.0 Safari/537.36',
+        deviceClass: 'desktop',
+        platformFamily: 'macos',
+      },
+      {
+        sessionId: 'sess_ux_tablet',
+        userAgent:
+          'Mozilla/5.0 (Linux; Android 15; SM-X910 Build/AP3A.240905.015.A2) AppleWebKit/537.36 Chrome/136.0.0.0 Safari/537.36',
+        deviceClass: 'tablet',
+        platformFamily: 'android',
+      },
+      {
+        sessionId: 'sess_ux_unknown',
+        userAgent: 'Googlebot/2.1 (+http://www.google.com/bot.html)',
+        deviceClass: 'unknown',
+        platformFamily: 'unknown',
+      },
+    ];
+
+    for (const item of cases) {
+      const response = await request.post('/api/ux-events', {
+        headers: { 'User-Agent': item.userAgent },
+        data: {
+          event_name: 'device_classification_check',
+          session_id: item.sessionId,
+          properties: {
+            device_class: 'mobile',
+            platform_family: 'ios',
+          },
+        },
+      });
+      expect(response.status()).toBe(202);
+    }
+
+    const db = new sqlite3.Database(DB_PATH);
+    for (const item of cases) {
+      const row = await dbGet(
+        db,
+        `SELECT device_class, platform_family, properties_json
+         FROM ux_events
+         WHERE session_id = ?
+         ORDER BY id DESC
+         LIMIT 1`,
+        [item.sessionId]
+      );
+      expect(row).toMatchObject({
+        device_class: item.deviceClass,
+        platform_family: item.platformFamily,
+      });
+      expect(row.properties_json).not.toContain(item.userAgent);
+    }
+    await new Promise((resolve) => db.close(resolve));
   });
 
   test('returns admin summary and p0 metrics', async ({ request }) => {
@@ -192,32 +368,35 @@ test.describe('UX events API', () => {
     await dbRun(db, "DELETE FROM ux_events WHERE source = 'e2e_seed'");
 
     const seedRows = [
-      [null, 'signup_success_pending_created', 'e2e_seed'],
-      [USER_A_ID, 'verify_email_submit', 'e2e_seed'],
-      [USER_B_ID, 'verify_email_submit', 'e2e_seed'],
-      [USER_A_ID, 'verify_email_error', 'e2e_seed'],
-      [USER_A_ID, 'verify_email_success', 'e2e_seed'],
-      [USER_B_ID, 'verify_email_success', 'e2e_seed'],
-      [USER_A_ID, 'login_success', 'e2e_seed'],
-      [USER_A_ID, 'post_create_submit', 'e2e_seed'],
-      [USER_A_ID, 'post_create_submit', 'e2e_seed'],
-      [USER_A_ID, 'post_create_error', 'e2e_seed'],
-      [USER_A_ID, 'post_create_success', 'e2e_seed'],
-      [USER_A_ID, 'first_post_created_24h', 'e2e_seed'],
+      [null, 'signup_success_pending_created', 'mobile', 'ios'],
+      [USER_A_ID, 'verify_email_submit', 'desktop', 'macos'],
+      [USER_B_ID, 'verify_email_submit', 'mobile', 'android'],
+      [USER_A_ID, 'verify_email_error', 'desktop', 'macos'],
+      [USER_A_ID, 'verify_email_success', 'desktop', 'macos'],
+      [USER_B_ID, 'verify_email_success', 'mobile', 'android'],
+      [USER_A_ID, 'login_success', 'desktop', 'macos'],
+      [USER_A_ID, 'post_create_submit', 'desktop', 'macos'],
+      [USER_A_ID, 'post_create_submit', 'desktop', 'macos'],
+      [USER_A_ID, 'post_create_error', 'desktop', 'macos'],
+      [USER_A_ID, 'post_create_success', 'desktop', 'macos'],
+      [USER_A_ID, 'first_post_created_24h', 'desktop', 'macos'],
     ];
 
-    for (const [userId, eventName, source] of seedRows) {
+    for (const [userId, eventName, deviceClass, platformFamily] of seedRows) {
       await dbRun(
         db,
-        `INSERT INTO ux_events (user_id, event_name, source, session_id, anonymous_id, page_path, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, datetime('now', '-1 hour'))`,
+        `INSERT INTO ux_events
+           (user_id, event_name, source, session_id, anonymous_id, page_path,
+            device_class, platform_family, created_at)
+         VALUES (?, ?, 'e2e_seed', ?, ?, ?, ?, ?, datetime('now', '-1 hour'))`,
         [
           userId,
           eventName,
-          source,
           userId ? `sess_${userId}` : 'sess_guest_seed',
           userId ? null : 'anon_seed_1',
           '/e2e/ux',
+          deviceClass,
+          platformFamily,
         ]
       );
     }
@@ -273,6 +452,51 @@ test.describe('UX events API', () => {
         expect.objectContaining({ event_name: 'verify_email_success', event_count: 2 }),
       ])
     );
+
+    expect(payload.by_device).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          device_class: 'desktop',
+          event_count: 9,
+          unique_session_count: 1,
+        }),
+        expect.objectContaining({
+          device_class: 'mobile',
+          event_count: 3,
+          unique_session_count: 2,
+        }),
+      ])
+    );
+    expect(payload.by_platform).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ platform_family: 'macos', event_count: 9 }),
+        expect.objectContaining({ platform_family: 'android', event_count: 2 }),
+        expect.objectContaining({ platform_family: 'ios', event_count: 1 }),
+      ])
+    );
+
+    const filteredResponse = await request.get('/api/admin/ux-events/summary', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      params: {
+        source: 'e2e_seed',
+        device_class: 'mobile',
+        platform_family: 'android',
+      },
+    });
+    expect(filteredResponse.status()).toBe(200);
+    const filteredPayload = await filteredResponse.json();
+    expect(filteredPayload.filters).toMatchObject({
+      device_class: 'mobile',
+      platform_family: 'android',
+    });
+    expect(filteredPayload.summary).toMatchObject({
+      total_count: 2,
+      unique_user_count: 1,
+      unique_session_count: 1,
+    });
+    expect(filteredPayload.by_device).toEqual([
+      expect.objectContaining({ device_class: 'mobile', event_count: 2 }),
+    ]);
   });
 
   test('rejects non-admin summary access', async ({ request }) => {

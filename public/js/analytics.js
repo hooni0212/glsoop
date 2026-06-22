@@ -110,4 +110,8 @@
   window.glsoopAnalytics = {
     trackEvent,
   };
+
+  trackEvent('page_view', {
+    document_title: String(document.title || '').slice(0, 160),
+  });
 })();
