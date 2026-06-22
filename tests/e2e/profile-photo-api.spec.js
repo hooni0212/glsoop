@@ -11,6 +11,7 @@ const E2E_JWT_AUDIENCE = 'glsoop-client';
 
 const FREE_USER_ID = 9921;
 const PREMIUM_USER_ID = 9922;
+const EXPIRED_USER_ID = 9923;
 
 const REPO_ROOT = process.cwd();
 const DB_PATH = process.env.DB_PATH
@@ -81,6 +82,12 @@ const seedProfilePhotoFixtures = async () => {
       'premium_profile',
       'premium-profile@glsoop.test',
     ],
+    [
+      EXPIRED_USER_ID,
+      'Expired Profile',
+      'expired_profile',
+      'expired-profile@glsoop.test',
+    ],
   ]) {
     await dbRun(
       db,
@@ -104,29 +111,62 @@ const seedProfilePhotoFixtures = async () => {
     );
   }
 
-  await dbRun(db, 'DELETE FROM user_profile_photos WHERE user_id IN (?, ?)', [
+  await dbRun(db, 'DELETE FROM user_profile_photos WHERE user_id IN (?, ?, ?)', [
     FREE_USER_ID,
     PREMIUM_USER_ID,
+    EXPIRED_USER_ID,
   ]);
-  await dbRun(db, 'DELETE FROM user_entitlements WHERE user_id IN (?, ?)', [
+  await dbRun(db, 'DELETE FROM user_entitlements WHERE user_id IN (?, ?, ?)', [
     FREE_USER_ID,
     PREMIUM_USER_ID,
+    EXPIRED_USER_ID,
+  ]);
+  await dbRun(db, 'DELETE FROM user_entitlement_grants WHERE user_id IN (?, ?, ?)', [
+    FREE_USER_ID,
+    PREMIUM_USER_ID,
+    EXPIRED_USER_ID,
   ]);
   await dbRun(
     db,
     `
-    INSERT OR REPLACE INTO user_entitlements (
+    INSERT OR REPLACE INTO user_entitlement_grants (
       user_id,
       entitlement_key,
-      status,
       source,
+      status,
       starts_at,
       ends_at,
       meta_json
     )
-    VALUES (?, 'premium:glsoop', 'active', 'admin', CURRENT_TIMESTAMP, NULL, '{}')
+    VALUES (?, 'premium:glsoop', 'admin', 'active', CURRENT_TIMESTAMP, NULL, '{}')
     `,
     [PREMIUM_USER_ID]
+  );
+  await dbRun(
+    db,
+    `
+    INSERT OR REPLACE INTO user_entitlement_grants (
+      user_id,
+      entitlement_key,
+      source,
+      status,
+      starts_at,
+      ends_at,
+      meta_json
+    )
+    VALUES (?, 'premium:glsoop', 'promo', 'active', datetime('now', '-2 days'), datetime('now', '-1 day'), '{}')
+    `,
+    [EXPIRED_USER_ID]
+  );
+  await dbRun(
+    db,
+    `UPDATE users
+     SET profile_photo_url = '/uploads/profile-photos/9923/existing.webp',
+         profile_photo_thumbnail_url = '/uploads/profile-photos/9923/existing-thumb.webp',
+         profile_photo_key = 'profile-photos/9923/existing.webp',
+         profile_photo_updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [EXPIRED_USER_ID]
   );
 
   await dbRun(db, 'PRAGMA foreign_keys = ON');
@@ -195,6 +235,14 @@ test.describe('Profile Photo API', () => {
       profile_photo: null,
     });
 
+    const meBefore = await request.get('/api/me', {
+      headers: authHeaders(token),
+    });
+    expect(meBefore.status()).toBe(200);
+    await expect(meBefore.json()).resolves.toMatchObject({
+      profile_photo_upload_allowed: true,
+    });
+
     const uploadResponse = await request.post('/api/me/profile-photo', {
       headers: authHeaders(token),
       multipart: {
@@ -245,5 +293,68 @@ test.describe('Profile Photo API', () => {
       can_upload: true,
       profile_photo: null,
     });
+  });
+
+  test('keeps the existing photo after premium expiry but blocks replacement', async ({
+    request,
+  }) => {
+    const token = signAuthToken({
+      id: EXPIRED_USER_ID,
+      name: 'Expired Profile',
+      nickname: 'expired_profile',
+      email: 'expired-profile@glsoop.test',
+    });
+
+    const statusResponse = await request.get('/api/me/profile-photo', {
+      headers: authHeaders(token),
+    });
+    expect(statusResponse.status()).toBe(200);
+    await expect(statusResponse.json()).resolves.toMatchObject({
+      ok: true,
+      can_upload: false,
+      profile_photo: {
+        url: '/uploads/profile-photos/9923/existing.webp',
+        thumbnail_url: '/uploads/profile-photos/9923/existing-thumb.webp',
+      },
+    });
+
+    const meResponse = await request.get('/api/me', {
+      headers: authHeaders(token),
+    });
+    expect(meResponse.status()).toBe(200);
+    await expect(meResponse.json()).resolves.toMatchObject({
+      profile_photo_upload_allowed: false,
+      profile_photo_url: '/uploads/profile-photos/9923/existing.webp',
+    });
+
+    const replaceResponse = await request.post('/api/me/profile-photo', {
+      headers: authHeaders(token),
+      multipart: {
+        photo: {
+          name: 'replacement.png',
+          mimeType: 'image/png',
+          buffer: pngFixture,
+        },
+      },
+    });
+    expect(replaceResponse.status()).toBe(403);
+    await expect(replaceResponse.json()).resolves.toMatchObject({
+      code: 'PROFILE_PHOTO_PREMIUM_REQUIRED',
+    });
+
+    const profileResponse = await request.get(`/api/users/${EXPIRED_USER_ID}/profile`, {
+      headers: authHeaders(token),
+    });
+    expect(profileResponse.status()).toBe(200);
+    await expect(profileResponse.json()).resolves.toMatchObject({
+      user: {
+        profile_photo_url: '/uploads/profile-photos/9923/existing.webp',
+      },
+    });
+
+    const deleteResponse = await request.delete('/api/me/profile-photo', {
+      headers: authHeaders(token),
+    });
+    expect(deleteResponse.status()).toBe(200);
   });
 });

@@ -8,6 +8,7 @@ const {
   normalizePurchaseStatus,
   reconcileMonetizationState,
 } = require('../utils/monetizationState');
+const { getEffectiveEntitlement } = require('../utils/entitlements');
 const { purgeUserAccount } = require('../utils/accountLifecycle');
 const {
   listReportedPosts,
@@ -1336,40 +1337,27 @@ router.post('/entitlements/grant', async (req, res) => {
 
     await runAsync(
       `
-      INSERT INTO user_entitlements (
+      INSERT INTO user_entitlement_grants (
         user_id,
         entitlement_key,
-        status,
         source,
+        status,
         starts_at,
         ends_at,
         meta_json
       )
-      VALUES (?, ?, 'active', ?, CURRENT_TIMESTAMP, ?, ?)
-      ON CONFLICT(user_id, entitlement_key) DO UPDATE SET
+      VALUES (?, ?, ?, 'active', CURRENT_TIMESTAMP, ?, ?)
+      ON CONFLICT(user_id, entitlement_key, source) DO UPDATE SET
         status = 'active',
-        source = excluded.source,
+        starts_at = CURRENT_TIMESTAMP,
         ends_at = excluded.ends_at,
-        meta_json = COALESCE(excluded.meta_json, user_entitlements.meta_json),
+        meta_json = COALESCE(excluded.meta_json, user_entitlement_grants.meta_json),
         updated_at = CURRENT_TIMESTAMP
       `,
       [parsed.userId, parsed.entitlementKey, parsed.source, parsed.endsAt, metaJson]
     );
 
-    const entitlement = await getAsync(
-      `
-      SELECT
-        entitlement_key,
-        status,
-        source,
-        starts_at,
-        ends_at
-      FROM user_entitlements
-      WHERE user_id = ? AND entitlement_key = ?
-      LIMIT 1
-      `,
-      [parsed.userId, parsed.entitlementKey]
-    );
+    const entitlement = await getEffectiveEntitlement(parsed.userId, parsed.entitlementKey);
 
     return res.json({
       ok: true,
@@ -1390,6 +1378,57 @@ router.post('/entitlements/grant', async (req, res) => {
       500,
       'INTERNAL_ERROR',
       '권한 지급 중 오류가 발생했습니다.'
+    );
+  }
+});
+
+router.post('/entitlements/revoke', async (req, res) => {
+  const parsed = parseEntitlementGrantPayload(req.body || {});
+  if (parsed.error) {
+    return sendAdminError(res, 400, 'INVALID_REQUEST', parsed.error);
+  }
+
+  try {
+    const result = await runAsync(
+      `
+      UPDATE user_entitlement_grants
+      SET status = 'inactive',
+          ends_at = COALESCE(ends_at, CURRENT_TIMESTAMP),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ?
+        AND entitlement_key = ?
+        AND source = ?
+      `,
+      [parsed.userId, parsed.entitlementKey, parsed.source]
+    );
+
+    if (Number(result?.changes || 0) === 0) {
+      return sendAdminError(
+        res,
+        404,
+        'RESOURCE_NOT_FOUND',
+        '회수할 관리자 권한을 찾을 수 없습니다.'
+      );
+    }
+
+    const entitlement = await getEffectiveEntitlement(parsed.userId, parsed.entitlementKey);
+    return res.json({
+      ok: true,
+      message: '관리자 권한을 회수했습니다.',
+      entitlement: entitlement
+        ? {
+            user_id: parsed.userId,
+            ...entitlement,
+          }
+        : null,
+    });
+  } catch (error) {
+    console.error('[admin/entitlements/revoke] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '권한 회수 중 오류가 발생했습니다.'
     );
   }
 });
@@ -1538,22 +1577,14 @@ router.post('/purchases/reconcile', async (req, res) => {
       [purchase.id]
     );
 
-    const entitlement = updatedPurchase?.entitlement_key
-      ? await getAsync(
-          `
-          SELECT
-            user_id,
-            entitlement_key,
-            status,
-            source,
-            starts_at,
-            ends_at
-          FROM user_entitlements
-          WHERE user_id = ? AND entitlement_key = ?
-          LIMIT 1
-          `,
-          [updatedPurchase.user_id, updatedPurchase.entitlement_key]
+    const effectiveEntitlement = updatedPurchase?.entitlement_key
+      ? await getEffectiveEntitlement(
+          updatedPurchase.user_id,
+          updatedPurchase.entitlement_key
         )
+      : null;
+    const entitlement = effectiveEntitlement
+      ? { user_id: updatedPurchase.user_id, ...effectiveEntitlement }
       : null;
 
     return res.json({

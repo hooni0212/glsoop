@@ -18,6 +18,7 @@ const {
   readPreviewSession,
 } = require('../utils/feedPreviewSessions');
 const { buildPublicDisplayName } = require('../utils/accountLifecycle');
+const { hasAnyActiveEntitlement } = require('../utils/entitlements');
 
 const router = express.Router();
 const PREVIEW_LAYOUT_ALIGN = new Set(['left', 'center', 'right']);
@@ -78,25 +79,7 @@ function getAuthorSignatureEntitlementKeys() {
 
 async function hasAuthorSignatureEntitlement(userId) {
   if (!userId) return false;
-
-  const keys = getAuthorSignatureEntitlementKeys();
-  if (!keys.length) return false;
-
-  const placeholders = keys.map(() => '?').join(', ');
-  const row = await dbGetAsync(
-    `
-    SELECT 1
-    FROM user_entitlements
-    WHERE user_id = ?
-      AND entitlement_key IN (${placeholders})
-      AND status = 'active'
-      AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
-    LIMIT 1
-    `,
-    [userId, ...keys]
-  );
-
-  return Boolean(row);
+  return hasAnyActiveEntitlement(userId, getAuthorSignatureEntitlementKeys());
 }
 
 function parsePageNumber(raw) {

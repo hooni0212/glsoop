@@ -1775,14 +1775,29 @@ router.get('/me', authRequired, (req, res) => {
         FROM user_entitlements ue
         WHERE ue.user_id = users.id
           AND ue.entitlement_key = ?
+          AND ue.source = 'iap'
           AND ue.status = 'active'
+          AND (ue.starts_at IS NULL OR datetime(ue.starts_at) <= datetime('now'))
           AND (ue.ends_at IS NULL OR datetime(ue.ends_at) > datetime('now'))
+        LIMIT 1
+      ) OR EXISTS (
+        SELECT 1
+        FROM user_entitlement_grants ueg
+        WHERE ueg.user_id = users.id
+          AND ueg.entitlement_key = ?
+          AND ueg.status = 'active'
+          AND (ueg.starts_at IS NULL OR datetime(ueg.starts_at) <= datetime('now'))
+          AND (ueg.ends_at IS NULL OR datetime(ueg.ends_at) > datetime('now'))
         LIMIT 1
       ) AS profile_photo_upload_allowed
     FROM users
     WHERE id = ?
     `,
-    [PROFILE_PHOTO_PREMIUM_ENTITLEMENT_KEY, userId],
+    [
+      PROFILE_PHOTO_PREMIUM_ENTITLEMENT_KEY,
+      PROFILE_PHOTO_PREMIUM_ENTITLEMENT_KEY,
+      userId,
+    ],
     (err, row) => {
       if (err) {
         console.error(err);

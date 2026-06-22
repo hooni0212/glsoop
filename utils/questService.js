@@ -1,4 +1,5 @@
 const db = require('../db');
+const { hasActiveEntitlement: hasEffectiveEntitlement } = require('./entitlements');
 
 const CONDITION_PROMPT_POST_CREATED = 'PROMPT_POST_CREATED';
 
@@ -221,19 +222,7 @@ function calculateProgress(template, metrics) {
 async function hasActiveEntitlement(userId, entitlementKey) {
   const normalized = normalizeEntitlementKey(entitlementKey);
   if (!normalized) return true;
-  const row = await getAsync(
-    `
-    SELECT entitlement_key
-    FROM user_entitlements
-    WHERE user_id = ?
-      AND entitlement_key = ?
-      AND status = 'active'
-      AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
-    LIMIT 1
-    `,
-    [userId, normalized]
-  );
-  return Boolean(row?.entitlement_key);
+  return hasEffectiveEntitlement(userId, normalized);
 }
 
 function ensureActiveCampaign(row) {

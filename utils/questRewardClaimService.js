@@ -1,5 +1,9 @@
 const db = require('../db');
 const { addXp } = require('./growth-service');
+const {
+  hasActiveEntitlement,
+  listActiveEntitlementKeys,
+} = require('./entitlements');
 const { mapCosmeticItem } = require('./profileCosmetics');
 
 const LOCK_REASON_ENTITLEMENT_REQUIRED = 'SEASON_PASS_REQUIRED';
@@ -107,25 +111,16 @@ function collectRewardCosmeticKeys(items = [], getUiJson = (item) => item?.uiJso
 }
 
 async function fetchActiveEntitlementKeySet(userId) {
-  const rows = await allAsync(
-    `
-      SELECT entitlement_key
-      FROM user_entitlements
-      WHERE user_id = ?
-        AND status = 'active'
-        AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
-    `,
-    [userId]
-  );
+  const keys = await listActiveEntitlementKeys(userId);
 
-  const keys = new Set();
-  for (const row of rows) {
-    const key = normalizeEntitlementKey(row?.entitlement_key);
+  const keySet = new Set();
+  for (const rawKey of keys) {
+    const key = normalizeEntitlementKey(rawKey);
     if (key) {
-      keys.add(key);
+      keySet.add(key);
     }
   }
-  return keys;
+  return keySet;
 }
 
 function buildQuestLockState(quest, entitlementKeySet = new Set()) {
@@ -311,20 +306,12 @@ async function claimQuestReward({ stateId, userId, source = 'manual' }) {
 
     const config = parseQuestRewardConfig(state.ui_json);
     if (config.required_entitlement) {
-      const entitlement = await getAsync(
-        `
-        SELECT entitlement_key
-        FROM user_entitlements
-        WHERE user_id = ?
-          AND entitlement_key = ?
-          AND status = 'active'
-          AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
-        LIMIT 1
-        `,
-        [normalizedUserId, config.required_entitlement]
+      const entitlementActive = await hasActiveEntitlement(
+        normalizedUserId,
+        config.required_entitlement
       );
 
-      if (!entitlement) {
+      if (!entitlementActive) {
         throw new QuestRewardClaimError(403, 'ENTITLEMENT_REQUIRED', '시즌 패스가 필요합니다.');
       }
     }

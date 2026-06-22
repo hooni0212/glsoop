@@ -2,6 +2,7 @@ const express = require('express');
 
 const db = require('../db');
 const { authRequired } = require('../middleware/auth');
+const { hasActiveEntitlement } = require('../utils/entitlements');
 
 const router = express.Router();
 
@@ -136,19 +137,7 @@ async function countFreeSavesToday(userId) {
 }
 
 async function hasPremiumEntitlement(userId, entitlementKey) {
-  const row = await dbGet(
-    `
-    SELECT 1 AS present
-    FROM user_entitlements
-    WHERE user_id = ?
-      AND entitlement_key = ?
-      AND status = 'active'
-      AND (ends_at IS NULL OR datetime(ends_at) > datetime('now'))
-    LIMIT 1
-    `,
-    [userId, entitlementKey]
-  );
-  return Boolean(row?.present);
+  return hasActiveEntitlement(userId, entitlementKey);
 }
 
 async function buildPhotoSavePolicy({ userId, platform }) {
