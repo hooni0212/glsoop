@@ -246,6 +246,24 @@ test.describe('글숲 한달 글쓰기 프로젝트 푸시 리마인더', () => 
       hourKst: 18,
       slotKey: 'slot-18',
     });
+    expect(isWithinReminderWindow({ nowMs: Date.parse('2026-06-20T00:55:00.000Z') })).toMatchObject({
+      within: true,
+      hourKst: 9,
+      slotKey: 'slot-09',
+    });
+    expect(isWithinReminderWindow({ nowMs: Date.parse('2026-06-20T05:55:00.000Z') })).toMatchObject({
+      within: true,
+      hourKst: 14,
+      slotKey: 'slot-14',
+    });
+    expect(isWithinReminderWindow({ nowMs: Date.parse('2026-06-20T09:55:00.000Z') })).toMatchObject({
+      within: true,
+      hourKst: 18,
+      slotKey: 'slot-18',
+    });
+    expect(isWithinReminderWindow({ nowMs: Date.parse('2026-06-20T00:56:00.000Z') }).within).toBe(
+      false
+    );
     expect(isWithinReminderWindow({ nowMs: Date.parse('2026-06-20T02:10:00.000Z') }).within).toBe(
       false
     );
