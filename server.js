@@ -18,6 +18,9 @@ const { reconcileMonetizationState } = require('./utils/monetizationState');
 const { cleanupExpiredSessions } = require('./utils/authSession');
 const { startPushDispatcher } = require('./services/pushDispatcher');
 const { startMarketingPushReminderScheduler } = require('./services/marketingPushReminder');
+const {
+  startWritingProjectPushReminderScheduler,
+} = require('./services/writingProjectPushReminder');
 
 // 환경 변수 및 메일/JWT 설정, DB는 각각 모듈에서 처리
 // (실제 DB 연결 로직은 db.js, 이메일/JWT 키는 config.js에서 초기화됨)
@@ -75,6 +78,8 @@ const APPLE_APP_SITE_ASSOCIATION = Object.freeze({
 });
 const PUSH_DISPATCH_ENABLED = process.env.PUSH_DISPATCH_ENABLED === 'true';
 const MARKETING_PUSH_REMINDER_ENABLED = process.env.MARKETING_PUSH_REMINDER_ENABLED === 'true';
+const WRITING_PROJECT_PUSH_REMINDER_ENABLED =
+  process.env.WRITING_PROJECT_PUSH_REMINDER_ENABLED === 'true';
 const PENDING_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
 const MONETIZATION_RECONCILE_INTERVAL_MS = 30 * 60 * 1000;
 const AUTH_SESSION_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
@@ -217,6 +222,15 @@ const startServer = async () => {
     if (!PUSH_DISPATCH_ENABLED) {
       console.warn(
         '[marketing-push-reminder] PUSH_DISPATCH_ENABLED is not true; reminders will queue but not send.'
+      );
+    }
+  }
+  if (WRITING_PROJECT_PUSH_REMINDER_ENABLED) {
+    startWritingProjectPushReminderScheduler();
+    console.log('[writing-project-push-reminder] enabled');
+    if (!PUSH_DISPATCH_ENABLED) {
+      console.warn(
+        '[writing-project-push-reminder] PUSH_DISPATCH_ENABLED is not true; reminders will queue but not send.'
       );
     }
   }
