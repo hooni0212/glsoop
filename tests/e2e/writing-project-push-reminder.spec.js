@@ -7,6 +7,7 @@ const {
   getKstDateParts,
   isWithinReminderWindow,
   queueDailyWritingProjectPush,
+  resolveReminderHours,
 } = require('../../services/writingProjectPushReminder');
 const { getDefaultWritingEventStatus } = require('../../utils/dailyWritingCampaign');
 
@@ -219,7 +220,7 @@ async function seedReminderFixtures(users) {
 test.describe.configure({ mode: 'serial' });
 
 test.describe('글숲 한달 글쓰기 프로젝트 푸시 리마인더', () => {
-  test('09:00 KST 실행 창과 프로젝트 날짜 key를 계산한다', () => {
+  test('09:00, 14:00, 18:00 KST 실행 창과 프로젝트 날짜 key를 계산한다', () => {
     const nowMs = Date.parse('2026-06-20T00:10:00.000Z');
     const status = getDefaultWritingEventStatus(new Date(nowMs));
 
@@ -229,31 +230,46 @@ test.describe('글숲 한달 글쓰기 프로젝트 푸시 리마인더', () => 
       minute: 10,
     });
     expect(status.currentDay).toBe(7);
-    expect(isWithinReminderWindow({ nowMs }).within).toBe(true);
+    expect(resolveReminderHours()).toEqual([9, 14, 18]);
+    expect(isWithinReminderWindow({ nowMs })).toMatchObject({
+      within: true,
+      hourKst: 9,
+      slotKey: 'slot-09',
+    });
+    expect(isWithinReminderWindow({ nowMs: Date.parse('2026-06-20T05:10:00.000Z') })).toMatchObject({
+      within: true,
+      hourKst: 14,
+      slotKey: 'slot-14',
+    });
+    expect(isWithinReminderWindow({ nowMs: Date.parse('2026-06-20T09:10:00.000Z') })).toMatchObject({
+      within: true,
+      hourKst: 18,
+      slotKey: 'slot-18',
+    });
     expect(isWithinReminderWindow({ nowMs: Date.parse('2026-06-20T02:10:00.000Z') }).within).toBe(
       false
     );
-    expect(buildCampaignKey(status)).toBe(
-      'daily_writing_project_prompt:glsoop-monthly-writing-project-prototype:2026-06-20:day-07-rain-memory'
+    expect(buildCampaignKey(status, 'slot-09')).toBe(
+      'daily_writing_project_prompt:glsoop-monthly-writing-project-prototype:2026-06-20:day-07-rain-memory:slot-09'
     );
   });
 
-  test('오늘 아직 쓰지 않은 수신 동의 사용자에게만 하루 한 번 큐를 만든다', async ({}, testInfo) => {
+  test('오늘 아직 쓰지 않은 수신 동의 사용자에게만 시간대별로 한 번씩 큐를 만든다', async ({}, testInfo) => {
     const base = testInfo.project.name === 'mobile-chrome' ? 23900 : 23800;
     const users = buildUsers(base);
-    const campaignKey = `e2e-writing-project:${base}:2026-06-20`;
-    const nowMs = Date.parse('2026-06-20T00:10:00.000Z');
+    const morningMs = Date.parse('2026-06-20T00:10:00.000Z');
+    const afternoonMs = Date.parse('2026-06-20T05:10:00.000Z');
 
     await seedReminderFixtures(users);
 
     const result = await queueDailyWritingProjectPush({
-      nowMs,
-      campaignKey,
+      nowMs: morningMs,
     });
 
     expect(result).toMatchObject({
       ok: true,
       kst_date: '2026-06-20',
+      reminder_slot_key: 'slot-09',
       queued_count: 3,
       eligible_user_count: 2,
       eligible_token_count: 3,
@@ -281,17 +297,30 @@ test.describe('글숲 한달 글쓰기 프로젝트 푸시 리마인더', () => 
       campaign_kind: 'daily_writing_project_prompt',
       prompt_key: 'day-07-rain-memory',
       prompt_day: 7,
+      reminder_slot_key: 'slot-09',
     });
     expect(JSON.parse(queuedRows[0].payload_json).target_path).toContain('/write?');
 
     const duplicate = await queueDailyWritingProjectPush({
-      nowMs,
-      campaignKey,
+      nowMs: morningMs,
     });
     expect(duplicate).toMatchObject({
       skipped: true,
       reason: 'already_queued',
+      reminder_slot_key: 'slot-09',
       queued_count: 3,
+    });
+
+    const afternoonResult = await queueDailyWritingProjectPush({
+      nowMs: afternoonMs,
+    });
+    expect(afternoonResult).toMatchObject({
+      ok: true,
+      kst_date: '2026-06-20',
+      reminder_slot_key: 'slot-14',
+      queued_count: 3,
+      eligible_user_count: 2,
+      eligible_token_count: 3,
     });
 
     const queueCount = await withDb((db) =>
@@ -305,10 +334,10 @@ test.describe('글숲 한달 글쓰기 프로젝트 푸시 리마인더', () => 
         Object.values(users)
       )
     );
-    expect(queueCount.count).toBe(3);
+    expect(queueCount.count).toBe(6);
   });
 
-  test('09:00 KST 실행 창 밖에서는 캠페인을 만들지 않는다', async ({}, testInfo) => {
+  test('세 실행 창 밖에서는 캠페인을 만들지 않는다', async ({}, testInfo) => {
     const base = testInfo.project.name === 'mobile-chrome' ? 24900 : 24800;
     const users = buildUsers(base);
     const campaignKey = `e2e-writing-project:${base}:outside-window`;

@@ -3,7 +3,7 @@ const { getDefaultWritingEventStatus } = require('../utils/dailyWritingCampaign'
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_REMINDER_HOUR_KST = 9;
+const DEFAULT_REMINDER_HOURS_KST = [9, 14, 18];
 const DEFAULT_REMINDER_WINDOW_MINUTES = 55;
 const DEFAULT_RECENT_ACTIVITY_DAYS = 30;
 const DEFAULT_SCHEDULER_INTERVAL_MS = 5 * 60 * 1000;
@@ -14,6 +14,36 @@ function clampInt(value, fallback, min, max) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(min, Math.min(max, parsed));
+}
+
+function parseReminderHours(value) {
+  const rawValues = Array.isArray(value)
+    ? value
+    : String(value ?? '')
+        .split(/[,\s]+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+  const seen = new Set();
+  const hours = [];
+
+  for (const rawValue of rawValues) {
+    const parsed = Number.parseInt(rawValue, 10);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 23 || seen.has(parsed)) continue;
+    seen.add(parsed);
+    hours.push(parsed);
+  }
+
+  return hours.sort((a, b) => a - b);
+}
+
+function resolveReminderHours(input = {}) {
+  const configured = parseReminderHours(
+    input.hoursKst ??
+      input.hourKst ??
+      process.env.WRITING_PROJECT_PUSH_REMINDER_HOURS_KST ??
+      process.env.WRITING_PROJECT_PUSH_REMINDER_HOUR_KST
+  );
+  return configured.length > 0 ? configured : DEFAULT_REMINDER_HOURS_KST;
 }
 
 function normalizeNullableText(value, maxLength = 500) {
@@ -80,12 +110,7 @@ function getKstDayBoundsUtc(kstDate) {
 }
 
 function isWithinReminderWindow(input = {}) {
-  const hourKst = clampInt(
-    input.hourKst ?? process.env.WRITING_PROJECT_PUSH_REMINDER_HOUR_KST,
-    DEFAULT_REMINDER_HOUR_KST,
-    0,
-    23
-  );
+  const hoursKst = resolveReminderHours(input);
   const windowMinutes = clampInt(
     input.windowMinutes ?? process.env.WRITING_PROJECT_PUSH_REMINDER_WINDOW_MINUTES,
     DEFAULT_REMINDER_WINDOW_MINUTES,
@@ -93,31 +118,38 @@ function isWithinReminderWindow(input = {}) {
     180
   );
   const parts = getKstDateParts(input.nowMs);
-  const windowStart = hourKst * 60;
-  const windowEnd = windowStart + windowMinutes;
+  const matchedHourKst = hoursKst.find((hourKst) => {
+    const windowStart = hourKst * 60;
+    const windowEnd = windowStart + windowMinutes;
+    return parts.totalMinutes >= windowStart && parts.totalMinutes < windowEnd;
+  });
 
   return {
-    within: parts.totalMinutes >= windowStart && parts.totalMinutes < windowEnd,
+    within: matchedHourKst !== undefined,
     kstDate: parts.date,
-    hourKst,
+    hourKst: matchedHourKst ?? null,
+    hoursKst,
+    slotKey: matchedHourKst === undefined ? null : `slot-${String(matchedHourKst).padStart(2, '0')}`,
     windowMinutes,
   };
 }
 
-function buildCampaignKey(status) {
+function buildCampaignKey(status, slotKey = null) {
   const campaignKey = status?.campaignKey || 'default';
   const localDateKey = status?.localDateKey || getKstDateParts().date;
   const promptKey = status?.prompt?.key || 'prompt';
-  return `${CAMPAIGN_KIND}:${campaignKey}:${localDateKey}:${promptKey}`;
+  const normalizedSlotKey = slotKey || 'slot-default';
+  return `${CAMPAIGN_KIND}:${campaignKey}:${localDateKey}:${promptKey}:${normalizedSlotKey}`;
 }
 
-function buildTargetRule({ status, recentActivityDays, todayStartUtc, todayEndUtc }) {
+function buildTargetRule({ status, recentActivityDays, reminderSlotKey, todayStartUtc, todayEndUtc }) {
   return {
     kind: CAMPAIGN_KIND,
     campaign_key: status.campaignKey,
     prompt_key: status.prompt.key,
     prompt_day: status.prompt.day,
     kst_date: status.localDateKey,
+    reminder_slot_key: reminderSlotKey,
     recent_activity_days: recentActivityDays,
     today_utc_window: {
       start: todayStartUtc,
@@ -222,6 +254,7 @@ async function queueDailyWritingProjectPush(input = {}) {
       skipped: true,
       reason: 'outside_window',
       kst_date: window.kstDate,
+      reminder_slot_key: null,
       queued_count: 0,
       eligible_user_count: 0,
       eligible_token_count: 0,
@@ -229,6 +262,7 @@ async function queueDailyWritingProjectPush(input = {}) {
   }
 
   const kstDate = input.kstDate || status.localDateKey || window.kstDate;
+  const reminderSlotKey = input.reminderSlotKey || window.slotKey || 'slot-forced';
   const statusForDate = kstDate === status.localDateKey ? status : getDefaultWritingEventStatus(now);
   const dayBounds = getKstDayBoundsUtc(kstDate);
   const recentActivitySince = formatSqlDateTime(nowMs - recentActivityDays * DAY_MS);
@@ -252,6 +286,7 @@ async function queueDailyWritingProjectPush(input = {}) {
       ok: true,
       dry_run: true,
       kst_date: kstDate,
+      reminder_slot_key: reminderSlotKey,
       eligible_user_count: tokenRowsByUser.size,
       eligible_token_count: recipientRows.length,
     };
@@ -261,11 +296,12 @@ async function queueDailyWritingProjectPush(input = {}) {
   const targetPath = normalizeInternalTargetPath(
     input.targetPath ?? process.env.WRITING_PROJECT_PUSH_REMINDER_TARGET_PATH ?? statusForDate.writePath
   );
-  const campaignKey = input.campaignKey || buildCampaignKey(statusForDate);
+  const campaignKey = input.campaignKey || buildCampaignKey(statusForDate, reminderSlotKey);
   const targetRuleJson = serializeMeta(
     buildTargetRule({
       status: statusForDate,
       recentActivityDays,
+      reminderSlotKey,
       todayStartUtc: dayBounds.startSql,
       todayEndUtc: dayBounds.endSql,
     })
@@ -309,6 +345,7 @@ async function queueDailyWritingProjectPush(input = {}) {
         reason: 'already_queued',
         campaign_id: existing?.id || null,
         kst_date: kstDate,
+        reminder_slot_key: reminderSlotKey,
         queued_count: Number(existing?.queued_count || 0),
         eligible_user_count: tokenRowsByUser.size,
         eligible_token_count: recipientRows.length,
@@ -342,6 +379,7 @@ async function queueDailyWritingProjectPush(input = {}) {
             campaign_key: statusForDate.campaignKey,
             prompt_key: statusForDate.prompt.key,
             prompt_day: statusForDate.prompt.day,
+            reminder_slot_key: reminderSlotKey,
             target_path: targetPath,
           }),
         ]
@@ -376,6 +414,7 @@ async function queueDailyWritingProjectPush(input = {}) {
               campaign_key: statusForDate.campaignKey,
               prompt_key: statusForDate.prompt.key,
               prompt_day: statusForDate.prompt.day,
+              reminder_slot_key: reminderSlotKey,
               target_path: targetPath,
             }),
           ]
@@ -395,6 +434,7 @@ async function queueDailyWritingProjectPush(input = {}) {
       campaign_id: campaignId,
       campaign_key: campaignKey,
       kst_date: kstDate,
+      reminder_slot_key: reminderSlotKey,
       queued_count: queuedCount,
       eligible_user_count: tokenRowsByUser.size,
       eligible_token_count: recipientRows.length,
@@ -447,6 +487,7 @@ module.exports = {
   getKstDateParts,
   getKstDayBoundsUtc,
   isWithinReminderWindow,
+  resolveReminderHours,
   queueDailyWritingProjectPush,
   startWritingProjectPushReminderScheduler,
   stopWritingProjectPushReminderScheduler,
