@@ -1742,6 +1742,49 @@ router.get('/me/sessions', authRequired, async (req, res) => {
   }
 });
 
+router.delete('/me/sessions/:sid', authRequired, async (req, res) => {
+  const sid = typeof req.params.sid === 'string' ? req.params.sid.trim() : '';
+  if (!/^[a-f0-9]{48}$/i.test(sid)) {
+    return sendAuthError(res, 400, 'AUTH_SESSION_INVALID_ID', '세션 정보가 올바르지 않습니다.');
+  }
+
+  try {
+    const session = await dbGet(
+      `
+      SELECT sid
+      FROM auth_sessions
+      WHERE sid = ?
+        AND user_id = ?
+        AND revoked_at IS NULL
+        AND expires_at > ?
+      `,
+      [sid, req.user.id, new Date().toISOString()]
+    );
+
+    if (!session) {
+      return sendAuthError(res, 404, 'AUTH_SESSION_NOT_FOUND', '이미 만료되었거나 찾을 수 없는 세션입니다.');
+    }
+
+    const isCurrent = sid === req.user.sid;
+    await revokeAuthSession(sid, isCurrent ? 'logout_current_device' : 'logout_device');
+
+    if (isCurrent) {
+      clearAuthCookie(res);
+    }
+
+    return res.json({
+      ok: true,
+      current: isCurrent,
+      message: isCurrent
+        ? '현재 기기에서 로그아웃되었습니다.'
+        : '선택한 기기에서 로그아웃되었습니다.',
+    });
+  } catch (error) {
+    console.error('[me/sessions/:sid] revoke error:', error);
+    return sendAuthError(res, 500, 'AUTH_SESSION_REVOKE_FAILED', '선택한 세션 로그아웃 처리 중 오류가 발생했습니다.');
+  }
+});
+
 // 7-1) 내 정보 조회
 router.get('/me', authRequired, (req, res) => {
   const userId = req.user.id;
