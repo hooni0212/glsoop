@@ -534,6 +534,15 @@ body.page-admin .admin-post-card__snippet {
 
 body.page-admin .admin-post-card__footer {
   margin-top: 2px;
+  gap: 10px;
+}
+
+body.page-admin .admin-post-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 body.page-admin .admin-pagination {
@@ -928,7 +937,7 @@ body.page-admin .admin-danger-modal .gls-label {
   font-weight: 700;
 }
 
-body.page-admin .admin-danger-modal .gls-input {
+body.page-admin .admin-danger-modal .gls-input[data-confirm-mode='token'] {
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
@@ -1199,11 +1208,25 @@ body.page-admin :is(
 
   body.page-admin :is(
     .admin-delete-user-btn,
-    .admin-post-card__delete,
     .quest-template-delete,
     .quest-campaign-delete
   ) {
     min-width: 100%;
     justify-content: center;
+  }
+
+  body.page-admin .admin-post-card__footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  body.page-admin .admin-post-card__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  body.page-admin .admin-post-card__actions .gls-btn {
+    justify-content: center;
+    min-width: 0;
   }
 }
