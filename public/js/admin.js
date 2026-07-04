@@ -2784,9 +2784,6 @@ Glsoop.AdminPage = (function () {
               <span class="gls-badge gls-badge-soft admin-post-card__category">${
                 post.category || '카테고리 없음'
               }</span>
-              <button class="gls-btn gls-btn-ghost gls-btn-xs admin-post-card__delete" type="button" aria-label="삭제" title="삭제">
-                ×
-              </button>
             </div>
             <h5 class="admin-post-card__title">${escapeHtml(post.title)}</h5>
             <p class="admin-post-card__meta">${escapeHtml(author)} · ${dateStr}</p>
@@ -2795,7 +2792,10 @@ Glsoop.AdminPage = (function () {
         }</p>
             <div class="gls-spread admin-post-card__footer">
               <span class="gls-text-muted gls-text-small">❤ ${post.like_count || 0}</span>
-              <button class="gls-btn gls-btn-secondary gls-btn-xs admin-post-card__preview" type="button">미리보기</button>
+              <div class="admin-post-card__actions">
+                <button class="gls-btn gls-btn-secondary gls-btn-xs admin-post-card__preview" type="button">미리보기</button>
+                <button class="gls-btn gls-btn-danger gls-btn-xs admin-post-card__delete" type="button">삭제</button>
+              </div>
             </div>
           </article>
         `;
