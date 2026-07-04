@@ -198,31 +198,60 @@ async function mockAdminBootApis(page, options = {}) {
     });
   });
 
-  await page.route('**/api/admin/posts**', (route) =>
-    route.fulfill({
+  await page.route('**/api/admin/posts**', (route) => {
+    const request = route.request();
+    const requestUrl = new URL(request.url());
+    const method = request.method().toUpperCase();
+    const post = {
+      id: 11,
+      title: 'Poem Post',
+      content: 'Poem content',
+      category: 'poem',
+      author_name: 'Admin',
+      author_nickname: '관리자',
+      author_email: 'admin@glsoop.test',
+      created_at: '2026-02-23 15:06:00',
+      like_count: 1,
+    };
+
+    if (requestUrl.pathname === '/api/admin/posts/11' && method === 'DELETE') {
+      const rawBody = request.postData() || '{}';
+      let body = {};
+      try {
+        body = JSON.parse(rawBody);
+      } catch {
+        body = {};
+      }
+      if (typeof options.onDeleteAdminPost === 'function') {
+        options.onDeleteAdminPost({ body });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, message: '삭제되었습니다.' }),
+      });
+    }
+
+    if (requestUrl.pathname === '/api/admin/posts/11' && method === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, message: '글 정보를 불러왔습니다.', post }),
+      });
+    }
+
+    return route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         ok: true,
-        items: [
-          {
-            id: 11,
-            title: 'Poem Post',
-            content: 'Poem content',
-            category: 'poem',
-            author_name: 'Admin',
-            author_nickname: '관리자',
-            author_email: 'admin@glsoop.test',
-            created_at: '2026-02-23 15:06:00',
-            like_count: 1,
-          },
-        ],
+        items: [post],
         total: 1,
         page: 1,
         page_size: 48,
       }),
-    })
-  );
+    });
+  });
 
   await page.route('**/api/posts/11**', (route) => {
     const url = route.request().url();
@@ -1012,6 +1041,39 @@ test.describe('Admin dangerous action safety', () => {
     ]);
     await expect(reportedPostPage).toHaveURL(/\/html\/post\.html\?postId=11$/);
     await reportedPostPage.close();
+  });
+
+  test('deletes posts from the admin posts tab with admin password confirmation', async ({
+    page,
+  }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+    let deleteCalls = 0;
+    let deletePayload = null;
+
+    await mockAdminBootApis(page, {
+      onDeleteAdminPost({ body }) {
+        deleteCalls += 1;
+        deletePayload = body;
+      },
+    });
+    await applyAdminCookie(page, baseURL);
+
+    await page.goto('/admin');
+    await page.locator('.admin-tabs .nav-link[data-target="postsTab"]').click();
+
+    await page.locator('#adminPosts .admin-post-card__delete').click();
+    await expect(page.locator('#adminDangerConfirmModal')).toBeVisible();
+    await expect(page.locator('#adminDangerInputLabel')).toContainText('관리자 비밀번호');
+    await expect(page.locator('#adminDangerConfirmBtn')).toBeDisabled();
+
+    await page.fill('#adminDangerInput', 'correct-admin-password');
+    await expect(page.locator('#adminDangerConfirmBtn')).toBeEnabled();
+    await page.click('#adminDangerConfirmBtn');
+
+    await expect.poll(() => deleteCalls).toBe(1);
+    expect(deletePayload).toMatchObject({ admin_password: 'correct-admin-password' });
+    await expect(page.locator('#adminPosts .admin-post-card')).toHaveCount(0);
+    await expect(page.locator('#adminPosts')).toContainText('등록된 글이 없습니다.');
   });
 
   test('resolves reported posts from the safety tab UI', async ({ page }, testInfo) => {

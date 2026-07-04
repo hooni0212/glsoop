@@ -77,6 +77,93 @@ function buildWritingEventAdminPayload(status, prompts, message) {
   };
 }
 
+async function deletePostReferences(postId) {
+  await runAsync(
+    `
+    DELETE FROM push_delivery_queue
+    WHERE activity_event_id IN (
+      SELECT id
+      FROM activity_events
+      WHERE post_id = ?
+         OR comment_id IN (SELECT id FROM comments WHERE post_id = ?)
+         OR parent_comment_id IN (SELECT id FROM comments WHERE post_id = ?)
+    )
+    `,
+    [postId, postId, postId]
+  );
+  await runAsync(
+    `
+    DELETE FROM activity_events
+    WHERE post_id = ?
+       OR comment_id IN (SELECT id FROM comments WHERE post_id = ?)
+       OR parent_comment_id IN (SELECT id FROM comments WHERE post_id = ?)
+    `,
+    [postId, postId, postId]
+  );
+  await runAsync(
+    'DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE post_id = ?)',
+    [postId]
+  );
+  await runAsync('DELETE FROM comments WHERE post_id = ?', [postId]);
+
+  await runAsync('DELETE FROM likes WHERE post_id = ?', [postId]);
+  await runAsync('DELETE FROM bookmark_items WHERE post_id = ?', [postId]);
+  await runAsync('DELETE FROM post_hashtags WHERE post_id = ?', [postId]);
+  await runAsync('DELETE FROM post_genres WHERE post_id = ?', [postId]);
+  await runAsync('DELETE FROM quest_post_submissions WHERE post_id = ?', [postId]);
+  await runAsync('DELETE FROM post_writing_event_contexts WHERE post_id = ?', [postId]);
+
+  await runAsync('UPDATE share_events SET post_id = NULL WHERE post_id = ?', [postId]);
+  await runAsync('UPDATE safety_reports SET target_post_id = NULL WHERE target_post_id = ?', [postId]);
+  await runAsync('UPDATE feed_events SET post_id = NULL WHERE post_id = ?', [postId]);
+  await runAsync('UPDATE photo_save_ad_rewards SET post_id = NULL WHERE post_id = ?', [postId]);
+  await runAsync('UPDATE photo_save_events SET post_id = NULL WHERE post_id = ?', [postId]);
+}
+
+async function deleteAdminPost(postId) {
+  await runAsync('BEGIN IMMEDIATE');
+
+  try {
+    const post = await getAsync(
+      `
+      SELECT
+        p.id,
+        p.title,
+        p.user_id,
+        u.nickname AS author_nickname
+      FROM posts p
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE p.id = ?
+      LIMIT 1
+      `,
+      [postId]
+    );
+
+    if (!post) {
+      await runAsync('ROLLBACK');
+      return null;
+    }
+
+    await deletePostReferences(postId);
+
+    const deleted = await runAsync('DELETE FROM posts WHERE id = ?', [postId]);
+    if (Number(deleted?.changes || 0) === 0) {
+      await runAsync('ROLLBACK');
+      return null;
+    }
+
+    await runAsync('COMMIT');
+    return { post, deleted: true };
+  } catch (error) {
+    try {
+      await runAsync('ROLLBACK');
+    } catch (rollbackError) {
+      console.error('[admin/posts/delete] rollback failed:', rollbackError);
+    }
+    throw error;
+  }
+}
+
 async function verifyAdminPasswordForDangerAction(req, res) {
   const adminPassword = normalizeAdminPassword(req.body);
   if (!adminPassword.trim()) {
@@ -530,10 +617,7 @@ async function deleteReportedPostWithResolution({ postId, handledByUserId, actio
       [actionDetail, handledByUserId, postId]
     );
 
-    await runAsync('DELETE FROM likes WHERE post_id = ?', [postId]);
-    await runAsync('DELETE FROM bookmark_items WHERE post_id = ?', [postId]);
-    await runAsync('DELETE FROM post_hashtags WHERE post_id = ?', [postId]);
-    await runAsync('UPDATE share_events SET post_id = NULL WHERE post_id = ?', [postId]);
+    await deletePostReferences(postId);
 
     const deleted = await runAsync('DELETE FROM posts WHERE id = ?', [postId]);
     if (Number(deleted?.changes || 0) === 0) {
@@ -2491,11 +2575,8 @@ router.delete('/posts/:id', async (req, res) => {
     const verified = await verifyAdminPasswordForDangerAction(req, res);
     if (!verified) return;
 
-    await runAsync('DELETE FROM likes WHERE post_id = ?', [postId]);
-    await runAsync('DELETE FROM bookmark_items WHERE post_id = ?', [postId]);
-    const result = await runAsync('DELETE FROM posts WHERE id = ?', [postId]);
-
-    if (!result?.changes) {
+    const result = await deleteAdminPost(postId);
+    if (!result?.deleted) {
       return res.status(404).json({ ok: false, message: '해당 글을 찾을 수 없습니다.' });
     }
 
