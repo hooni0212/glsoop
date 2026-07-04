@@ -9,14 +9,13 @@ const rawAllowedHosts = process.env.CORS_ALLOWED_HOSTS
 const filteredHosts = rawAllowedHosts.filter(Boolean);
 const isProduction = process.env.NODE_ENV === 'production';
 
-const defaultHosts = new Set(['www.glsoop.com', 'm.glsoop.com']);
+const defaultHosts = new Set(['glsoop.com', 'www.glsoop.com', 'm.glsoop.com']);
 if (!isProduction) {
   defaultHosts.add('localhost');
   defaultHosts.add('127.0.0.1');
 }
 
-const allowExactHosts =
-  filteredHosts.length > 0 ? new Set(filteredHosts) : defaultHosts;
+const allowExactHosts = new Set([...defaultHosts, ...filteredHosts]);
 
 function originToHostname(origin) {
   try {
