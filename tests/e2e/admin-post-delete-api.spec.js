@@ -444,4 +444,49 @@ test.describe('Admin post delete API', () => {
       ).resolves.toMatchObject({ post_id: null });
     });
   });
+
+  test('deletes a post from the admin posts tab against the real API', async ({
+    page,
+  }, testInfo) => {
+    await seedFixture();
+
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+    await page.context().addCookies([
+      {
+        name: 'token',
+        value: buildAdminToken(),
+        url: baseURL,
+      },
+    ]);
+
+    await page.goto('/admin');
+    await page.locator('.admin-tabs .nav-link[data-target="postsTab"]').click();
+
+    const card = page.locator(`#adminPosts .admin-post-card[data-post-id="${IDS.post}"]`);
+    await expect(card).toBeVisible();
+    await expect(card.locator('.admin-post-card__delete')).toHaveText('삭제');
+
+    await card.locator('.admin-post-card__delete').click();
+    await expect(page.locator('#adminDangerConfirmModal')).toBeVisible();
+    await expect(page.locator('#adminDangerInputLabel')).toContainText('관리자 비밀번호');
+    await expect(page.locator('#adminDangerConfirmBtn')).toBeDisabled();
+
+    const deleteResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes(`/api/admin/posts/${IDS.post}`) &&
+        response.request().method() === 'DELETE'
+    );
+    await page.fill('#adminDangerInput', ADMIN_PASSWORD);
+    await expect(page.locator('#adminDangerConfirmBtn')).toBeEnabled();
+    await page.click('#adminDangerConfirmBtn');
+
+    const deleteResponse = await deleteResponsePromise;
+    expect(deleteResponse.ok(), await deleteResponse.text()).toBe(true);
+    await expect(card).toHaveCount(0);
+    await expect(page.locator('#adminPosts')).toContainText('등록된 글이 없습니다.');
+
+    await withDb(async (db) => {
+      await expect(dbGet(db, 'SELECT id FROM posts WHERE id = ?', [IDS.post])).resolves.toBeUndefined();
+    });
+  });
 });
