@@ -15,6 +15,7 @@ router.get('/html/admin.html', (req, res) => {
 
 // 2) 새 관리자 진입점: /admin
 router.get(['/admin', '/admin/'], adminPageRequired, (req, res) => {
+  res.set('Cache-Control', 'no-store, max-age=0');
   return res.sendFile(path.join(__dirname, '..', 'public', 'html', 'admin.html'));
 });
 
