@@ -46,6 +46,7 @@ const monetizationRoutes = require('./routes/monetizationRoutes');
 const monetizationWebhookRoutes = require('./routes/monetizationWebhookRoutes');
 const photoSaveRoutes = require('./routes/photoSaveRoutes');
 const profilePhotoRoutes = require('./routes/profilePhotoRoutes');
+const instagramStagingRoutes = require('./routes/instagramStagingRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const adminPageRoutes = require('./routes/adminPageRoutes');
 const authPageRoutes = require('./routes/authPageRoutes');
@@ -141,6 +142,9 @@ app.get(['/apple-app-site-association', '/.well-known/apple-app-site-association
   res.set('Cache-Control', 'public, max-age=3600');
   res.send(JSON.stringify(APPLE_APP_SITE_ASSOCIATION));
 });
+
+// Instagram Content Publishing API가 카드뉴스 PNG를 가져가기 위한 임시 공개 자산 route.
+app.use(instagramStagingRoutes);
 
 // 정적 파일 제공
 app.use(express.static(path.join(__dirname, 'public')));
