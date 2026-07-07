@@ -8,6 +8,15 @@ const router = express.Router();
 const DEFAULT_MAX_AGE_SECONDS = 48 * 60 * 60;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{24,128}$/;
 const IMAGE_FILENAME_PATTERN = /^(?:0[1-9]|10)\.png$/;
+const STAGING_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0',
+  'CDN-Cache-Control': 'no-store',
+  'Cloudflare-CDN-Cache-Control': 'no-store',
+  Pragma: 'no-cache',
+  Expires: '0',
+  'Surrogate-Control': 'no-store',
+  'X-Robots-Tag': 'noindex, nofollow, noarchive',
+};
 
 const stagingRoot = path.resolve(
   process.cwd(),
@@ -32,17 +41,29 @@ function buildImagePath(token, filename) {
   return path.resolve(stagingRoot, token, 'images', filename);
 }
 
+function setStagingHeaders(res, extraHeaders = {}) {
+  res.set({
+    ...STAGING_CACHE_HEADERS,
+    ...extraHeaders,
+  });
+}
+
+function sendStagingStatus(res, status) {
+  setStagingHeaders(res);
+  return res.sendStatus(status);
+}
+
 router.get('/ig-upload-staging/:token/images/:filename', async (req, res) => {
   const token = String(req.params.token || '');
   const filename = String(req.params.filename || '');
 
   if (!TOKEN_PATTERN.test(token) || !IMAGE_FILENAME_PATTERN.test(filename)) {
-    return res.sendStatus(404);
+    return sendStagingStatus(res, 404);
   }
 
   const imagePath = buildImagePath(token, filename);
   if (!isWithinRoot(imagePath)) {
-    return res.sendStatus(404);
+    return sendStagingStatus(res, 404);
   }
 
   let stat;
@@ -52,21 +73,19 @@ router.get('/ig-upload-staging/:token/images/:filename', async (req, res) => {
     if (error?.code !== 'ENOENT') {
       console.warn('[ig-upload-staging] stat failed:', imagePath, error.message);
     }
-    return res.sendStatus(404);
+    return sendStagingStatus(res, 404);
   }
 
   if (!stat.isFile()) {
-    return res.sendStatus(404);
+    return sendStagingStatus(res, 404);
   }
 
   if (isExpired(stat)) {
-    return res.sendStatus(410);
+    return sendStagingStatus(res, 410);
   }
 
-  res.set({
+  setStagingHeaders(res, {
     'Content-Type': 'image/png',
-    'Cache-Control': 'public, max-age=300',
-    'X-Robots-Tag': 'noindex, nofollow, noarchive',
   });
   return res.sendFile(imagePath);
 });
