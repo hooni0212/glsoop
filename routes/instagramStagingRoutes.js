@@ -11,7 +11,7 @@ const IMAGE_FILENAME_PATTERN = /^(?:0[1-9]|10)\.png$/;
 
 const stagingRoot = path.resolve(
   process.cwd(),
-  process.env.IG_UPLOAD_STAGING_DIR || path.join('tmp', 'ig-upload-staging')
+  process.env.IG_UPLOAD_STAGING_DIR || '/var/lib/glsoop/ig-upload-staging'
 );
 const maxAgeSeconds = Number.parseInt(
   process.env.IG_UPLOAD_STAGING_MAX_AGE_SECONDS || String(DEFAULT_MAX_AGE_SECONDS),
