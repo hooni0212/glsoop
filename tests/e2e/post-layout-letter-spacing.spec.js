@@ -812,6 +812,56 @@ test.describe('Post layout letter spacing', () => {
     expect(updatedEditBody.post.content_pages).toEqual(updatePages);
   });
 
+  test('preserves existing content_pages when update clients omit the field', async ({
+    request,
+  }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+    const contentPages = [
+      '모바일 기준 첫 페이지입니다.',
+      '모바일 기준 둘째 페이지입니다.',
+    ];
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '수정 누락 경계 보존',
+        content: `<!--FONT:serif-->${contentPages.join('\n\n')}`,
+        content_pages: contentPages,
+        category: 'essay',
+        layout_json: buildLayoutPayloadV2(),
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    const updateResponse = await request.put(`/api/posts/${postId}`, {
+      headers,
+      data: {
+        title: '수정 누락 경계 보존 - 제목 수정',
+        content: `<!--FONT:serif-->${contentPages.join('\n\n')}`,
+        category: 'essay',
+        hashtags: [],
+        layout_json: buildLayoutPayloadV2(),
+      },
+    });
+
+    expect(updateResponse.status()).toBe(200);
+
+    const editResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
+    expect(editResponse.status()).toBe(200);
+    const editBody = await editResponse.json();
+    expect(editBody.post.content_pages).toEqual(contentPages);
+
+    const detailResponse = await request.get(`/api/posts/${postId}`, { headers });
+    expect(detailResponse.status()).toBe(200);
+    const detailBody = await detailResponse.json();
+    expect(detailBody.post.content_pages).toEqual(contentPages);
+    expect(detailBody.post.render_images.page_count).toBe(2);
+  });
+
   test('infers a single page for legacy plain mobile saves without content_pages', async ({
     request,
     page,
