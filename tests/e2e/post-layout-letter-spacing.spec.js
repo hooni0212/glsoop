@@ -778,6 +778,7 @@ test.describe('Post layout letter spacing', () => {
     const detailResponse = await request.get(`/api/posts/${postId}`, { headers });
     expect(detailResponse.status()).toBe(200);
     const detailBody = await detailResponse.json();
+    expect(detailBody.post.content_pages).toEqual(contentPages);
     expect(detailBody.post.render_images.page_count).toBe(3);
     expect(detailBody.post.images.length).toBe(3);
     expect(detailBody.post.render_images.is_truncated).toBe(false);
@@ -809,6 +810,48 @@ test.describe('Post layout letter spacing', () => {
     expect(updatedEditResponse.status()).toBe(200);
     const updatedEditBody = await updatedEditResponse.json();
     expect(updatedEditBody.post.content_pages).toEqual(updatePages);
+  });
+
+  test('post3 preserves a long single manual content page as one desktop card', async ({
+    request,
+    page,
+  }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+    const longSinglePage = Array.from(
+      { length: 12 },
+      (_item, index) =>
+        `긴 산문 한 장 테스트 문장 ${index + 1}입니다. 모바일 작성 화면에서 한 장으로 저장한 페이지 경계를 데스크탑 상세에서도 그대로 유지해야 합니다.`
+    ).join(' ');
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '긴 한 장 페이지 보존',
+        content: `<!--FONT:serif-->${longSinglePage}`,
+        content_pages: [longSinglePage],
+        category: 'essay',
+        layout_json: buildLayoutPayloadV2(),
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    const detailResponse = await request.get(`/api/posts/${postId}`, { headers });
+    expect(detailResponse.status()).toBe(200);
+    const detailBody = await detailResponse.json();
+    expect(detailBody.post.content_pages).toEqual([longSinglePage]);
+    expect(detailBody.post.render_images.page_count).toBe(1);
+    expect(detailBody.post.images.length).toBe(1);
+
+    await page.goto(`/html/post3.html?postId=${postId}`);
+    await expect(page.locator('#post3Title')).toContainText('긴 한 장 페이지 보존');
+    await expect(page.locator('#post3PageCount')).toHaveText('1');
+    await expect(page.locator('#post3CurrentTotal')).toHaveText('1');
+    await expect(page.locator('.post3-page')).toHaveCount(1);
+    await expect(page.locator('#post3Description')).toContainText('한 장');
   });
 
   test('creates preview sessions from manual content_pages', async ({ request }) => {

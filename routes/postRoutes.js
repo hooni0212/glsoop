@@ -2493,6 +2493,7 @@ function handlePublicPostDetail(req, res) {
           id: normalizedRow.id,
           title: normalizedRow.title,
           content: normalizedRow.content,
+          content_pages: parseStoredContentPages(row.content_pages),
           layout_json: normalizedRow.layout_json || null,
           category: normalizedRow.category,
           visibility: normalizeVisibility(normalizedRow.visibility),

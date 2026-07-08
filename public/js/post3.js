@@ -155,6 +155,92 @@ document.addEventListener('DOMContentLoaded', async () => {
     return truncateText(text, maxLength);
   }
 
+  function buildParagraphHtml(text) {
+    return String(text || '')
+      .split(/\n{2,}/)
+      .map((block) => block.trim())
+      .filter(Boolean)
+      .map((block) => `<p>${escapeHtml(block).replace(/\n/g, '<br>')}</p>`)
+      .join('');
+  }
+
+  function normalizeManualContentPages(rawPages) {
+    if (!Array.isArray(rawPages)) return [];
+    const pages = rawPages
+      .map((page) => {
+        const decoded = window.GlsReadingMode.decodeHtmlToText(page || '');
+        return String(decoded || page || '').replace(/\r/g, '').trim();
+      })
+      .slice(0, 24);
+
+    while (pages.length > 1 && !pages[pages.length - 1]) {
+      pages.pop();
+    }
+
+    return pages.some(Boolean) ? pages : [];
+  }
+
+  function buildManualDocumentModel({
+    title,
+    contentPages,
+    category,
+    fontKey,
+    alignment,
+  }) {
+    const normalizedCategory = window.GlsReadingMode.normalizeCategory(category || 'short');
+    const alignmentMode = window.GlsReadingMode.normalizeAlignment(alignment || 'auto');
+    const joinedText = contentPages.join('\n\n');
+    const recommendedAlign = window.GlsReadingMode.resolveRecommendedAlignment(
+      normalizedCategory,
+      joinedText
+    );
+    const effectiveAlign = alignmentMode === 'auto' ? recommendedAlign : alignmentMode;
+    const totalPages = Math.max(1, contentPages.length);
+    const manualPages = contentPages.map((pageText, index) => {
+      const lines = pageText
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      return {
+        index,
+        plainText: pageText,
+        contentHtml: buildParagraphHtml(pageText) || '<p></p>',
+        densityScore: Math.min(1, pageText.replace(/\s+/g, '').length / 155),
+        lineCount: lines.length,
+        id: `page-${index + 1}`,
+        title: normalizedCategory === 'short' ? '' : index === 0 ? title : '',
+        pageNumber: index + 1,
+        totalPages,
+        fontKey,
+        category: normalizedCategory,
+        align: effectiveAlign,
+        alignmentMode,
+        recommendedAlign,
+        layoutMode: normalizedCategory,
+        isLast: index === totalPages - 1,
+        isFirst: index === 0,
+      };
+    });
+
+    return {
+      pages: manualPages,
+      alignment: alignmentMode === 'auto' ? 'recommended' : alignmentMode,
+      resolvedAlignment: effectiveAlign,
+      recommendedAlignment: recommendedAlign,
+      type: normalizedCategory === 'essay' ? 'prose' : normalizedCategory,
+      category: normalizedCategory,
+      fontKey,
+      feedback: [
+        totalPages > 1
+          ? `작성 시 저장된 ${totalPages}장의 페이지 경계를 그대로 보여줘요.`
+          : '작성 시 저장된 한 장 구성을 그대로 보여줘요.',
+      ],
+      recommendedCategory: normalizedCategory,
+      recommendedReason: '저장된 페이지 경계를 우선합니다.',
+    };
+  }
+
   function buildPermalink(id) {
     return `${window.location.origin}/html/post3.html?postId=${encodeURIComponent(id)}`;
   }
@@ -591,13 +677,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     const parsedLayout = parseLayoutJson(post.layout_json);
     const currentAlign = String(parsedLayout?.text_box?.align || '').trim().toLowerCase();
     alignmentMode = currentAlign === 'left' || currentAlign === 'center' ? currentAlign : 'auto';
-    documentModel = window.GlsCardRenderer.buildDocument({
-      title: post.title || '',
-      plainText: window.GlsReadingMode.decodeHtmlToText(extracted.cleanHtml || ''),
-      category: post.category || 'short',
-      fontKey,
-      alignment: alignmentMode,
-    });
+    const manualContentPages = normalizeManualContentPages(post.content_pages);
+    documentModel = manualContentPages.length
+      ? buildManualDocumentModel({
+          title: post.title || '',
+          contentPages: manualContentPages,
+          category: post.category || 'short',
+          fontKey,
+          alignment: alignmentMode,
+        })
+      : window.GlsCardRenderer.buildDocument({
+          title: post.title || '',
+          plainText: window.GlsReadingMode.decodeHtmlToText(extracted.cleanHtml || ''),
+          category: post.category || 'short',
+          fontKey,
+          alignment: alignmentMode,
+        });
     pages = Array.isArray(documentModel.pages) ? documentModel.pages : [];
     if (!pages.length) {
       documentModel = window.GlsCardRenderer.buildDocument({
