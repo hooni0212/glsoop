@@ -712,12 +712,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fontKey = fontSelectEl.value || 'serif';
     const category = getSelectedCategory();
     const layoutJson = buildLayoutPayload(resolveEffectiveAlignment(category, plainText), preservedLayoutJson);
+    const contentPages = Array.isArray(currentAnalysis?.pages)
+      ? currentAnalysis.pages
+          .map((page) => String(page?.plainText || '').replace(/\r/g, '').trim())
+          .filter(Boolean)
+      : [];
 
     return {
       title,
       plain_text: plainText,
       content_html: contentHtml,
       content_with_font: `<!--FONT:${fontKey}-->${contentHtml}`,
+      content_format: 'html',
+      content_pages: contentPages,
       category,
       hashtags: hashtagList.map((tag) => `#${tag}`).join(' '),
       layout_json: layoutJson,
@@ -765,6 +772,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({
           title: payload.title,
           content: payload.content_with_font,
+          content_format: payload.content_format,
+          content_pages: payload.content_pages,
           hashtags: payload.hashtags,
           category: payload.category,
           layout_json: payload.layout_json,
@@ -820,6 +829,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({
           title: payload.title,
           content: payload.content_with_font,
+          content_format: payload.content_format,
+          content_pages: payload.content_pages,
           hashtags: payload.hashtags,
           category: payload.category,
           layout_json: payload.layout_json,

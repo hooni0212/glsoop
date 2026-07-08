@@ -812,6 +812,138 @@ test.describe('Post layout letter spacing', () => {
     expect(updatedEditBody.post.content_pages).toEqual(updatePages);
   });
 
+  test('infers a single page for legacy plain mobile saves without content_pages', async ({
+    request,
+    page,
+  }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+    const longSinglePage = Array.from(
+      { length: 10 },
+      (_item, index) =>
+        `레거시 모바일 한 장 본문 ${index + 1}입니다. content_pages가 없어도 자동 분할하지 않고 한 장으로 보존해야 합니다.`
+    ).join(' ');
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '레거시 plain 한 장 보존',
+        content: `<!--FONT:hand-->${longSinglePage}`,
+        content_format: 'plain',
+        category: 'essay',
+        layout_json: buildLayoutPayloadV2(),
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    const editResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
+    expect(editResponse.status()).toBe(200);
+    const editBody = await editResponse.json();
+    expect(editBody.post.content).toContain('FONT:hand');
+    expect(editBody.post.content_pages).toEqual([longSinglePage]);
+
+    const detailResponse = await request.get(`/api/posts/${postId}`, { headers });
+    expect(detailResponse.status()).toBe(200);
+    const detailBody = await detailResponse.json();
+    expect(detailBody.post.content_pages).toEqual([longSinglePage]);
+    expect(detailBody.post.render_images.page_count).toBe(1);
+    expect(detailBody.post.images.length).toBe(1);
+
+    const feedResponse = await request.get(`/api/feed-images/post/${postId}`, {
+      params: { template: 'paper01', scale: '2' },
+    });
+    expect(feedResponse.status()).toBe(200);
+    expect(feedResponse.headers()['x-feed-image-page-count']).toBe('1');
+    expect(feedResponse.headers()['x-feed-image-layout']).toContain('manual-pages');
+    expect(feedResponse.headers()['x-feed-image-layout']).toContain('font-hand');
+
+    await page.goto(`/html/post.html?postId=${postId}`);
+    await expect(page.locator('#postDetail')).toContainText('레거시 plain 한 장 보존');
+    await expect(page.locator('#postDetail .feed-rendered-card-image')).toHaveCount(1);
+    await expect(page.locator('#postDetail [data-post-carousel-nav]')).toHaveCount(0);
+
+    const updatedSinglePage = Array.from(
+      { length: 8 },
+      (_item, index) =>
+        `수정된 레거시 모바일 본문 ${index + 1}입니다. 수정 저장에서도 한 장 경계를 다시 추론해야 합니다.`
+    ).join(' ');
+    const updateResponse = await request.put(`/api/posts/${postId}`, {
+      headers,
+      data: {
+        title: '레거시 plain 한 장 수정',
+        content: `<!--FONT:sans-->${updatedSinglePage}`,
+        content_format: 'plain',
+        category: 'essay',
+        hashtags: [],
+        layout_json: buildLayoutPayloadV2(),
+      },
+    });
+    expect(updateResponse.status()).toBe(200);
+
+    const updatedEditResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
+    expect(updatedEditResponse.status()).toBe(200);
+    const updatedEditBody = await updatedEditResponse.json();
+    expect(updatedEditBody.post.content).toContain('FONT:sans');
+    expect(updatedEditBody.post.content_pages).toEqual([updatedSinglePage]);
+  });
+
+  test('preserves html content when editor3 sends explicit content_pages', async ({
+    request,
+  }) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+    const contentPages = [
+      'HTML 첫 페이지입니다. 굵은 문장이 들어간 원본 본문은 그대로 저장되어야 합니다.',
+      'HTML 둘째 페이지입니다. 페이지 경계는 별도 배열로 보존됩니다.',
+    ];
+    const htmlContent = [
+      '<p><strong>HTML 첫 페이지입니다.</strong> 굵은 문장이 들어간 원본 본문은 그대로 저장되어야 합니다.</p>',
+      '<p>HTML 둘째 페이지입니다. 페이지 경계는 별도 배열로 보존됩니다.</p>',
+    ].join('');
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: 'editor3 HTML 페이지 저장',
+        content: `<!--FONT:sans-->${htmlContent}`,
+        content_format: 'html',
+        content_pages: contentPages,
+        category: 'essay',
+        layout_json: buildLayoutPayloadV2(),
+      },
+    });
+
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    const editResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
+    expect(editResponse.status()).toBe(200);
+    const editBody = await editResponse.json();
+    expect(editBody.post.content).toContain('<strong>HTML 첫 페이지입니다.</strong>');
+    expect(editBody.post.content_pages).toEqual(contentPages);
+
+    const detailResponse = await request.get(`/api/posts/${postId}`, { headers });
+    expect(detailResponse.status()).toBe(200);
+    const detailBody = await detailResponse.json();
+    expect(detailBody.post.content).toContain('<strong>HTML 첫 페이지입니다.</strong>');
+    expect(detailBody.post.content_pages).toEqual(contentPages);
+    expect(detailBody.post.render_images.page_count).toBe(2);
+    expect(detailBody.post.images.length).toBe(2);
+
+    const pageTwoResponse = await request.get(`/api/feed-images/post/${postId}`, {
+      params: { template: 'paper01', scale: '2', page: '2' },
+    });
+    expect(pageTwoResponse.status()).toBe(200);
+    expect(pageTwoResponse.headers()['x-feed-image-page']).toBe('2');
+    expect(pageTwoResponse.headers()['x-feed-image-page-count']).toBe('2');
+    expect(pageTwoResponse.headers()['x-feed-image-layout']).toContain('manual-pages');
+    expect(pageTwoResponse.headers()['x-feed-image-layout']).toContain('font-sans');
+  });
+
   test('post3 preserves a long single manual content page as one desktop card', async ({
     request,
     page,

@@ -790,20 +790,45 @@ function extractFontMeta(raw) {
   return match?.[1] ? `<!--FONT:${match[1].toLowerCase()}-->` : '';
 }
 
+function stripFontMeta(raw) {
+  return String(raw || '').replace(FONT_META_REGEX, '');
+}
+
+function shouldInferPlainContentPages(body = {}) {
+  if (hasOwn(body, 'content_pages')) return false;
+  const format = String(body.content_format || '').trim().toLowerCase();
+  if (format !== 'plain') return false;
+  if (typeof body.content !== 'string') return false;
+  return stripFontMeta(body.content).trim().length > 0;
+}
+
+function shouldPreserveHtmlContentWithPages(body = {}) {
+  return String(body.content_format || '').trim().toLowerCase() === 'html';
+}
+
+function buildContentForStorage(content, contentPagesInput, body = {}) {
+  if (!contentPagesInput.provided) return content;
+  if (shouldPreserveHtmlContentWithPages(body)) return content;
+  return `${extractFontMeta(content)}${contentPagesInput.flattenedContent || ''}`;
+}
+
 function parseContentPagesInput(body = {}) {
-  if (!hasOwn(body, 'content_pages')) {
+  const shouldInferPages = shouldInferPlainContentPages(body);
+  const rawContentPages = shouldInferPages ? [stripFontMeta(body.content)] : body.content_pages;
+
+  if (!hasOwn(body, 'content_pages') && !shouldInferPages) {
     return { provided: false, pages: null, storageValue: null, flattenedContent: null };
   }
 
-  if (!Array.isArray(body.content_pages)) {
+  if (!Array.isArray(rawContentPages)) {
     return { provided: true, error: 'content_pages는 배열이어야 합니다.' };
   }
 
-  if (body.content_pages.some((page) => typeof page !== 'string')) {
+  if (rawContentPages.some((page) => typeof page !== 'string')) {
     return { provided: true, error: 'content_pages는 문자열 배열이어야 합니다.' };
   }
 
-  const pages = body.content_pages
+  const pages = rawContentPages
     .slice(0, CONTENT_PAGE_MAX_COUNT + 1)
     .map(normalizeManualContentPage);
 
@@ -1162,9 +1187,7 @@ router.post('/posts', authRequired, async (req, res) => {
     });
   }
 
-  const contentForStorage = contentPagesInput.provided
-    ? `${extractFontMeta(content)}${contentPagesInput.flattenedContent || ''}`
-    : content;
+  const contentForStorage = buildContentForStorage(content, contentPagesInput, req.body);
 
   if (!title || !contentForStorage) {
     return res
@@ -1273,9 +1296,7 @@ router.put('/posts/:id', authRequired, (req, res) => {
     });
   }
 
-  const contentForStorage = contentPagesInput.provided
-    ? `${extractFontMeta(content)}${contentPagesInput.flattenedContent || ''}`
-    : content;
+  const contentForStorage = buildContentForStorage(content, contentPagesInput, req.body);
 
   if (!title || !contentForStorage) {
     return res
