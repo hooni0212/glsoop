@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const DRAFT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   const DRAFT_SAVE_DEBOUNCE_MS = 900;
   const PREVIEW_SESSION_DEBOUNCE_MS = 450;
+  const CONTENT_PAGE_MAX_CHARS = 1000;
 
   // 해시태그 칩용 내부 리스트
   // ex) ['힐링', '위로']
@@ -36,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let previewCreatedAt = new Date().toISOString();
   let previewOverlayText = { title: '제목', body: '본문' };
   let selectedBackgroundTemplate = 'paper01';
+  let loadedContentPages = [];
 
   const trackEvent = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -247,6 +249,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     sans: '담백한 고딕체',
     hand: '손글씨 느낌',
   };
+
+  function normalizeEditorContentPage(raw) {
+    return String(raw || '').replace(/\r\n?/g, '\n').trim();
+  }
+
+  function normalizeEditorContentSignature(raw) {
+    return normalizeEditorContentPage(raw).replace(/\s+/g, ' ').trim();
+  }
+
+  function countCompactEditorChars(raw) {
+    return Array.from(String(raw || '').replace(/\s/g, '')).length;
+  }
+
+  function normalizeLoadedContentPages(rawPages) {
+    if (!Array.isArray(rawPages)) return [];
+    const pages = rawPages.map(normalizeEditorContentPage);
+    while (pages.length > 1 && !pages[pages.length - 1]) {
+      pages.pop();
+    }
+    return pages.some(Boolean) ? pages : [];
+  }
+
+  function buildEditorContentPagesForSave(plainText) {
+    const normalizedPlainText = normalizeEditorContentPage(plainText);
+    if (!normalizedPlainText) return [];
+
+    const currentSignature = normalizeEditorContentSignature(normalizedPlainText);
+    const loadedPages = normalizeLoadedContentPages(loadedContentPages);
+    if (loadedPages.length > 0) {
+      const loadedSignature = normalizeEditorContentSignature(loadedPages.join('\n\n'));
+      if (loadedSignature && loadedSignature === currentSignature) {
+        return loadedPages;
+      }
+
+      if (countCompactEditorChars(normalizedPlainText) <= CONTENT_PAGE_MAX_CHARS) {
+        return [normalizedPlainText];
+      }
+    }
+
+    return [];
+  }
+
+  function hasChangedLoadedPageText(plainText) {
+    const loadedPages = normalizeLoadedContentPages(loadedContentPages);
+    if (!loadedPages.length) return false;
+    const loadedSignature = normalizeEditorContentSignature(loadedPages.join('\n\n'));
+    const currentSignature = normalizeEditorContentSignature(plainText);
+    return Boolean(loadedSignature && currentSignature && loadedSignature !== currentSignature);
+  }
 
   function normalizeTemplateKey(value) {
     return value === 'paper02' ? 'paper02' : 'paper01';
@@ -1422,6 +1473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const layoutForPreview = buildLayoutPayloadForSave(manualLayoutState);
+    const previewContentPages = buildEditorContentPagesForSave(quill.getText().trim());
     const requestSeq = ++previewSessionRequestSeq;
 
     previewSessionTimer = window.setTimeout(async () => {
@@ -1443,6 +1495,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             title: previewPost.title,
             content: previewPost.content,
             content_format: 'html',
+            ...(previewContentPages.length > 0 ? { content_pages: previewContentPages } : {}),
             category: previewPost.category,
             template: normalizeTemplateKey(selectedBackgroundTemplate),
             scale: 1,
@@ -1765,6 +1818,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         isEditMode = false; // 실패 시 새 글 모드로 전환
       } else {
         const post = data.post;
+        loadedContentPages = normalizeLoadedContentPages(post.content_pages);
         // 제목/본문/폰트 세팅
         titleInput.value = post.title || '';
 
@@ -1820,6 +1874,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       isEditMode = false;
     }
   } else {
+    loadedContentPages = [];
     // 새 글 모드 → 초기 미리보기 & 글자 수 표시
     if (writingEventContext) {
       if (categorySelectEl && ['poem', 'essay', 'short'].includes(writingEventContext.promptCategory)) {
@@ -1955,6 +2010,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    const contentPagesForSave = buildEditorContentPagesForSave(plainText);
+    if (hasChangedLoadedPageText(plainText) && contentPagesForSave.length === 0) {
+      showEditorError('페이지가 있는 긴 글은 모바일 글쓰기에서 페이지별로 수정해주세요.');
+      return;
+    }
+
     trackEvent(isEditMode ? 'post_update_submit' : 'post_create_submit', {
       category: selectedCategory,
       content_length: length,
@@ -1982,6 +2043,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({
           title,
           content: contentWithFontMeta,
+          content_format: 'html',
+          ...(contentPagesForSave.length > 0 ? { content_pages: contentPagesForSave } : {}),
           hashtags: hashtagsRaw, // ✅ 서버로 해시태그 문자열 함께 전송
           category: selectedCategory,
           layout_json: buildLayoutPayloadForSave(manualLayoutState),

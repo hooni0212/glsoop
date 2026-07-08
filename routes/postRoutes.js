@@ -1331,7 +1331,6 @@ router.put('/posts/:id', authRequired, (req, res) => {
     const updateFields = [
       'title = ?',
       'content = ?',
-      'content_pages = ?',
       'category = ?',
       'visibility = ?',
       'comment_policy = ?',
@@ -1341,11 +1340,14 @@ router.put('/posts/:id', authRequired, (req, res) => {
     const updateParams = [
       title,
       safeContent,
-      contentPagesInput.provided ? contentPagesInput.storageValue : null,
       normalizedCategory,
       visibility,
       commentPolicy,
     ];
+    if (contentPagesInput.provided) {
+      updateFields.push('content_pages = ?');
+      updateParams.push(contentPagesInput.storageValue);
+    }
     if (layoutInput.provided) {
       updateFields.push('layout_json = ?');
       updateParams.push(layoutInput.value);

@@ -278,6 +278,64 @@ test.describe('Editor multipage preview', () => {
     await expect(page.locator('[data-background-template="paper02"]')).toHaveClass(/is-active/);
   });
 
+  test('editor preserves mobile content_pages when saving a title-only edit', async ({
+    page,
+    request,
+  }, testInfo) => {
+    const token = await loginAsLayoutWriter(request);
+    const headers = { Authorization: `Bearer ${token}` };
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+    const contentPages = [
+      '모바일에서 작성한 첫 페이지입니다.',
+      '모바일에서 작성한 둘째 페이지입니다.',
+    ];
+
+    const createResponse = await request.post('/api/posts', {
+      headers,
+      data: {
+        title: '모바일 페이지 글',
+        content: `<!--FONT:serif-->${contentPages.join('\n\n')}`,
+        content_pages: contentPages,
+        category: 'essay',
+        layout_json: buildLayoutPayload(),
+      },
+    });
+    expect(createResponse.status()).toBe(200);
+    const createBody = await createResponse.json();
+    const postId = createBody.post_id;
+
+    await applyAuthCookie(page, baseURL, token);
+    await page.goto(`/html/editor.html?postId=${postId}`);
+    await expect(page.locator('#postTitle')).toHaveValue('모바일 페이지 글');
+    await page.locator('#postTitle').fill('모바일 페이지 글 제목 수정');
+
+    const updateRequestPromise = page.waitForRequest((updateRequest) => {
+      return updateRequest.url().includes(`/api/posts/${postId}`)
+        && updateRequest.method() === 'PUT';
+    });
+    const updateResponsePromise = page.waitForResponse((response) => {
+      return response.url().includes(`/api/posts/${postId}`)
+        && response.request().method() === 'PUT';
+    });
+    page.once('dialog', async (dialog) => {
+      await dialog.accept();
+    });
+    await page.locator('#saveBtn').click();
+    const updateRequest = await updateRequestPromise;
+    const updatePayload = updateRequest.postDataJSON();
+    expect(updatePayload.content_format).toBe('html');
+    expect(updatePayload.content_pages).toEqual(contentPages);
+
+    const updateResponse = await updateResponsePromise;
+    expect(updateResponse.status()).toBe(200);
+
+    const editResponse = await request.get(`/api/posts/${postId}/edit`, { headers });
+    expect(editResponse.status()).toBe(200);
+    const editBody = await editResponse.json();
+    expect(editBody.post.title).toBe('모바일 페이지 글 제목 수정');
+    expect(editBody.post.content_pages).toEqual(contentPages);
+  });
+
   test('saves page-specific layout override from the current preview page', async ({ page, request }, testInfo) => {
     const token = await loginAsLayoutWriter(request);
     const headers = { Authorization: `Bearer ${token}` };
