@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const EDIT_AUTOSAVE_DEBOUNCE_MS = 1200;
   const DRAFT_SAVE_DEBOUNCE_MS = 1000;
   const PREVIEW_IMAGE_DEBOUNCE_MS = 200;
+  const CONTENT_PAGE_MAX_CHARS = 1000;
   const DRAFT_PREFIX = 'glsoop:editor2:draft';
   const DRAFT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   const LAYOUT_VERSION = 1;
@@ -19,6 +20,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     sans: '담백한 고딕체',
     hand: '손글씨 느낌',
   };
+
+  function normalizeEditorContentPage(raw) {
+    return String(raw || '').replace(/\r\n?/g, '\n').trim();
+  }
+
+  function normalizeEditorContentSignature(raw) {
+    return normalizeEditorContentPage(raw).replace(/\s+/g, ' ').trim();
+  }
+
+  function countCompactEditorChars(raw) {
+    return Array.from(String(raw || '').replace(/\s/g, '')).length;
+  }
+
+  function normalizeLoadedContentPages(rawPages) {
+    if (!Array.isArray(rawPages)) return [];
+    const pages = rawPages.map(normalizeEditorContentPage);
+    while (pages.length > 1 && !pages[pages.length - 1]) {
+      pages.pop();
+    }
+    return pages.some(Boolean) ? pages : [];
+  }
+
+  function buildEditorContentPagesForSave(plainText) {
+    const normalizedPlainText = normalizeEditorContentPage(plainText);
+    if (!normalizedPlainText) return [];
+
+    const currentSignature = normalizeEditorContentSignature(normalizedPlainText);
+    const loadedPages = normalizeLoadedContentPages(loadedContentPages);
+    if (loadedPages.length > 0) {
+      const loadedSignature = normalizeEditorContentSignature(loadedPages.join('\n\n'));
+      if (loadedSignature && loadedSignature === currentSignature) {
+        return loadedPages;
+      }
+
+      if (countCompactEditorChars(normalizedPlainText) <= CONTENT_PAGE_MAX_CHARS) {
+        return [normalizedPlainText];
+      }
+    }
+
+    return [];
+  }
+
+  function hasChangedLoadedPageText(plainText) {
+    const loadedPages = normalizeLoadedContentPages(loadedContentPages);
+    if (!loadedPages.length) return false;
+    const loadedSignature = normalizeEditorContentSignature(loadedPages.join('\n\n'));
+    const currentSignature = normalizeEditorContentSignature(plainText);
+    return Boolean(loadedSignature && currentSignature && loadedSignature !== currentSignature);
+  }
 
   const CUSTOM_LAYOUT_REASONS = new Set([
     'drag',
@@ -92,6 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     : null;
   let layoutEditor = null;
   let currentPreviewCard = null;
+  let loadedContentPages = [];
 
   const quill = new Quill('#editor', {
     theme: 'snow',
@@ -887,11 +938,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fontKey = fontSelectEl.value || 'serif';
     const category = categorySelectEl.value || '';
     const hashtagsRaw = hashtagList.map((tag) => `#${tag}`).join(' ');
+    const contentPages = buildEditorContentPagesForSave(plainText);
 
     return {
       title,
       content_html: contentHtml,
       content_with_font: `<!--FONT:${fontKey}-->${contentHtml}`,
+      content_format: 'html',
+      content_pages: contentPages,
       plain_text: plainText,
       category,
       hashtags: hashtagsRaw,
@@ -928,6 +982,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       return false;
     }
+    if (hasChangedLoadedPageText(payload.plain_text) && payload.content_pages.length === 0) {
+      const pageError = '페이지가 있는 긴 글은 모바일 글쓰기에서 페이지별로 수정해주세요.';
+      if (source === 'manual') {
+        showEditorError(pageError);
+        setSaveStatus('error');
+      } else {
+        scheduleDraftSave();
+        setSaveStatus('local', new Date().toISOString());
+      }
+      return false;
+    }
 
     hideEditorError();
     isSaving = true;
@@ -940,6 +1005,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({
           title: payload.title,
           content: payload.content_with_font,
+          content_format: payload.content_format,
+          ...(payload.content_pages.length > 0 ? { content_pages: payload.content_pages } : {}),
           hashtags: payload.hashtags,
           category: payload.category,
           layout_json: payload.layout_json,
@@ -988,6 +1055,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       setSaveStatus('error');
       return false;
     }
+    if (hasChangedLoadedPageText(payload.plain_text) && payload.content_pages.length === 0) {
+      showEditorError('페이지가 있는 긴 글은 모바일 글쓰기에서 페이지별로 수정해주세요.');
+      setSaveStatus('error');
+      return false;
+    }
 
     hideEditorError();
     isSaving = true;
@@ -1002,6 +1074,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({
           title: payload.title,
           content: payload.content_with_font,
+          content_format: payload.content_format,
+          ...(payload.content_pages.length > 0 ? { content_pages: payload.content_pages } : {}),
           hashtags: payload.hashtags,
           category: payload.category,
           layout_json: payload.layout_json,
@@ -1190,6 +1264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const post = data.post;
+      loadedContentPages = normalizeLoadedContentPages(post.content_pages);
       isProgrammaticUpdate = true;
       try {
         postTitleEl.value = post.title || '';

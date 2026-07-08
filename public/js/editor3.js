@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const MAX_CONTENT_LENGTH = 200;
+  const CONTENT_PAGE_MAX_CHARS = 1000;
   const EDIT_AUTOSAVE_DEBOUNCE_MS = 1200;
   const DRAFT_SAVE_DEBOUNCE_MS = 1000;
   const DRAFT_PREFIX = 'glsoop:editor3:draft';
@@ -105,6 +106,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function countCompactContentChars(value) {
+    return Array.from(String(value || '').replace(/\s/g, '')).length;
   }
 
   function resolveUserToken(user) {
@@ -712,11 +717,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fontKey = fontSelectEl.value || 'serif';
     const category = getSelectedCategory();
     const layoutJson = buildLayoutPayload(resolveEffectiveAlignment(category, plainText), preservedLayoutJson);
-    const contentPages = Array.isArray(currentAnalysis?.pages)
+    const analyzedContentPages = Array.isArray(currentAnalysis?.pages)
       ? currentAnalysis.pages
           .map((page) => String(page?.plainText || '').replace(/\r/g, '').trim())
           .filter(Boolean)
       : [];
+    const contentPages = analyzedContentPages.length > 0
+      ? analyzedContentPages
+      : plainText && countCompactContentChars(plainText) <= CONTENT_PAGE_MAX_CHARS
+        ? [plainText.replace(/\r/g, '').trim()]
+        : [];
 
     return {
       title,
@@ -773,7 +783,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           title: payload.title,
           content: payload.content_with_font,
           content_format: payload.content_format,
-          content_pages: payload.content_pages,
+          ...(payload.content_pages.length > 0 ? { content_pages: payload.content_pages } : {}),
           hashtags: payload.hashtags,
           category: payload.category,
           layout_json: payload.layout_json,
@@ -830,7 +840,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           title: payload.title,
           content: payload.content_with_font,
           content_format: payload.content_format,
-          content_pages: payload.content_pages,
+          ...(payload.content_pages.length > 0 ? { content_pages: payload.content_pages } : {}),
           hashtags: payload.hashtags,
           category: payload.category,
           layout_json: payload.layout_json,
