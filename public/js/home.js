@@ -68,7 +68,10 @@ const HomeCuration = (() => {
       cache: 'no-store',
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok || !data.event || !data.today_prompt) return;
+    if (!res.ok || !data.ok || !data.event || data.event.active === false || !data.today_prompt) {
+      mount.classList.add('gls-hidden');
+      return;
+    }
 
     const event = data.event;
     const prompt = data.today_prompt;

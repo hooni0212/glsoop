@@ -3,8 +3,252 @@ const DAILY_WRITING_CAMPAIGN_TITLE = '글숲 한달 글쓰기 프로젝트';
 const DAILY_WRITING_CAMPAIGN_SUBTITLE = '매일 하나의 글감으로 30일 동안 글을 쌓아가요.';
 const DAILY_WRITING_CAMPAIGN_TOTAL_DAYS = 30;
 const CAMPAIGN_START_LOCAL_DATE = '2026-06-14';
+const NEXT_DAILY_WRITING_PROMPTS_START_LOCAL_DATE = '2026-07-14';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const NEXT_DAILY_WRITING_PROMPTS = [
+  {
+    key: 'day-01-kind-gaze',
+    day: 1,
+    title: '나를 다정하게 바라보는 달',
+    body: '매일 하나씩, 나에게 건넬 수 있는 부드러운 말을 기록해요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['다정함', '나에게', '글숲프로젝트'],
+  },
+  {
+    key: 'day-02-remaining-feelings',
+    day: 2,
+    title: '사라지지 않은 마음들',
+    body: '잊은 줄 알았지만 아직 안쪽에 남아 있는 감정을 천천히 꺼내봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['남은마음', '감정기록', '마음'],
+  },
+  {
+    key: 'day-03-holding-today',
+    day: 3,
+    title: '오늘을 붙잡는 문장',
+    body: '흘러가버릴 하루에서 오래 남기고 싶은 장면을 적어봐요.',
+    defaultCategory: 'short',
+    suggestedHashtags: ['오늘문장', '장면기록', '하루'],
+  },
+  {
+    key: 'day-04-places-i-stayed',
+    day: 4,
+    title: '내가 머문 자리들',
+    body: '집, 거리, 카페, 버스정류장처럼 내가 지나온 공간을 글로 남겨요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['공간기록', '머문자리', '일상'],
+  },
+  {
+    key: 'day-05-unsaid-words',
+    day: 5,
+    title: '말하지 못한 말들',
+    body: '그때는 삼켰지만 이제는 조용히 꺼내보고 싶은 말을 적어봐요.',
+    defaultCategory: 'short',
+    suggestedHashtags: ['말하지못한말', '마음', '짧은글'],
+  },
+  {
+    key: 'day-06-small-comfort',
+    day: 6,
+    title: '작은 위로의 방식',
+    body: '거창하지 않아도 누군가를 살게 하는 다정한 말들을 모아봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['위로', '다정한말', '관계'],
+  },
+  {
+    key: 'day-07-inner-season',
+    day: 7,
+    title: '내 마음의 계절',
+    body: '지금 내 안에 머무는 계절의 온도와 풍경을 글로 기록해요.',
+    defaultCategory: 'poem',
+    suggestedHashtags: ['마음의계절', '감정', '시'],
+  },
+  {
+    key: 'day-08-ordinary-beauty',
+    day: 8,
+    title: '평범한 날의 아름다움',
+    body: '아무 일도 없었던 하루 속에서 발견한 작은 빛을 적어봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['평범한날', '아름다움', '일상'],
+  },
+  {
+    key: 'day-09-forming-memories',
+    day: 9,
+    title: '나를 만든 기억들',
+    body: '지금의 나를 조금씩 만든 사람, 장소, 사건을 돌아봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['기억', '나를만든것', '회고'],
+  },
+  {
+    key: 'day-10-alone-time',
+    day: 10,
+    title: '혼자 있는 시간의 기록',
+    body: '외로움과 고요함 사이에서 내가 만난 마음을 적어봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['혼자있는시간', '고요함', '마음'],
+  },
+  {
+    key: 'day-11-practicing-kindness',
+    day: 11,
+    title: '다정함을 연습하는 달',
+    body: '차가운 말보다 부드러운 시선을 선택하는 글쓰기를 해봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['다정함', '연습', '시선'],
+  },
+  {
+    key: 'day-12-long-watched-things',
+    day: 12,
+    title: '오래 바라본 것들',
+    body: '자주 지나쳤지만 사실은 오래 마음에 남아 있던 것들을 기록해요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['오래바라본것', '관찰', '기록'],
+  },
+  {
+    key: 'day-13-resting-sentence',
+    day: 13,
+    title: '마음이 쉬어가는 문장',
+    body: '지친 하루 끝에 나를 잠시 앉혀둘 수 있는 문장을 써봐요.',
+    defaultCategory: 'short',
+    suggestedHashtags: ['쉬어가는문장', '위로', '짧은글'],
+  },
+  {
+    key: 'day-14-beloved-small-things',
+    day: 14,
+    title: '내가 사랑한 사소함',
+    body: '작은 습관, 냄새, 소리, 표정처럼 사소하지만 소중한 것을 적어봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['사소함', '취향', '소중한것'],
+  },
+  {
+    key: 'day-15-grown-up-lessons',
+    day: 15,
+    title: '어른이 되어 알게 된 것들',
+    body: '시간이 지나서야 이해하게 된 마음과 관계를 돌아봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['어른이되어', '관계', '이해'],
+  },
+  {
+    key: 'day-16-after-hurt',
+    day: 16,
+    title: '상처 이후의 나',
+    body: '아팠던 시간을 지나 지금의 내가 붙잡고 있는 것을 적어봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['상처이후', '회복', '마음'],
+  },
+  {
+    key: 'day-17-quiet-tastes',
+    day: 17,
+    title: '나의 조용한 취향들',
+    body: '좋아하는 색, 문장, 날씨, 분위기처럼 나를 닮은 취향을 기록해요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['조용한취향', '나를닮은것', '취향'],
+  },
+  {
+    key: 'day-18-letting-go',
+    day: 18,
+    title: '하루에 하나씩 덜어내기',
+    body: '미움, 후회, 비교, 불안을 조금씩 내려놓는 글을 써봐요.',
+    defaultCategory: 'short',
+    suggestedHashtags: ['덜어내기', '불안', '마음정리'],
+  },
+  {
+    key: 'day-19-revisit-moment',
+    day: 19,
+    title: '다시 살고 싶은 순간',
+    body: '가능하다면 한 번쯤 돌아가 머물고 싶은 장면을 적어봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['다시살고싶은순간', '장면', '기억'],
+  },
+  {
+    key: 'day-20-life-giving-words',
+    day: 20,
+    title: '나를 살게 한 말들',
+    body: '누군가의 한마디, 책 속 문장, 스스로의 다짐을 모아봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['나를살게한말', '문장', '다짐'],
+  },
+  {
+    key: 'day-21-relationship-temperature',
+    day: 21,
+    title: '관계의 온도를 기록하는 달',
+    body: '가까운 사람들과의 거리, 고마움, 서운함을 솔직하게 적어봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['관계의온도', '고마움', '서운함'],
+  },
+  {
+    key: 'day-22-inner-forest',
+    day: 22,
+    title: '내 안의 작은 숲',
+    body: '복잡한 마음속에서도 조용히 자라고 있는 나만의 세계를 써봐요.',
+    defaultCategory: 'poem',
+    suggestedHashtags: ['내안의숲', '나만의세계', '시'],
+  },
+  {
+    key: 'day-23-observing-emotion',
+    day: 23,
+    title: '오늘의 감정을 관찰하기',
+    body: '기쁨, 무기력, 불안, 평온처럼 오늘의 감정을 판단 없이 바라봐요.',
+    defaultCategory: 'short',
+    suggestedHashtags: ['감정관찰', '오늘감정', '마음'],
+  },
+  {
+    key: 'day-24-letter-to-old-self',
+    day: 24,
+    title: '오래된 나에게 보내는 편지',
+    body: '과거의 나, 어린 나, 버텨온 나에게 하고 싶은 말을 적어봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['오래된나에게', '편지', '회고'],
+  },
+  {
+    key: 'day-25-less-hate-life',
+    day: 25,
+    title: '삶을 조금 덜 미워하는 법',
+    body: '마음에 들지 않는 하루 속에서도 미워하지 않을 이유를 찾아봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['덜미워하기', '하루', '마음'],
+  },
+  {
+    key: 'day-26-people-passed-through',
+    day: 26,
+    title: '나를 지나간 사람들',
+    body: '내 삶에 잠시 머물렀거나 오래 남은 사람들에 대해 써봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['지나간사람들', '관계', '기억'],
+  },
+  {
+    key: 'day-27-after-collapse',
+    day: 27,
+    title: '무너진 날에도 남은 것',
+    body: '힘들었던 하루 끝에서도 끝내 사라지지 않은 것을 기록해요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['무너진날', '남은것', '회복'],
+  },
+  {
+    key: 'day-28-self-permission',
+    day: 28,
+    title: '내가 나에게 허락할 것들',
+    body: '쉬어도 되는 마음, 울어도 되는 마음, 다시 시작해도 되는 마음을 적어봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['허락', '나에게', '마음'],
+  },
+  {
+    key: 'day-29-night-thoughts',
+    day: 29,
+    title: '밤에 떠오르는 생각',
+    body: '낮에는 지나쳤지만 밤이 되면 선명해지는 마음을 글로 남겨요.',
+    defaultCategory: 'poem',
+    suggestedHashtags: ['밤생각', '마음', '시'],
+  },
+  {
+    key: 'day-30-trust-myself-again',
+    day: 30,
+    title: '다시 나를 믿어보는 달',
+    body: '흔들리는 마음 속에서도 나를 조금씩 믿어보는 연습을 해봐요.',
+    defaultCategory: 'essay',
+    suggestedHashtags: ['나를믿기', '다시시작', '글숲프로젝트'],
+  },
+];
 
 const DAILY_WRITING_PROMPTS = [
   {
@@ -249,6 +493,19 @@ const DAILY_WRITING_PROMPTS = [
   },
 ];
 
+const DAILY_WRITING_PROMPT_SETS = [
+  {
+    key: 'current-2026-06',
+    startsLocalDate: CAMPAIGN_START_LOCAL_DATE,
+    prompts: DAILY_WRITING_PROMPTS,
+  },
+  {
+    key: 'next-2026-07',
+    startsLocalDate: NEXT_DAILY_WRITING_PROMPTS_START_LOCAL_DATE,
+    prompts: NEXT_DAILY_WRITING_PROMPTS,
+  },
+];
+
 const WRITING_EVENT_DEFINITIONS = [
   {
     key: DAILY_WRITING_CAMPAIGN_KEY,
@@ -257,6 +514,7 @@ const WRITING_EVENT_DEFINITIONS = [
     totalDays: DAILY_WRITING_CAMPAIGN_TOTAL_DAYS,
     startLocalDate: CAMPAIGN_START_LOCAL_DATE,
     prompts: DAILY_WRITING_PROMPTS,
+    promptSets: DAILY_WRITING_PROMPT_SETS,
     source: 'daily_writing_project',
     promptLabel: '오늘의 글감',
     pushCampaignKind: 'daily_writing_project_prompt',
@@ -285,21 +543,69 @@ function getDefaultWritingEventDefinition() {
   return getWritingEventDefinition(DAILY_WRITING_CAMPAIGN_KEY);
 }
 
+function getWritingEventPromptSet(event, now = new Date()) {
+  const promptSets = Array.isArray(event?.promptSets) ? event.promptSets : [];
+  if (promptSets.length === 0) return null;
+
+  const currentMs = parseLocalDateMs(formatKstDateKey(now));
+  const totalDays = Math.max(1, Number(event?.totalDays) || event?.prompts?.length || 1);
+  return promptSets.reduce((activeSet, promptSet) => {
+    const startsMs = parseLocalDateMs(promptSet.startsLocalDate);
+    const endsMs = startsMs + (totalDays - 1) * DAY_MS;
+    if (currentMs < startsMs || currentMs > endsMs) return activeSet;
+    if (!activeSet) return promptSet;
+    return startsMs >= parseLocalDateMs(activeSet.startsLocalDate) ? promptSet : activeSet;
+  }, null);
+}
+
+function getNextWritingEventPromptSet(event, now = new Date()) {
+  const promptSets = Array.isArray(event?.promptSets) ? event.promptSets : [];
+  if (promptSets.length === 0) return null;
+
+  const currentMs = parseLocalDateMs(formatKstDateKey(now));
+  return (
+    promptSets
+      .filter((promptSet) => parseLocalDateMs(promptSet.startsLocalDate) > currentMs)
+      .sort((a, b) => parseLocalDateMs(a.startsLocalDate) - parseLocalDateMs(b.startsLocalDate))[0] ||
+    null
+  );
+}
+
+function getWritingEventPrompts(event, now = new Date()) {
+  const promptSets = Array.isArray(event?.promptSets) ? event.promptSets : [];
+  if (promptSets.length === 0) return event?.prompts || [];
+  return getWritingEventPromptSet(event, now)?.prompts || [];
+}
+
+function listWritingEventPrompts(event) {
+  const prompts = [
+    ...(Array.isArray(event?.prompts) ? event.prompts : []),
+    ...(Array.isArray(event?.promptSets)
+      ? event.promptSets.flatMap((promptSet) => promptSet.prompts || [])
+      : []),
+  ];
+
+  return Array.from(new Map(prompts.map((prompt) => [prompt.key, prompt])).values());
+}
+
 function getWritingEventPrompt(eventKey, promptKey) {
   const event = getWritingEventDefinition(eventKey);
   if (!event || !promptKey) return null;
-  return event.prompts.find((prompt) => prompt.key === promptKey) || null;
+  return listWritingEventPrompts(event).find((prompt) => prompt.key === promptKey) || null;
 }
 
-function getEventDayIndex(event, now = new Date()) {
+function getEventDayIndex(event, now = new Date(), startLocalDate, options = {}) {
   const totalDays = Math.max(1, Number(event?.totalDays) || event?.prompts?.length || 1);
-  const startMs = parseLocalDateMs(event?.startLocalDate || CAMPAIGN_START_LOCAL_DATE);
+  const startMs = parseLocalDateMs(startLocalDate || event?.startLocalDate || CAMPAIGN_START_LOCAL_DATE);
   const currentMs = parseLocalDateMs(formatKstDateKey(now));
   const diffDays = Math.floor((currentMs - startMs) / DAY_MS);
+  if (options.repeat === false) return diffDays;
   return ((diffDays % totalDays) + totalDays) % totalDays;
 }
 
 function buildWritingEventPromptWritePath(status = getDefaultWritingEventStatus()) {
+  if (!status?.prompt) return null;
+  if (status.writePath) return status.writePath;
   const prompt = status.prompt;
   const params = new URLSearchParams({
     campaignKey: status.campaignKey,
@@ -319,25 +625,60 @@ function getWritingEventStatus(eventKey = DAILY_WRITING_CAMPAIGN_KEY, now = new 
   const event = getWritingEventDefinition(eventKey);
   if (!event) return null;
 
-  const promptIndex = getEventDayIndex(event, now);
-  const prompt = event.prompts[promptIndex] || event.prompts[0];
-  const currentDay = prompt.day;
-  const completedDays = Math.max(0, currentDay - 1);
-  const totalDays = Math.max(1, Number(event.totalDays) || event.prompts.length);
-  const progressPercent = Math.round((currentDay / totalDays) * 100);
-  const status = {
+  const promptSet = getWritingEventPromptSet(event, now);
+  const nextPromptSet = getNextWritingEventPromptSet(event, now);
+  const hasPromptSets = Array.isArray(event.promptSets) && event.promptSets.length > 0;
+  const prompts = getWritingEventPrompts(event, now);
+  const totalDays = Math.max(1, Number(event.totalDays) || prompts.length || event.prompts?.length || 1);
+  const baseStatus = {
     campaignKey: event.key,
     title: event.title,
     subtitle: event.subtitle,
+    totalDays,
+    currentDay: 0,
+    completedDays: 0,
+    prompt: null,
+    progressPercent: 0,
+    remainingDays: 0,
+    localDateKey: formatKstDateKey(now),
+    promptLabel: event.promptLabel || '오늘의 글감',
+    pushCampaignKind: event.pushCampaignKind || 'writing_event_prompt',
+    active: false,
+    promptSetKey: null,
+    promptSetStartsLocalDate: null,
+    nextPromptSetKey: nextPromptSet?.key || null,
+    nextPromptSetStartsLocalDate: nextPromptSet?.startsLocalDate || null,
+    prompts: [],
+    writePath: null,
+  };
+
+  if (prompts.length === 0 || (hasPromptSets && !promptSet)) {
+    return baseStatus;
+  }
+
+  const promptIndex = getEventDayIndex(event, now, promptSet?.startsLocalDate || event.startLocalDate, {
+    repeat: !hasPromptSets,
+  });
+  if (promptIndex < 0 || promptIndex >= prompts.length) {
+    return baseStatus;
+  }
+
+  const prompt = prompts[promptIndex] || prompts[0];
+  const currentDay = prompt.day;
+  const completedDays = Math.max(0, currentDay - 1);
+  const progressPercent = Math.round((currentDay / totalDays) * 100);
+  const status = {
+    ...baseStatus,
     totalDays,
     currentDay,
     completedDays,
     prompt,
     progressPercent,
     remainingDays: Math.max(0, totalDays - currentDay),
-    localDateKey: formatKstDateKey(now),
-    promptLabel: event.promptLabel || '오늘의 글감',
-    pushCampaignKind: event.pushCampaignKind || 'writing_event_prompt',
+    active: true,
+    promptSetKey: promptSet?.key || null,
+    promptSetStartsLocalDate: promptSet?.startsLocalDate || event.startLocalDate,
+    prompts,
   };
 
   return {
@@ -352,9 +693,10 @@ function getDefaultWritingEventStatus(now = new Date()) {
 
 function getWritingEventProgressSteps(status = getDefaultWritingEventStatus()) {
   const event = getWritingEventDefinition(status?.campaignKey);
-  if (!event) return [];
+  if (!event || !status?.active || !status?.prompt) return [];
+  const prompts = Array.isArray(status?.prompts) ? status.prompts : event.prompts;
 
-  return event.prompts.map((prompt) => {
+  return prompts.map((prompt) => {
     let state = 'upcoming';
     if (prompt.day < status.currentDay) state = 'completed';
     if (prompt.day === status.currentDay) state = 'current';
@@ -396,6 +738,8 @@ module.exports = {
   DAILY_WRITING_CAMPAIGN_SUBTITLE,
   DAILY_WRITING_CAMPAIGN_TOTAL_DAYS,
   DAILY_WRITING_PROMPTS,
+  NEXT_DAILY_WRITING_PROMPTS,
+  NEXT_DAILY_WRITING_PROMPTS_START_LOCAL_DATE,
   WRITING_EVENT_DEFINITIONS,
   buildWritingEventContext,
   buildDailyWritingPromptWritePath,
@@ -407,5 +751,6 @@ module.exports = {
   getWritingEventDefinition,
   getWritingEventProgressSteps,
   getWritingEventPrompt,
+  getWritingEventPrompts,
   getWritingEventStatus,
 };

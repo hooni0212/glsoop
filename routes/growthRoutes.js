@@ -252,6 +252,7 @@ router.get('/writing-events/:eventKey', (req, res) => {
       key: status.campaignKey,
       title: status.title,
       subtitle: status.subtitle,
+      active: Boolean(status.active),
       total_days: status.totalDays,
       current_day: status.currentDay,
       completed_days: status.completedDays,
@@ -260,12 +261,18 @@ router.get('/writing-events/:eventKey', (req, res) => {
       local_date_key: status.localDateKey,
       prompt_label: status.promptLabel,
       write_path: status.writePath,
+      prompt_set_key: status.promptSetKey,
+      prompt_set_starts_local_date: status.promptSetStartsLocalDate,
+      next_prompt_set_key: status.nextPromptSetKey,
+      next_prompt_set_starts_local_date: status.nextPromptSetStartsLocalDate,
     },
-    today_prompt: {
-      ...status.prompt,
-      write_path: status.writePath,
-    },
-    prompts: event.prompts,
+    today_prompt: status.prompt
+      ? {
+          ...status.prompt,
+          write_path: status.writePath,
+        }
+      : null,
+    prompts: status.active ? status.prompts || event.prompts : [],
     progress_steps: getWritingEventProgressSteps(status),
   });
 });

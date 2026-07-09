@@ -3010,7 +3010,8 @@ Glsoop.AdminPage = (function () {
     const todayPrompt = data.today_prompt || {};
     const prompts = Array.isArray(data.prompts) ? data.prompts : [];
     const steps = Array.isArray(data.progress_steps) ? data.progress_steps : [];
-    const preset = data.push_preset || {};
+    const isActive = campaign.active !== false && Boolean(todayPrompt.key);
+    const preset = isActive ? data.push_preset || {} : {};
     const dryRun = questState.writingCampaignPushDryRun;
     const sending = questState.writingCampaignPushSending;
     const disabledAttr = sending ? 'disabled' : '';
@@ -3024,6 +3025,31 @@ Glsoop.AdminPage = (function () {
         </div>
       `
       : '<p class="gls-text-muted gls-text-small gls-mb-0">발송 예약 전 대상 확인을 먼저 실행하세요.</p>';
+
+    if (!isActive) {
+      return `
+        <div class="writing-campaign-admin">
+          <section class="writing-campaign-admin-hero">
+            <div>
+              <p class="gls-text-muted gls-text-small gls-mb-1">${escapeHtml(campaign.local_date_key || '')}</p>
+              <h4 class="gls-mb-1">${escapeHtml(campaign.title || '글숲 한달 글쓰기 프로젝트')}</h4>
+              <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(campaign.subtitle || '')}</p>
+            </div>
+            <div class="writing-campaign-admin-stat">
+              <span>대기</span>
+              <small>inactive</small>
+            </div>
+          </section>
+          <section class="writing-campaign-admin-today">
+            <div>
+              <p class="gls-text-muted gls-text-small gls-mb-1">현재 진행 중인 프로젝트 없음</p>
+              <h5 class="gls-mb-1">오늘 노출할 글감이 없습니다.</h5>
+              <p class="gls-text-muted gls-text-small gls-mb-0">다음 글감 세트 시작일이 오면 자동으로 다시 표시됩니다.</p>
+            </div>
+          </section>
+        </div>
+      `;
+    }
 
     return `
       <div class="writing-campaign-admin">

@@ -138,6 +138,7 @@ test.describe('Writing event post contexts', () => {
     expect(payload.ok).toBe(true);
     expect(payload.event).toMatchObject({
       key: DAILY_WRITING_CAMPAIGN_KEY,
+      active: true,
       total_days: DAILY_WRITING_PROMPTS.length,
     });
     expect(payload.today_prompt.write_path).toContain('campaignPromptKey=');

@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadWritingCampaign() {
   const mount = document.getElementById('growthWritingCampaign');
   if (!mount) return;
+  const section = document.getElementById('growthWritingCampaignSection');
 
   try {
     const [eventResponse, postsResponse] = await Promise.all([
@@ -111,7 +112,13 @@ async function loadWritingCampaign() {
     if (!eventResponse.ok || !eventData.ok) {
       throw new Error(eventData.message || '글쓰기 프로젝트를 불러오지 못했습니다.');
     }
+    if (eventData.event?.active === false || !eventData.today_prompt) {
+      section?.classList.add('gls-hidden');
+      mount.innerHTML = '';
+      return;
+    }
 
+    section?.classList.remove('gls-hidden');
     renderWritingCampaign(eventData, postsResponse.ok && postsData.ok ? postsData.posts : []);
   } catch (error) {
     console.error(error);
@@ -122,6 +129,7 @@ async function loadWritingCampaign() {
 function renderWritingCampaign(data, posts = []) {
   const mount = document.getElementById('growthWritingCampaign');
   if (!mount) return;
+  document.getElementById('growthWritingCampaignSection')?.classList.remove('gls-hidden');
   const event = data.event || {};
   const prompt = data.today_prompt || {};
   const steps = Array.isArray(data.progress_steps) ? data.progress_steps : [];
