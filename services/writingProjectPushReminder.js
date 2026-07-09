@@ -225,11 +225,11 @@ async function queueDailyWritingProjectPush(input = {}) {
   const nowMs = toFiniteNowMs(input.nowMs);
   const now = new Date(nowMs);
   const status = input.status || getDefaultWritingEventStatus(now);
-  if (!status?.prompt) {
+  if (!status?.active || !status?.prompt || !status?.writePath) {
     return {
       ok: true,
       skipped: true,
-      reason: 'missing_status',
+      reason: 'inactive_campaign',
       queued_count: 0,
       eligible_user_count: 0,
       eligible_token_count: 0,
@@ -264,6 +264,18 @@ async function queueDailyWritingProjectPush(input = {}) {
   const kstDate = input.kstDate || status.localDateKey || window.kstDate;
   const reminderSlotKey = input.reminderSlotKey || window.slotKey || 'slot-forced';
   const statusForDate = kstDate === status.localDateKey ? status : getDefaultWritingEventStatus(now);
+  if (!statusForDate?.active || !statusForDate?.prompt || !statusForDate?.writePath) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: 'inactive_campaign',
+      kst_date: kstDate,
+      reminder_slot_key: reminderSlotKey,
+      queued_count: 0,
+      eligible_user_count: 0,
+      eligible_token_count: 0,
+    };
+  }
   const dayBounds = getKstDayBoundsUtc(kstDate);
   const recentActivitySince = formatSqlDateTime(nowMs - recentActivityDays * DAY_MS);
   const nowSql = formatSqlDateTime(nowMs);

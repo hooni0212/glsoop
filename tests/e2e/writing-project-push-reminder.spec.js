@@ -270,6 +270,29 @@ test.describe('글숲 한달 글쓰기 프로젝트 푸시 리마인더', () => 
     expect(buildCampaignKey(status, 'slot-09')).toBe(
       'daily_writing_project_prompt:glsoop-monthly-writing-project-prototype:2026-06-20:day-07-rain-memory:slot-09'
     );
+
+    const nextCycleStatus = getDefaultWritingEventStatus(new Date('2026-07-14T00:10:00.000Z'));
+    expect(nextCycleStatus.currentDay).toBe(1);
+    expect(nextCycleStatus.prompt.key).toBe('day-01-kind-gaze');
+
+    const inactiveStatus = getDefaultWritingEventStatus(new Date('2026-08-13T00:10:00.000Z'));
+    expect(inactiveStatus.active).toBe(false);
+    expect(inactiveStatus.prompt).toBeNull();
+    expect(inactiveStatus.writePath).toBeNull();
+  });
+
+  test('진행 중인 글쓰기 프로젝트가 없으면 자동 푸시를 만들지 않는다', async () => {
+    const result = await queueDailyWritingProjectPush({
+      nowMs: Date.parse('2026-08-13T00:10:00.000Z'),
+      force: true,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      skipped: true,
+      reason: 'inactive_campaign',
+      queued_count: 0,
+    });
   });
 
   test('오늘 아직 쓰지 않은 수신 동의 사용자에게만 시간대별로 한 번씩 큐를 만든다', async ({}, testInfo) => {

@@ -44,6 +44,24 @@ function normalizeWritingEventKey(input) {
 }
 
 function buildWritingEventAdminPayload(status, prompts, message) {
+  const todayPrompt = status?.prompt
+    ? {
+        ...status.prompt,
+        write_path: status.writePath,
+      }
+    : null;
+  const pushPreset = todayPrompt
+    ? {
+        title: `${status.currentDay}일차 오늘의 글감이 열렸어요`,
+        body: `${status.prompt.title} - ${status.prompt.body}`,
+        target_path: status.writePath,
+        include_ad_label: false,
+        campaign_kind: status.pushCampaignKind || 'writing_event_prompt',
+        campaign_key: `${status.campaignKey}:${status.localDateKey}`,
+        scheduled_for_date: status.localDateKey,
+      }
+    : null;
+
   return {
     ok: true,
     message,
@@ -51,6 +69,7 @@ function buildWritingEventAdminPayload(status, prompts, message) {
       key: status.campaignKey,
       title: status.title,
       subtitle: status.subtitle,
+      active: Boolean(status.active),
       total_days: status.totalDays,
       current_day: status.currentDay,
       completed_days: status.completedDays,
@@ -58,22 +77,15 @@ function buildWritingEventAdminPayload(status, prompts, message) {
       progress_percent: status.progressPercent,
       local_date_key: status.localDateKey,
       write_path: status.writePath,
+      prompt_set_key: status.promptSetKey,
+      prompt_set_starts_local_date: status.promptSetStartsLocalDate,
+      next_prompt_set_key: status.nextPromptSetKey,
+      next_prompt_set_starts_local_date: status.nextPromptSetStartsLocalDate,
     },
-    today_prompt: {
-      ...status.prompt,
-      write_path: status.writePath,
-    },
-    prompts,
+    today_prompt: todayPrompt,
+    prompts: status.active ? prompts : [],
     progress_steps: getWritingEventProgressSteps(status),
-    push_preset: {
-      title: `${status.currentDay}일차 오늘의 글감이 열렸어요`,
-      body: `${status.prompt.title} - ${status.prompt.body}`,
-      target_path: status.writePath,
-      include_ad_label: false,
-      campaign_kind: status.pushCampaignKind || 'writing_event_prompt',
-      campaign_key: `${status.campaignKey}:${status.localDateKey}`,
-      scheduled_for_date: status.localDateKey,
-    },
+    push_preset: pushPreset,
   };
 }
 
@@ -422,7 +434,7 @@ router.get('/writing-campaigns/monthly-project', async (req, res) => {
     return res.json(
       buildWritingEventAdminPayload(
         status,
-        DAILY_WRITING_PROMPTS,
+        status.active ? status.prompts || DAILY_WRITING_PROMPTS : [],
         '글숲 한달 글쓰기 프로젝트 정보를 불러왔습니다.'
       )
     );
@@ -447,7 +459,11 @@ router.get('/writing-events/:eventKey', async (req, res) => {
   try {
     const status = getWritingEventStatus(event.key);
     return res.json(
-      buildWritingEventAdminPayload(status, event.prompts, '글쓰기 이벤트 정보를 불러왔습니다.')
+      buildWritingEventAdminPayload(
+        status,
+        status.active ? status.prompts || event.prompts : [],
+        '글쓰기 이벤트 정보를 불러왔습니다.'
+      )
     );
   } catch (error) {
     console.error('[admin/writing-events/:eventKey] failed:', error);
