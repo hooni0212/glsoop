@@ -175,6 +175,10 @@ app.get(['/explore', '/explore/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'explore.html'));
 });
 
+app.get(['/start', '/start/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'html', 'start.html'));
+});
+
 app.get(['/posts/:id', '/posts/:id/'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'html', 'post.html'));
 });
