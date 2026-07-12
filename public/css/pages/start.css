@@ -111,16 +111,15 @@
   text-decoration: none;
 }
 
-.start-brand-mark {
+.start-brand-icon {
   width: 36px;
   height: 36px;
-  display: grid;
-  place-items: center;
+  flex: 0 0 36px;
   border: 1px solid rgba(29, 107, 82, 0.22);
-  border-radius: 12px;
+  border-radius: 11px;
   background: rgba(255, 253, 248, 0.72);
-  font-family: var(--gls-font-serif);
-  font-size: 1rem;
+  box-shadow: 0 5px 14px rgba(18, 71, 52, 0.08);
+  object-fit: cover;
 }
 
 .start-login {
@@ -907,9 +906,11 @@
     font-size: 1.08rem;
   }
 
-  .start-brand-mark {
+  .start-brand-icon {
     width: 32px;
     height: 32px;
+    flex-basis: 32px;
+    border-radius: 10px;
   }
 
   .start-login {

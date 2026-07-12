@@ -18,6 +18,12 @@ test.describe('Instagram /start landing', () => {
     await expect(page.getByRole('heading', { name: '문장이 흘러가지 않도록' })).toBeVisible();
     await expect(page.getByRole('heading', { name: /반응을 경쟁하는 공간보다/ })).toBeVisible();
     await expect(page.getByText('무료로 시작할 수 있어요', { exact: true })).toBeVisible();
+    const brandIcon = page.locator('.start-brand-icon');
+    await expect(brandIcon).toBeVisible();
+    await expect(brandIcon).toHaveAttribute('src', '/img/glsoop-app-icon.png');
+    await expect
+      .poll(() => brandIcon.evaluate((image) => image.complete && image.naturalWidth > 0))
+      .toBe(true);
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
