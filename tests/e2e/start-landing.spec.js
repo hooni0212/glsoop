@@ -1,6 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
-const APP_STORE_URL = 'https://apps.apple.com/kr/app/id6761228925';
+const APP_STORE_URL =
+  'https://apps.apple.com/kr/app/%EA%B8%80%EC%88%B2/id6761228925';
 const CAMPAIGN_QUERY =
   'utm_source=instagram&utm_medium=paid_social&utm_campaign=glsoop_start_202607&utm_content=quiet_sentence';
 
@@ -42,13 +43,14 @@ test.describe('Instagram /start landing', () => {
 
     await page.goto(`/start?${CAMPAIGN_QUERY}`);
     const primary = page.locator('#startPrimaryCta');
-    const href = await primary.getAttribute('href');
     const isIos = testInfo.project.name === 'mobile-webkit';
 
     if (isIos) {
-      expect(href).toBe(APP_STORE_URL);
+      await expect(primary).toHaveAttribute('href', APP_STORE_URL);
       await expect(primary).toContainText('App Store에서 글숲 시작하기');
     } else {
+      await expect(primary).toHaveAttribute('href', /\/html\/signup\.html/);
+      const href = await primary.getAttribute('href');
       expect(href).toContain('/html/signup.html');
       expect(href).toContain('utm_campaign=glsoop_start_202607');
       await expect(primary).toContainText('웹에서 글숲 시작하기');
@@ -117,5 +119,88 @@ test.describe('Instagram /start landing', () => {
     const qr = page.getByRole('img', { name: 'App Store 글숲 페이지 QR 코드' });
     await expect(qr).toBeVisible();
     await expect(qr).toHaveAttribute('src', '/img/app-store-glsoop-qr.svg');
+    await expect(page.getByRole('link', { name: 'App Store에서 글숲 열기' })).toHaveAttribute(
+      'href',
+      APP_STORE_URL
+    );
+  });
+
+  test('keeps intentional copy lines intact from 320px to 430px', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chrome', 'One browser covers responsive widths');
+    await page.route('**/api/ux-events', (route) =>
+      route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ ok: true }) })
+    );
+
+    for (const width of [320, 360, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/start');
+      await page.evaluate(() => document.fonts && document.fonts.ready);
+
+      const lineMetrics = await page.locator('.start-title-line, .start-copy-line').evaluateAll(
+        (elements) =>
+          elements.map((element) => ({
+            text: element.textContent.trim(),
+            clientWidth: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+            rectCount: element.getClientRects().length,
+          }))
+      );
+      expect(lineMetrics.length).toBeGreaterThan(8);
+      for (const metric of lineMetrics) {
+        expect(metric.rectCount, `${width}px line rect: ${metric.text}`).toBe(1);
+        expect(metric.scrollWidth, `${width}px line overflow: ${metric.text}`).toBeLessThanOrEqual(
+          metric.clientWidth + 1
+        );
+      }
+
+      const buttonMetrics = await page.locator('.start-button').evaluateAll((elements) =>
+        elements.map((element) => ({
+          text: element.textContent.trim(),
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+        }))
+      );
+      for (const metric of buttonMetrics) {
+        expect(metric.scrollWidth, `${width}px CTA overflow: ${metric.text}`).toBeLessThanOrEqual(
+          metric.clientWidth + 1
+        );
+      }
+    }
+  });
+
+  test('uses runtime App Store URL in the existing iOS install banner', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile-webkit', 'iOS-only install banner');
+    await page.route('**/api/ux-events', (route) =>
+      route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ ok: true }) })
+    );
+
+    await page.goto('/explore');
+    await expect(page.locator('.gls-app-install-cta__action')).toHaveAttribute(
+      'href',
+      APP_STORE_URL
+    );
+  });
+
+  test('applies a runtime-config App Store override to landing CTAs', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile-webkit', 'iOS-only App Store override');
+    const runtimeOverride = 'https://apps.apple.com/us/app/glsoop/id9999999999';
+    await page.route('**/api/runtime-config', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          app: { name: '글숲', ios: { app_store_url: runtimeOverride } },
+        }),
+      })
+    );
+    await page.route('**/api/ux-events', (route) =>
+      route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ ok: true }) })
+    );
+
+    await page.goto('/start');
+    await expect(page.locator('#startPrimaryCta')).toHaveAttribute('href', runtimeOverride);
+    await expect(page.locator('#startFinalCta')).toHaveAttribute('href', runtimeOverride);
+    await expect(page.locator('#startStickyCta')).toHaveAttribute('href', runtimeOverride);
   });
 });
