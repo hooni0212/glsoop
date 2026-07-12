@@ -7,6 +7,16 @@
   const ENDPOINT = '/api/ux-events';
   const ANON_KEY = 'glsoop:analytics:anonymous_id';
   const SESSION_KEY = 'glsoop:analytics:session_id';
+  const ATTRIBUTION_KEY = 'glsoop:acquisition:last_touch';
+  const ATTRIBUTION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+  const ATTRIBUTION_FIELDS = [
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_content',
+    'utm_term',
+    'landing_path',
+  ];
 
   function safeRead(storage, key) {
     try {
@@ -57,10 +67,38 @@
   }
 
   function normalizeProperties(properties) {
-    if (!properties || typeof properties !== 'object') {
-      return {};
+    let attribution = {};
+    const rawAttribution = safeRead(window.localStorage, ATTRIBUTION_KEY);
+    if (rawAttribution) {
+      try {
+        const parsed = JSON.parse(rawAttribution);
+        const capturedAt = Date.parse(parsed && parsed.captured_at);
+        if (
+          Number.isFinite(capturedAt) &&
+          Date.now() - capturedAt >= 0 &&
+          Date.now() - capturedAt <= ATTRIBUTION_MAX_AGE_MS
+        ) {
+          attribution = Object.fromEntries(
+            ATTRIBUTION_FIELDS.map((key) => [key, parsed[key]])
+              .filter(([, value]) => typeof value === 'string' && value.trim())
+              .map(([key, value]) => [key, value.trim().slice(0, 180)])
+          );
+        } else {
+          try {
+            window.localStorage.removeItem(ATTRIBUTION_KEY);
+          } catch (error) {
+            // storage가 비활성화된 브라우저 환경에선 무시
+          }
+        }
+      } catch (error) {
+        // 손상된 attribution 값은 계측을 막지 않는다.
+      }
     }
-    return properties;
+
+    if (!properties || typeof properties !== 'object') {
+      return attribution;
+    }
+    return { ...attribution, ...properties };
   }
 
   function sendPayload(payload, options = {}) {

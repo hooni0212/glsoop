@@ -33,6 +33,7 @@ const BASE_STYLE = '*{transition:none!important;animation:none!important;caret-c
 
 const guestPages = [
   { key: 'home', path: '/' },
+  { key: 'start', path: '/start?utm_source=instagram&utm_medium=paid_social&utm_campaign=snapshot' },
   { key: 'explore', path: '/explore', waitFor: '#feedPosts' },
   { key: 'category-poem', path: '/html/category.html?category=poem' },
   { key: 'post-1', path: '/html/post.html?postId=1' },

@@ -1,5 +1,6 @@
 (function () {
-  const APP_STORE_URL = 'https://apps.apple.com/kr/app/id6761228925';
+  const DEFAULT_APP_STORE_URL =
+    'https://apps.apple.com/kr/app/%EA%B8%80%EC%88%B2/id6761228925';
   const DISMISS_KEY = 'glsoop.ios_app_cta.dismissed.v1';
 
   function isIosDevice() {
@@ -32,11 +33,36 @@
     window.glsoopAnalytics.trackEvent(eventName, properties, { useBeacon: true });
   }
 
-  function renderCta() {
+  async function loadAppStoreUrl() {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 1800);
+    try {
+      const response = await fetch('/api/runtime-config', {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!response.ok) return DEFAULT_APP_STORE_URL;
+      const payload = await response.json();
+      const configured = payload && payload.app && payload.app.ios && payload.app.ios.app_store_url;
+      if (typeof configured !== 'string' || !configured.trim()) return DEFAULT_APP_STORE_URL;
+      const parsed = new URL(configured, window.location.origin);
+      if (parsed.protocol !== 'https:' || parsed.hostname !== 'apps.apple.com') {
+        return DEFAULT_APP_STORE_URL;
+      }
+      return parsed.toString();
+    } catch (error) {
+      return DEFAULT_APP_STORE_URL;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
+  async function renderCta() {
     if (!isIosDevice() || readDismissed() || document.querySelector('.gls-app-install-cta')) {
       return;
     }
 
+    const appStoreUrl = await loadAppStoreUrl();
     const cta = document.createElement('aside');
     cta.className = 'gls-app-install-cta';
     cta.setAttribute('role', 'region');
@@ -48,7 +74,7 @@
       '  <p class="gls-app-install-cta__copy">iPhone에 설치하고 바로 이어서 볼 수 있어요.</p>' +
       '</div>' +
       '<a class="gls-app-install-cta__action" href="' +
-      APP_STORE_URL +
+      appStoreUrl +
       '" aria-label="App Store에서 글숲 설치">설치</a>' +
       '<button class="gls-app-install-cta__close" type="button" aria-label="앱 설치 안내 닫기">×</button>';
 

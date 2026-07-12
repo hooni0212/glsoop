@@ -1,5 +1,5 @@
 const express = require('express');
-const { BASE_URL, LEGAL_CONFIG } = require('../config');
+const { BASE_URL, LEGAL_CONFIG, PUBLIC_APP_CONFIG } = require('../config');
 const { buildSafetyRuntimeConfig } = require('../utils/safety');
 
 const router = express.Router();
@@ -24,6 +24,7 @@ router.get('/runtime-config', (req, res) => {
     flags: {
       safe_area_guides: safeAreaGuidesEnabled,
     },
+    app: PUBLIC_APP_CONFIG,
     legal: {
       versions: {
         terms: LEGAL_CONFIG.versions.terms,
