@@ -189,6 +189,29 @@ test.describe('Instagram /start landing', () => {
     }
   });
 
+  test('keeps the phone preview sentence ending together', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chrome', 'One browser covers responsive widths');
+    await page.route('**/api/ux-events', (route) =>
+      route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ ok: true }) })
+    );
+
+    for (const width of [320, 390, 441, 480]) {
+      await page.setViewportSize({ width, height: 935 });
+      await page.goto('/start');
+      await page.evaluate(() => document.fonts && document.fonts.ready);
+
+      const ending = page.locator('.start-quote-ending');
+      await expect(ending).toHaveText('수 있으니까.');
+      const metrics = await ending.evaluate((element) => ({
+        rectCount: element.getClientRects().length,
+        width: element.getBoundingClientRect().width,
+        parentWidth: element.parentElement.getBoundingClientRect().width,
+      }));
+      expect(metrics.rectCount, `${width}px sentence ending wraps`).toBe(1);
+      expect(metrics.width, `${width}px sentence ending overflows`).toBeLessThan(metrics.parentWidth);
+    }
+  });
+
   test('uses runtime App Store URL in the existing iOS install banner', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile-webkit', 'iOS-only install banner');
     await page.route('**/api/ux-events', (route) =>
