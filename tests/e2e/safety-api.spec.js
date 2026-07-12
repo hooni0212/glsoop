@@ -170,6 +170,13 @@ test.describe.serial('Safety API', () => {
 
     const payload = await response.json();
     expect(payload.ok).toBe(true);
+    expect(payload.app).toMatchObject({
+      name: '글숲',
+      ios: {
+        app_store_url:
+          'https://apps.apple.com/kr/app/%EA%B8%80%EC%88%B2/id6761228925',
+      },
+    });
     expect(payload.legal.urls).toMatchObject({
       terms: expect.stringContaining('/html/terms.html'),
       privacy: expect.stringContaining('/html/privacy.html'),
