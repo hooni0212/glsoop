@@ -17,6 +17,8 @@ test.describe('Instagram /start landing', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('오늘 마음에 남은 한 문장을');
     await expect(page.getByRole('heading', { name: '문장이 흘러가지 않도록' })).toBeVisible();
     await expect(page.getByRole('heading', { name: /반응을 경쟁하는 공간보다/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /글을 더 오래 간직하는 방법, 글숲 프리미엄/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '문장 액자 위젯' })).toBeVisible();
     await expect(page.getByText('무료로 시작할 수 있어요', { exact: true })).toBeVisible();
     const brandIcon = page.locator('.start-brand-icon');
     await expect(brandIcon).toBeVisible();
@@ -129,6 +131,19 @@ test.describe('Instagram /start landing', () => {
       'href',
       APP_STORE_URL
     );
+  });
+
+  test('connects the premium promotion to the runtime App Store URL', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-chrome', 'One browser covers the public promotion');
+    await page.route('**/api/ux-events', (route) =>
+      route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ ok: true }) })
+    );
+
+    await page.goto('/start');
+    const premiumCta = page.locator('[data-start-cta="premium"]');
+    await expect(premiumCta).toBeVisible();
+    await expect(premiumCta).toHaveAttribute('href', APP_STORE_URL);
+    await expect(page.getByText('프리미엄 구독은 현재 iOS 앱에서 이용할 수 있어요.')).toBeVisible();
   });
 
   test('keeps intentional copy lines intact from 320px to 430px', async ({ page }, testInfo) => {
