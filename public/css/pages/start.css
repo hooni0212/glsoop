@@ -422,6 +422,10 @@
   line-height: 1.8;
 }
 
+.start-quote-ending {
+  white-space: nowrap;
+}
+
 .start-quote-author {
   gap: 8px;
   margin-top: 22px;
