@@ -54,6 +54,9 @@ test.describe('Instagram /start landing', () => {
       await expect(primary).toContainText('웹에서 글숲 시작하기');
     }
 
+    const homeHref = await page.getByRole('link', { name: '글숲 홈으로 이동' }).getAttribute('href');
+    expect(homeHref).toContain('utm_campaign=glsoop_start_202607');
+
     await primary.evaluate((element) => {
       element.addEventListener('click', (event) => event.preventDefault(), { once: true });
     });
