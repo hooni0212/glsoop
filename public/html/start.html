@@ -37,7 +37,7 @@
         <span>글숲</span>
       </a>
       <a class="start-login" href="/html/login.html" data-preserve-campaign>
-        이미 글숲을 이용하고 있나요?
+        <span>이미 글숲을 이용하고 있나요?</span>
         <strong>로그인</strong>
       </a>
     </div>
@@ -49,12 +49,14 @@
         <div class="start-hero-copy">
           <p class="start-eyebrow">A QUIET PLACE FOR WORDS</p>
           <h1 id="startHeroTitle">
-            오늘 마음에 남은 한 문장을,<br>
-            <span>글숲에 적어보세요.</span>
+            <span class="start-title-line">오늘 마음에 남은</span>
+            <span class="start-title-line">한 문장을,</span>
+            <span class="start-title-line start-title-accent">글숲에 적어보세요.</span>
           </h1>
           <p class="start-hero-description">
-            짧게 쓰고, 천천히 읽고, 오래 저장하는<br class="start-desktop-break">
-            조용한 문학 커뮤니티입니다.
+            <span class="start-copy-line">짧게 쓰고, 천천히 읽고,</span>
+            <span class="start-copy-line">오래 저장하며,</span>
+            <span class="start-copy-line">조용히 머무는 문학 커뮤니티입니다.</span>
           </p>
 
           <div class="start-hero-actions" aria-label="글숲 시작 방법">
@@ -135,8 +137,14 @@
       <div class="start-shell">
         <div class="start-section-heading">
           <p class="start-eyebrow">WRITE · READ · KEEP</p>
-          <h2 id="startPreviewTitle">문장이 흘러가지 않도록</h2>
-          <p>쓰고 읽는 순간이 다시 꺼내볼 기록으로 이어집니다.</p>
+          <h2 id="startPreviewTitle">
+            <span class="start-title-line">문장이 흘러가지</span>
+            <span class="start-title-line">않도록</span>
+          </h2>
+          <p>
+            <span class="start-copy-line">쓰고 읽는 순간이</span>
+            <span class="start-copy-line">다시 꺼내볼 기록으로 이어집니다.</span>
+          </p>
         </div>
 
         <div class="start-feature-grid">
@@ -180,8 +188,9 @@
         <div>
           <p class="start-eyebrow">WHY GLSOOP</p>
           <h2 id="startPhilosophyTitle">
-            반응을 경쟁하는 공간보다,<br>
-            쓰고 읽는 마음이 오래 머무는 곳.
+            <span class="start-title-line">반응을 경쟁하는 공간보다,</span>
+            <span class="start-title-line">쓰고 읽는 마음이</span>
+            <span class="start-title-line">오래 머무는 곳.</span>
           </h2>
         </div>
         <div class="start-philosophy-list">
@@ -196,8 +205,14 @@
       <div class="start-shell start-final-card">
         <div class="start-final-copy">
           <p class="start-eyebrow">YOUR FIRST SENTENCE</p>
-          <h2 id="startFinalTitle">오늘의 문장을 흘려보내지 마세요.</h2>
-          <p>읽기만 해도 좋고, 한 줄부터 적어도 좋아요. 글숲은 조용히 기다리고 있습니다.</p>
+          <h2 id="startFinalTitle">
+            <span class="start-title-line">오늘의 문장을</span>
+            <span class="start-title-line">흘려보내지 마세요.</span>
+          </h2>
+          <p>
+            <span class="start-copy-line">읽기만 해도 좋고, 한 줄부터 적어도 좋아요.</span>
+            <span class="start-copy-line">글숲은 조용히 기다리고 있습니다.</span>
+          </p>
           <a
             class="start-button start-button-primary"
             id="startFinalCta"
@@ -210,12 +225,19 @@
         </div>
 
         <aside class="start-desktop-app" id="startDesktopApp" aria-label="iPhone에서 글숲 시작하기">
-          <img
-            src="/img/app-store-glsoop-qr.svg"
-            width="136"
-            height="136"
-            alt="App Store 글숲 페이지 QR 코드"
+          <a
+            href="https://apps.apple.com/kr/app/%EA%B8%80%EC%88%B2/id6761228925"
+            aria-label="App Store에서 글숲 열기"
+            data-app-store-direct
+            data-start-cta="desktop_qr"
           >
+            <img
+              src="/img/app-store-glsoop-qr.svg"
+              width="136"
+              height="136"
+              alt="App Store 글숲 페이지 QR 코드"
+            >
+          </a>
           <div>
             <strong>iPhone으로 이어서 보기</strong>
             <p>카메라로 QR 코드를 스캔하면 App Store로 이동합니다.</p>

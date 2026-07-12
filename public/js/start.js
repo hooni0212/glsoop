@@ -4,7 +4,8 @@
 // - 랜딩 조회/CTA 계측
 
 (function bootstrapStartLanding() {
-  const APP_STORE_URL = 'https://apps.apple.com/kr/app/id6761228925';
+  const DEFAULT_APP_STORE_URL =
+    'https://apps.apple.com/kr/app/%EA%B8%80%EC%88%B2/id6761228925';
   const ATTRIBUTION_KEY = 'glsoop:acquisition:last_touch';
   const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
   const currentUrl = new URL(window.location.href);
@@ -52,6 +53,30 @@
 
   const deviceSegment = detectDevice();
 
+  const loadAppStoreUrl = async () => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 1800);
+    try {
+      const response = await fetch('/api/runtime-config', {
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!response.ok) return DEFAULT_APP_STORE_URL;
+      const payload = await response.json();
+      const configured = payload && payload.app && payload.app.ios && payload.app.ios.app_store_url;
+      if (typeof configured !== 'string' || !configured.trim()) return DEFAULT_APP_STORE_URL;
+      const parsed = new URL(configured, window.location.origin);
+      if (parsed.protocol !== 'https:' || parsed.hostname !== 'apps.apple.com') {
+        return DEFAULT_APP_STORE_URL;
+      }
+      return parsed.toString();
+    } catch (error) {
+      return DEFAULT_APP_STORE_URL;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
+
   const buildWebDestination = (pathname, extra = {}) => {
     const target = new URL(pathname, window.location.origin);
     UTM_KEYS.forEach((key) => {
@@ -63,11 +88,6 @@
     });
     return `${target.pathname}${target.search}`;
   };
-
-  const primaryDestination =
-    deviceSegment === 'ios'
-      ? APP_STORE_URL
-      : buildWebDestination('/html/signup.html', { from: 'start' });
 
   const track = (eventName, properties = {}, options = {}) => {
     if (!window.glsoopAnalytics || typeof window.glsoopAnalytics.trackEvent !== 'function') {
@@ -104,9 +124,24 @@
     const finalLabel = document.querySelector('[data-start-final-label]');
     const stickyLabel = document.querySelector('[data-start-sticky-label]');
     const stickyNote = document.querySelector('[data-start-sticky-note]');
+    const directAppStoreLinks = document.querySelectorAll('[data-app-store-direct]');
+    const primaryDestination =
+      deviceSegment === 'ios'
+        ? DEFAULT_APP_STORE_URL
+        : buildWebDestination('/html/signup.html', { from: 'start' });
 
     [primaryCta, finalCta, stickyCta].forEach((link) => {
       if (link) link.href = primaryDestination;
+    });
+    void loadAppStoreUrl().then((appStoreUrl) => {
+      directAppStoreLinks.forEach((link) => {
+        link.href = appStoreUrl;
+      });
+      if (deviceSegment === 'ios') {
+        [primaryCta, finalCta, stickyCta].forEach((link) => {
+          if (link) link.href = appStoreUrl;
+        });
+      }
     });
 
     if (exploreCta) {
@@ -138,7 +173,14 @@
     document.querySelectorAll('[data-start-cta]').forEach((link) => {
       link.addEventListener('click', () => {
         const placement = link.getAttribute('data-start-cta') || 'unknown';
-        const destination = placement === 'explore' ? 'web_explore' : deviceSegment === 'ios' ? 'app_store' : 'web_signup';
+        const isAppStoreLink =
+          placement === 'desktop_qr' || link.href.startsWith('https://apps.apple.com/');
+        const destination =
+          placement === 'explore'
+            ? 'web_explore'
+            : isAppStoreLink
+              ? 'app_store'
+              : 'web_signup';
         const eventName =
           destination === 'app_store'
             ? 'landing_app_store_click'

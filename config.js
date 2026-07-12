@@ -5,6 +5,8 @@ const nodemailer = require('nodemailer');
 
 const isProduction = process.env.NODE_ENV === 'production';
 const baseUrl = process.env.BASE_URL ? process.env.BASE_URL.trim() : '';
+const DEFAULT_IOS_APP_STORE_URL =
+  'https://apps.apple.com/kr/app/%EA%B8%80%EC%88%B2/id6761228925';
 const getTrimmedEnv = (key, fallback = '') => {
   const raw = process.env[key];
   if (typeof raw !== 'string') return fallback;
@@ -128,6 +130,31 @@ const LEGAL_CONFIG = {
   },
 };
 
+const resolveIosAppStoreUrl = () => {
+  const configured = getTrimmedEnv('IOS_APP_STORE_URL', DEFAULT_IOS_APP_STORE_URL);
+  try {
+    const parsed = new URL(configured);
+    if (
+      parsed.protocol !== 'https:' ||
+      parsed.hostname !== 'apps.apple.com' ||
+      !/\/id\d+\/?$/.test(parsed.pathname)
+    ) {
+      throw new Error('unsupported App Store URL');
+    }
+    return parsed.toString();
+  } catch (error) {
+    console.warn('[warn] IOS_APP_STORE_URL 형식이 올바르지 않아 기본 App Store URL을 사용합니다.');
+    return DEFAULT_IOS_APP_STORE_URL;
+  }
+};
+
+const PUBLIC_APP_CONFIG = Object.freeze({
+  name: '글숲',
+  ios: Object.freeze({
+    app_store_url: resolveIosAppStoreUrl(),
+  }),
+});
+
 if (Number.isNaN(LEGACY_TOKEN_SUNSET_AT_MS)) {
   throw new Error('[FATAL] LEGACY_TOKEN_SUNSET_AT 형식이 올바르지 않습니다. ISO datetime을 사용하세요.');
 }
@@ -158,4 +185,5 @@ module.exports = {
   LEGACY_TOKEN_SUNSET_AT_MS,
   AUTH_COOKIE_DOMAIN,
   LEGAL_CONFIG,
+  PUBLIC_APP_CONFIG,
 };
