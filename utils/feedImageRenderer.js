@@ -6,7 +6,7 @@ const { pathToFileURL } = require('node:url');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v27';
+const RENDER_VERSION = 'feed-image-poc-v31';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 const FEED_IMAGE_PAGE_CAP = 24;
 const IMAGE_FORMAT_CONFIG = {
@@ -194,6 +194,8 @@ const SVG_FONT_CONFIG = {
   },
 };
 const SHARE_LOGO_TEXT = '글숲';
+const SHARE_AUTHOR_SIGNATURE_FONT_FAMILY =
+  "'Noto Sans CJK KR','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic','Arial',sans-serif";
 const SHARE_SIGNATURE_OPACITY = 0.74;
 const SHARE_AUTHOR_SIGNATURE_OPACITY = 0.82;
 const SHARE_AUTHOR_SIGNATURE_MAX_CHARS = 28;
@@ -1184,9 +1186,7 @@ function normalizeAuthorSignatureOption(authorSignature) {
   return {
     enabled: true,
     name: safeName,
-    position: normalizeAuthorSignaturePosition(
-      authorSignature.position || authorSignature.authorSignaturePosition
-    ),
+    position: SHARE_AUTHOR_SIGNATURE_DEFAULT_POSITION,
   };
 }
 
@@ -1250,7 +1250,16 @@ function buildCacheHash({
   return crypto.createHash('sha1').update(payload).digest('hex');
 }
 
-async function createCompositedTemplateImage({ template, outputWidth, outputHeight, svgOverlay }) {
+async function createCompositedTemplateImage({
+  template,
+  outputWidth,
+  outputHeight,
+  svgOverlay,
+  additionalSvgOverlays = [],
+}) {
+  const overlayComposites = [svgOverlay, ...additionalSvgOverlays]
+    .filter(Boolean)
+    .map((overlay) => ({ input: Buffer.from(overlay), top: 0, left: 0 }));
   const resizeWidthScale = Number(template.resizeWidthScale) || 1;
 
   if (resizeWidthScale !== 1) {
@@ -1297,11 +1306,7 @@ async function createCompositedTemplateImage({ template, outputWidth, outputHeig
       });
     }
 
-    composites.push({
-      input: Buffer.from(svgOverlay),
-      top: 0,
-      left: 0,
-    });
+    composites.push(...overlayComposites);
 
     return sharp({
       create: {
@@ -1327,13 +1332,7 @@ async function createCompositedTemplateImage({ template, outputWidth, outputHeig
 
   return sharp(template.filePath)
     .resize(outputWidth, outputHeight, resizeOptions)
-    .composite([
-      {
-        input: Buffer.from(svgOverlay),
-        top: 0,
-        left: 0,
-      },
-    ]);
+    .composite(overlayComposites);
 }
 
 function encodeCompositedImage(image, imageFormat = 'webp') {
@@ -1629,18 +1628,15 @@ function buildSvgAuthorSignature({
   const fontSizePx = Math.max(13, Math.round(width * 0.023));
   const maxWidthPx = Math.max(120, Math.round(width * 0.46));
   const text = clampLineWithEllipsis(
-    normalizedSignature.name,
+    `${SHARE_LOGO_TEXT} · ${normalizedSignature.name}`,
     maxWidthPx,
     fontSizePx,
     0
   );
   const horizontalInset = Math.max(28, width * 0.052);
-  const textX =
-    normalizedSignature.position === 'bottomLeft'
-      ? Math.round(horizontalInset)
-      : Math.round(width - horizontalInset);
+  const textX = Math.round(width - horizontalInset);
   const textY = Math.round(height - Math.max(52, height * 0.078));
-  const textAnchor = normalizedSignature.position === 'bottomLeft' ? 'start' : 'end';
+  const textAnchor = 'end';
 
   return `
   <g aria-label="author-signature">
@@ -1648,7 +1644,7 @@ function buildSvgAuthorSignature({
       x="${textX}"
       y="${textY}"
       fill="rgba(71, 63, 54, ${SHARE_AUTHOR_SIGNATURE_OPACITY})"
-      font-family="${SVG_FONT_FAMILY}"
+      font-family="${SHARE_AUTHOR_SIGNATURE_FONT_FAMILY}"
       font-size="${Math.round(fontSizePx * 100) / 100}"
       font-weight="600"
       letter-spacing="0.02em"
@@ -1656,6 +1652,15 @@ function buildSvgAuthorSignature({
       text-rendering="optimizeLegibility"
     >${escapeXml(text)}</text>
   </g>
+  `.trim();
+}
+
+function buildStandaloneSvgOverlay({ width, height, content }) {
+  if (!content) return '';
+  return `
+<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+  ${content}
+</svg>
   `.trim();
 }
 
@@ -1713,8 +1718,10 @@ function buildSvgShareOverlay({
     clipPadBottomPx: Math.round(bodyBox.height * TEXT_CLIP_BOTTOM_PADDING_RATIO),
   });
 
-  const brandSignature = brandSignatureOverride || buildSvgBrandSignature({ width, height });
-  const authorSignature = authorSignatureOverride || '';
+  const signature =
+    authorSignatureOverride ||
+    brandSignatureOverride ||
+    buildSvgBrandSignature({ width, height });
 
   return `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
@@ -1725,8 +1732,7 @@ function buildSvgShareOverlay({
   </defs>
   ${bodyGroup.group}
   ${titleGroup.group}
-  ${brandSignature}
-  ${authorSignature}
+  ${signature}
 </svg>
   `.trim();
 }
@@ -2031,19 +2037,43 @@ async function renderShareModeImageBuffer({
   outputWidth,
   outputHeight,
   scale,
+  page = 1,
   imageFormat = 'webp',
   authorSignature = null,
 }) {
   const normalizedAuthorSignature = normalizeAuthorSignatureOption(authorSignature);
+  const pagePlan = buildFeedModeRenderPlan({
+    post,
+    outputWidth,
+    outputHeight,
+    scale,
+  });
+  const normalizedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const pageIndex = Math.min(normalizedPage, pagePlan.pageCount) - 1;
   const titleText = normalizePostText(post?.title) || '제목 없음';
-  const bodyText = normalizePostText(post?.content) || titleText || ' ';
+  const manualPageText = Array.isArray(pagePlan.manualContentPages)
+    ? pagePlan.manualContentPages[pageIndex]
+    : null;
+  const autoPageLines = Array.isArray(pagePlan.pages?.[pageIndex])
+    ? pagePlan.pages[pageIndex]
+    : null;
+  const bodyText =
+    (manualPageText != null
+      ? manualPageText
+      : autoPageLines
+        ? autoPageLines.join('\n')
+        : '') ||
+    normalizePostText(post?.content) ||
+    titleText ||
+    ' ';
   const font = resolvePostFont(post?.content);
   const layoutKey = selectShareLayoutPreset(bodyText);
   const layoutPreset = SHARE_LAYOUT_PRESETS[layoutKey] || SHARE_LAYOUT_PRESETS.medium;
   const parsedLayout = parsePostLayout(post?.layout_json);
-  const customBodyBox = parsedLayout?.text_box || null;
-  const customTitleBox = parsedLayout?.title_box || null;
-  const customFooterBox = parsedLayout?.footer_box || null;
+  const resolvedPageLayout = resolvePostLayoutPage(parsedLayout, pageIndex);
+  const customBodyBox = resolvedPageLayout?.text_box || null;
+  const customTitleBox = resolvedPageLayout?.title_box || null;
+  const customFooterBox = resolvedPageLayout?.footer_box || null;
   const hasCustomBodyLayout = !!customBodyBox;
   const hasCustomTitleLayout = !!customTitleBox;
   const hasCustomFooterLayout = !!customFooterBox;
@@ -2137,8 +2167,12 @@ async function renderShareModeImageBuffer({
     titleLetterSpacingEm,
     bodyBoxOverride: hasCustomBodyLayout ? bodyBox : null,
     bodyTextAlignOverride: customBodyBox?.align || '',
-    brandSignatureOverride,
-    authorSignatureOverride,
+    brandSignatureOverride: authorSignatureOverride ? ' ' : brandSignatureOverride,
+  });
+  const authorSignatureSvgOverlay = buildStandaloneSvgOverlay({
+    width: outputWidth,
+    height: outputHeight,
+    content: authorSignatureOverride,
   });
 
   const imageBuffer = await encodeCompositedImage(
@@ -2147,13 +2181,19 @@ async function renderShareModeImageBuffer({
       outputWidth,
       outputHeight,
       svgOverlay,
+      additionalSvgOverlays: [authorSignatureSvgOverlay],
     }),
     imageFormat
   );
 
   return {
     buffer: imageBuffer,
-    layout: `share-${layoutKey}-font-${font.key}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}${authorSignatureLayout}`,
+    layout: `share-${layoutKey}-font-${font.key}${hasCustomBodyLayout ? '-custom-body' : ''}${hasCustomTitleLayout ? '-custom-title' : ''}${hasCustomFooterLayout ? '-custom-footer' : ''}-page-${pageIndex + 1}of${pagePlan.pageCount}${authorSignatureLayout}`,
+    manifest: {
+      pageCount: pagePlan.pageCount,
+      pageCap: pagePlan.pageCap,
+      isTruncated: pagePlan.isTruncated,
+    },
   };
 }
 
@@ -2180,7 +2220,7 @@ async function renderFeedImageBuffer({
       outputWidth,
       outputHeight,
       scale,
-      page: 1,
+      page,
       imageFormat,
       authorSignature,
     });

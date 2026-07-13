@@ -1063,16 +1063,37 @@ function resolveRenderedImageOptions(card) {
   }
 }
 
-function resolveRenderedImageDownloadUrl(post, card) {
+function resolveRenderedImagePageCount(post) {
+  const nestedPageCount = Number.parseInt(post?.render_images?.page_count, 10);
+  if (Number.isInteger(nestedPageCount) && nestedPageCount > 0) return nestedPageCount;
+
+  const nestedImages = Array.isArray(post?.render_images?.images)
+    ? post.render_images.images.length
+    : 0;
+  if (nestedImages > 0) return nestedImages;
+
+  const topLevelImages = Array.isArray(post?.images) ? post.images.length : 0;
+  return Math.max(1, topLevelImages);
+}
+
+function resolveRenderedImageDownloadUrls(post, card) {
   const postId = post?.id != null ? String(post.id) : '';
-  if (!postId) return '';
+  if (!postId) return [];
 
   const options = resolveRenderedImageOptions(card);
-  const params = new URLSearchParams();
-  params.set('template', options.template || 'paper01');
-  params.set('scale', options.scale || '2');
+  const pageCount = resolveRenderedImagePageCount(post);
 
-  return `/api/feed-images/share/post/${encodeURIComponent(postId)}?${params.toString()}`;
+  return Array.from({ length: pageCount }, (_item, index) => {
+    const params = new URLSearchParams();
+    params.set('template', options.template || 'paper01');
+    params.set('scale', options.scale || '2');
+    if (index > 0) params.set('page', String(index + 1));
+    return `/api/feed-images/share/post/${encodeURIComponent(postId)}?${params.toString()}`;
+  });
+}
+
+function resolveRenderedImageDownloadUrl(post, card) {
+  return resolveRenderedImageDownloadUrls(post, card)[0] || '';
 }
 
 function buildPostPermalink(post) {
@@ -1081,26 +1102,29 @@ function buildPostPermalink(post) {
 }
 
 async function downloadRenderedImage(post, card) {
-  const imageUrl = resolveRenderedImageDownloadUrl(post, card);
-  if (!imageUrl) {
+  const imageUrls = resolveRenderedImageDownloadUrls(post, card);
+  if (imageUrls.length < 1) {
     alert('저장할 이미지를 찾지 못했습니다.');
     return;
   }
 
   try {
-    const response = await fetch(imageUrl, { cache: 'no-store' });
-    if (!response.ok) {
-      throw new Error(`이미지 요청 실패: ${response.status}`);
+    for (let index = 0; index < imageUrls.length; index += 1) {
+      const response = await fetch(imageUrls[index], { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`이미지 ${index + 1} 요청 실패: ${response.status}`);
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const pageSuffix = imageUrls.length > 1 ? `_${index + 1}of${imageUrls.length}` : '';
+      link.href = objectUrl;
+      link.download = `glsoop_post_${post?.id || 'card'}${pageSuffix}.webp`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
     }
-    const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = objectUrl;
-    link.download = `glsoop_post_${post?.id || 'card'}.webp`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(objectUrl);
   } catch (error) {
     console.error(error);
     alert('이미지 저장 중 오류가 발생했습니다.');
@@ -1182,7 +1206,8 @@ function ensurePostShareModal() {
 function openPostShareModal(post, card) {
   ensurePostShareModal();
 
-  const imageUrl = resolveRenderedImageDownloadUrl(post, card);
+  const imageUrls = resolveRenderedImageDownloadUrls(post, card);
+  const imageUrl = imageUrls[0] || '';
   const permalink = buildPostPermalink(post);
   window.__glsoopPostShareState = {
     post,
@@ -1199,6 +1224,12 @@ function openPostShareModal(post, card) {
   const linkHintEl = document.getElementById('postShareLinkHint');
   if (linkHintEl) {
     linkHintEl.textContent = permalink;
+  }
+
+  const saveButtonEl = document.getElementById('postShareSaveImageBtn');
+  if (saveButtonEl) {
+    saveButtonEl.textContent =
+      imageUrls.length > 1 ? `이미지 ${imageUrls.length}장 저장` : '이미지 저장';
   }
 
   const modalEl = document.getElementById('igExportModal') || document.getElementById('postShareModal');

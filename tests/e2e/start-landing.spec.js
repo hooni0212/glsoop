@@ -19,6 +19,7 @@ test.describe('Instagram /start landing', () => {
     await expect(page.getByRole('heading', { name: /반응을 경쟁하는 공간보다/ })).toBeVisible();
     await expect(page.getByRole('heading', { name: /글을 더 오래 간직하는 방법, 글숲 프리미엄/ })).toBeVisible();
     await expect(page.getByRole('heading', { name: '문장 액자 위젯' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '글 이미지 작가 서명' })).toBeVisible();
     await expect(page.getByText('무료로 시작할 수 있어요', { exact: true })).toBeVisible();
     const brandIcon = page.locator('.start-brand-icon');
     await expect(brandIcon).toBeVisible();
