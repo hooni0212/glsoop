@@ -48,23 +48,6 @@ function parsePostId(raw) {
   return parsed;
 }
 
-function parseBooleanQueryFlag(raw) {
-  if (raw === undefined || raw === null) return false;
-  const value = String(raw).trim().toLowerCase();
-  return ['1', 'true', 'yes', 'y', 'on'].includes(value);
-}
-
-function normalizeAuthorSignaturePosition(raw) {
-  const value = String(raw || '')
-    .trim()
-    .replace(/[_\s-]+/g, '')
-    .toLowerCase();
-
-  if (value === 'bottomleft' || value === 'left') return 'bottomLeft';
-  if (value === 'bottomright' || value === 'right') return 'bottomRight';
-  return 'bottomRight';
-}
-
 function getAuthorSignatureEntitlementKeys() {
   return [
     process.env.POST_IMAGE_AUTHOR_SIGNATURE_ENTITLEMENT_KEY,
@@ -526,25 +509,12 @@ router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => 
   const scale = normalizeScale(req.query.scale);
   const imageFormat = normalizeImageFormat(req.query.format);
   const page = parsePageNumber(req.query.page);
-  const authorSignatureRequested = parseBooleanQueryFlag(
-    req.query.author_signature ?? req.query.authorSignature
-  );
-  const authorSignaturePosition = normalizeAuthorSignaturePosition(
-    req.query.author_signature_position ?? req.query.authorSignaturePosition
-  );
   if (!page) {
     return res.status(400).json({
       ok: false,
       message: '잘못된 페이지 번호입니다.',
     });
   }
-  if (page > 1) {
-    return res.status(404).json({
-      ok: false,
-      message: '공유 이미지는 첫 페이지 한 장만 지원합니다.',
-    });
-  }
-
   try {
     const post = await dbGetAsync(
       `
@@ -574,48 +544,43 @@ router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => 
       });
     }
 
-    let authorSignature = null;
-    if (authorSignatureRequested) {
-      if (!req.user?.id) {
-        return res.status(401).json({
-          ok: false,
-          code: 'AUTH_REQUIRED',
-          message: '작가 서명 이미지는 로그인이 필요합니다.',
-        });
-      }
-
-      const signatureAllowed = await hasAuthorSignatureEntitlement(req.user.id);
-      if (!signatureAllowed) {
-        return res.status(403).json({
-          ok: false,
-          code: 'PREMIUM_REQUIRED',
-          message: '작가 서명 이미지는 글숲 프리미엄 권한이 필요합니다.',
-        });
-      }
-
-      authorSignature = {
-        enabled: true,
-        name: buildPublicDisplayName(
-          post.author_nickname,
-          post.author_account_status
-        ),
-        position: authorSignaturePosition,
-      };
+    const manifest = await getFeedCardImageManifest({
+      post,
+      templateKey: template,
+      scale,
+    });
+    if (page > manifest.pageCount) {
+      return res.status(404).json({
+        ok: false,
+        message: '해당 공유 이미지 페이지를 찾을 수 없습니다.',
+      });
     }
+
+    const signatureAllowed = await hasAuthorSignatureEntitlement(post.user_id);
+    const authorSignature = signatureAllowed
+      ? {
+          enabled: true,
+          name: buildPublicDisplayName(
+            post.author_nickname,
+            post.author_account_status
+          ),
+          position: 'bottomRight',
+        }
+      : null;
 
     const rendered = await renderFeedCardImage({
       post,
       templateKey: template,
       scale,
       renderMode: 'share',
-      page: 1,
+      page,
       imageFormat,
       authorSignature,
     });
 
     res.set(
       'Cache-Control',
-      'public, max-age=300, s-maxage=300, stale-while-revalidate=86400'
+      'no-cache, max-age=0, must-revalidate'
     );
     res.removeHeader('Pragma');
     res.removeHeader('Expires');
@@ -629,10 +594,11 @@ router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => 
     res.set('X-Feed-Image-Template', rendered.template || template);
     res.set('X-Feed-Image-Scale', String(rendered.scale || scale));
     res.set('X-Feed-Image-Format', rendered.imageFormat || imageFormat);
-    res.set('X-Feed-Image-Page', '1');
-    res.set('X-Feed-Image-Page-Count', '1');
+    res.set('X-Feed-Image-Page', String(page));
+    res.set('X-Feed-Image-Page-Count', String(manifest.pageCount));
     res.set('X-Feed-Image-Author-Signature', authorSignature ? '1' : '0');
     res.set('X-Feed-Image-Author-Signature-Position', authorSignature?.position || 'none');
+    res.set('X-Feed-Image-Author-Signature-Source', authorSignature ? 'post_author' : 'none');
     if (rendered.layout) {
       res.set('X-Feed-Image-Layout', rendered.layout);
     }

@@ -13,6 +13,11 @@ const postFixture = {
   like_count: 0,
   liked_by_me: false,
   hashtags: ['공유'],
+  images: ['/api/feed-images/post/37?page=1', '/api/feed-images/post/37?page=2'],
+  render_images: {
+    page_count: 2,
+    images: ['/api/feed-images/post/37?page=1', '/api/feed-images/post/37?page=2'],
+  },
 };
 
 test.describe('Post share modal layer', () => {
@@ -104,5 +109,27 @@ test.describe('Post share modal layer', () => {
     expect(layers.backdrop).toBeGreaterThan(layers.header);
     expect(layers.modal).toBeGreaterThan(layers.header);
     expect(layers.modal).toBeGreaterThan(layers.backdrop);
+  });
+
+  test('downloads every rendered page from the share modal', async ({ page }) => {
+    const requestedPages = [];
+    await page.route('**/api/feed-images/share/post/37**', async (route) => {
+      requestedPages.push(new URL(route.request().url()).searchParams.get('page') || '1');
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/webp',
+        body: Buffer.from('desktop-share-image'),
+      });
+    });
+
+    await page.goto('/html/post.html?postId=37');
+    await expect(page.locator('#postDetail .gls-post-card')).toBeVisible();
+    await page.locator('#sideShareBtn').click();
+    await expect(page.locator('#postShareSaveImageBtn')).toHaveText('이미지 2장 저장');
+    await expect.poll(() => requestedPages).toContain('1');
+    requestedPages.length = 0;
+    await page.locator('#postShareSaveImageBtn').click();
+
+    await expect.poll(() => requestedPages).toEqual(['1', '2']);
   });
 });

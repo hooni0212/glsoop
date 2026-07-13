@@ -181,7 +181,7 @@ const seedMonetizationFixtures = async () => {
         'subscription',
         'premium:glsoop',
         title,
-        '광고 없이 사진을 저장하고 프로필 사진과 작가 서명을 사용할 수 있어요.',
+        '광고 없이 사진을 저장하고 프로필 사진을 사용하며, 내 글 이미지에 글숲 닉네임을 자동으로 남길 수 있어요.',
         JSON.stringify({
           billing_period: billingPeriod,
           benefits: [

@@ -18,7 +18,11 @@ const DB_PATH = process.env.DB_PATH
 const USER_ID = 9801;
 const USER_EMAIL = 'layout-spacing-writer@glsoop.test';
 const USER_PASSWORD = 'Pass1234';
+const READER_ID = 9802;
+const READER_EMAIL = 'layout-spacing-reader@glsoop.test';
+const READER_PASSWORD = 'Pass1234';
 let cachedLayoutWriterToken = '';
+let cachedLayoutReaderToken = '';
 
 const dbRun = (db, sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -53,6 +57,12 @@ const seedLayoutWriter = async () => {
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [USER_ID, 'Layout Writer', 'layout_writer', USER_EMAIL, passwordHash, 0, 1]
   );
+  await dbRun(
+    db,
+    `INSERT OR REPLACE INTO users (id, name, nickname, email, pw, is_admin, is_verified)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [READER_ID, 'Layout Reader', 'layout_reader', READER_EMAIL, passwordHash, 0, 1]
+  );
   await new Promise((resolve) => db.close(resolve));
 };
 
@@ -63,6 +73,8 @@ const resetLayoutWriterState = async () => {
   await dbRun(db, 'DELETE FROM posts WHERE user_id = ?', [USER_ID]);
   await dbRun(db, 'DELETE FROM user_entitlements WHERE user_id = ?', [USER_ID]);
   await dbRun(db, 'DELETE FROM user_entitlement_grants WHERE user_id = ?', [USER_ID]);
+  await dbRun(db, 'DELETE FROM user_entitlements WHERE user_id = ?', [READER_ID]);
+  await dbRun(db, 'DELETE FROM user_entitlement_grants WHERE user_id = ?', [READER_ID]);
   await dbRun(
     db,
     `UPDATE users
@@ -70,6 +82,14 @@ const resetLayoutWriterState = async () => {
          is_verified = 1
      WHERE id = ?`,
     [passwordHash, USER_ID]
+  );
+  await dbRun(
+    db,
+    `UPDATE users
+     SET pw = ?,
+         is_verified = 1
+     WHERE id = ?`,
+    [passwordHash, READER_ID]
   );
   await new Promise((resolve) => db.close(resolve));
 };
@@ -98,6 +118,24 @@ const loginAsLayoutWriter = async (request) => {
   expect(typeof payload.token).toBe('string');
   cachedLayoutWriterToken = extractTokenFromSetCookie(response);
   return cachedLayoutWriterToken;
+};
+
+const loginAsLayoutReader = async (request) => {
+  if (cachedLayoutReaderToken) return cachedLayoutReaderToken;
+
+  const response = await request.post('/api/login', {
+    data: {
+      email: READER_EMAIL,
+      pw: READER_PASSWORD,
+    },
+  });
+
+  expect(response.status()).toBe(200);
+  const payload = await response.json();
+  expect(payload.ok).toBe(true);
+  expect(typeof payload.token).toBe('string');
+  cachedLayoutReaderToken = extractTokenFromSetCookie(response);
+  return cachedLayoutReaderToken;
 };
 
 const buildLayoutPayload = ({
@@ -187,6 +225,34 @@ const parseLayoutJson = (value) => {
 
 const buildLongMultilineContent = (lineCount = 120, prefix = '긴 글 테스트 본문') =>
   Array.from({ length: lineCount }, (_item, index) => `${prefix} ${index + 1}`).join('\n');
+
+const expectSignaturePixelDifference = async (unsignedBuffer, signedBuffer, label) => {
+  const metadata = await sharp(unsignedBuffer).metadata();
+  const width = Number(metadata.width) || 0;
+  const height = Number(metadata.height) || 0;
+  expect(width, `${label} width`).toBeGreaterThan(0);
+  expect(height, `${label} height`).toBeGreaterThan(0);
+
+  const region = {
+    left: Math.floor(width * 0.55),
+    top: Math.floor(height * 0.84),
+    width: width - Math.floor(width * 0.55),
+    height: height - Math.floor(height * 0.84),
+  };
+  const [unsignedPixels, signedPixels] = await Promise.all([
+    sharp(unsignedBuffer).extract(region).raw().toBuffer(),
+    sharp(signedBuffer).extract(region).raw().toBuffer(),
+  ]);
+  expect(signedPixels.length, `${label} pixel length`).toBe(unsignedPixels.length);
+
+  let changedChannelCount = 0;
+  for (let index = 0; index < signedPixels.length; index += 1) {
+    if (Math.abs(signedPixels[index] - unsignedPixels[index]) >= 4) {
+      changedChannelCount += 1;
+    }
+  }
+  expect(changedChannelCount, `${label} signature pixels`).toBeGreaterThan(100);
+};
 
 test.describe('Post layout letter spacing', () => {
   test.describe.configure({ mode: 'serial' });
@@ -382,15 +448,21 @@ test.describe('Post layout letter spacing', () => {
     expect(pngShareResponse.headers()['x-feed-image-format']).toBe('png');
   });
 
-  test('requires premium entitlement for author signature share images', async ({ request, playwright }, testInfo) => {
-    const token = await loginAsLayoutWriter(request);
-    const headers = { Authorization: `Bearer ${token}` };
+  test('automatically signs premium authors share images for every saver', async ({ request, playwright }, testInfo) => {
+    const writerToken = await loginAsLayoutWriter(request);
+    const readerToken = await loginAsLayoutReader(request);
+    const writerHeaders = { Authorization: `Bearer ${writerToken}` };
+    const readerHeaders = { Authorization: `Bearer ${readerToken}` };
 
     const createResponse = await request.post('/api/posts', {
-      headers,
+      headers: writerHeaders,
       data: {
         title: '작가 서명 렌더 확인',
-        content: '프리미엄 작가 서명 이미지 본문입니다.',
+        content: '프리미엄 작가 서명 이미지 첫 페이지입니다.\n두 번째 페이지입니다.',
+        content_pages: [
+          '프리미엄 작가 서명 이미지 첫 페이지입니다.',
+          '프리미엄 작가 서명 이미지 두 번째 페이지입니다.',
+        ],
         category: 'short',
         layout_json: buildLayoutPayload(),
       },
@@ -399,39 +471,62 @@ test.describe('Post layout letter spacing', () => {
     expect(createResponse.status()).toBe(200);
     const createBody = await createResponse.json();
     const postId = createBody.post_id;
+    const unsignedPageBuffers = [];
 
     const anonymousRequest = await playwright.request.newContext({
       baseURL: testInfo.project.use.baseURL || 'http://127.0.0.1:3100',
     });
     try {
-      const unauthenticatedResponse = await anonymousRequest.get(
+      const freeAuthorResponse = await anonymousRequest.get(
         `/api/feed-images/share/post/${postId}`,
         {
-          params: {
-            template: 'paper01',
-            scale: '2',
-            format: 'png',
-            author_signature: '1',
-          },
+          params: { template: 'paper01', scale: '2', format: 'png' },
         }
       );
-      expect(unauthenticatedResponse.status()).toBe(401);
+      expect(freeAuthorResponse.status()).toBe(200);
+      expect(freeAuthorResponse.headers()['x-feed-image-author-signature']).toBe('0');
+      unsignedPageBuffers.push(await freeAuthorResponse.body());
+
+      const freeAuthorSecondPageResponse = await anonymousRequest.get(
+        `/api/feed-images/share/post/${postId}`,
+        { params: { template: 'paper01', scale: '2', format: 'png', page: '2' } }
+      );
+      expect(freeAuthorSecondPageResponse.status()).toBe(200);
+      expect(freeAuthorSecondPageResponse.headers()['x-feed-image-author-signature']).toBe('0');
+      unsignedPageBuffers.push(await freeAuthorSecondPageResponse.body());
     } finally {
       await anonymousRequest.dispose();
     }
 
-    const freeResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
-      headers,
-      params: {
-        template: 'paper01',
-        scale: '2',
-        format: 'png',
-        author_signature: '1',
-      },
-    });
-    expect(freeResponse.status()).toBe(403);
-
     const db = new sqlite3.Database(DB_PATH);
+    await dbRun(
+      db,
+      `
+      INSERT OR REPLACE INTO user_entitlement_grants (
+        user_id,
+        entitlement_key,
+        source,
+        status,
+        starts_at,
+        ends_at,
+        meta_json,
+        updated_at
+      )
+      VALUES (?, 'premium:glsoop', 'admin', 'active', datetime('now'), datetime('now', '+7 days'), '{}', datetime('now'))
+      `,
+      [READER_ID]
+    );
+
+    const premiumSaverFreeAuthorResponse = await request.get(
+      `/api/feed-images/share/post/${postId}`,
+      {
+        headers: readerHeaders,
+        params: { template: 'paper01', scale: '2', format: 'png', author_signature: '1' },
+      }
+    );
+    expect(premiumSaverFreeAuthorResponse.status()).toBe(200);
+    expect(premiumSaverFreeAuthorResponse.headers()['x-feed-image-author-signature']).toBe('0');
+
     await dbRun(
       db,
       `
@@ -451,35 +546,76 @@ test.describe('Post layout letter spacing', () => {
     );
     await new Promise((resolve) => db.close(resolve));
 
-    const signedResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
-      headers,
-      params: {
-        template: 'paper01',
-        scale: '2',
-        format: 'png',
-        author_signature: '1',
-      },
+    const signedAnonymousRequest = await playwright.request.newContext({
+      baseURL: testInfo.project.use.baseURL || 'http://127.0.0.1:3100',
     });
-    expect(signedResponse.status()).toBe(200);
-    expect(signedResponse.headers()['content-type']).toContain('image/png');
-    expect(signedResponse.headers()['x-feed-image-author-signature']).toBe('1');
-    expect(signedResponse.headers()['x-feed-image-author-signature-position']).toBe('bottomRight');
-    expect(signedResponse.headers()['x-feed-image-layout']).toContain('author-signature-bottomRight');
+    try {
+      const signedAnonymousResponse = await signedAnonymousRequest.get(
+        `/api/feed-images/share/post/${postId}`,
+        { params: { template: 'paper01', scale: '2', format: 'png' } }
+      );
+      expect(signedAnonymousResponse.status()).toBe(200);
+      expect(signedAnonymousResponse.headers()['content-type']).toContain('image/png');
+      expect(signedAnonymousResponse.headers()['x-feed-image-author-signature']).toBe('1');
+      expect(signedAnonymousResponse.headers()['x-feed-image-author-signature-position']).toBe('bottomRight');
+      expect(signedAnonymousResponse.headers()['x-feed-image-author-signature-source']).toBe('post_author');
+      expect(signedAnonymousResponse.headers()['x-feed-image-layout']).toContain('author-signature-bottomRight');
+      expect(signedAnonymousResponse.headers()['cache-control']).toBe(
+        'no-cache, max-age=0, must-revalidate'
+      );
+      const signedFirstPageBuffer = await signedAnonymousResponse.body();
+      await expectSignaturePixelDifference(
+        unsignedPageBuffers[0],
+        signedFirstPageBuffer,
+        'page 1'
+      );
+      await testInfo.attach('premium-author-signature-page-1', {
+        body: signedFirstPageBuffer,
+        contentType: 'image/png',
+      });
+    } finally {
+      await signedAnonymousRequest.dispose();
+    }
 
-    const leftPositionResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
-      headers,
+    const signedOtherUserResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
+      headers: readerHeaders,
       params: {
         template: 'paper01',
         scale: '2',
         format: 'png',
-        author_signature: '1',
         author_signature_position: 'bottomLeft',
       },
     });
-    expect(leftPositionResponse.status()).toBe(200);
-    expect(leftPositionResponse.headers()['x-feed-image-author-signature']).toBe('1');
-    expect(leftPositionResponse.headers()['x-feed-image-author-signature-position']).toBe('bottomLeft');
-    expect(leftPositionResponse.headers()['x-feed-image-layout']).toContain('author-signature-bottomLeft');
+    expect(signedOtherUserResponse.status()).toBe(200);
+    expect(signedOtherUserResponse.headers()['x-feed-image-author-signature']).toBe('1');
+    expect(signedOtherUserResponse.headers()['x-feed-image-author-signature-position']).toBe('bottomRight');
+    expect(signedOtherUserResponse.headers()['x-feed-image-page']).toBe('1');
+    expect(signedOtherUserResponse.headers()['x-feed-image-page-count']).toBe('2');
+
+    const signedSecondPageResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
+      params: { template: 'paper01', scale: '2', format: 'png', page: '2' },
+    });
+    expect(signedSecondPageResponse.status()).toBe(200);
+    expect(signedSecondPageResponse.headers()['x-feed-image-author-signature']).toBe('1');
+    expect(signedSecondPageResponse.headers()['x-feed-image-author-signature-position']).toBe('bottomRight');
+    expect(signedSecondPageResponse.headers()['x-feed-image-page']).toBe('2');
+    expect(signedSecondPageResponse.headers()['x-feed-image-page-count']).toBe('2');
+    expect(signedSecondPageResponse.headers()['x-feed-image-layout']).toContain('page-2of2');
+    const signedSecondPageBuffer = await signedSecondPageResponse.body();
+    await expectSignaturePixelDifference(
+      unsignedPageBuffers[1],
+      signedSecondPageBuffer,
+      'page 2'
+    );
+    await testInfo.attach('premium-author-signature-page-2', {
+      body: signedSecondPageBuffer,
+      contentType: 'image/png',
+    });
+
+    const missingThirdPageResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
+      params: { template: 'paper01', scale: '2', format: 'png', page: '3' },
+    });
+    expect(missingThirdPageResponse.status()).toBe(404);
   });
 
   test('uses FONT meta for feed and share rendered image font selection', async ({ request }) => {
