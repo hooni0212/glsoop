@@ -781,12 +781,25 @@ async function loadMySessionsPanel() {
               : '<span class="pill gls-text-xxs">다른 기기</span>';
             const ipHint = session.ip_hint ? safeEscape(session.ip_hint) : '-';
             const userAgent = safeEscape(session.user_agent || '알 수 없는 기기');
+            const sid = safeEscape(session.sid || '');
+            const logoutLabel = session.current ? '현재 기기 로그아웃' : '기기 로그아웃';
 
             return `
               <article class="mpd-session-item">
                 <div class="mpd-session-item__head">
-                  <strong>${userAgent}</strong>
-                  ${currentBadge}
+                  <div class="mpd-session-item__title">
+                    <strong>${userAgent}</strong>
+                    ${currentBadge}
+                  </div>
+                  <button
+                    type="button"
+                    class="gls-btn gls-btn-secondary gls-btn-xs mpd-session-logout-btn"
+                    data-session-logout="1"
+                    data-session-id="${sid}"
+                    data-current="${session.current ? '1' : '0'}"
+                  >
+                    ${logoutLabel}
+                  </button>
                 </div>
                 <div class="mpd-session-item__meta">
                   <div>생성: ${safeEscape(createdAt || '-')}</div>
@@ -800,9 +813,80 @@ async function loadMySessionsPanel() {
           .join('')}
       </div>
     `;
+
+    sessionsListEl.querySelectorAll('[data-session-logout="1"]').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        logoutSession(button.dataset.sessionId || '', button.dataset.current === '1', button);
+      });
+    });
   } catch (error) {
     console.error(error);
     sessionsListEl.innerHTML = '<p class="text-danger gls-mb-0">세션 정보를 불러오는 중 오류가 발생했습니다.</p>';
+  }
+}
+
+async function logoutSession(sessionId, isCurrent, button) {
+  const sessionsMsgEl = document.getElementById('mySessionsMessage');
+  if (!sessionId) return;
+
+  const confirmed = window.confirm(
+    isCurrent
+      ? '현재 기기에서 로그아웃할까요? 다시 로그인해야 합니다.'
+      : '선택한 기기에서 로그아웃할까요?'
+  );
+  if (!confirmed) return;
+
+  if (button) {
+    button.disabled = true;
+    button.dataset.originalText = button.dataset.originalText || button.textContent;
+    button.textContent = '처리 중...';
+  }
+
+  if (sessionsMsgEl) {
+    sessionsMsgEl.textContent = '';
+    sessionsMsgEl.classList.remove('text-danger', 'text-success');
+  }
+
+  try {
+    const res = await fetch(`/api/me/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
+      const message = (data && data.message) || '선택한 기기 로그아웃 처리 중 오류가 발생했습니다.';
+      if (sessionsMsgEl) {
+        sessionsMsgEl.textContent = message;
+        sessionsMsgEl.classList.add('text-danger');
+      }
+      return;
+    }
+
+    if (sessionsMsgEl) {
+      sessionsMsgEl.textContent = data.message || '선택한 기기에서 로그아웃되었습니다.';
+      sessionsMsgEl.classList.add('text-success');
+    }
+
+    if (data.current || isCurrent) {
+      setTimeout(() => {
+        window.location.href = '/html/login.html?from=logout-device';
+      }, 700);
+      return;
+    }
+
+    await loadMySessionsPanel();
+  } catch (error) {
+    console.error(error);
+    if (sessionsMsgEl) {
+      sessionsMsgEl.textContent = '선택한 기기 로그아웃 처리 중 오류가 발생했습니다.';
+      sessionsMsgEl.classList.add('text-danger');
+    }
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = button.dataset.originalText || '기기 로그아웃';
+    }
   }
 }
 

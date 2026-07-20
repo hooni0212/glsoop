@@ -594,8 +594,9 @@ router.get('/feed-images/share/post/:postId', authOptional, async (req, res) => 
     res.set('X-Feed-Image-Template', rendered.template || template);
     res.set('X-Feed-Image-Scale', String(rendered.scale || scale));
     res.set('X-Feed-Image-Format', rendered.imageFormat || imageFormat);
-    res.set('X-Feed-Image-Page', String(page));
+    res.set('X-Feed-Image-Page', String(rendered.page || page));
     res.set('X-Feed-Image-Page-Count', String(manifest.pageCount));
+    res.set('X-Feed-Image-Truncated', manifest.isTruncated ? '1' : '0');
     res.set('X-Feed-Image-Author-Signature', authorSignature ? '1' : '0');
     res.set('X-Feed-Image-Author-Signature-Position', authorSignature?.position || 'none');
     res.set('X-Feed-Image-Author-Signature-Source', authorSignature ? 'post_author' : 'none');

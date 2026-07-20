@@ -252,6 +252,62 @@ test.describe('Auth session management', () => {
     expect(meAfterLogoutBBody.code).toBe('AUTH_INVALID_SESSION');
   });
 
+  test('logout selected session without revoking other active sessions', async ({ request }) => {
+    const tokenA = await login(request, { remember: false, ip: '203.0.113.23' });
+    const tokenB = await login(request, { remember: false, ip: '203.0.113.24' });
+    const decodedA = jwt.verify(tokenA, E2E_JWT_SECRET, {
+      algorithms: [E2E_JWT_ALGORITHM],
+      issuer: E2E_JWT_ISSUER,
+      audience: E2E_JWT_AUDIENCE,
+    });
+    const decodedB = jwt.verify(tokenB, E2E_JWT_SECRET, {
+      algorithms: [E2E_JWT_ALGORITHM],
+      issuer: E2E_JWT_ISSUER,
+      audience: E2E_JWT_AUDIENCE,
+    });
+
+    const logoutOtherRes = await request.delete(`/api/me/sessions/${decodedA.sid}`, {
+      headers: {
+        Authorization: `Bearer ${tokenB}`,
+      },
+    });
+    expect(logoutOtherRes.status()).toBe(200);
+    const logoutOtherBody = await logoutOtherRes.json();
+    expect(logoutOtherBody.ok).toBe(true);
+    expect(logoutOtherBody.current).toBe(false);
+
+    const meAfterOtherLogout = await request.get('/api/me', {
+      headers: {
+        Authorization: `Bearer ${tokenA}`,
+      },
+    });
+    expect(meAfterOtherLogout.status()).toBe(401);
+
+    const meCurrent = await request.get('/api/me', {
+      headers: {
+        Authorization: `Bearer ${tokenB}`,
+      },
+    });
+    expect(meCurrent.status()).toBe(200);
+
+    const logoutCurrentRes = await request.delete(`/api/me/sessions/${decodedB.sid}`, {
+      headers: {
+        Authorization: `Bearer ${tokenB}`,
+      },
+    });
+    expect(logoutCurrentRes.status()).toBe(200);
+    const logoutCurrentBody = await logoutCurrentRes.json();
+    expect(logoutCurrentBody.ok).toBe(true);
+    expect(logoutCurrentBody.current).toBe(true);
+
+    const meAfterCurrentLogout = await request.get('/api/me', {
+      headers: {
+        Authorization: `Bearer ${tokenB}`,
+      },
+    });
+    expect(meAfterCurrentLogout.status()).toBe(401);
+  });
+
   test('password reset revokes existing sessions and old token becomes invalid', async ({ request }) => {
     const activeToken = await login(request, { remember: true, ip: '203.0.113.31' });
     const resetToken = 'auth-reset-token-9851';
