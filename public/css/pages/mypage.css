@@ -740,6 +740,23 @@ body.page-mypage .mpd-session-item__head {
   margin-bottom: 4px;
 }
 
+body.page-mypage .mpd-session-item__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+body.page-mypage .mpd-session-item__title strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+body.page-mypage .mpd-session-logout-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 body.page-mypage .mpd-session-item__meta {
   color: var(--mpd-muted);
   font-size: 0.8rem;
@@ -748,6 +765,11 @@ body.page-mypage .mpd-session-item__meta {
 }
 
 @media (max-width: 1023.98px) {
+  body.page-mypage .mpd-session-item__head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   body.page-mypage .mpd-tabs {
     top: calc(var(--gls-nav-height) + 8px);
   }
