@@ -704,6 +704,16 @@ test.describe('Post layout letter spacing', () => {
     );
     expect(pageTwoResponse.headers()['x-feed-image-truncated']).toBe('0');
 
+    const sharePageTwoResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
+      params: { template: 'paper01', scale: '2', page: '2', format: 'png' },
+    });
+    expect(sharePageTwoResponse.status()).toBe(200);
+    expect(sharePageTwoResponse.headers()['content-type']).toContain('image/png');
+    expect(sharePageTwoResponse.headers()['x-feed-image-page']).toBe('2');
+    expect(sharePageTwoResponse.headers()['x-feed-image-page-count']).toBe(
+      String(detailBody.post.render_images.page_count)
+    );
+
     const overflowPageResponse = await request.get(`/api/feed-images/post/${postId}`, {
       params: {
         template: 'paper01',
@@ -712,6 +722,16 @@ test.describe('Post layout letter spacing', () => {
       },
     });
     expect(overflowPageResponse.status()).toBe(404);
+
+    const shareOverflowPageResponse = await request.get(`/api/feed-images/share/post/${postId}`, {
+      params: {
+        template: 'paper01',
+        scale: '2',
+        page: String(detailBody.post.render_images.page_count + 1),
+        format: 'png',
+      },
+    });
+    expect(shareOverflowPageResponse.status()).toBe(404);
   });
 
   test('returns multipage render metadata for posts without custom layout', async ({ request }) => {
