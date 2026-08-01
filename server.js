@@ -25,7 +25,7 @@ const {
 // 환경 변수 및 메일/JWT 설정, DB는 각각 모듈에서 처리
 // (실제 DB 연결 로직은 db.js, 이메일/JWT 키는 config.js에서 초기화됨)
 require('./config');
-require('./db');
+const db = require('./db');
 
 // 라우트 모듈
 const authRoutes = require('./routes/authRoutes');
@@ -109,6 +109,23 @@ applySecurity(app);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// 배포 오케스트레이터와 모니터링이 사용할 최소 상태 점검 경로.
+// liveness는 프로세스, readiness는 실제 DB 응답까지 확인한다.
+app.get('/healthz', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ ok: true, status: 'alive' });
+});
+
+app.get('/readyz', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  db.get('SELECT 1 AS ready', (error, row) => {
+    if (error || row?.ready !== 1) {
+      return res.status(503).json({ ok: false, status: 'not_ready' });
+    }
+    return res.json({ ok: true, status: 'ready' });
+  });
+});
 
 //느린 API 확인하기.
 app.use((req, res, next) => {
@@ -208,6 +225,10 @@ app.get('/', (req, res) => {
 });
 
 // 5. 서버 실행
+let httpServer = null;
+let shuttingDown = false;
+const intervalHandles = [];
+
 const startServer = async () => {
   try {
     await runMigrations();
@@ -216,7 +237,7 @@ const startServer = async () => {
     process.exit(1);
   }
 
-  app.listen(PORT, HOST, () => {
+  httpServer = app.listen(PORT, HOST, () => {
     console.log(`Server running on http://${HOST}:${PORT}`);
   });
 
@@ -268,19 +289,56 @@ const startServer = async () => {
 
   runMonetizationReconcile();
 
-  setInterval(() => {
+  intervalHandles.push(setInterval(() => {
     cleanupExpiredPending().catch((error) => {
       console.error('pending signup cleanup failed:', error);
     });
-  }, PENDING_CLEANUP_INTERVAL_MS);
+  }, PENDING_CLEANUP_INTERVAL_MS));
 
-  setInterval(() => {
+  intervalHandles.push(setInterval(() => {
     cleanupExpiredSessions().catch((error) => {
       console.error('auth session cleanup failed:', error);
     });
-  }, AUTH_SESSION_CLEANUP_INTERVAL_MS);
+  }, AUTH_SESSION_CLEANUP_INTERVAL_MS));
 
-  setInterval(runMonetizationReconcile, MONETIZATION_RECONCILE_INTERVAL_MS);
+  intervalHandles.push(setInterval(runMonetizationReconcile, MONETIZATION_RECONCILE_INTERVAL_MS));
 };
 
-startServer();
+const shutdown = (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[shutdown] ${signal} received; stopping safely.`);
+  intervalHandles.forEach(clearInterval);
+
+  const forceExit = setTimeout(() => {
+    console.error('[shutdown] graceful timeout exceeded.');
+    process.exit(1);
+  }, 10_000);
+  forceExit.unref();
+
+  const closeDatabase = () => {
+    db.close((error) => {
+      if (error) {
+        console.error('[shutdown] database close failed:', error);
+        process.exit(1);
+        return;
+      }
+      console.log('[shutdown] complete.');
+      process.exit(0);
+    });
+  };
+
+  if (httpServer) {
+    httpServer.close(closeDatabase);
+  } else {
+    closeDatabase();
+  }
+};
+
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
+
+startServer().catch((error) => {
+  console.error('[startup] failed:', error);
+  process.exit(1);
+});

@@ -2337,7 +2337,13 @@ router.get('/ux-events/summary', async (req, res) => {
              SUM(CASE WHEN event_name = 'post_create_error' THEN 1 ELSE 0 END) AS post_error_count,
              SUM(CASE WHEN event_name = 'signup_success_pending_created' THEN 1 ELSE 0 END) AS signup_pending_count,
              SUM(CASE WHEN event_name = 'login_success' THEN 1 ELSE 0 END) AS login_success_count,
-             SUM(CASE WHEN event_name = 'post_create_success' THEN 1 ELSE 0 END) AS post_create_success_count
+             SUM(CASE WHEN event_name = 'post_create_success' THEN 1 ELSE 0 END) AS post_create_success_count,
+             SUM(CASE WHEN event_name = 'today_prompt_view' THEN 1 ELSE 0 END) AS today_prompt_view_count,
+             SUM(CASE WHEN event_name = 'today_prompt_start' THEN 1 ELSE 0 END) AS today_prompt_start_count,
+             SUM(CASE WHEN event_name = 'draft_resume' THEN 1 ELSE 0 END) AS draft_resume_count,
+             SUM(CASE WHEN event_name = 'write_preview_open' THEN 1 ELSE 0 END) AS write_preview_open_count,
+             SUM(CASE WHEN event_name = 'write_publish_success' THEN 1 ELSE 0 END) AS write_publish_success_count,
+             SUM(CASE WHEN event_name = 'book_view' THEN 1 ELSE 0 END) AS book_view_count
            FROM ux_events
            ${p0WhereClause}`,
           p0Params
@@ -2382,6 +2388,12 @@ router.get('/ux-events/summary', async (req, res) => {
         login_success_count: Number(p0Base?.login_success_count || 0),
         post_create_success_count: Number(p0Base?.post_create_success_count || 0),
         first_post_created_24h_count: firstPost24hCount,
+        today_prompt_view_count: Number(p0Base?.today_prompt_view_count || 0),
+        today_prompt_start_count: Number(p0Base?.today_prompt_start_count || 0),
+        draft_resume_count: Number(p0Base?.draft_resume_count || 0),
+        write_preview_open_count: Number(p0Base?.write_preview_open_count || 0),
+        write_publish_success_count: Number(p0Base?.write_publish_success_count || 0),
+        book_view_count: Number(p0Base?.book_view_count || 0),
       },
       p0_metrics: {
         first_post_24h_rate: firstPost24hRate,

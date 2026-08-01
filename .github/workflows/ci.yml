@@ -1,0 +1,31 @@
+name: Server CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check production dependency vulnerabilities
+        run: npm audit --omit=dev --audit-level=high
+      - name: Check JavaScript syntax
+        run: find . -path ./node_modules -prune -o -path ./.git -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check
+      - run: npm run check:orphans
+      - name: Test the core writing loop
+        run: npm test -- tests/e2e/writing-event-posts.spec.js
+      - name: Build production container
+        run: docker build --tag glsoop-server:ci .

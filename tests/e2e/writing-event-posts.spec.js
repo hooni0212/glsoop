@@ -329,6 +329,59 @@ test.describe('Writing event post contexts', () => {
     expect(listPayload.posts[0].excerpt).toContain('창밖으로 보이는 장면');
   });
 
+  test('publishes body-first writing without requiring a title', async ({ request }, testInfo) => {
+    const response = await request.post('/api/posts', {
+      headers: buildAuthHeaders(getProjectUserId(testInfo)),
+      data: {
+        content: '제목을 정하지 못해도 오늘의 문장은 먼저 남길 수 있습니다.',
+        category: 'short',
+      },
+    });
+
+    expect(response.status()).toBe(200);
+    const payload = await response.json();
+    expect(payload.ok).toBe(true);
+
+    const storedPost = await withDb((db) =>
+      dbGet(db, 'SELECT title, content FROM posts WHERE id = ?', [payload.post_id])
+    );
+    expect(storedPost).toMatchObject({
+      title: '무제',
+      content: '제목을 정하지 못해도 오늘의 문장은 먼저 남길 수 있습니다.',
+    });
+  });
+
+  test('keeps the web editor body first and saves without a title', async ({ page }, testInfo) => {
+    await loginWithSession(page, getProjectUserEmail(getProjectUserId(testInfo)), {
+      ip: '198.51.100.205',
+    });
+    page.on('dialog', (dialog) => dialog.accept());
+
+    await page.goto('/write');
+    expect(
+      await page.evaluate(() => {
+        const body = document.querySelector('.editor-wrapper');
+        const meta = document.querySelector('.editor-top-grid');
+        return Boolean(body && meta && body.compareDocumentPosition(meta) & Node.DOCUMENT_POSITION_FOLLOWING);
+      })
+    ).toBe(true);
+    await expect(page.locator('#categorySelect')).toHaveValue('short');
+    await page.locator('.ql-editor').fill('웹에서도 제목보다 오늘의 문장을 먼저 씁니다.');
+
+    const createResponsePromise = page.waitForResponse(
+      (response) => response.url().endsWith('/api/posts') && response.request().method() === 'POST'
+    );
+    await page.locator('#saveBtn').click();
+    const createResponse = await createResponsePromise;
+
+    expect(createResponse.status()).toBe(200);
+    expect(createResponse.request().postDataJSON()).toMatchObject({
+      title: '',
+      category: 'short',
+    });
+    await expect(page).toHaveURL('/html/mypage.html');
+  });
+
   test('rejects unknown prompt keys for the daily writing campaign', async ({ request }, testInfo) => {
     const response = await request.post('/api/posts', {
       headers: buildAuthHeaders(getProjectUserId(testInfo)),
