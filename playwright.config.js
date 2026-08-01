@@ -19,6 +19,9 @@ process.env.DB_PATH = e2eDbRelativePath;
 
 module.exports = defineConfig({
   testDir: './tests',
+  // E2E specs seed and inspect one SQLite file. Parallel workers can overlap
+  // transactions and make otherwise valid tests fail nondeterministically.
+  workers: 1,
   timeout: 60 * 1000,
   expect: {
     timeout: 12 * 1000,

@@ -1995,11 +1995,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 간단한 검증들
-    if (!title) {
-      showEditorError('제목을 입력해주세요.');
-      return;
-    }
-
     if (!plainText) {
       showEditorError('내용을 입력해주세요.');
       return;
@@ -2020,6 +2015,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       category: selectedCategory,
       content_length: length,
       hashtag_count: hashtagList.length,
+      has_title: Boolean(title),
     });
 
     isSaving = true;

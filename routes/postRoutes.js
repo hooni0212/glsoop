@@ -1155,6 +1155,7 @@ const router = express.Router();
 // 9-1) 글 작성
 router.post('/posts', authRequired, async (req, res) => {
   const { title, content, hashtags, category } = req.body;
+  const normalizedTitle = typeof title === 'string' && title.trim() ? title.trim() : '무제';
   const userId = req.user.id;
   const normalizedCategory = requireValidCategory(category, res);
   const visibility = normalizeVisibility(req.body?.visibility);
@@ -1189,10 +1190,10 @@ router.post('/posts', authRequired, async (req, res) => {
 
   const contentForStorage = buildContentForStorage(content, contentPagesInput, req.body);
 
-  if (!title || !contentForStorage) {
+  if (!contentForStorage) {
     return res
       .status(400)
-      .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
+      .json({ ok: false, message: '내용을 입력하세요.' });
   }
 
   const safeContent = sanitizeForStorage(contentForStorage);
@@ -1209,7 +1210,7 @@ router.post('/posts', authRequired, async (req, res) => {
       `,
       [
         userId,
-        title,
+        normalizedTitle,
         safeContent,
         contentPagesInput.provided ? contentPagesInput.storageValue : null,
         normalizedCategory,
@@ -1253,7 +1254,7 @@ router.post('/posts', authRequired, async (req, res) => {
     await notifyFollowersAboutNewPost({
       authorId: userId,
       postId: newPostId,
-      title,
+      title: normalizedTitle,
       visibility,
     });
   } catch (notificationErr) {
@@ -1274,6 +1275,7 @@ router.post('/posts', authRequired, async (req, res) => {
 router.put('/posts/:id', authRequired, (req, res) => {
   const postId = req.params.id;
   const { title, content, hashtags, category } = req.body;
+  const normalizedTitle = typeof title === 'string' && title.trim() ? title.trim() : '무제';
   const userId = req.user.id;
   const isAdmin = !!req.user.isAdmin;
   const normalizedCategory = requireValidCategory(category, res);
@@ -1298,10 +1300,10 @@ router.put('/posts/:id', authRequired, (req, res) => {
 
   const contentForStorage = buildContentForStorage(content, contentPagesInput, req.body);
 
-  if (!title || !contentForStorage) {
+  if (!contentForStorage) {
     return res
       .status(400)
-      .json({ ok: false, message: '제목과 내용을 모두 입력하세요.' });
+      .json({ ok: false, message: '내용을 입력하세요.' });
   }
 
   const safeContent = sanitizeForStorage(contentForStorage);
@@ -1338,7 +1340,7 @@ router.put('/posts/:id', authRequired, (req, res) => {
       'comment_policy_updated_at = CURRENT_TIMESTAMP',
     ];
     const updateParams = [
-      title,
+      normalizedTitle,
       safeContent,
       normalizedCategory,
       visibility,

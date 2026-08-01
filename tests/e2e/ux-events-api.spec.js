@@ -380,6 +380,12 @@ test.describe('UX events API', () => {
       [USER_A_ID, 'post_create_error', 'desktop', 'macos'],
       [USER_A_ID, 'post_create_success', 'desktop', 'macos'],
       [USER_A_ID, 'first_post_created_24h', 'desktop', 'macos'],
+      [USER_A_ID, 'today_prompt_view', 'desktop', 'macos'],
+      [USER_A_ID, 'today_prompt_start', 'desktop', 'macos'],
+      [USER_A_ID, 'draft_resume', 'desktop', 'macos'],
+      [USER_A_ID, 'write_preview_open', 'desktop', 'macos'],
+      [USER_A_ID, 'write_publish_success', 'desktop', 'macos'],
+      [USER_A_ID, 'book_view', 'desktop', 'macos'],
     ];
 
     for (const [userId, eventName, deviceClass, platformFamily] of seedRows) {
@@ -421,7 +427,7 @@ test.describe('UX events API', () => {
 
     expect(payload.ok).toBe(true);
     expect(payload.summary).toMatchObject({
-      total_count: 12,
+      total_count: 18,
       unique_user_count: 2,
       anonymous_count: 1,
     });
@@ -432,6 +438,12 @@ test.describe('UX events API', () => {
       login_success_count: 1,
       post_create_success_count: 1,
       first_post_created_24h_count: 1,
+      today_prompt_view_count: 1,
+      today_prompt_start_count: 1,
+      draft_resume_count: 1,
+      write_preview_open_count: 1,
+      write_publish_success_count: 1,
+      book_view_count: 1,
     });
 
     expect(payload.p0_metrics).toMatchObject({
@@ -457,7 +469,7 @@ test.describe('UX events API', () => {
       expect.arrayContaining([
         expect.objectContaining({
           device_class: 'desktop',
-          event_count: 9,
+          event_count: 15,
           unique_session_count: 1,
         }),
         expect.objectContaining({
@@ -469,7 +481,7 @@ test.describe('UX events API', () => {
     );
     expect(payload.by_platform).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ platform_family: 'macos', event_count: 9 }),
+        expect.objectContaining({ platform_family: 'macos', event_count: 15 }),
         expect.objectContaining({ platform_family: 'android', event_count: 2 }),
         expect.objectContaining({ platform_family: 'ios', event_count: 1 }),
       ])
