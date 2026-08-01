@@ -146,7 +146,7 @@
       <!-- align-items-stretch: 좌우 카드 높이 얼추 맞춰주기 -->
       <div class="editor-main-grid gls-gap-4">
 
-        <!-- 📝 왼쪽: 제목 + 폰트 선택 + 에디터 + 해시태그 -->
+        <!-- 📝 왼쪽: 본문 우선 입력 + 후속 설정 -->
         <!-- gls-flex gls-flex-col: 카드가 세로로 꽉 차도록 -->
         <div class="gls-flex gls-flex-col">
           <div class="card h-100">
@@ -154,20 +154,29 @@
 
               <div class="editor-writing-campaign gls-hidden gls-mb-3" id="editorWritingCampaign" role="note"></div>
 
-              <!-- 상단: 제목 입력 + 폰트 선택 한 줄 정렬(데스크톱 기준) -->
+              <!-- 본문 에디터 + 글자 수 카운터 -->
+              <div class="gls-mb-3 editor-wrapper gls-relative">
+                <label class="gls-label">오늘의 문장</label>
+                <!-- Quill 에디터가 바인딩되는 div -->
+                <div id="editor" class="editor-box editor-box-fixed"></div>
+
+                <!-- 에디터 박스 내부 오른쪽 아래에 표시될 글자 수 제한 안내 -->
+                <div id="charCounter" class="char-counter gls-text-muted">
+                  0자
+                </div>
+              </div>
+
               <div class="editor-top-grid gls-mb-3">
-                <!-- 제목 입력 -->
                 <div class="editor-top-grid__title">
-                  <label for="postTitle" class="gls-label">제목</label>
+                  <label for="postTitle" class="gls-label">제목 · 선택</label>
                   <input
                     type="text"
                     id="postTitle"
                     class="gls-input"
-                    placeholder="오늘의 글 제목을 입력하세요"
+                    placeholder="필요할 때만 제목을 붙여주세요"
                   />
                 </div>
 
-                <!-- 폰트 선택 (select) -->
                 <div class="editor-top-grid__font">
                   <label for="fontSelect" class="gls-label">폰트</label>
                   <select id="fontSelect" class="gls-select gls-select-sm">
@@ -177,14 +186,12 @@
                   </select>
                 </div>
 
-                <!-- 카테고리 선택 -->
                 <div class="editor-top-grid__category">
                   <label for="categorySelect" class="gls-label">글 종류</label>
                   <select id="categorySelect" class="gls-select gls-select-sm" required>
-                    <option value="" selected disabled>카테고리 선택</option>
                     <option value="poem">시</option>
                     <option value="essay">에세이/일기</option>
-                    <option value="short">짧은 구절</option>
+                    <option value="short" selected>짧은 구절</option>
                   </select>
                 </div>
               </div>
@@ -192,7 +199,7 @@
               <div class="editor-background-section gls-mb-3">
                 <div class="gls-flex gls-justify-between gls-items-center gls-mb-2">
                   <label class="gls-label gls-mb-0">배경</label>
-                  <span class="gls-text-small gls-text-muted">모바일 글쓰기와 같은 배경을 사용합니다.</span>
+                  <span class="gls-text-small gls-text-muted">글을 쓴 뒤 분위기를 골라도 괜찮아요.</span>
                 </div>
                 <div class="editor-background-grid" id="editorBackgroundGrid" aria-label="배경 선택">
                   <button
@@ -221,18 +228,6 @@
                       <small>부드러운 여백감</small>
                     </span>
                   </button>
-                </div>
-              </div>
-
-              <!-- 본문 에디터 + 글자 수 카운터 -->
-              <div class="gls-mb-3 editor-wrapper gls-relative">
-                <label class="gls-label">내용</label>
-                <!-- Quill 에디터가 바인딩되는 div -->
-                <div id="editor" class="editor-box editor-box-fixed"></div>
-
-                <!-- 에디터 박스 내부 오른쪽 아래에 표시될 글자 수 제한 안내 -->
-                <div id="charCounter" class="char-counter gls-text-muted">
-                  0자
                 </div>
               </div>
 
