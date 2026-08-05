@@ -1070,6 +1070,20 @@ test.describe('Post layout letter spacing', () => {
     await expect(page.locator('#postDetail')).toContainText('레거시 plain 한 장 보존');
     await expect(page.locator('#postDetail .feed-rendered-card-image')).toHaveCount(1);
     await expect(page.locator('#postDetail [data-post-carousel-nav]')).toHaveCount(0);
+    const renderedImageLayout = await page
+      .locator('#postDetail .feed-rendered-image-shell')
+      .evaluate((shell) => {
+        const image = shell.querySelector('.feed-rendered-card-image');
+        const bounds = shell.getBoundingClientRect();
+        return {
+          ratio: bounds.width / bounds.height,
+          objectFit: image ? window.getComputedStyle(image).objectFit : '',
+          imageMargin: image ? window.getComputedStyle(image).margin : '',
+        };
+      });
+    expect(renderedImageLayout.ratio).toBeCloseTo(500 / 666, 2);
+    expect(renderedImageLayout.objectFit).toBe('contain');
+    expect(renderedImageLayout.imageMargin).toBe('0px');
 
     const updatedSinglePage = Array.from(
       { length: 8 },
