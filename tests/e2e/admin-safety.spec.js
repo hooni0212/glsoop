@@ -166,6 +166,92 @@ async function mockAdminBootApis(page, options = {}) {
     })
   );
 
+  await page.route('**/api/admin/overview**', (route) => {
+    const requestUrl = new URL(route.request().url());
+    const days = Number(requestUrl.searchParams.get('days') || 7);
+    if (typeof options.onOverviewRequest === 'function') {
+      options.onOverviewRequest({ requestUrl, days });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        generated_at: '2026-08-14T03:00:00.000Z',
+        timezone: 'Asia/Seoul',
+        period: {
+          days,
+          current_start_date: days === 30 ? '2026-07-16' : '2026-08-08',
+          current_end_date: '2026-08-14',
+          previous_start_date: days === 30 ? '2026-06-16' : '2026-08-01',
+          previous_end_date: days === 30 ? '2026-07-15' : '2026-08-07',
+        },
+        headline: {
+          active_users: { current: 42, previous: 35, delta: 7, change_percent: 20 },
+          verified_users: { current: 8, previous: 5, delta: 3, change_percent: 60 },
+          posts_created: { current: 31, previous: 24, delta: 7, change_percent: 29.2 },
+          writers: { current: 19, previous: 15, delta: 4, change_percent: 26.7 },
+          repeat_writers: { current: 7, previous: 4, delta: 3, change_percent: 75 },
+          engagement_events: { current: 86, previous: 64, delta: 22, change_percent: 34.4 },
+          engagement_participants: { current: 28, previous: 21, delta: 7, change_percent: 33.3 },
+          activation_24h_rate: {
+            current: 62.5,
+            previous: 40,
+            delta_percentage_points: 22.5,
+            current_base: 8,
+            previous_base: 5,
+          },
+        },
+        writing: {
+          returning_writers: 11,
+          returning_writer_rate: 57.9,
+          repeat_writers: 7,
+        },
+        activation: {
+          verified_users: 8,
+          first_post_24h_users: 5,
+          first_post_24h_rate: 62.5,
+        },
+        retention: {
+          d1: { cohort_count: 12, returned_count: 7, rate: 58.3 },
+          d7: { cohort_count: 9, returned_count: 4, rate: 44.4 },
+          rewrite_7d: { cohort_count: 6, rewritten_count: 3, rate: 50 },
+        },
+        operations: {
+          safety: {
+            open_count: 3,
+            overdue_24h_count: 1,
+            oldest_open_hours: 29,
+          },
+          push: {
+            queued_now: 2,
+            period_total: 30,
+            period_failed: 2,
+            failure_rate: 6.7,
+          },
+          publishing: {
+            submit_count: 20,
+            error_count: 1,
+            error_rate: 5,
+          },
+        },
+        daily: [
+          { day: '2026-08-08', active_users: 6, posts_created: 3, writers: 2 },
+          { day: '2026-08-09', active_users: 8, posts_created: 5, writers: 4 },
+          { day: '2026-08-10', active_users: 7, posts_created: 4, writers: 3 },
+          { day: '2026-08-11', active_users: 9, posts_created: 6, writers: 4 },
+          { day: '2026-08-12', active_users: 10, posts_created: 5, writers: 4 },
+          { day: '2026-08-13', active_users: 8, posts_created: 4, writers: 3 },
+          { day: '2026-08-14', active_users: 5, posts_created: 4, writers: 3 },
+        ],
+        definitions: {
+          active_user: '관리자 계정을 제외한 로그인 사용자',
+          repeat_writer: '기간 내 글을 2개 이상 작성한 사용자',
+        },
+      }),
+    });
+  });
+
   await page.route('**/api/admin/users**', (route) => {
     const requestUrl = new URL(route.request().url());
     if (requestUrl.pathname !== '/api/admin/users') {
@@ -781,6 +867,34 @@ test.describe('Admin dangerous action safety', () => {
     await seedAdminGuardFixtures();
   });
 
+  test('renders the operations overview and switches the comparison period', async ({ page }, testInfo) => {
+    const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
+    const requestedDays = [];
+
+    await mockAdminBootApis(page, {
+      onOverviewRequest({ days }) {
+        requestedDays.push(days);
+      },
+    });
+    await applyAdminCookie(page, baseURL);
+
+    await page.goto('/admin');
+
+    await expect(page.locator('#overviewTab')).toBeVisible();
+    await expect(page.locator('#overviewTab')).toContainText('활성 사용자');
+    await expect(page.locator('#overviewTab')).toContainText('42명');
+    await expect(page.locator('#overviewTab')).toContainText('24시간 내 첫 글');
+    await expect(page.locator('#overviewTab')).toContainText('62.5%');
+    await expect(page.locator('#overviewTab')).toContainText('D7 재방문');
+    await expect(page.locator('#overviewTab')).toContainText('24시간 초과 1건');
+    await expect(page.locator('[data-tab-count="overviewTab"]')).toHaveText('42');
+
+    await page.click('[data-overview-days="30"]');
+    await expect.poll(() => requestedDays.at(-1)).toBe(30);
+    await expect(page.locator('#overviewTab')).toContainText('최근 30일');
+    await expect(page.locator('#overviewTab')).toContainText('2026-07-16');
+  });
+
   test('requires two-step confirmation and prevents duplicate delete requests', async ({ page }, testInfo) => {
     const baseURL = testInfo.project.use.baseURL || 'http://127.0.0.1:3100';
     let deleteCalls = 0;
@@ -801,6 +915,7 @@ test.describe('Admin dangerous action safety', () => {
     });
 
     await page.goto('/admin');
+    await page.getByRole('button', { name: /회원/ }).click();
     const userRow = page.locator('tr[data-user-id="2"]');
     const deleteBtn = userRow.locator('.admin-delete-user-btn');
     await expect(deleteBtn).toBeVisible();
@@ -840,7 +955,7 @@ test.describe('Admin dangerous action safety', () => {
     await applyAdminCookie(page, baseURL);
 
     await page.goto('/admin');
-    await page.getByRole('button', { name: /신고/ }).click();
+    await page.locator('.admin-tabs [data-target="safetyTab"]').click();
 
     await expect(page.locator('#safetyTab')).toBeVisible();
     await expect(page.locator('#adminSafetyReports')).toContainText('신고자');
@@ -977,7 +1092,7 @@ test.describe('Admin dangerous action safety', () => {
     await applyAdminCookie(page, baseURL);
 
     await page.goto('/admin');
-    await page.getByRole('button', { name: /푸시/ }).click();
+    await page.locator('.admin-tabs [data-target="pushTab"]').click();
 
     await expect(page.locator('#pushTab')).toBeVisible();
     await expect(page.locator('#adminPushControls')).toContainText('활성 푸시 토큰 2개');
@@ -1090,7 +1205,7 @@ test.describe('Admin dangerous action safety', () => {
     await applyAdminCookie(page, baseURL);
 
     await page.goto('/admin');
-    await page.getByRole('button', { name: /신고/ }).click();
+    await page.locator('.admin-tabs [data-target="safetyTab"]').click();
 
     await page.locator('#adminReportedPosts [data-reported-post-action="dismissed"]').click();
 
@@ -1114,7 +1229,7 @@ test.describe('Admin dangerous action safety', () => {
     await applyAdminCookie(page, baseURL);
 
     await page.goto('/admin');
-    await page.getByRole('button', { name: /신고/ }).click();
+    await page.locator('.admin-tabs [data-target="safetyTab"]').click();
 
     await page.locator('#adminReportedPosts [data-reported-post-action="delete-post"]').click();
     await expect(page.locator('#adminDangerConfirmModal')).toBeVisible();

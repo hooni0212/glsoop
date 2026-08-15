@@ -7,6 +7,14 @@ const NEXT_DAILY_WRITING_PROMPTS_START_LOCAL_DATE = '2026-07-14';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+function getWritingEventNow() {
+  if (process.env.NODE_ENV !== 'production' && process.env.WRITING_EVENT_TEST_NOW) {
+    const configured = new Date(process.env.WRITING_EVENT_TEST_NOW);
+    if (!Number.isNaN(configured.getTime())) return configured;
+  }
+  return new Date();
+}
+
 const NEXT_DAILY_WRITING_PROMPTS = [
   {
     key: 'day-01-kind-gaze',
@@ -525,7 +533,7 @@ const WRITING_EVENT_BY_KEY = new Map(
   WRITING_EVENT_DEFINITIONS.map((event) => [event.key, event])
 );
 
-function formatKstDateKey(now = new Date()) {
+function formatKstDateKey(now = getWritingEventNow()) {
   return new Date(now.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
@@ -543,7 +551,7 @@ function getDefaultWritingEventDefinition() {
   return getWritingEventDefinition(DAILY_WRITING_CAMPAIGN_KEY);
 }
 
-function getWritingEventPromptSet(event, now = new Date()) {
+function getWritingEventPromptSet(event, now = getWritingEventNow()) {
   const promptSets = Array.isArray(event?.promptSets) ? event.promptSets : [];
   if (promptSets.length === 0) return null;
 
@@ -558,7 +566,7 @@ function getWritingEventPromptSet(event, now = new Date()) {
   }, null);
 }
 
-function getNextWritingEventPromptSet(event, now = new Date()) {
+function getNextWritingEventPromptSet(event, now = getWritingEventNow()) {
   const promptSets = Array.isArray(event?.promptSets) ? event.promptSets : [];
   if (promptSets.length === 0) return null;
 
@@ -571,7 +579,7 @@ function getNextWritingEventPromptSet(event, now = new Date()) {
   );
 }
 
-function getWritingEventPrompts(event, now = new Date()) {
+function getWritingEventPrompts(event, now = getWritingEventNow()) {
   const promptSets = Array.isArray(event?.promptSets) ? event.promptSets : [];
   if (promptSets.length === 0) return event?.prompts || [];
   return getWritingEventPromptSet(event, now)?.prompts || [];
@@ -594,7 +602,7 @@ function getWritingEventPrompt(eventKey, promptKey) {
   return listWritingEventPrompts(event).find((prompt) => prompt.key === promptKey) || null;
 }
 
-function getEventDayIndex(event, now = new Date(), startLocalDate, options = {}) {
+function getEventDayIndex(event, now = getWritingEventNow(), startLocalDate, options = {}) {
   const totalDays = Math.max(1, Number(event?.totalDays) || event?.prompts?.length || 1);
   const startMs = parseLocalDateMs(startLocalDate || event?.startLocalDate || CAMPAIGN_START_LOCAL_DATE);
   const currentMs = parseLocalDateMs(formatKstDateKey(now));
@@ -621,7 +629,7 @@ function buildWritingEventPromptWritePath(status = getDefaultWritingEventStatus(
   return `/write?${params.toString()}`;
 }
 
-function getWritingEventStatus(eventKey = DAILY_WRITING_CAMPAIGN_KEY, now = new Date()) {
+function getWritingEventStatus(eventKey = DAILY_WRITING_CAMPAIGN_KEY, now = getWritingEventNow()) {
   const event = getWritingEventDefinition(eventKey);
   if (!event) return null;
 
@@ -687,7 +695,7 @@ function getWritingEventStatus(eventKey = DAILY_WRITING_CAMPAIGN_KEY, now = new 
   };
 }
 
-function getDefaultWritingEventStatus(now = new Date()) {
+function getDefaultWritingEventStatus(now = getWritingEventNow()) {
   return getWritingEventStatus(DAILY_WRITING_CAMPAIGN_KEY, now);
 }
 
@@ -724,7 +732,7 @@ function buildDailyWritingPromptWritePath(status = getDailyWritingCampaignStatus
   return buildWritingEventPromptWritePath(status);
 }
 
-function getDailyWritingCampaignStatus(now = new Date()) {
+function getDailyWritingCampaignStatus(now = getWritingEventNow()) {
   return getDefaultWritingEventStatus(now);
 }
 
