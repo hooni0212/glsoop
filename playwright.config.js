@@ -59,6 +59,7 @@ module.exports = defineConfig({
       PROFILE_PHOTO_PREMIUM_ENTITLEMENT_KEY: 'premium:glsoop',
       PROFILE_PHOTO_UPLOAD_PREMIUM_REQUIRED: 'true',
       PROFILE_PHOTO_UPLOAD_DIR: path.posix.join('tmp', 'e2e-profile-photos'),
+      WRITING_EVENT_TEST_NOW: '2026-06-20T03:00:00.000Z',
       IOS_APP_STORE_URL:
         'https://apps.apple.com/kr/app/%EA%B8%80%EC%88%B2/id6761228925',
       IG_UPLOAD_STAGING_DIR: path.posix.join('tmp', 'e2e-ig-upload-staging'),

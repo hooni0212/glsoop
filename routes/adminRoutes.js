@@ -30,6 +30,7 @@ const {
   getWritingEventProgressSteps,
   getWritingEventStatus,
 } = require('../utils/dailyWritingCampaign');
+const { fetchAdminOverview, parseOverviewDays } = require('../utils/adminOverview');
 
 const router = express.Router();
 
@@ -327,6 +328,27 @@ router.use(authRequired, adminRequired);
 // 헬스 체크: admin 네임스페이스가 정상적으로 연결되었는지 확인
 router.get('/', (req, res) => {
   res.json({ ok: true, message: 'admin api ready' });
+});
+
+router.get('/overview', async (req, res) => {
+  const days = parseOverviewDays(req.query?.days);
+
+  try {
+    const overview = await fetchAdminOverview({ days });
+    return res.json({
+      ok: true,
+      message: '관리자 운영 요약을 불러왔습니다.',
+      ...overview,
+    });
+  } catch (error) {
+    console.error('[admin/overview] failed:', error);
+    return sendAdminError(
+      res,
+      500,
+      'INTERNAL_ERROR',
+      '관리자 운영 요약 조회 중 오류가 발생했습니다.'
+    );
+  }
 });
 
 router.get('/operational-alerts', async (req, res) => {
