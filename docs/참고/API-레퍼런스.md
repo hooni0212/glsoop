@@ -68,7 +68,19 @@
 - `POST /api/quests/:stateId/claim`
 - `GET /api/cosmetics/me`
 - `PUT /api/me/profile-cosmetics`
+- `GET /api/admin/overview?days=7|30`
 - `POST /api/admin/quests/auto-claim-expired-rewards`
+
+## 관리자 운영 요약 API 계약 (2026-08-14)
+
+- `GET /api/admin/overview?days=7|30`
+  - 관리자 권한 필수. `days` 기본값은 `7`이며 `7`, `30`만 지원한다.
+  - 기준 시간대는 `Asia/Seoul`이다. 오늘을 포함한 현재 기간과 직전 동일 기간을 비교한다.
+  - `headline`: 활성 사용자, 인증 완료, 글·작성자·반복 작성자, 콘텐츠 반응, 24시간 내 첫 글 전환율.
+  - `activation`, `retention`, `writing`: 인증 코호트 기반 D1/D7 재방문과 첫 글 후 7일 내 재작성 지표.
+  - `operations`: 열린/24시간 초과 신고, 푸시 실패율·대기 건수, 웹 편집기 글 발행 오류율.
+  - `daily`: KST 날짜별 활성 사용자와 작성 글 추이.
+  - 관리자 계정은 사용자·글쓰기 지표에서 제외한다. 코호트 지표는 관찰 기간이 끝난 사용자만 계산한다.
 
 ## 성장/보상/프로필 코스메틱 API 계약 (2026-05-09)
 

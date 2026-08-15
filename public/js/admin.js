@@ -6,6 +6,12 @@ window.Glsoop = window.Glsoop || {};
 Glsoop.AdminPage = (function () {
   const ADMIN_ACTIVE_TAB_KEY = 'gls-admin-active-tab';
 
+  const overviewState = {
+    days: 7,
+    initialized: false,
+    loading: false,
+  };
+
   const usersState = {
     page: 1,
     limit: 50,
@@ -180,6 +186,7 @@ Glsoop.AdminPage = (function () {
   async function init() {
     const statusBox = document.getElementById('adminStatus');
     const contentBox = document.getElementById('adminContent');
+    const overviewBox = document.getElementById('adminOverview');
     const usersBox = document.getElementById('adminUsers');
     const postsBox = document.getElementById('adminPosts');
     const shareSummaryBox = document.getElementById('adminShareSummary');
@@ -191,6 +198,7 @@ Glsoop.AdminPage = (function () {
     if (
       !statusBox ||
       !contentBox ||
+      !overviewBox ||
       !usersBox ||
       !postsBox ||
       !shareSummaryBox ||
@@ -200,7 +208,7 @@ Glsoop.AdminPage = (function () {
       !reportedPostsBox
     ) {
       console.error(
-        'adminStatus / adminContent / adminUsers / adminPosts / adminShareSummary / adminDeviceAnalytics / adminPushControls / adminSafetyReports / adminReportedPosts 요소를 찾을 수 없습니다.'
+        'adminStatus / adminContent / adminOverview / adminUsers / adminPosts / adminShareSummary / adminDeviceAnalytics / adminPushControls / adminSafetyReports / adminReportedPosts 요소를 찾을 수 없습니다.'
       );
       return;
     }
@@ -223,6 +231,8 @@ Glsoop.AdminPage = (function () {
     `;
     contentBox.classList.remove('is-hidden');
 
+    setupOverviewUi(overviewBox);
+    await loadOverview(overviewBox);
     setupUsersUi(usersBox);
     await loadUsers(usersBox);
     setupPostsUi(postsBox);
@@ -239,6 +249,361 @@ Glsoop.AdminPage = (function () {
     setupDeviceAnalyticsUi(deviceAnalyticsBox);
     setupPushUi(pushBox);
     await loadPushDashboard(pushBox);
+  }
+
+  function setupOverviewUi(overviewBox) {
+    if (overviewState.initialized) return;
+    overviewState.initialized = true;
+
+    document.querySelectorAll('[data-overview-days]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const days = Number.parseInt(button.getAttribute('data-overview-days') || '', 10);
+        if (![7, 30].includes(days) || days === overviewState.days) return;
+        overviewState.days = days;
+        syncOverviewPeriodButtons();
+        loadOverview(overviewBox);
+      });
+    });
+
+    document.getElementById('adminOverviewRefreshBtn')?.addEventListener('click', () => {
+      loadOverview(overviewBox);
+    });
+
+    syncOverviewPeriodButtons();
+  }
+
+  function syncOverviewPeriodButtons() {
+    document.querySelectorAll('[data-overview-days]').forEach((button) => {
+      const isActive = Number(button.getAttribute('data-overview-days')) === overviewState.days;
+      button.classList.toggle('gls-btn-primary', isActive);
+      button.classList.toggle('gls-btn-secondary', !isActive);
+      button.setAttribute('aria-pressed', String(isActive));
+    });
+  }
+
+  async function loadOverview(overviewBox) {
+    if (!overviewBox || overviewState.loading) return;
+    overviewState.loading = true;
+    const refreshButton = document.getElementById('adminOverviewRefreshBtn');
+    if (refreshButton) refreshButton.disabled = true;
+    overviewBox.innerHTML = '<p class="gls-text-muted">운영 요약을 불러오는 중입니다...</p>';
+
+    try {
+      const response = await fetch(`/api/admin/overview?days=${overviewState.days}`, {
+        cache: 'no-store',
+      });
+      const payload = await parseJsonSafe(response);
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message || '운영 요약을 불러오지 못했습니다.');
+      }
+
+      setTabCount('overviewTab', Number(payload?.headline?.active_users?.current || 0));
+      overviewBox.innerHTML = renderOverviewHtml(payload);
+      bindOverviewPanelEvents(overviewBox);
+    } catch (error) {
+      console.error(error);
+      setTabCount('overviewTab', '-');
+      overviewBox.innerHTML = `
+        <div class="admin-overview-error">
+          <strong>운영 요약을 불러오지 못했습니다.</strong>
+          <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(
+            error.message || '잠시 후 다시 시도해 주세요.'
+          )}</p>
+        </div>
+      `;
+    } finally {
+      overviewState.loading = false;
+      if (refreshButton) refreshButton.disabled = false;
+    }
+  }
+
+  function renderOverviewHtml(payload) {
+    const period = payload?.period || {};
+    const headline = payload?.headline || {};
+    const activation = payload?.activation || {};
+    const writing = payload?.writing || {};
+    const retention = payload?.retention || {};
+    const operations = payload?.operations || {};
+    const definitions = payload?.definitions || {};
+    const periodLabel = `${period.current_start_date || '-'} ~ ${period.current_end_date || '-'}`;
+    const comparisonLabel = `${period.previous_start_date || '-'} ~ ${period.previous_end_date || '-'}`;
+
+    const headlineCards = [
+      buildOverviewMetricCard('활성 사용자', headline.active_users, '명', '기간 내 로그인 행동 사용자'),
+      buildOverviewMetricCard('인증 완료', headline.verified_users, '명', '이메일 인증 고유 사용자'),
+      buildOverviewRateCard(
+        '24시간 내 첫 글',
+        headline.activation_24h_rate,
+        '인증 후 관찰 완료 코호트'
+      ),
+      buildOverviewMetricCard('작성된 글', headline.posts_created, '개', '관리자 작성 글 제외'),
+      buildOverviewMetricCard('글쓴 사용자', headline.writers, '명', '기간 내 고유 작성자'),
+      buildOverviewMetricCard('2회 이상 작성', headline.repeat_writers, '명', '글쓰기 습관 핵심 지표'),
+      buildOverviewMetricCard(
+        '콘텐츠 반응',
+        headline.engagement_events,
+        '회',
+        '좋아요·저장·댓글·공유'
+      ),
+      buildOverviewMetricCard(
+        '반응 참여자',
+        headline.engagement_participants,
+        '명',
+        '로그인 고유 참여자'
+      ),
+    ].join('');
+
+    return `
+      <div class="admin-overview-period gls-mb-3">
+        <div>
+          <span class="admin-overview-period__label">현재</span>
+          <strong>${escapeHtml(periodLabel)}</strong>
+        </div>
+        <div class="gls-text-muted gls-text-small">비교 기간 ${escapeHtml(comparisonLabel)} · 오늘 수치는 집계 중</div>
+      </div>
+
+      <section class="admin-overview-section" aria-labelledby="adminOverviewHeadlineTitle">
+        <div class="admin-overview-section__heading">
+          <div>
+            <p class="gls-text-muted gls-text-small gls-mb-1">핵심 현황</p>
+            <h4 id="adminOverviewHeadlineTitle" class="gls-mb-0">최근 ${Number(period.days || overviewState.days)}일</h4>
+          </div>
+        </div>
+        <div class="admin-overview-metric-grid">${headlineCards}</div>
+      </section>
+
+      <div class="admin-overview-split">
+        <section class="admin-overview-section admin-overview-card" aria-labelledby="adminOverviewActivationTitle">
+          <div class="admin-overview-section__heading">
+            <div>
+              <p class="gls-text-muted gls-text-small gls-mb-1">Activation</p>
+              <h4 id="adminOverviewActivationTitle" class="gls-mb-0">인증에서 첫 글까지</h4>
+            </div>
+            <strong class="admin-overview-rate">${formatOverviewRate(activation.first_post_24h_rate)}</strong>
+          </div>
+          ${buildOverviewFunnel(activation)}
+          <p class="gls-text-muted gls-text-small gls-mb-0">최근 24시간에 인증한 사용자는 아직 관찰 중이므로 제외합니다.</p>
+        </section>
+
+        <section class="admin-overview-section admin-overview-card" aria-labelledby="adminOverviewWritingTitle">
+          <div class="admin-overview-section__heading">
+            <div>
+              <p class="gls-text-muted gls-text-small gls-mb-1">Writing habit</p>
+              <h4 id="adminOverviewWritingTitle" class="gls-mb-0">다시 쓰는 사용자</h4>
+            </div>
+            <strong class="admin-overview-rate">${formatOverviewRate(writing.returning_writer_rate)}</strong>
+          </div>
+          <div class="admin-overview-writing-stats">
+            <div><strong>${formatOverviewNumber(writing.returning_writers)}</strong><span>이전에도 쓴 사용자</span></div>
+            <div><strong>${formatOverviewNumber(writing.repeat_writers)}</strong><span>기간 내 2회 이상 작성</span></div>
+          </div>
+          <p class="gls-text-muted gls-text-small gls-mb-0">재방문 작성률은 기간 내 작성자 중 과거 글이 있는 사용자의 비율입니다.</p>
+        </section>
+      </div>
+
+      <section class="admin-overview-section" aria-labelledby="adminOverviewRetentionTitle">
+        <div class="admin-overview-section__heading">
+          <div>
+            <p class="gls-text-muted gls-text-small gls-mb-1">Retention</p>
+            <h4 id="adminOverviewRetentionTitle" class="gls-mb-0">관찰이 끝난 사용자 리텐션</h4>
+          </div>
+        </div>
+        <div class="admin-overview-retention-grid">
+          ${buildOverviewRetentionCard('D1 재방문', retention.d1, 'returned_count')}
+          ${buildOverviewRetentionCard('D7 재방문', retention.d7, 'returned_count')}
+          ${buildOverviewRetentionCard('7일 내 재작성', retention.rewrite_7d, 'rewritten_count')}
+        </div>
+      </section>
+
+      ${buildOverviewOperations(operations)}
+      ${buildOverviewDailyTrend(payload?.daily || [])}
+      ${buildOverviewDefinitions(definitions)}
+    `;
+  }
+
+  function buildOverviewMetricCard(label, metric, suffix, description) {
+    const current = Number(metric?.current || 0);
+    const previous = Number(metric?.previous || 0);
+    const trend = buildOverviewTrend(metric?.delta, metric?.change_percent, current, previous, false);
+    return `
+      <article class="admin-overview-metric">
+        <p class="admin-overview-metric__label">${escapeHtml(label)}</p>
+        <div class="admin-overview-metric__value">${formatOverviewNumber(current)}<span>${escapeHtml(suffix)}</span></div>
+        ${trend}
+        <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(description)}</p>
+      </article>
+    `;
+  }
+
+  function buildOverviewRateCard(label, metric, description) {
+    const current = Number(metric?.current || 0);
+    const delta = Number(metric?.delta_percentage_points || 0);
+    const tone = delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
+    const sign = delta > 0 ? '+' : '';
+    return `
+      <article class="admin-overview-metric">
+        <p class="admin-overview-metric__label">${escapeHtml(label)}</p>
+        <div class="admin-overview-metric__value">${formatOverviewRate(current)}</div>
+        <div class="admin-overview-trend admin-overview-trend--${tone}">
+          직전 기간 대비 ${sign}${delta.toFixed(1)}%p
+        </div>
+        <p class="gls-text-muted gls-text-small gls-mb-0">${escapeHtml(description)} ${formatOverviewNumber(metric?.current_base)}명</p>
+      </article>
+    `;
+  }
+
+  function buildOverviewTrend(deltaValue, changePercentValue, current, previous, inverse) {
+    const delta = Number(deltaValue || 0);
+    const changePercent = Number(changePercentValue);
+    if (previous === 0 && current > 0) {
+      return '<div class="admin-overview-trend admin-overview-trend--positive">직전 기간 0 · 신규 발생</div>';
+    }
+
+    const adjustedDelta = inverse ? -delta : delta;
+    const tone = adjustedDelta > 0 ? 'positive' : adjustedDelta < 0 ? 'negative' : 'neutral';
+    const sign = delta > 0 ? '+' : '';
+    const percentText = Number.isFinite(changePercent) ? ` (${sign}${changePercent.toFixed(1)}%)` : '';
+    return `
+      <div class="admin-overview-trend admin-overview-trend--${tone}">
+        직전 기간 대비 ${sign}${formatOverviewNumber(delta)}${percentText}
+      </div>
+    `;
+  }
+
+  function buildOverviewFunnel(activation) {
+    const verified = Number(activation?.verified_users || 0);
+    const firstPost = Number(activation?.first_post_24h_users || 0);
+    const width = verified > 0 ? Math.max(4, Math.min(100, (firstPost * 100) / verified)) : 0;
+    return `
+      <div class="admin-overview-funnel">
+        <div class="admin-overview-funnel__step">
+          <div><span>이메일 인증</span><strong>${formatOverviewNumber(verified)}명</strong></div>
+          <div class="admin-overview-funnel__bar"><span style="width:100%"></span></div>
+        </div>
+        <div class="admin-overview-funnel__arrow" aria-hidden="true">↓</div>
+        <div class="admin-overview-funnel__step">
+          <div><span>24시간 내 첫 글</span><strong>${formatOverviewNumber(firstPost)}명</strong></div>
+          <div class="admin-overview-funnel__bar"><span style="width:${width.toFixed(1)}%"></span></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function buildOverviewRetentionCard(label, value, resultKey) {
+    const cohort = Number(value?.cohort_count || 0);
+    const result = Number(value?.[resultKey] || 0);
+    return `
+      <article class="admin-overview-retention-card">
+        <p class="gls-text-muted gls-text-small gls-mb-1">${escapeHtml(label)}</p>
+        <strong>${formatOverviewRate(value?.rate)}</strong>
+        <span>${formatOverviewNumber(result)}명 / 코호트 ${formatOverviewNumber(cohort)}명</span>
+      </article>
+    `;
+  }
+
+  function buildOverviewOperations(operations) {
+    const safety = operations?.safety || {};
+    const push = operations?.push || {};
+    const publishing = operations?.publishing || {};
+    const safetyTone = Number(safety.overdue_24h_count || 0) > 0 ? 'danger' : Number(safety.open_count || 0) > 0 ? 'warning' : 'success';
+    const pushTone = Number(push.period_failed || 0) > 0 ? 'danger' : Number(push.queued_now || 0) > 0 ? 'warning' : 'success';
+    const publishingTone = Number(publishing.error_rate || 0) >= 5 ? 'danger' : Number(publishing.error_count || 0) > 0 ? 'warning' : 'success';
+
+    return `
+      <section class="admin-overview-section" aria-labelledby="adminOverviewOperationsTitle">
+        <div class="admin-overview-section__heading">
+          <div>
+            <p class="gls-text-muted gls-text-small gls-mb-1">Operations</p>
+            <h4 id="adminOverviewOperationsTitle" class="gls-mb-0">확인이 필요한 운영 상태</h4>
+          </div>
+        </div>
+        <div class="admin-overview-operations-grid">
+          <article class="admin-overview-operation admin-overview-operation--${safetyTone}">
+            <div class="admin-overview-operation__head"><strong>신고</strong><span>${formatOverviewNumber(safety.open_count)}건 열림</span></div>
+            <p>24시간 초과 ${formatOverviewNumber(safety.overdue_24h_count)}건 · 최장 ${formatOverviewNumber(safety.oldest_open_hours)}시간</p>
+            <button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" data-overview-target="safetyTab">신고 확인</button>
+          </article>
+          <article class="admin-overview-operation admin-overview-operation--${pushTone}">
+            <div class="admin-overview-operation__head"><strong>푸시</strong><span>실패율 ${formatOverviewRate(push.failure_rate)}</span></div>
+            <p>기간 실패 ${formatOverviewNumber(push.period_failed)}건 · 현재 대기 ${formatOverviewNumber(push.queued_now)}건</p>
+            <button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" data-overview-target="pushTab">푸시 확인</button>
+          </article>
+          <article class="admin-overview-operation admin-overview-operation--${publishingTone}">
+            <div class="admin-overview-operation__head"><strong>웹 글 발행</strong><span>오류율 ${formatOverviewRate(publishing.error_rate)}</span></div>
+            <p>웹 발행 시도 ${formatOverviewNumber(publishing.submit_count)}회 · 오류 ${formatOverviewNumber(publishing.error_count)}회</p>
+            <button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" data-overview-target="deviceAnalyticsTab">UX 상세</button>
+          </article>
+        </div>
+      </section>
+    `;
+  }
+
+  function buildOverviewDailyTrend(daily) {
+    const rows = Array.isArray(daily) ? daily : [];
+    const maxValue = Math.max(1, ...rows.map((row) => Math.max(Number(row.active_users || 0), Number(row.posts_created || 0))));
+    const rowsHtml = rows
+      .map((row) => {
+        const active = Number(row.active_users || 0);
+        const posts = Number(row.posts_created || 0);
+        return `
+          <div class="admin-overview-day-row">
+            <time datetime="${escapeHtml(row.day || '')}">${escapeHtml(formatOverviewDay(row.day))}</time>
+            <div class="admin-overview-day-bars">
+              <div><span class="admin-overview-day-bars__active" style="width:${((active * 100) / maxValue).toFixed(1)}%"></span></div>
+              <div><span class="admin-overview-day-bars__posts" style="width:${((posts * 100) / maxValue).toFixed(1)}%"></span></div>
+            </div>
+            <div class="admin-overview-day-values"><span>활성 ${formatOverviewNumber(active)}</span><span>글 ${formatOverviewNumber(posts)}</span></div>
+          </div>
+        `;
+      })
+      .join('');
+
+    return `
+      <section class="admin-overview-section admin-overview-card" aria-labelledby="adminOverviewDailyTitle">
+        <div class="admin-overview-section__heading">
+          <div>
+            <p class="gls-text-muted gls-text-small gls-mb-1">Daily trend</p>
+            <h4 id="adminOverviewDailyTitle" class="gls-mb-0">일별 활성 사용자와 글</h4>
+          </div>
+          <div class="admin-overview-legend"><span class="is-active">활성 사용자</span><span class="is-posts">작성 글</span></div>
+        </div>
+        <div class="admin-overview-days">${rowsHtml || '<p class="gls-text-muted gls-mb-0">표시할 데이터가 없습니다.</p>'}</div>
+      </section>
+    `;
+  }
+
+  function buildOverviewDefinitions(definitions) {
+    const entries = Object.values(definitions || {}).filter(Boolean);
+    if (!entries.length) return '';
+    return `
+      <details class="admin-overview-definitions">
+        <summary>지표 기준 보기</summary>
+        <ul>${entries.map((entry) => `<li>${escapeHtml(entry)}</li>`).join('')}</ul>
+      </details>
+    `;
+  }
+
+  function bindOverviewPanelEvents(overviewBox) {
+    overviewBox.querySelectorAll('[data-overview-target]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = button.getAttribute('data-overview-target');
+        document.querySelector(`.admin-tabs .nav-link[data-target="${target}"]`)?.click();
+      });
+    });
+  }
+
+  function formatOverviewNumber(value) {
+    return Number(value || 0).toLocaleString('ko-KR');
+  }
+
+  function formatOverviewRate(value) {
+    return `${Number(value || 0).toFixed(1)}%`;
+  }
+
+  function formatOverviewDay(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return value || '-';
+    const [, month, day] = String(value).split('-');
+    return `${Number(month)}월 ${Number(day)}일`;
   }
 
   function setupThemeControls() {
@@ -319,6 +684,7 @@ Glsoop.AdminPage = (function () {
   function setupTabSwitching() {
     const tabButtons = document.querySelectorAll('.admin-tabs .nav-link');
     const panels = document.querySelectorAll('.tab-panel');
+    const themeCard = document.querySelector('.admin-theme-card');
     if (!tabButtons.length || !panels.length) return;
 
     const buttonById = new Map();
@@ -336,6 +702,7 @@ Glsoop.AdminPage = (function () {
       panels.forEach((panel) => {
         panel.classList.toggle('gls-hidden', panel.id !== targetId);
       });
+      themeCard?.classList.toggle('gls-hidden', targetId === 'overviewTab');
       persistActiveTab(targetId);
     };
 
