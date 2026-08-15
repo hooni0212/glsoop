@@ -307,12 +307,12 @@ test.describe('Signup consent policy', () => {
     const checkDb = new sqlite3.Database(DB_PATH);
     const userRow = await dbGet(
       checkDb,
-      `SELECT marketing_email_opt_in FROM users WHERE id = ?`,
+      `SELECT marketing_email_opt_in, created_at FROM users WHERE id = ?`,
       [body.user_id]
     );
     const events = await dbAll(
       checkDb,
-      `SELECT consent_type, consent_version, is_granted, source
+      `SELECT consent_type, consent_version, is_granted, source, created_at
        FROM user_consent_events
        WHERE user_id = ?
        ORDER BY consent_type ASC`,
@@ -321,6 +321,8 @@ test.describe('Signup consent policy', () => {
     await new Promise((resolve) => checkDb.close(resolve));
 
     expect(Number(userRow.marketing_email_opt_in)).toBe(1);
+    expect(typeof userRow.created_at).toBe('string');
+    expect(events.every((event) => event.created_at === userRow.created_at)).toBe(true);
     expect(events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

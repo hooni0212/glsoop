@@ -92,6 +92,11 @@ async function seedReminderFixtures(users) {
     await dbRun(db, 'PRAGMA foreign_keys = OFF');
     await dbRun(
       db,
+      `UPDATE users SET marketing_push_opt_in = 0 WHERE id NOT IN (${placeholders})`,
+      userIds
+    );
+    await dbRun(
+      db,
       `DELETE FROM push_delivery_queue
        WHERE recipient_user_id IN (${placeholders})
           OR activity_event_id IN (
@@ -275,7 +280,12 @@ test.describe('글숲 한달 글쓰기 프로젝트 푸시 리마인더', () => 
     expect(nextCycleStatus.currentDay).toBe(1);
     expect(nextCycleStatus.prompt.key).toBe('day-01-kind-gaze');
 
-    const inactiveStatus = getDefaultWritingEventStatus(new Date('2026-08-13T00:10:00.000Z'));
+    const thirdCycleStatus = getDefaultWritingEventStatus(new Date('2026-08-13T00:10:00.000Z'));
+    expect(thirdCycleStatus.currentDay).toBe(1);
+    expect(thirdCycleStatus.promptSetKey).toBe('cycle-2026-08');
+    expect(thirdCycleStatus.prompt.key).toBe('cycle3-day-01-late-summer');
+
+    const inactiveStatus = getDefaultWritingEventStatus(new Date('2026-09-12T00:10:00.000Z'));
     expect(inactiveStatus.active).toBe(false);
     expect(inactiveStatus.prompt).toBeNull();
     expect(inactiveStatus.writePath).toBeNull();
@@ -283,7 +293,7 @@ test.describe('글숲 한달 글쓰기 프로젝트 푸시 리마인더', () => 
 
   test('진행 중인 글쓰기 프로젝트가 없으면 자동 푸시를 만들지 않는다', async () => {
     const result = await queueDailyWritingProjectPush({
-      nowMs: Date.parse('2026-08-13T00:10:00.000Z'),
+      nowMs: Date.parse('2026-09-12T00:10:00.000Z'),
       force: true,
     });
 

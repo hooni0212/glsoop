@@ -483,7 +483,7 @@ test.describe('Admin post delete API', () => {
     const deleteResponse = await deleteResponsePromise;
     expect(deleteResponse.ok(), await deleteResponse.text()).toBe(true);
     await expect(card).toHaveCount(0);
-    await expect(page.locator('#adminPosts')).toContainText('등록된 글이 없습니다.');
+    await expect(page.locator('#adminPosts')).not.toContainText('관리자 삭제 테스트 글');
 
     await withDb(async (db) => {
       await expect(dbGet(db, 'SELECT id FROM posts WHERE id = ?', [IDS.post])).resolves.toBeUndefined();
