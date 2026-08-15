@@ -330,11 +330,11 @@ Glsoop.AdminPage = (function () {
 
     const headlineCards = [
       buildOverviewMetricCard('활성 사용자', headline.active_users, '명', '기간 내 로그인 행동 사용자'),
-      buildOverviewMetricCard('인증 완료', headline.verified_users, '명', '이메일 인증 고유 사용자'),
+      buildOverviewMetricCard('가입 완료', headline.verified_users, '명', '가입 시각 기준'),
       buildOverviewRateCard(
         '24시간 내 첫 글',
         headline.activation_24h_rate,
-        '인증 후 관찰 완료 코호트'
+        '가입 후 관찰 완료 코호트'
       ),
       buildOverviewMetricCard('작성된 글', headline.posts_created, '개', '관리자 작성 글 제외'),
       buildOverviewMetricCard('글쓴 사용자', headline.writers, '명', '기간 내 고유 작성자'),
@@ -377,12 +377,12 @@ Glsoop.AdminPage = (function () {
           <div class="admin-overview-section__heading">
             <div>
               <p class="gls-text-muted gls-text-small gls-mb-1">Activation</p>
-              <h4 id="adminOverviewActivationTitle" class="gls-mb-0">인증에서 첫 글까지</h4>
+              <h4 id="adminOverviewActivationTitle" class="gls-mb-0">가입에서 첫 글까지</h4>
             </div>
             <strong class="admin-overview-rate">${formatOverviewRate(activation.first_post_24h_rate)}</strong>
           </div>
           ${buildOverviewFunnel(activation)}
-          <p class="gls-text-muted gls-text-small gls-mb-0">최근 24시간에 인증한 사용자는 아직 관찰 중이므로 제외합니다.</p>
+          <p class="gls-text-muted gls-text-small gls-mb-0">최근 24시간에 가입한 사용자는 아직 관찰 중이므로 제외합니다.</p>
         </section>
 
         <section class="admin-overview-section admin-overview-card" aria-labelledby="adminOverviewWritingTitle">
@@ -396,6 +396,7 @@ Glsoop.AdminPage = (function () {
           <div class="admin-overview-writing-stats">
             <div><strong>${formatOverviewNumber(writing.returning_writers)}</strong><span>이전에도 쓴 사용자</span></div>
             <div><strong>${formatOverviewNumber(writing.repeat_writers)}</strong><span>기간 내 2회 이상 작성</span></div>
+            <div><strong>${formatOverviewNumber(writing.active_drafts_now)}</strong><span>서버 보관 초안 · ${formatOverviewNumber(writing.draft_writers_now)}명</span></div>
           </div>
           <p class="gls-text-muted gls-text-small gls-mb-0">재방문 작성률은 기간 내 작성자 중 과거 글이 있는 사용자의 비율입니다.</p>
         </section>
@@ -477,7 +478,7 @@ Glsoop.AdminPage = (function () {
     return `
       <div class="admin-overview-funnel">
         <div class="admin-overview-funnel__step">
-          <div><span>이메일 인증</span><strong>${formatOverviewNumber(verified)}명</strong></div>
+          <div><span>가입 완료</span><strong>${formatOverviewNumber(verified)}명</strong></div>
           <div class="admin-overview-funnel__bar"><span style="width:100%"></span></div>
         </div>
         <div class="admin-overview-funnel__arrow" aria-hidden="true">↓</div>
@@ -505,9 +506,11 @@ Glsoop.AdminPage = (function () {
     const safety = operations?.safety || {};
     const push = operations?.push || {};
     const publishing = operations?.publishing || {};
+    const api = operations?.api || {};
     const safetyTone = Number(safety.overdue_24h_count || 0) > 0 ? 'danger' : Number(safety.open_count || 0) > 0 ? 'warning' : 'success';
     const pushTone = Number(push.period_failed || 0) > 0 ? 'danger' : Number(push.queued_now || 0) > 0 ? 'warning' : 'success';
     const publishingTone = Number(publishing.error_rate || 0) >= 5 ? 'danger' : Number(publishing.error_count || 0) > 0 ? 'warning' : 'success';
+    const apiTone = Number(api.server_error_rate || 0) >= 1 ? 'danger' : Number(api.server_error_count || 0) > 0 ? 'warning' : 'success';
 
     return `
       <section class="admin-overview-section" aria-labelledby="adminOverviewOperationsTitle">
@@ -532,6 +535,11 @@ Glsoop.AdminPage = (function () {
             <div class="admin-overview-operation__head"><strong>웹 글 발행</strong><span>오류율 ${formatOverviewRate(publishing.error_rate)}</span></div>
             <p>웹 발행 시도 ${formatOverviewNumber(publishing.submit_count)}회 · 오류 ${formatOverviewNumber(publishing.error_count)}회</p>
             <button class="gls-btn gls-btn-secondary gls-btn-xs" type="button" data-overview-target="deviceAnalyticsTab">UX 상세</button>
+          </article>
+          <article class="admin-overview-operation admin-overview-operation--${apiTone}">
+            <div class="admin-overview-operation__head"><strong>API</strong><span>서버 오류율 ${formatOverviewRate(api.server_error_rate)}</span></div>
+            <p>${formatOverviewNumber(api.request_count)}회 · 평균 ${formatOverviewNumber(api.average_duration_ms)}ms · 최장 ${formatOverviewNumber(api.max_duration_ms)}ms</p>
+            <span class="gls-text-muted gls-text-small">4xx ${formatOverviewNumber(api.client_error_count)}건 · 5xx ${formatOverviewNumber(api.server_error_count)}건</span>
           </article>
         </div>
       </section>

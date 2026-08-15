@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const jwt = require('jsonwebtoken');
+const sharp = require('sharp');
 
 const E2E_JWT_SECRET = 'devsecret';
 const E2E_JWT_ALGORITHM = 'HS256';
@@ -18,10 +19,7 @@ const DB_PATH = process.env.DB_PATH
   ? path.resolve(REPO_ROOT, process.env.DB_PATH)
   : path.join(REPO_ROOT, 'tmp', 'e2e_playwright.sqlite');
 
-const pngFixture = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
-  'base64'
-);
+let pngFixture = null;
 
 const dbRun = (db, sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -182,6 +180,16 @@ test.describe('Profile Photo API', () => {
   });
 
   test.beforeAll(async () => {
+    pngFixture = await sharp({
+      create: {
+        width: 8,
+        height: 8,
+        channels: 4,
+        background: { r: 72, g: 116, b: 88, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
     await seedProfilePhotoFixtures();
   });
 

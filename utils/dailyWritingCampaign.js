@@ -4,6 +4,7 @@ const DAILY_WRITING_CAMPAIGN_SUBTITLE = '매일 하나의 글감으로 30일 동
 const DAILY_WRITING_CAMPAIGN_TOTAL_DAYS = 30;
 const CAMPAIGN_START_LOCAL_DATE = '2026-06-14';
 const NEXT_DAILY_WRITING_PROMPTS_START_LOCAL_DATE = '2026-07-14';
+const THIRD_DAILY_WRITING_PROMPTS_START_LOCAL_DATE = '2026-08-13';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -256,6 +257,39 @@ const NEXT_DAILY_WRITING_PROMPTS = [
     defaultCategory: 'essay',
     suggestedHashtags: ['나를믿기', '다시시작', '글숲프로젝트'],
   },
+];
+
+const THIRD_DAILY_WRITING_PROMPTS = [
+  { key: 'cycle3-day-01-late-summer', day: 1, title: '늦여름의 첫 문장', body: '지금 계절의 온도와 빛을 한 문장으로 붙잡아보세요.', defaultCategory: 'short', suggestedHashtags: ['늦여름', '첫문장', '글숲프로젝트'] },
+  { key: 'cycle3-day-02-slow-morning', day: 2, title: '천천히 시작한 아침', body: '서두르지 않았기에 볼 수 있었던 아침의 장면을 적어보세요.', defaultCategory: 'essay', suggestedHashtags: ['아침', '여유', '일상'] },
+  { key: 'cycle3-day-03-familiar-sound', day: 3, title: '익숙해서 놓친 소리', body: '매일 듣지만 자세히 들어본 적 없는 소리를 글로 옮겨보세요.', defaultCategory: 'poem', suggestedHashtags: ['소리', '관찰', '시'] },
+  { key: 'cycle3-day-04-unopened-door', day: 4, title: '아직 열지 않은 문', body: '망설이고 있는 선택 하나와 그 문 너머를 상상해보세요.', defaultCategory: 'essay', suggestedHashtags: ['선택', '용기', '상상'] },
+  { key: 'cycle3-day-05-pocket-object', day: 5, title: '주머니 속 작은 물건', body: '오늘 몸 가까이에 두고 다닌 물건 하나의 이야기를 적어보세요.', defaultCategory: 'short', suggestedHashtags: ['물건', '오늘', '짧은글'] },
+  { key: 'cycle3-day-06-someones-season', day: 6, title: '그 사람을 닮은 계절', body: '한 사람을 계절에 빗대어 기억과 함께 묘사해보세요.', defaultCategory: 'poem', suggestedHashtags: ['사람', '계절', '기억'] },
+  { key: 'cycle3-day-07-weekly-breath', day: 7, title: '한 주의 숨 고르기', body: '이번 주에 애쓴 나에게 짧은 안부를 건네보세요.', defaultCategory: 'essay', suggestedHashtags: ['한주', '안부', '나에게'] },
+  { key: 'cycle3-day-08-empty-chair', day: 8, title: '비어 있는 의자', body: '빈자리를 바라보며 떠오른 사람이나 마음을 적어보세요.', defaultCategory: 'poem', suggestedHashtags: ['빈자리', '그리움', '시'] },
+  { key: 'cycle3-day-09-kept-promise', day: 9, title: '작게 지켜낸 약속', body: '아무도 몰라도 스스로 지켜낸 약속 하나를 기록해보세요.', defaultCategory: 'essay', suggestedHashtags: ['약속', '성장', '기록'] },
+  { key: 'cycle3-day-10-after-rain', day: 10, title: '비가 그친 뒤의 냄새', body: '비가 지나간 자리에서 달라진 공기와 마음을 묘사해보세요.', defaultCategory: 'poem', suggestedHashtags: ['비그친뒤', '공기', '감각'] },
+  { key: 'cycle3-day-11-old-note', day: 11, title: '예전에 적어둔 메모', body: '오래된 메모 한 줄을 지금의 시선으로 다시 이어 써보세요.', defaultCategory: 'essay', suggestedHashtags: ['메모', '다시쓰기', '시간'] },
+  { key: 'cycle3-day-12-kind-boundary', day: 12, title: '다정한 거절', body: '나를 지키면서도 상대를 해치지 않는 거절의 말을 적어보세요.', defaultCategory: 'short', suggestedHashtags: ['거절', '경계', '다정함'] },
+  { key: 'cycle3-day-13-different-route', day: 13, title: '평소와 다른 길', body: '익숙한 목적지까지 다른 길로 갔을 때 만난 것을 기록해보세요.', defaultCategory: 'essay', suggestedHashtags: ['다른길', '발견', '산책'] },
+  { key: 'cycle3-day-14-halfway-letter', day: 14, title: '보름째의 나에게', body: '여기까지 써온 나에게 고마운 점과 남은 기대를 편지로 적어보세요.', defaultCategory: 'essay', suggestedHashtags: ['보름', '편지', '글쓰기'] },
+  { key: 'cycle3-day-15-shadow-shape', day: 15, title: '그림자가 만든 모양', body: '빛과 그림자가 만든 장면 하나를 낯설게 바라보고 써보세요.', defaultCategory: 'poem', suggestedHashtags: ['그림자', '빛', '관찰'] },
+  { key: 'cycle3-day-16-small-courage', day: 16, title: '오늘의 작은 용기', body: '두려웠지만 한 걸음 내디딘 순간이 있다면 기록해보세요.', defaultCategory: 'essay', suggestedHashtags: ['용기', '한걸음', '오늘'] },
+  { key: 'cycle3-day-17-name-of-feeling', day: 17, title: '마음에 이름 붙이기', body: '설명하기 어려웠던 오늘의 감정에 나만의 이름을 붙여보세요.', defaultCategory: 'short', suggestedHashtags: ['감정', '이름', '마음'] },
+  { key: 'cycle3-day-18-library-memory', day: 18, title: '책에서 걸어 나온 기억', body: '한 문장이나 한 권의 책이 불러온 개인적인 기억을 적어보세요.', defaultCategory: 'essay', suggestedHashtags: ['책', '문장', '기억'] },
+  { key: 'cycle3-day-19-missed-view', day: 19, title: '지나치고 돌아본 풍경', body: '한 번 지나쳤다가 다시 보게 된 장면과 그 이유를 써보세요.', defaultCategory: 'poem', suggestedHashtags: ['풍경', '돌아봄', '시선'] },
+  { key: 'cycle3-day-20-no-rush', day: 20, title: '서두르지 않아도 되는 일', body: '조금 늦어도 괜찮다고 말해주고 싶은 일을 적어보세요.', defaultCategory: 'essay', suggestedHashtags: ['천천히', '괜찮아', '속도'] },
+  { key: 'cycle3-day-21-three-weeks', day: 21, title: '세 주 동안 달라진 것', body: '글을 이어오며 눈에 띄게 또는 조용히 달라진 점을 돌아보세요.', defaultCategory: 'essay', suggestedHashtags: ['세주', '변화', '회고'] },
+  { key: 'cycle3-day-22-warm-cup', day: 22, title: '두 손으로 감싼 온기', body: '따뜻한 컵이나 손길처럼 몸이 먼저 기억하는 위로를 적어보세요.', defaultCategory: 'poem', suggestedHashtags: ['온기', '위로', '감각'] },
+  { key: 'cycle3-day-23-unsolved-question', day: 23, title: '아직 답하지 못한 질문', body: '정답을 내리지 않고 오래 품어보고 싶은 질문 하나를 써보세요.', defaultCategory: 'essay', suggestedHashtags: ['질문', '생각', '여백'] },
+  { key: 'cycle3-day-24-favorite-word', day: 24, title: '요즘 좋아하는 단어', body: '자꾸 마음이 가는 단어 하나와 그 단어가 품은 장면을 적어보세요.', defaultCategory: 'short', suggestedHashtags: ['단어', '취향', '문장'] },
+  { key: 'cycle3-day-25-tomorrow-table', day: 25, title: '내일의 식탁', body: '내일 함께 밥을 먹고 싶은 사람과 나누고 싶은 이야기를 상상해보세요.', defaultCategory: 'essay', suggestedHashtags: ['식탁', '사람', '내일'] },
+  { key: 'cycle3-day-26-fading-light', day: 26, title: '저무는 빛을 보며', body: '하루가 끝나는 빛 속에서 놓아주고 싶은 마음을 적어보세요.', defaultCategory: 'poem', suggestedHashtags: ['저녁빛', '놓아주기', '시'] },
+  { key: 'cycle3-day-27-own-rhythm', day: 27, title: '나만의 리듬', body: '요즘 나를 움직이게 하는 반복과 쉼의 방식을 적어보세요.', defaultCategory: 'essay', suggestedHashtags: ['리듬', '반복', '쉼'] },
+  { key: 'cycle3-day-28-thank-you-today', day: 28, title: '오늘에게 고맙다고', body: '평범했던 오늘이 남겨준 작은 선물을 세어보세요.', defaultCategory: 'short', suggestedHashtags: ['오늘', '고마움', '기록'] },
+  { key: 'cycle3-day-29-next-page', day: 29, title: '다음 장에 쓰고 싶은 것', body: '이 한 달 뒤에도 계속 기록하고 싶은 마음이나 장면을 적어보세요.', defaultCategory: 'essay', suggestedHashtags: ['다음장', '계속쓰기', '마음'] },
+  { key: 'cycle3-day-30-forest-of-words', day: 30, title: '서른 문장이 만든 숲', body: '30일 동안 쌓인 글을 돌아보며 지금의 나를 대표하는 문장을 남겨보세요.', defaultCategory: 'essay', suggestedHashtags: ['완주', '문장의숲', '글숲프로젝트'] },
 ];
 
 const DAILY_WRITING_PROMPTS = [
@@ -512,6 +546,11 @@ const DAILY_WRITING_PROMPT_SETS = [
     startsLocalDate: NEXT_DAILY_WRITING_PROMPTS_START_LOCAL_DATE,
     prompts: NEXT_DAILY_WRITING_PROMPTS,
   },
+  {
+    key: 'cycle-2026-08',
+    startsLocalDate: THIRD_DAILY_WRITING_PROMPTS_START_LOCAL_DATE,
+    prompts: THIRD_DAILY_WRITING_PROMPTS,
+  },
 ];
 
 const WRITING_EVENT_DEFINITIONS = [
@@ -748,6 +787,8 @@ module.exports = {
   DAILY_WRITING_PROMPTS,
   NEXT_DAILY_WRITING_PROMPTS,
   NEXT_DAILY_WRITING_PROMPTS_START_LOCAL_DATE,
+  THIRD_DAILY_WRITING_PROMPTS,
+  THIRD_DAILY_WRITING_PROMPTS_START_LOCAL_DATE,
   WRITING_EVENT_DEFINITIONS,
   buildWritingEventContext,
   buildDailyWritingPromptWritePath,

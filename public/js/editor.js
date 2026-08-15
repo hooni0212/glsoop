@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const pageParams = new URLSearchParams(window.location.search);
   const postId = pageParams.get('postId');
-  const requestedDraftId = String(pageParams.get('draftId') || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+  const requestedDraftId = String(pageParams.get('draftId') || '').replace(/[^a-zA-Z0-9:_-]/g, '').slice(0, 120);
   const generatedDraftId =
     typeof window.crypto?.randomUUID === 'function'
       ? window.crypto.randomUUID()
@@ -1617,12 +1617,89 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
-  function clearEditorDraft() {
+  function clearEditorDraft({ syncRemote = true } = {}) {
     try {
       if (draftStorageKey) localStorage.removeItem(draftStorageKey);
       if (legacyDraftStorageKey) localStorage.removeItem(legacyDraftStorageKey);
     } catch (error) {
       // storage 접근 제한 환경은 무시
+    }
+    if (syncRemote) {
+      void deleteRemoteDraft();
+    }
+  }
+
+  async function deleteRemoteDraft() {
+    try {
+      await fetch(`/api/drafts/${encodeURIComponent(draftId)}`, {
+        method: 'DELETE',
+        cache: 'no-store',
+        keepalive: true,
+      });
+    } catch {
+      // 로컬 초안 삭제는 이미 끝났으므로 네트워크 오류는 다음 동기화까지 무시한다.
+    }
+  }
+
+  function normalizeRemoteDraftPayload(remoteDraft) {
+    const stored = remoteDraft?.state;
+    if (!stored || typeof stored !== 'object') return null;
+    if (stored.state && typeof stored.state === 'object') return stored;
+
+    const escapeText = (value) => String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>');
+    return {
+      version: 2,
+      draft_id: remoteDraft.draft_key,
+      auth_namespace: authNamespace,
+      mode: stored.mode === 'edit' ? 'edit' : 'create',
+      post_id: stored.postId || null,
+      saved_at: new Date(Number(remoteDraft.client_updated_at_ms) || Date.now()).toISOString(),
+      expires_at: remoteDraft.expires_at,
+      writing_event_context: stored.questContext || null,
+      state: {
+        title: stored.title || '',
+        content_html: escapeText(stored.body || ''),
+        category: stored.category || '',
+        font_key: stored.fontKey || 'serif',
+        hashtags: Array.isArray(stored.hashtags) ? stored.hashtags : [],
+        layout_json: stored.layoutJson || null,
+      },
+    };
+  }
+
+  async function readRemoteEditorDraftPayload() {
+    try {
+      const response = await fetch(`/api/drafts/${encodeURIComponent(draftId)}`, {
+        cache: 'no-store',
+      });
+      if (response.status === 404) return null;
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) return null;
+      return normalizeRemoteDraftPayload(payload.draft);
+    } catch {
+      return null;
+    }
+  }
+
+  async function saveRemoteDraft(payload) {
+    try {
+      await fetch(`/api/drafts/${encodeURIComponent(draftId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        keepalive: true,
+        body: JSON.stringify({
+          client_type: 'web',
+          client_updated_at_ms: Date.parse(payload.saved_at) || Date.now(),
+          state: payload,
+        }),
+      });
+    } catch {
+      // 네트워크가 끊겨도 로컬 초안을 유지한다.
     }
   }
 
@@ -1639,7 +1716,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!parsed || typeof parsed !== 'object') return null;
       if (!parsed.state || typeof parsed.state !== 'object') return null;
       if (parsed.expires_at && Date.parse(parsed.expires_at) <= Date.now()) {
-        clearEditorDraft();
+        clearEditorDraft({ syncRemote: false });
         return null;
       }
       if (migratedLegacy && draftStorageKey) {
@@ -1727,20 +1804,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      localStorage.setItem(
-        draftStorageKey,
-        JSON.stringify({
-          version: 2,
-          draft_id: draftId,
-          auth_namespace: authNamespace,
-          mode: isEditMode ? 'edit' : 'create',
-          post_id: postId ? Number(postId) || null : null,
-          saved_at: new Date().toISOString(),
-          expires_at: new Date(Date.now() + DRAFT_TTL_MS).toISOString(),
-          writing_event_context: writingEventContext,
-          state: snapshot,
-        })
-      );
+      const payload = {
+        version: 2,
+        draft_id: draftId,
+        auth_namespace: authNamespace,
+        mode: isEditMode ? 'edit' : 'create',
+        post_id: postId ? Number(postId) || null : null,
+        saved_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + DRAFT_TTL_MS).toISOString(),
+        writing_event_context: writingEventContext,
+        state: snapshot,
+      };
+      localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+      void saveRemoteDraft(payload);
       pruneEditorDraftStorage();
     } catch (error) {
       // storage 접근 제한 환경은 무시
@@ -1902,7 +1978,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   baselineStateSignature = buildEditorStateSignature(buildEditorStateSnapshot());
   hasUnsavedChanges = false;
 
-  const draftPayload = readEditorDraftPayload();
+  const localDraftPayload = readEditorDraftPayload();
+  const remoteDraftPayload = await readRemoteEditorDraftPayload();
+  const localSavedAt = Date.parse(localDraftPayload?.saved_at || '') || 0;
+  const remoteSavedAt = Date.parse(remoteDraftPayload?.saved_at || '') || 0;
+  const draftPayload = remoteSavedAt > localSavedAt ? remoteDraftPayload : localDraftPayload;
+  if (draftPayload && remoteSavedAt > localSavedAt && draftStorageKey) {
+    try {
+      localStorage.setItem(draftStorageKey, JSON.stringify(draftPayload));
+    } catch {
+      // 로컬 저장소 접근이 막혀도 서버 초안 복구는 계속 제공한다.
+    }
+  }
   if (draftPayload && isMeaningfulDraftState(draftPayload.state)) {
     const draftSignature = buildEditorStateSignature(draftPayload.state);
     if (draftSignature && draftSignature !== baselineStateSignature) {

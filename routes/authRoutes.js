@@ -621,9 +621,10 @@ async function commitPendingSignup(pending) {
         verification_token,
         verification_expires,
         marketing_email_opt_in,
-        marketing_opt_in_updated_at
+        marketing_opt_in_updated_at,
+        created_at
       )
-      VALUES (?, ?, ?, ?, 0, 1, NULL, NULL, ?, ?)
+      VALUES (?, ?, ?, ?, 0, 1, NULL, NULL, ?, ?, ?)
       `,
       [
         pending.name,
@@ -631,6 +632,7 @@ async function commitPendingSignup(pending) {
         pending.email,
         pending.pw_hash,
         marketingOptIn ? 1 : 0,
+        consentAt,
         consentAt,
       ]
     );

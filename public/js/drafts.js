@@ -22,7 +22,7 @@ const DraftManager = (() => {
         ? `user:${userId}`
         : `email:${String(me.email || 'session').trim().toLowerCase()}`;
       migrateLegacyDrafts();
-      drafts = readDrafts();
+      drafts = await readDraftsWithRemote();
       render();
     } catch (error) {
       renderError(error.message || '임시저장함을 불러오지 못했습니다.');
@@ -91,6 +91,82 @@ const DraftManager = (() => {
     return items.slice(0, MAX_DRAFTS);
   }
 
+  function normalizeRemotePayload(remoteDraft) {
+    const stored = remoteDraft?.state;
+    if (!stored || typeof stored !== 'object') return null;
+    if (stored.state && typeof stored.state === 'object') return stored;
+
+    const escapeText = (value) => String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>');
+    return {
+      version: 2,
+      draft_id: remoteDraft.draft_key,
+      auth_namespace: namespace,
+      mode: stored.mode === 'edit' ? 'edit' : 'create',
+      post_id: stored.postId || null,
+      saved_at: new Date(Number(remoteDraft.client_updated_at_ms) || Date.now()).toISOString(),
+      expires_at: remoteDraft.expires_at,
+      writing_event_context: stored.questContext || null,
+      state: {
+        title: stored.title || '',
+        content_html: escapeText(stored.body || ''),
+        category: stored.category || '',
+        font_key: stored.fontKey || 'serif',
+        hashtags: Array.isArray(stored.hashtags) ? stored.hashtags : [],
+        layout_json: stored.layoutJson || null,
+      },
+    };
+  }
+
+  async function readRemoteDrafts() {
+    try {
+      const response = await fetch('/api/drafts', { cache: 'no-store' });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok || !Array.isArray(payload.drafts)) return [];
+      return payload.drafts
+        .map((remoteDraft) => {
+          const normalized = normalizeRemotePayload(remoteDraft);
+          const savedAt = Date.parse(normalized?.saved_at || '') || 0;
+          if (!normalized || !savedAt || !isMeaningful(normalized.state)) return null;
+          return {
+            key: null,
+            remoteKey: remoteDraft.draft_key,
+            payload: normalized,
+            savedAt,
+          };
+        })
+        .filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  async function readDraftsWithRemote() {
+    const localDrafts = readDrafts();
+    const remoteDrafts = await readRemoteDrafts();
+    const merged = new Map();
+    [...localDrafts, ...remoteDrafts].forEach((item) => {
+      const id = String(item.payload?.draft_id || item.remoteKey || item.key || '');
+      const existing = merged.get(id);
+      if (!existing) {
+        merged.set(id, item);
+      } else if (item.savedAt > existing.savedAt) {
+        merged.set(id, {
+          ...item,
+          key: item.key || existing.key || null,
+          remoteKey: item.remoteKey || existing.remoteKey || null,
+        });
+      } else {
+        existing.key = existing.key || item.key || null;
+        existing.remoteKey = existing.remoteKey || item.remoteKey || null;
+      }
+    });
+    return [...merged.values()].sort((a, b) => b.savedAt - a.savedAt).slice(0, MAX_DRAFTS);
+  }
+
   function isMeaningful(state) {
     if (String(state?.title || '').trim()) return true;
     if (htmlToText(state?.content_html).trim()) return true;
@@ -130,7 +206,7 @@ const DraftManager = (() => {
     const modeLabel = payload.mode === 'edit' ? '수정 중인 글' : '새 글';
     const category = categoryLabel(snapshot.category);
     return `
-      <article class="draft-card CardSoft" data-draft-key="${escapeHtml(item.key)}">
+      <article class="draft-card CardSoft" data-draft-key="${escapeHtml(item.key || '')}" data-remote-key="${escapeHtml(item.remoteKey || payload.draft_id || '')}">
         <div class="draft-card__head">
           <div>
             <p>${escapeHtml(`${modeLabel}${category ? ` · ${category}` : ''}`)}</p>
@@ -169,20 +245,28 @@ const DraftManager = (() => {
     return `/write?${params.toString()}`;
   }
 
-  function onListClick(event) {
+  async function onListClick(event) {
     const button = event.target.closest('[data-delete-draft]');
     if (!button) return;
     const card = button.closest('[data-draft-key]');
     const key = card?.dataset.draftKey;
-    if (!key || !confirm('이 임시저장 글을 삭제할까요?')) return;
-    localStorage.removeItem(key);
-    drafts = drafts.filter((item) => item.key !== key);
+    const remoteKey = card?.dataset.remoteKey;
+    if ((!key && !remoteKey) || !confirm('이 임시저장 글을 삭제할까요?')) return;
+    if (key) localStorage.removeItem(key);
+    if (remoteKey) {
+      await fetch(`/api/drafts/${encodeURIComponent(remoteKey)}`, { method: 'DELETE' }).catch(() => null);
+    }
+    const targetId = remoteKey || card?.querySelector('a')?.href || key;
+    drafts = drafts.filter((item) => String(item.remoteKey || item.payload?.draft_id || item.key) !== String(targetId));
     render();
   }
 
-  function clearAll() {
+  async function clearAll() {
     if (!drafts.length || !confirm(`임시저장 글 ${drafts.length}개를 모두 삭제할까요?`)) return;
-    drafts.forEach((item) => localStorage.removeItem(item.key));
+    drafts.forEach((item) => {
+      if (item.key) localStorage.removeItem(item.key);
+    });
+    await fetch('/api/drafts', { method: 'DELETE' }).catch(() => null);
     drafts = [];
     render();
   }

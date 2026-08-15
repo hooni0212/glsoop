@@ -483,9 +483,12 @@ test.describe.serial('Safety API', () => {
     });
     expect(adminListResponse.status()).toBe(200);
     const adminListBody = await adminListResponse.json();
-    expect(adminListBody.reports.length).toBe(7);
-    expect(adminListBody.reports.filter((report) => report.source === 'report')).toHaveLength(6);
-    expect(adminListBody.reports.filter((report) => report.source === 'block')).toHaveLength(1);
+    const fixtureReports = adminListBody.reports.filter(
+      (report) => Number(report.target_post_id) === 9601
+    );
+    expect(fixtureReports).toHaveLength(7);
+    expect(fixtureReports.filter((report) => report.source === 'report')).toHaveLength(6);
+    expect(fixtureReports.filter((report) => report.source === 'block')).toHaveLength(1);
 
     const reportedPostsResponse = await request.get('/api/admin/safety/reported-posts?limit=10', {
       headers: adminHeaders,

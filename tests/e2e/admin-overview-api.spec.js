@@ -51,20 +51,22 @@ async function seedOverviewFixtures() {
   await dbRun(db, `DELETE FROM safety_reports WHERE detail = 'admin-overview-e2e'`);
   await dbRun(db, `DELETE FROM posts WHERE id IN (${postPlaceholders})`, POST_IDS);
   await dbRun(db, `DELETE FROM users WHERE id IN (${userPlaceholders})`, USER_IDS);
+  await dbRun(db, `DELETE FROM user_drafts WHERE user_id IN (${userPlaceholders})`, USER_IDS);
+  await dbRun(db, `DELETE FROM api_request_daily_metrics WHERE route_key = '/api/e2e-overview'`);
 
   const users = [
-    [ADMIN_ID, 'Overview Admin', 'overview_admin', 'overview-admin@glsoop.test', 1],
-    [ACTIVE_WRITER_ID, 'Overview Writer', 'overview_writer', 'overview-writer@glsoop.test', 0],
-    [D1_USER_ID, 'Overview D1', 'overview_d1', 'overview-d1@glsoop.test', 0],
-    [D7_USER_ID, 'Overview D7', 'overview_d7', 'overview-d7@glsoop.test', 0],
-    [REWRITE_USER_ID, 'Overview Rewrite', 'overview_rewrite', 'overview-rewrite@glsoop.test', 0],
+    [ADMIN_ID, 'Overview Admin', 'overview_admin', 'overview-admin@glsoop.test', 1, '-30 days'],
+    [ACTIVE_WRITER_ID, 'Overview Writer', 'overview_writer', 'overview-writer@glsoop.test', 0, '-3 days'],
+    [D1_USER_ID, 'Overview D1', 'overview_d1', 'overview-d1@glsoop.test', 0, '-4 days'],
+    [D7_USER_ID, 'Overview D7', 'overview_d7', 'overview-d7@glsoop.test', 0, '-12 days'],
+    [REWRITE_USER_ID, 'Overview Rewrite', 'overview_rewrite', 'overview-rewrite@glsoop.test', 0, '-12 days'],
   ];
-  for (const [id, name, nickname, email, isAdmin] of users) {
+  for (const [id, name, nickname, email, isAdmin, createdModifier] of users) {
     await dbRun(
       db,
-      `INSERT INTO users (id, name, nickname, email, pw, is_admin, is_verified)
-       VALUES (?, ?, ?, ?, ?, ?, 1)`,
-      [id, name, nickname, email, E2E_SESSION_PASSWORD_HASH, isAdmin]
+      `INSERT INTO users (id, name, nickname, email, pw, is_admin, is_verified, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now', ?))`,
+      [id, name, nickname, email, E2E_SESSION_PASSWORD_HASH, isAdmin, createdModifier]
     );
   }
 
@@ -89,7 +91,7 @@ async function seedOverviewFixtures() {
 
   const posts = [
     [98621, ACTIVE_WRITER_ID, 'Earlier overview post', '-12 days'],
-    [98622, ACTIVE_WRITER_ID, 'Current overview post one', '-3 days'],
+    [98622, ACTIVE_WRITER_ID, 'Current overview post one', '-60 hours'],
     [98623, ACTIVE_WRITER_ID, 'Current overview post two', '-2 days'],
     [98651, REWRITE_USER_ID, 'First rewrite overview post', '-10 days'],
     [98652, REWRITE_USER_ID, 'Second rewrite overview post', '-8 days'],
@@ -111,6 +113,38 @@ async function seedOverviewFixtures() {
     [D1_USER_ID, ACTIVE_WRITER_ID]
   );
 
+  await dbRun(
+    db,
+    `INSERT INTO user_drafts
+       (user_id, draft_key, client_type, state_json, client_updated_at_ms, expires_at)
+     VALUES (?, 'overview-draft', 'web', '{"title":"draft"}', ?, datetime('now', '+30 days'))`,
+    [ACTIVE_WRITER_ID, Date.now()]
+  );
+  await dbRun(
+    db,
+    `INSERT INTO api_request_daily_metrics
+       (day_key, route_key, method, status_class, request_count, duration_total_ms, duration_max_ms)
+     VALUES (date('now', '+9 hours'), '/api/e2e-overview', 'GET', 5, 2, 900, 600)`
+  );
+
+  await dbRun(db, 'PRAGMA foreign_keys = ON');
+  await new Promise((resolve) => db.close(resolve));
+}
+
+async function cleanupOverviewFixtures() {
+  if (!fs.existsSync(DB_PATH)) return;
+  const db = new sqlite3.Database(DB_PATH);
+  await dbRun(db, 'PRAGMA foreign_keys = OFF');
+  const userPlaceholders = USER_IDS.map(() => '?').join(', ');
+  const postPlaceholders = POST_IDS.map(() => '?').join(', ');
+  await dbRun(db, `DELETE FROM ux_events WHERE user_id IN (${userPlaceholders})`, USER_IDS);
+  await dbRun(db, `DELETE FROM auth_sessions WHERE user_id IN (${userPlaceholders})`, USER_IDS);
+  await dbRun(db, `DELETE FROM auth_login_state WHERE user_id IN (${userPlaceholders})`, USER_IDS);
+  await dbRun(db, `DELETE FROM safety_reports WHERE detail = 'admin-overview-e2e'`);
+  await dbRun(db, `DELETE FROM user_drafts WHERE user_id IN (${userPlaceholders})`, USER_IDS);
+  await dbRun(db, `DELETE FROM posts WHERE id IN (${postPlaceholders})`, POST_IDS);
+  await dbRun(db, `DELETE FROM users WHERE id IN (${userPlaceholders})`, USER_IDS);
+  await dbRun(db, `DELETE FROM api_request_daily_metrics WHERE route_key = '/api/e2e-overview'`);
   await dbRun(db, 'PRAGMA foreign_keys = ON');
   await new Promise((resolve) => db.close(resolve));
 }
@@ -125,6 +159,10 @@ test.describe('Admin operations overview API', () => {
 
   test.beforeAll(async () => {
     await seedOverviewFixtures();
+  });
+
+  test.afterAll(async () => {
+    await cleanupOverviewFixtures();
   });
 
   test('returns comparable activity, activation, retention, and operations metrics', async ({ request }) => {
@@ -150,6 +188,9 @@ test.describe('Admin operations overview API', () => {
     expect(payload.retention.rewrite_7d.rewritten_count).toBeGreaterThanOrEqual(1);
     expect(payload.operations.safety.open_count).toBeGreaterThanOrEqual(1);
     expect(payload.operations.safety.overdue_24h_count).toBeGreaterThanOrEqual(1);
+    expect(payload.operations.api.server_error_count).toBeGreaterThanOrEqual(2);
+    expect(payload.operations.api.average_duration_ms).toBeGreaterThan(0);
+    expect(payload.writing.active_drafts_now).toBeGreaterThanOrEqual(1);
     expect(payload.definitions.active_user).toContain('관리자 계정을 제외');
   });
 

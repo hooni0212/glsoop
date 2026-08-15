@@ -182,7 +182,7 @@ body.page-admin .admin-share-summary-grid {
 
 body.page-admin .admin-share-table-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -382,6 +382,10 @@ body.page-admin .admin-overview-operations-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+body.page-admin .admin-overview-operations-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 body.page-admin .admin-overview-retention-card {
