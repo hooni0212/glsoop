@@ -4,7 +4,7 @@
 - 적용 범위: `glsoop/docs/참고/API-레퍼런스.md`
 - 대상 독자: 서버/웹/모바일 개발자, QA
 - 상태: `Draft`
-- 최종 업데이트: `2026-05-09`
+- 최종 업데이트: `2026-08-16`
 - Owner: `taehun`
 - 관련 문서:
   - `docs/서버/API/인증-계정.md`
@@ -69,6 +69,11 @@
 - `GET /api/cosmetics/me`
 - `PUT /api/me/profile-cosmetics`
 - `GET /api/admin/overview?days=7|30`
+- `GET /api/drafts`
+- `GET /api/drafts/:draftKey`
+- `PUT /api/drafts/:draftKey`
+- `DELETE /api/drafts/:draftKey`
+- `DELETE /api/drafts`
 - `POST /api/admin/quests/auto-claim-expired-rewards`
 
 ## 관리자 운영 요약 API 계약 (2026-08-14)
@@ -76,11 +81,26 @@
 - `GET /api/admin/overview?days=7|30`
   - 관리자 권한 필수. `days` 기본값은 `7`이며 `7`, `30`만 지원한다.
   - 기준 시간대는 `Asia/Seoul`이다. 오늘을 포함한 현재 기간과 직전 동일 기간을 비교한다.
-  - `headline`: 활성 사용자, 인증 완료, 글·작성자·반복 작성자, 콘텐츠 반응, 24시간 내 첫 글 전환율.
-  - `activation`, `retention`, `writing`: 인증 코호트 기반 D1/D7 재방문과 첫 글 후 7일 내 재작성 지표.
-  - `operations`: 열린/24시간 초과 신고, 푸시 실패율·대기 건수, 웹 편집기 글 발행 오류율.
+  - `headline`: 활성 사용자, 가입 완료, 글·작성자·반복 작성자, 콘텐츠 반응, 24시간 내 첫 글 전환율.
+  - `activation`, `retention`, `writing`: 가입 시각 기반 D1/D7 재방문, 첫 글 후 7일 내 재작성, 현재 서버 초안 지표. 신규 계정은 실제 가입 완료 시각을 저장하고 기존 계정은 가입 동의·활동·글 중 가장 이른 기록으로 보정한다.
+  - `operations`: 열린/24시간 초과 신고, 푸시 실패율·대기 건수, 웹 편집기 글 발행 오류율, API 5xx 오류율과 평균·최장 응답시간.
   - `daily`: KST 날짜별 활성 사용자와 작성 글 추이.
   - 관리자 계정은 사용자·글쓰기 지표에서 제외한다. 코호트 지표는 관찰 기간이 끝난 사용자만 계산한다.
+
+## 사용자 초안 API 계약 (2026-08-16)
+
+- 모든 초안 API는 로그인 필수이며 현재 사용자 소유 데이터만 조회·변경한다.
+- `GET /api/drafts`
+  - 만료되지 않은 최근 초안을 `client_updated_at_ms` 내림차순으로 최대 30개 반환한다.
+- `GET /api/drafts/:draftKey`
+  - 단일 초안을 반환하며 없으면 `404 DRAFT_NOT_FOUND`다.
+- `PUT /api/drafts/:draftKey`
+  - 요청: `{ client_type: "web"|"native", client_updated_at_ms: number, state: object }`.
+  - `state`는 최대 64 KiB다. 같은 키의 오래된 저장 요청은 최신 내용을 덮어쓰지 않는다.
+  - 저장·갱신 시 만료 시각은 30일 뒤로 연장된다.
+- `DELETE /api/drafts/:draftKey`, `DELETE /api/drafts`
+  - 각각 단일 초안과 현재 사용자의 모든 초안을 삭제한다.
+- 웹과 모바일은 서버 동기화 실패 시에도 기존 기기 저장소를 유지하고, 다음 목록 조회나 저장 시 다시 동기화한다.
 
 ## 성장/보상/프로필 코스메틱 API 계약 (2026-05-09)
 

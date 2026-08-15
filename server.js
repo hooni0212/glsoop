@@ -18,6 +18,7 @@ const { reconcileMonetizationState } = require('./utils/monetizationState');
 const { cleanupExpiredSessions } = require('./utils/authSession');
 const { startPushDispatcher } = require('./services/pushDispatcher');
 const { startMarketingPushReminderScheduler } = require('./services/marketingPushReminder');
+const { apiRequestMetricsMiddleware } = require('./utils/apiRequestMetrics');
 const {
   startWritingProjectPushReminderScheduler,
 } = require('./services/writingProjectPushReminder');
@@ -46,6 +47,7 @@ const monetizationRoutes = require('./routes/monetizationRoutes');
 const monetizationWebhookRoutes = require('./routes/monetizationWebhookRoutes');
 const photoSaveRoutes = require('./routes/photoSaveRoutes');
 const profilePhotoRoutes = require('./routes/profilePhotoRoutes');
+const draftRoutes = require('./routes/draftRoutes');
 const instagramStagingRoutes = require('./routes/instagramStagingRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const adminPageRoutes = require('./routes/adminPageRoutes');
@@ -146,6 +148,7 @@ app.use('/api', (req, res, next) => {
   res.set('Expires', '0');
   next();
 });
+app.use('/api', apiRequestMetricsMiddleware);
 
 // 관리자 페이지 HTML 차단/보호 라우트 (정적 파일보다 먼저!)
 app.use(adminPageRoutes);
@@ -185,6 +188,7 @@ app.use('/api', monetizationRoutes);
 app.use('/api', monetizationWebhookRoutes);
 app.use('/api', photoSaveRoutes);
 app.use('/api', profilePhotoRoutes);
+app.use('/api', draftRoutes);
 app.use('/api/admin', adminRoutes);
 
 // 4. 루트 페이지

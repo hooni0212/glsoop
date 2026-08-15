@@ -89,6 +89,11 @@ async function seedReminderFixtures(users) {
     await dbRun(db, 'PRAGMA foreign_keys = OFF');
     await dbRun(
       db,
+      `UPDATE users SET marketing_push_opt_in = 0 WHERE id NOT IN (${placeholders})`,
+      userIds
+    );
+    await dbRun(
+      db,
       `DELETE FROM push_delivery_queue
        WHERE recipient_user_id IN (${placeholders})
           OR activity_event_id IN (

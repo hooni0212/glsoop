@@ -104,12 +104,11 @@ async function fetchActiveUsers(start, end) {
 
 async function fetchVerificationCount(start, end) {
   const row = await getAsync(
-    `SELECT COUNT(DISTINCT ue.user_id) AS cnt
-     FROM ux_events ue
-     JOIN users u ON u.id = ue.user_id
-     WHERE ue.event_name = 'verify_email_success'
-       AND ue.created_at >= ?
-       AND ue.created_at < ?
+    `SELECT COUNT(*) AS cnt
+     FROM users u
+     WHERE u.is_verified = 1
+       AND u.created_at >= ?
+       AND u.created_at < ?
        AND COALESCE(u.is_admin, 0) = 0`,
     [start, end]
   );
@@ -205,29 +204,26 @@ async function fetchEngagementMetrics(start, end) {
 
 async function fetchActivationCohort(start, end) {
   const row = await getAsync(
-    `WITH verified AS (
-       SELECT ue.user_id, MIN(ue.created_at) AS verified_at
-       FROM ux_events ue
-       JOIN users u ON u.id = ue.user_id
-       WHERE ue.event_name = 'verify_email_success'
-         AND ue.created_at >= ?
-         AND ue.created_at < ?
+    `WITH signed_up AS (
+       SELECT u.id AS user_id, u.created_at AS signed_up_at
+       FROM users u
+       WHERE u.is_verified = 1
+         AND u.created_at >= ?
+         AND u.created_at < ?
          AND COALESCE(u.is_admin, 0) = 0
-       GROUP BY ue.user_id
      )
      SELECT
        COUNT(*) AS cohort_count,
        SUM(
          CASE WHEN EXISTS (
            SELECT 1
-           FROM ux_events first_post
-           WHERE first_post.user_id = verified.user_id
-             AND first_post.event_name = 'first_post_created_24h'
-             AND first_post.created_at >= verified.verified_at
-             AND first_post.created_at <= datetime(verified.verified_at, '+24 hours')
+           FROM posts first_post
+           WHERE first_post.user_id = signed_up.user_id
+             AND first_post.created_at >= signed_up.signed_up_at
+             AND first_post.created_at <= datetime(signed_up.signed_up_at, '+24 hours')
          ) THEN 1 ELSE 0 END
        ) AS activated_count
-     FROM verified`,
+     FROM signed_up`,
     [start, end]
   );
   const cohortCount = number(row?.cohort_count);
@@ -243,15 +239,13 @@ async function fetchUxRetentionCohort(start, end, dayOffset) {
   const offsetStart = `+${dayOffset} days`;
   const offsetEnd = `+${dayOffset + 1} days`;
   const row = await getAsync(
-    `WITH verified AS (
-       SELECT ue.user_id, MIN(ue.created_at) AS verified_at
-       FROM ux_events ue
-       JOIN users u ON u.id = ue.user_id
-       WHERE ue.event_name = 'verify_email_success'
-         AND ue.created_at >= ?
-         AND ue.created_at < ?
+    `WITH signed_up AS (
+       SELECT u.id AS user_id, u.created_at AS signed_up_at
+       FROM users u
+       WHERE u.is_verified = 1
+         AND u.created_at >= ?
+         AND u.created_at < ?
          AND COALESCE(u.is_admin, 0) = 0
-       GROUP BY ue.user_id
      )
      SELECT
        COUNT(*) AS cohort_count,
@@ -259,12 +253,12 @@ async function fetchUxRetentionCohort(start, end, dayOffset) {
          CASE WHEN EXISTS (
            SELECT 1
            FROM ux_events returned
-           WHERE returned.user_id = verified.user_id
-             AND returned.created_at >= datetime(verified.verified_at, ?)
-             AND returned.created_at < datetime(verified.verified_at, ?)
+           WHERE returned.user_id = signed_up.user_id
+             AND returned.created_at >= datetime(signed_up.signed_up_at, ?)
+             AND returned.created_at < datetime(signed_up.signed_up_at, ?)
          ) THEN 1 ELSE 0 END
        ) AS returned_count
-     FROM verified`,
+     FROM signed_up`,
     [start, end, offsetStart, offsetEnd]
   );
   const cohortCount = number(row?.cohort_count);
@@ -314,7 +308,7 @@ async function fetchRewriteCohort(start, end) {
 }
 
 async function fetchOperations(start, end) {
-  const [safety, push, publishing] = await Promise.all([
+  const [safety, push, publishing, api] = await Promise.all([
     getAsync(
       `SELECT
          SUM(CASE WHEN status IN ('queued', 'reviewing') THEN 1 ELSE 0 END) AS open_count,
@@ -343,6 +337,18 @@ async function fetchOperations(start, end) {
        WHERE created_at >= ? AND created_at < ?`,
       [start, end]
     ),
+    getAsync(
+      `SELECT
+         COALESCE(SUM(request_count), 0) AS request_count,
+         COALESCE(SUM(CASE WHEN status_class = 4 THEN request_count ELSE 0 END), 0) AS client_error_count,
+         COALESCE(SUM(CASE WHEN status_class = 5 THEN request_count ELSE 0 END), 0) AS server_error_count,
+         COALESCE(SUM(duration_total_ms), 0) AS duration_total_ms,
+         COALESCE(MAX(duration_max_ms), 0) AS duration_max_ms
+       FROM api_request_daily_metrics
+       WHERE day_key >= date(?, '+9 hours')
+         AND day_key < date(?, '+9 hours')`,
+      [start, end]
+    ),
   ]);
 
   const pushTotal = number(push?.period_total);
@@ -354,6 +360,8 @@ async function fetchOperations(start, end) {
   const oldestOpenHours = oldestOpenDate
     ? Math.max(0, Math.floor((Date.now() - oldestOpenDate.getTime()) / (60 * 60 * 1000)))
     : 0;
+  const apiRequestCount = number(api?.request_count);
+  const apiServerErrorCount = number(api?.server_error_count);
 
   return {
     safety: {
@@ -374,6 +382,32 @@ async function fetchOperations(start, end) {
       error_rate:
         publishSubmit > 0 ? Number(((publishError * 100) / publishSubmit).toFixed(1)) : 0,
     },
+    api: {
+      request_count: apiRequestCount,
+      client_error_count: number(api?.client_error_count),
+      server_error_count: apiServerErrorCount,
+      server_error_rate:
+        apiRequestCount > 0
+          ? Number(((apiServerErrorCount * 100) / apiRequestCount).toFixed(2))
+          : 0,
+      average_duration_ms:
+        apiRequestCount > 0
+          ? Math.round(number(api?.duration_total_ms) / apiRequestCount)
+          : 0,
+      max_duration_ms: number(api?.duration_max_ms),
+    },
+  };
+}
+
+async function fetchDraftStats() {
+  const row = await getAsync(
+    `SELECT COUNT(*) AS draft_count, COUNT(DISTINCT user_id) AS writer_count
+     FROM user_drafts
+     WHERE expires_at > CURRENT_TIMESTAMP`
+  );
+  return {
+    draft_count: number(row?.draft_count),
+    writer_count: number(row?.writer_count),
   };
 }
 
@@ -457,6 +491,7 @@ async function fetchAdminOverview({ days: rawDays, now = new Date() } = {}) {
     currentOperations,
     previousOperations,
     daily,
+    draftStats,
   ] = await Promise.all([
     fetchActiveUsers(period.current_start, period.current_end),
     fetchActiveUsers(period.previous_start, period.previous_end),
@@ -474,6 +509,7 @@ async function fetchAdminOverview({ days: rawDays, now = new Date() } = {}) {
     fetchOperations(period.current_start, period.current_end),
     fetchOperations(period.previous_start, period.previous_end),
     fetchDailyTrend(period),
+    fetchDraftStats(),
   ]);
 
   return {
@@ -521,6 +557,8 @@ async function fetchAdminOverview({ days: rawDays, now = new Date() } = {}) {
           ? Number(((currentPosts.returning_writer_count * 100) / currentPosts.writer_count).toFixed(1))
           : 0,
       repeat_writers: currentPosts.repeat_writer_count,
+      active_drafts_now: draftStats.draft_count,
+      draft_writers_now: draftStats.writer_count,
     },
     activation: {
       verified_users: currentActivation.cohort_count,
@@ -546,16 +584,27 @@ async function fetchAdminOverview({ days: rawDays, now = new Date() } = {}) {
           (currentOperations.publishing.error_rate - previousOperations.publishing.error_rate).toFixed(1)
         ),
       },
+      api: {
+        ...currentOperations.api,
+        server_error_rate_change_percentage_points: Number(
+          (
+            currentOperations.api.server_error_rate -
+            previousOperations.api.server_error_rate
+          ).toFixed(2)
+        ),
+      },
     },
     daily,
     definitions: {
       active_user: '관리자 계정을 제외하고 기간 내 UX 이벤트를 1회 이상 남긴 로그인 사용자',
+      signup_time: '신규 계정은 실제 가입 완료 시각, 기존 계정은 가입 동의·활동·글 중 가장 이른 기록으로 보정',
       repeat_writer: '기간 내 글을 2개 이상 작성한 사용자',
-      activation_24h: '이메일 인증 후 24시간 관찰이 끝난 사용자 중 첫 글을 작성한 비율',
-      d1_retention: '이메일 인증 24~48시간 후 UX 이벤트를 남긴 사용자 비율',
-      d7_retention: '이메일 인증 7~8일 후 UX 이벤트를 남긴 사용자 비율',
+      activation_24h: '가입 완료 후 24시간 관찰이 끝난 사용자 중 실제 첫 글을 작성한 비율',
+      d1_retention: '가입 완료 24~48시간 후 UX 이벤트를 남긴 사용자 비율',
+      d7_retention: '가입 완료 7~8일 후 UX 이벤트를 남긴 사용자 비율',
       rewrite_7d: '첫 글 작성 후 7일 안에 두 번째 글을 작성한 사용자 비율',
       publishing_error: '웹 편집기의 글 발행 시도 대비 오류 이벤트 비율',
+      api_error: '전체 API 응답 중 서버 오류(5xx) 비율과 평균·최장 응답시간',
     },
   };
 }

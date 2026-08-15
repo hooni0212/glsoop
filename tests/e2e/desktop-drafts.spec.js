@@ -36,6 +36,7 @@ test.describe('Desktop draft manager', () => {
     await waitForFile(DB_PATH, 20000);
     const db = new sqlite3.Database(DB_PATH);
     await dbRun(db, 'PRAGMA foreign_keys = OFF');
+    await dbRun(db, 'DELETE FROM user_drafts WHERE user_id = ?', [USER_ID]);
     await dbRun(db, 'DELETE FROM auth_sessions WHERE user_id = ?', [USER_ID]);
     await dbRun(db, 'DELETE FROM auth_login_state WHERE user_id = ?', [USER_ID]);
     await dbRun(
@@ -48,6 +49,18 @@ test.describe('Desktop draft manager', () => {
     await new Promise((resolve) => db.close(resolve));
     await loginWithSession(page, USER_EMAIL, { ip: '198.51.100.201' });
     page.on('dialog', (dialog) => dialog.accept());
+  });
+
+  test.afterAll(async () => {
+    if (!fs.existsSync(DB_PATH)) return;
+    const db = new sqlite3.Database(DB_PATH);
+    await dbRun(db, 'PRAGMA foreign_keys = OFF');
+    await dbRun(db, 'DELETE FROM user_drafts WHERE user_id = ?', [USER_ID]);
+    await dbRun(db, 'DELETE FROM auth_sessions WHERE user_id = ?', [USER_ID]);
+    await dbRun(db, 'DELETE FROM auth_login_state WHERE user_id = ?', [USER_ID]);
+    await dbRun(db, 'DELETE FROM users WHERE id = ?', [USER_ID]);
+    await dbRun(db, 'PRAGMA foreign_keys = ON');
+    await new Promise((resolve) => db.close(resolve));
   });
 
   test('keeps multiple drafts across reconnection and lets the user delete one', async ({
