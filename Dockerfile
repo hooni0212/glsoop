@@ -1,10 +1,14 @@
-FROM node:22-bookworm-slim AS dependencies
+# sqlite3 6's Linux prebuilt binary requires a newer glibc than Bookworm provides.
+# Keep both stages on the same distribution and load native modules during build.
+FROM node:22-trixie-slim AS dependencies
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev \
+    && node -e "require('sqlite3'); require('sharp')" \
+    && npm cache clean --force
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:22-trixie-slim AS runtime
 
 ENV NODE_ENV=production \
     PORT=3000 \
