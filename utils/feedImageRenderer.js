@@ -6,7 +6,7 @@ const { pathToFileURL } = require('node:url');
 const sanitizeHtml = require('sanitize-html');
 const sharp = require('sharp');
 
-const RENDER_VERSION = 'feed-image-poc-v31';
+const RENDER_VERSION = 'feed-image-poc-v32-fontconfig';
 const CACHE_DIR = path.join(__dirname, '..', 'tmp', 'feed-image-cache');
 const FEED_IMAGE_PAGE_CAP = 24;
 const IMAGE_FORMAT_CONFIG = {
