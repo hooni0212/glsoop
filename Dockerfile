@@ -27,8 +27,8 @@ RUN mkdir -p /usr/local/share/fonts/glsoop \
     && cp /app/public/fonts/glsoop-preview/*.ttf /usr/local/share/fonts/glsoop/ \
     && fc-cache -f \
     && test -n "$(fc-list :lang=ko file)" \
-    && mkdir -p /app/data/live /app/public/uploads \
-    && chown -R node:node /app/data /app/public/uploads
+    && mkdir -p /app/data/live /app/public/uploads /app/tmp \
+    && chown -R node:node /app/data /app/public/uploads /app/tmp
 
 USER node
 EXPOSE 3000
